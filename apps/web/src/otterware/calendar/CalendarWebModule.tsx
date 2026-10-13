@@ -3,12 +3,15 @@ import type { ModulePageProps } from "@otterware/module-kit/web";
 import { lazy } from "react";
 import { useLocation } from "@tanstack/react-router";
 import { ModulePageLayout } from "../ModulePageLayout";
-import { CalendarEnvironmentProvider } from "./rpc";
 
 export const CalendarWebModule = {
   ...moduleDefinition,
+  backgroundRuntime: lazy(() => import("./CalendarBackgroundRuntime")),
   page: lazy(async () => {
-    const { CalendarPage } = await import("@otterware/composition/web/calendar/page");
+    const [{ CalendarPage }, { CalendarEnvironmentProvider }] = await Promise.all([
+      import("@otterware/composition/web/calendar/page"),
+      import("./rpc"),
+    ]);
     return {
       default: function CalendarHostPage(props: ModulePageProps) {
         const search = useLocation({ select: (location) => location.searchStr });
@@ -25,7 +28,10 @@ export const CalendarWebModule = {
   settings: {
     ...moduleDefinition.settings,
     component: lazy(async () => {
-      const { CalendarSettings } = await import("@otterware/composition/web/calendar/settings");
+      const [{ CalendarSettings }, { CalendarEnvironmentProvider }] = await Promise.all([
+        import("@otterware/composition/web/calendar/settings"),
+        import("./rpc"),
+      ]);
       return {
         default: function CalendarHostSettings() {
           return (

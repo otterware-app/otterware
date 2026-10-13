@@ -39,6 +39,8 @@ export interface WebModule {
   readonly rail: { readonly position: RailPosition; readonly order: number };
   /** Loaded when the page is first shown; stays mounted afterwards. */
   readonly page: LazyExoticComponent<ComponentType<ModulePageProps>>;
+  /** Runs independently of page visits while this module is on in the primary environment. */
+  readonly backgroundRuntime?: LazyExoticComponent<ComponentType>;
   readonly settings: WebModuleSettingsSection | null;
   readonly commands: ReadonlyArray<WebModuleCommand>;
   readonly searchTerms: ReadonlyArray<string>;

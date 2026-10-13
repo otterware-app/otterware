@@ -15,6 +15,7 @@ import { useLocation } from "@tanstack/react-router";
 import { Activity, Suspense, useState, type ReactNode } from "react";
 
 import { moduleRegistry } from "./registry";
+import { ModuleBackgroundRuntimes } from "./ModuleBackgroundRuntimes";
 
 function ModulePageFrame({
   module,
@@ -51,6 +52,7 @@ export function ModulePagesHost({ children }: { readonly children: ReactNode }) 
   }
   return (
     <>
+      <ModuleBackgroundRuntimes />
       {children}
       {Object.entries(subpaths).map(([id, subpath]) => {
         const module = moduleRegistry.byId(id);

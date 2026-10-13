@@ -15,7 +15,6 @@ import {
   CalendarClientProvider,
   type CalendarWebClient,
 } from "@otterware/composition/web/calendar/host";
-import { CalendarNotifications } from "@otterware/composition/web/calendar/notifications";
 import { useAtomValue } from "@effect/atom-react";
 import { EnvironmentRegistry, EnvironmentSupervisor } from "@t3tools/client-runtime/connection";
 import { request } from "@t3tools/client-runtime/rpc";
@@ -108,7 +107,7 @@ function makeClient(environmentId: EnvironmentId | null): CalendarWebClient {
           const registry = yield* EnvironmentRegistry.EnvironmentRegistry.pipe(
             Effect.provide(context),
           );
-          yield* registry.runStream(environmentId, calendarNotificationsStream).pipe(
+          yield* registry.followStream(environmentId, calendarNotificationsStream).pipe(
             Stream.runForEach((notification) => Effect.sync(() => onNotification(notification))),
             Effect.provide(context),
           );
@@ -202,7 +201,7 @@ export function CalendarEnvironmentProvider({ children }: { children: ReactNode 
   const client = useMemo(() => makeClient(environmentId), [environmentId]);
   return (
     <CalendarClientProvider client={client} key={environmentId ?? "disconnected"}>
-      <CalendarNotifications>{children}</CalendarNotifications>
+      {children}
     </CalendarClientProvider>
   );
 }
