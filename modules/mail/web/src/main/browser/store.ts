@@ -98,6 +98,16 @@ useBrowser.subscribe((state, prev) => {
 });
 
 const { getState: get, setState: set } = useBrowser;
+mailBridge.on("host:changed", () =>
+  set({
+    ...savedTabs(),
+    revealed: 0,
+    addressFocus: null,
+    openLinksIn: mailStorage.getItem(LINKS_KEY) === "browser" ? "browser" : "app",
+    pinned: savedPinned(),
+    extensionsButton: mailStorage.getItem(EXTENSIONS_BUTTON_KEY) !== "0",
+  }),
+);
 
 /** A tab's address as the strip and the address bar name it: the host. */
 export function hostOf(url: string): string {

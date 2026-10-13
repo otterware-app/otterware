@@ -1,3 +1,4 @@
+import { MailBrowserPanel } from "./browser/browser-panel";
 import { Outlet } from "@tanstack/react-router";
 import * as React from "react";
 import { startSyncedPreferences } from "./synced-preferences";
@@ -26,6 +27,7 @@ export function RootView({ children }: { children?: React.ReactNode } = {}) {
     <div className="h-full relative">
       {children ?? <Outlet />}
       <ThemeEditorHost />
+      <MailBrowserPanel />
     </div>
   );
 }

@@ -208,7 +208,7 @@ export function ExtensionsSection() {
                       <Btn
                         size="sm"
                         className={PILL}
-                        onClick={() => openTab(extension.optionsUrl!)}
+                        onClick={() => void ipc("browser:openOptions", { id: extension.id })}
                       >
                         Extension options
                       </Btn>
