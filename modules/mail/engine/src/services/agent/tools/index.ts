@@ -18,7 +18,7 @@ import type { AgentTool, ToolArgs, ToolCaller } from "./tool.js";
 
 export type { AgentTool, ToolCaller, ToolFiles } from "./tool.js";
 
-const TOOLS: AgentTool[] = [
+export const mailToolImplementations: AgentTool[] = [
   ...mailTools,
   ...calendarTools,
   ...themeTools,
@@ -31,13 +31,13 @@ export const OTTER_TOOLS_SERVER = "otter-mail";
 
 /** A tool's title ("Search mail"), for the chat's step rows. */
 export function toolTitle(name: string): string | undefined {
-  return TOOLS.find((t) => t.name === name)?.title;
+  return mailToolImplementations.find((t) => t.name === name)?.title;
 }
 
 /** The tools a caller can use: attachments need files on the device, and its access may leave out changes. */
 export function agentTools(caller: ToolCaller): AgentTool[] {
   const access = caller.access?.() ?? "full-access";
-  return TOOLS.filter(
+  return mailToolImplementations.filter(
     (t) =>
       (!t.needsFiles || caller.files) &&
       (t.readOnly || access === "full-access" || (access === "safe" && !t.permanent)),
