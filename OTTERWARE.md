@@ -2,11 +2,12 @@
 
 This repository (`otterware-app/otterware`) builds every Otterware app from one codebase: Otter
 Code, Otter Mail, Calendar, Drive, and the combined Otterware app. It is the T3 Code fork that
-used to live in `otterware-app/otter-code`; [fork operations](docs/operations/otter-fork.md) describes upstream sync, branding,
-and legacy releases. Ordinary tasks read this file and [AGENTS.md](AGENTS.md).
+used to live in `otterware-app/otter-code`; [OTTER.md](OTTER.md) still describes how it stays in
+sync with upstream and applies here with `otterware-app/otterware` as `origin`.
 
 Decisions and their reasons are in [docs/adr](docs/adr) (vocabulary: [CONTEXT.md](docs/adr/CONTEXT.md)).
-Read the ADR for the area you touch before changing it; do not reopen a decision in code.
+Read the ADR for the area you touch before changing it; do not reopen a decision in code. How a
+module plugs in, and the seams it may use, are in [docs/internals/modules.md](docs/internals/modules.md).
 
 ## Layout
 
@@ -17,7 +18,8 @@ packages/module-kit                registries modules plug into
 modules/<m>/contracts              Effect Schema RPC group, tool definitions, settings schema
 modules/<m>/engine                 sync, storage, tools; portable: no Node or Electron imports
 modules/<m>/node                   environment-only adapters
-modules/<m>/web                    React routes, rail entry, settings sections
+modules/<m>/web                    React routes, rail entry, settings sections (today: apps/web/src/otterware/<m>)
+packages/composition               the only importer of modules; merges them for the active profile
 profiles/<profile>.ts              modules, brand, app ID, data home, update feed
 infra/relay                        upstream Code relay (T3 Connect)
 infra/cloud                        Otter Cloud: Accounts, Drive API, Mail relay, provider connections
@@ -54,6 +56,6 @@ This machine has 15 GB of RAM and several agents at once.
 - Never start a server against `~/.otter-code` or `~/.otterware`. Use a disposable `--home-dir`.
 - Finish with a PR to `main`: conventional title, the problem and fix in the body, and the model
   and harness at the end. Enable auto-merge with `gh pr merge --auto --squash` and end your turn;
-  do not watch CI inside the task unless measuring it is an explicit deliverable.
+  do not watch CI inside the task.
 - Publishing and deploy workflows inherited from Otter Code are disabled in this repository
   until the release workstream replaces them. Do not re-enable them.

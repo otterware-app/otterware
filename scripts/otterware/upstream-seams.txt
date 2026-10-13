@@ -1,0 +1,63 @@
+# Upstream-owned files Otterware may touch (OTTERWARE.md, docs/internals/modules.md).
+# One path or glob per line; `#` starts a comment. scripts/otterware/check-upstream-seams.ts
+# fails a PR that changes an upstream-owned file not listed here. Extending this list is a
+# deliberate decision made in the PR description.
+
+# Server: module runtime, RPC handlers, authorization, instrumentation, MCP tools, data home
+apps/server/src/server.ts
+apps/server/src/ws.ts
+apps/server/src/auth/RpcAuthorization.ts
+apps/server/src/observability/RpcInstrumentation.ts
+apps/server/src/mcp/McpHttpServer.ts
+apps/server/src/os-jank.ts
+
+# Shared: the typed client over the merged RPC group, module agent instructions
+packages/client-runtime/src/rpc/protocol.ts
+packages/provider-core/src/server/runtimeInstructions.ts
+
+# Web: shell, rail, palette, landing, settings, side chat, branding
+apps/web/src/components/AppSidebarLayout.tsx
+apps/web/src/components/sidebar/SpaceRail.tsx
+apps/web/src/components/CommandPalette.tsx
+apps/web/src/components/ChatView.tsx
+apps/web/src/components/settings/settingsSearch.ts
+apps/web/src/components/settings/SettingsSidebarNav.tsx
+apps/web/src/routes/_chat.index.tsx
+apps/web/src/branding.ts
+
+# Desktop identity from the app profile
+apps/desktop/src/app/DesktopAssets.ts
+apps/desktop/src/app/DesktopEarlyElectronStartup.ts
+apps/desktop/src/app/DesktopEnvironment.ts
+apps/desktop/src/app/DesktopStatePaths.ts
+apps/desktop/src/app/DesktopUserData.ts
+apps/desktop/src/electron/ElectronProtocol.ts
+apps/desktop/scripts/electron-launcher.mjs
+
+# Packaging from the app profile
+scripts/build-desktop-artifact.ts
+scripts/build-npm-platform-packages.ts
+scripts/lib/brand-assets.ts
+
+# Provider drivers, secrets and release checks touched by other workstreams (PRs #14, #16)
+apps/server/src/provider/builtInDrivers.ts
+apps/server/src/provider/providerCompatibility.test.ts
+apps/server/src/settingsSecrets.ts
+apps/web/src/components/settings/providerDriverMeta.ts
+apps/mobile/src/lib/providerClients.ts
+scripts/lib/third-party-licenses.ts
+scripts/release-smoke.ts
+docs/README.md
+docs/user/install.md
+
+# CI (W1)
+.github/workflows/ci.yml
+
+# Generated and manifest files: regenerated or merged mechanically on every sync
+apps/web/src/routeTree.gen.ts
+pnpm-lock.yaml
+pnpm-workspace.yaml
+**/package.json
+**/vite.config.ts
+**/tsconfig.json
+knip.jsonc
