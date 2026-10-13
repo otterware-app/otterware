@@ -1,7 +1,11 @@
 name: CI
 
 on:
+  # Only PRs into main need the gate. Stacked PRs get it when their base merges and
+  # GitHub retargets them to main ("edited"), so they don't hold runners before then.
   pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
   push:
     branches:
       - main

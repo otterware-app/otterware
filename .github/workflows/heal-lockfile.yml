@@ -6,6 +6,7 @@ name: Heal lockfile
 # again on it; the release GitHub App is not installed on this repository.
 on:
   pull_request:
+    branches: [main]
     paths:
       - pnpm-lock.yaml
       - pnpm-workspace.yaml
