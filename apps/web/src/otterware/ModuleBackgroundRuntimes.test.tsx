@@ -4,7 +4,13 @@ import { createRoot } from "react-dom/client";
 import { createModuleRegistry, defineWebModule } from "@otterware/module-kit/web";
 import { CalendarIcon } from "lucide-react";
 import { describe, expect, it, vi } from "vite-plus/test";
-import { ModuleBackgroundRuntimes } from "./ModuleBackgroundRuntimes";
+import { ModulePagesHost } from "./ModulePagesHost";
+
+let pathname = "/settings/modules";
+vi.mock("@tanstack/react-router", () => ({
+  useLocation: ({ select }: { select: (location: { pathname: string }) => unknown }) =>
+    select({ pathname }),
+}));
 
 vi.mock("./moduleState", () => ({
   useServerModuleAvailability: () => useContext(Availability),
@@ -17,14 +23,16 @@ vi.mock("./registry", () => ({
 
 const Availability = createContext("on");
 const Environment = createContext("one");
-const subscriptions = new Set<string>();
+const subscriptions = new Map<string, number>();
 let pageLoads = 0;
 function Runtime() {
   const environment = useContext(Environment);
   useEffect(() => {
-    subscriptions.add(environment);
+    subscriptions.set(environment, (subscriptions.get(environment) ?? 0) + 1);
     return () => {
-      subscriptions.delete(environment);
+      const remaining = (subscriptions.get(environment) ?? 1) - 1;
+      if (remaining === 0) subscriptions.delete(environment);
+      else subscriptions.set(environment, remaining);
     };
   }, [environment]);
   return null;
@@ -50,15 +58,17 @@ let registry = createModuleRegistry([module]);
 describe("module background runtimes", () => {
   it("subscribes before a page visit, follows the environment and closes when disabled or absent", async () => {
     pageLoads = 0;
+    pathname = "/settings/modules";
     registry = createModuleRegistry([module]);
     const container = document.createElement("div");
     const root = createRoot(container);
-    const show = async (state: string, environment = "one") => {
+    const show = async (state: string, environment = "one", path = pathname) => {
+      pathname = path;
       await act(async () => {
         root.render(
           <Environment value={environment}>
             <Availability value={state}>
-              <ModuleBackgroundRuntimes />
+              <ModulePagesHost>{null}</ModulePagesHost>
             </Availability>
           </Environment>,
         );
@@ -66,29 +76,34 @@ describe("module background runtimes", () => {
     };
     try {
       await show("loading");
-      expect([...subscriptions]).toEqual([]);
+      expect([...subscriptions.keys()]).toEqual([]);
       await show("on");
-      expect([...subscriptions]).toEqual(["one"]);
+      expect([...subscriptions.keys()]).toEqual(["one"]);
       expect(pageLoads).toBe(0);
+      await show("on", "one", "/calendar");
+      expect(pageLoads).toBe(1);
+      expect(subscriptions.get("one")).toBe(1);
+      await show("on", "one", "/settings/calendar");
+      expect(subscriptions.get("one")).toBe(1);
       await show("on", "two");
-      expect([...subscriptions]).toEqual(["two"]);
+      expect([...subscriptions.keys()]).toEqual(["two"]);
       await show("off", "two");
-      expect([...subscriptions]).toEqual([]);
+      expect([...subscriptions.keys()]).toEqual([]);
       await show("on", "two");
-      expect([...subscriptions]).toEqual(["two"]);
+      expect([...subscriptions.keys()]).toEqual(["two"]);
       await show("failed", "two");
-      expect([...subscriptions]).toEqual([]);
+      expect([...subscriptions.keys()]).toEqual([]);
       await show("not-installed", "two");
-      expect([...subscriptions]).toEqual([]);
+      expect([...subscriptions.keys()]).toEqual([]);
       await show("no-modules", "two");
-      expect([...subscriptions]).toEqual([]);
+      expect([...subscriptions.keys()]).toEqual([]);
       await show("on", "two");
       registry = createModuleRegistry([]);
       await show("on", "two");
-      expect([...subscriptions]).toEqual([]);
+      expect([...subscriptions.keys()]).toEqual([]);
     } finally {
       await act(async () => root.unmount());
     }
-    expect([...subscriptions]).toEqual([]);
+    expect([...subscriptions.keys()]).toEqual([]);
   });
 });

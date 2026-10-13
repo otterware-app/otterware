@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 vi.mock("@otterware/profiles/active", () => ({ activeProfile: PROFILES.calendar }));
 vi.mock("./calendar/rpc", () => ({ CalendarEnvironmentProvider: () => null }));
+vi.mock("./ModulePageLayout", () => ({ ModulePageLayout: () => null }));
 vi.mock("./home/HomeWebModule", async () => {
   const { defineWebModule } = await import("@otterware/module-kit/web");
   const { HouseIcon } = await import("lucide-react");

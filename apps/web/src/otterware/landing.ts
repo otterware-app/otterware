@@ -2,7 +2,8 @@
  * Where the app opens: the active profile's landing route (`/home` for
  * Otterware, `/` for Otter Code). Only the app's first landing on `/`
  * redirects: later navigations to `/` (Code's places, Back from Settings)
- * keep Code's draft landing, and deep links are untouched.
+ * keep Code's draft landing. Standalone profiles always return to their module
+ * when navigating to `/`; deep links are untouched.
  */
 import { activeProfile } from "@otterware/profiles/active";
 
@@ -16,12 +17,13 @@ function readInitialRoutePath(): string | null {
 const initialRoutePath = readInitialRoutePath();
 let landingConsumed = false;
 
-/** The route to open instead of `/`, once per app load; null to stay. Call from `/`'s `beforeLoad`. */
+/** The route to open instead of `/`; null to stay. Call from `/`'s `beforeLoad`. */
 export function consumeProfileLanding(): string | null {
-  if (landingConsumed) return null;
-  landingConsumed = true;
   const landing = activeProfile.landingRoute;
   if (landing === "/" || landing.length === 0) return null;
+  if (!activeProfile.codeVisible) return landing;
+  if (landingConsumed) return null;
+  landingConsumed = true;
   const firstOpen =
     initialRoutePath === "/" || initialRoutePath === "" || initialRoutePath === "/pair";
   return firstOpen ? landing : null;
