@@ -1,0 +1,42 @@
+name: Publish Otter Drive CLI
+
+# Manual only until the Drive cutover. Bump apps/drive-cli/package.json before dispatch.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: publish-otterdrive-cli
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - name: Install dependencies
+        run: vp i --frozen-lockfile
+      - name: Verify and build the CLI
+        run: |
+          vp run --filter otterdrive typecheck
+          vp run --filter otterdrive test
+          vp run --filter otterdrive build
+      - name: Publish
+        working-directory: apps/drive-cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public

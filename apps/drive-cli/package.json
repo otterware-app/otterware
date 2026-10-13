@@ -1,0 +1,48 @@
+{
+  "name": "otterdrive",
+  "version": "0.2.0",
+  "description": "The CLI for Otter Drive",
+  "homepage": "https://drive.otterware.app",
+  "bugs": {
+    "url": "https://github.com/otterware-app/otterware/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/otterware-app/otterware.git",
+    "directory": "apps/drive-cli"
+  },
+  "bin": {
+    "otterdrive": "dist/index.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "node scripts/build.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vp test run"
+  },
+  "dependencies": {
+    "commander": "15.0.0",
+    "mime-types": "3.0.2",
+    "open": "11.0.0",
+    "picocolors": "1.1.1"
+  },
+  "devDependencies": {
+    "@otterware/drive-contracts": "workspace:*",
+    "@types/mime-types": "3.0.1",
+    "@types/node": "catalog:",
+    "esbuild": "0.28.1",
+    "tsx": "4.23.0",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  },
+  "engines": {
+    "node": "24.x"
+  }
+}

@@ -17,6 +17,7 @@ const { version } = JSON.parse(
 function run(...args: string[]) {
   return spawnSync(process.execPath, ["--import", "tsx", entry, ...args], {
     encoding: "utf8",
+    cwd: resolve(import.meta.dirname, ".."),
   });
 }
 

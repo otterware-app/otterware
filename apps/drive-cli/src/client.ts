@@ -1,4 +1,4 @@
-import { apiErrorSchema } from "../../drive/contracts/index.ts";
+import { apiErrorSchema } from "@otterware/drive-contracts/api";
 import type { Profile } from "./config";
 
 export class ApiClient {

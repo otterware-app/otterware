@@ -5,6 +5,9 @@ on:
     paths:
       - infra/cloud/**
       - packages/otter-cloud-client/**
+      - modules/drive/contracts/**
+      - modules/drive/web/**
+      - profiles/drive.ts
       - .github/workflows/otterware-cloud.yml
   workflow_dispatch:
 permissions:
@@ -45,6 +48,11 @@ jobs:
         with:
           node-version: 24.18.0
           cache: pnpm
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Verify permissions and prepare the new database
         working-directory: infra/cloud

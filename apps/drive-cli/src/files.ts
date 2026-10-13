@@ -17,7 +17,7 @@ import * as NodeStream from "node:stream";
 const { Writable } = NodeStream;
 
 import { lookup } from "mime-types";
-import type { ArtifactFile } from "../../drive/contracts/index.ts";
+import type { ArtifactFile } from "@otterware/drive-contracts/api";
 
 export interface LocalArtifactFile extends ArtifactFile {
   absolutePath: string;
