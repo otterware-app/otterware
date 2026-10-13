@@ -1,5 +1,5 @@
 import { expect, it, vi } from "vite-plus/test";
-import { accountGoogleAuth, microsoftToken } from "./cloudAuth.ts";
+import { accountGoogleAuth, accountMicrosoftAuth, microsoftToken } from "./cloudAuth.ts";
 import type { OtterAccountSession } from "./AccountSession.ts";
 import type { GoogleAuth } from "./platform.ts";
 vi.mock("./services/account-store.ts", () => ({
@@ -33,6 +33,11 @@ it("uses account-scoped Google/Microsoft grants and does not silently fall back 
     getAccessToken: localToken,
   } as unknown as GoogleAuth;
   const google = accountGoogleAuth(session, local);
+  const outlook = accountMicrosoftAuth(session);
+  await outlook.load();
+  expect(outlook.isSignedIn("m@example.test")).toBe(true);
+  expect((await outlook.addAccount("m@example.test")).email).toBe("m@example.test");
+  expect(await outlook.getAccessToken("m@example.test")).toBe("token-microsoft");
   await google.load();
   expect(await google.getAccessToken("g@example.test")).toBe("token-google");
   expect(await microsoftToken(session, "m@example.test")).toBe("token-microsoft");

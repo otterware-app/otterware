@@ -11,9 +11,12 @@ import { gmailProvider } from "./gmail/index.js";
 import { imapProvider } from "./imap/index.js";
 import type { MailProvider } from "./provider.js";
 
+import { outlookProvider } from "./outlook/index.js";
+
 const providers: Record<MailProviderKind, MailProvider | null> = {
   gmail: gmailProvider,
   imap: imapProvider,
+  outlook: outlookProvider,
 };
 
 /** What an account whose provider isn't here yet shows. */

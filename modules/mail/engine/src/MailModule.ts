@@ -11,6 +11,11 @@ export { MailRuntime } from "./MailRuntime.ts";
 const rpcHandlers = Effect.gen(function* () {
   const runtime = yield* MailRuntime;
   return MailContract.group.of({
+    "mail.gmail.addOutlookAccount": (input) => runtime.call("gmail:addOutlookAccount", input),
+    "mail.gmail.mailProviders": (input) =>
+      Effect.map(runtime.call("gmail:mailProviders", input), (value) => ({
+        outlook: (value as { outlook: boolean }).outlook,
+      })),
     "mail.gmail.listAccounts": (input) => runtime.call("gmail:listAccounts", input),
     "mail.gmail.listSchedules": (input) => runtime.call("gmail:listSchedules", input),
     "mail.gmail.refreshSignatures": (input) => runtime.call("gmail:refreshSignatures", input),

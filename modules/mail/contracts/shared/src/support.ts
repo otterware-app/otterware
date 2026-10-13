@@ -74,7 +74,7 @@ export type SupportDiagnostics = {
   syncIntervalSeconds: number | null;
   mailboxes: {
     mailbox: string;
-    provider: "gmail" | "imap";
+    provider: "gmail" | "imap" | "outlook";
     enabled: boolean;
     authenticated: boolean;
     sync: {
