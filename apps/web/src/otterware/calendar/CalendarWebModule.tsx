@@ -2,7 +2,7 @@ import {
   CalendarWebModule as moduleDefinition,
   CalendarPage,
   CalendarSettings,
-} from "@otterware/calendar-web";
+} from "@otterware/composition/web";
 import type { ModulePageProps } from "@otterware/module-kit/web";
 import { lazy } from "react";
 import { CalendarEnvironmentProvider } from "./rpc";

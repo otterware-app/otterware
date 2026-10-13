@@ -96,3 +96,11 @@ export const OtterwareWsRpcGroup = WsRpcGroup.merge(
 
 export * from "@otterware/home-contracts";
 export { HomeItemAction, HomeItemTarget, HomeItemModule } from "@otterware/module-kit/contracts";
+export {
+  CalendarError,
+  CalendarAccountId,
+  CalendarId,
+  WS_METHODS as CALENDAR_METHODS,
+  type CalendarDirectory,
+  type CalendarEventInstance,
+} from "@otterware/calendar-contracts";

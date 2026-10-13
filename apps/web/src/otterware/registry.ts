@@ -9,10 +9,12 @@ import type { ModuleId } from "@otterware/profiles";
 import { activeProfile } from "@otterware/profiles/active";
 
 import { HomeWebModule } from "./home/HomeWebModule";
+import { CalendarWebModule } from "./calendar/CalendarWebModule";
 
 /** Every module page this repository knows. A new module adds one line. */
 export const WEB_MODULES = {
   home: HomeWebModule,
+  calendar: CalendarWebModule,
 } as const satisfies Partial<Record<ModuleId, WebModule>>;
 
 export type KnownWebModuleId = keyof typeof WEB_MODULES;

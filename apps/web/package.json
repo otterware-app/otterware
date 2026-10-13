@@ -22,8 +22,6 @@
     "@formkit/auto-animate": "^0.9.0",
     "@legendapp/list": "catalog:",
     "@noble/hashes": "catalog:",
-    "@otterware/calendar-contracts": "workspace:*",
-    "@otterware/calendar-web": "workspace:*",
     "@otterware/composition": "workspace:*",
     "@otterware/module-kit": "workspace:*",
     "@otterware/profiles": "workspace:*",

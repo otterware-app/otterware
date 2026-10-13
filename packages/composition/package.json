@@ -32,6 +32,7 @@
     "@otterware/calendar-contracts": "workspace:*",
     "@otterware/calendar-engine": "workspace:*",
     "@otterware/calendar-node": "workspace:*",
+    "@otterware/calendar-web": "workspace:*",
     "@otterware/drive-contracts": "workspace:*",
     "@otterware/drive-engine": "workspace:*",
     "@otterware/drive-node": "workspace:*",

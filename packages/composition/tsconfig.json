@@ -5,10 +5,11 @@
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",
     "lib": ["ESNext", "DOM", "DOM.Iterable"],
-    "types": ["node"],
+    "types": ["node", "vite-plus/client"],
     "paths": {
       "~/*": ["../../apps/web/src/*"]
-    }
+    },
+    "erasableSyntaxOnly": false
   },
   "include": ["src"]
 }

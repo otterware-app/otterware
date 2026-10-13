@@ -2,16 +2,16 @@ import {
   CalendarError,
   CalendarAccountId,
   CalendarId,
-  WS_METHODS as CALENDAR_METHODS,
+  CALENDAR_METHODS,
   type CalendarDirectory,
   type CalendarEventInstance,
-} from "@otterware/calendar-contracts";
+} from "@otterware/composition/contracts";
 import {
   calendarConnectStream,
   CalendarClientProvider,
   createCalendarAtoms,
   type CalendarWebClient,
-} from "@otterware/calendar-web";
+} from "@otterware/composition/web";
 import { useAtomValue } from "@effect/atom-react";
 import { EnvironmentRegistry, EnvironmentSupervisor } from "@t3tools/client-runtime/connection";
 import { request } from "@t3tools/client-runtime/rpc";
