@@ -12,6 +12,7 @@ import {
   makeCalendarModule,
 } from "@otterware/calendar-engine";
 import { HomeModule } from "@otterware/home-engine";
+import { mailBrowserModule } from "@otterware/mail-browser";
 import type { ServerModule, ServerModuleRequirements } from "@otterware/module-kit/engine";
 import type { AppProfile } from "@otterware/profiles";
 import * as Context from "effect/Context";
@@ -50,6 +51,7 @@ const BrowserCalendarModule = makeCalendarModule(
 /** Every engine the browser runs. A module that runs in the browser adds one line. */
 export const BROWSER_MODULES = {
   home: HomeModule,
+  mail: mailBrowserModule,
   calendar: BrowserCalendarModule,
 } as const satisfies Record<BrowserModuleId, ServerModule>;
 
@@ -61,4 +63,5 @@ export type BrowserModulesRequirements = ServerModuleRequirements<
 export const selectBrowserModules = (profile: AppProfile): ReadonlyArray<ServerModule> =>
   selectBrowserModuleIds(profile).map((id) => BROWSER_MODULES[id]);
 
+export { MailBrowserHost, type MailBrowserAccount } from "@otterware/mail-browser";
 export { composeBrowserContracts, type BrowserModuleId } from "./browserContracts.ts";

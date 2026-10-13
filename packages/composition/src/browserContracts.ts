@@ -7,6 +7,7 @@
  */
 import { CalendarContract } from "@otterware/calendar-contracts";
 import { HomeContract } from "@otterware/home-contracts";
+import { MailContract } from "@otterware/mail-contracts/rpc";
 import { HostContract, type AnyModuleContract } from "@otterware/module-kit/contracts";
 import type { AppProfile } from "@otterware/profiles";
 
@@ -18,6 +19,7 @@ import type { composeContracts } from "./contracts.ts";
  */
 export const BROWSER_MODULE_CONTRACTS = {
   home: HomeContract,
+  mail: MailContract,
   calendar: CalendarContract,
 } as const satisfies Record<string, AnyModuleContract>;
 

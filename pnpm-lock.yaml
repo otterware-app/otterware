@@ -1468,6 +1468,37 @@ importers:
         specifier: 'catalog:'
         version: 7.0.2
 
+  modules/mail/browser:
+    dependencies:
+      '@otterware/mail-contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@otterware/mail-engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@otterware/module-kit':
+        specifier: workspace:*
+        version: link:../../../packages/module-kit
+      '@otterware/otter-cloud-client':
+        specifier: workspace:*
+        version: link:../../../packages/otter-cloud-client
+      '@sqlite.org/sqlite-wasm':
+        specifier: 3.53.4-build1
+        version: 3.53.4-build1
+      effect:
+        specifier: 4.0.2
+        version: 4.0.2(patch_hash=ec61ee307eaec3e17f757e0e6a16296ea4b7a8c3188df0c6ec5e66301fd78688)
+      subtls:
+        specifier: 0.5.0
+        version: 0.5.0
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
+      vite-plus:
+        specifier: 1.0.0
+        version: 1.0.0(@types/node@24.12.4)(@vitest/ui@5.0.1)(bufferutil@4.1.0)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.0(@noble/hashes@1.8.0))(msw@2.12.11(@types/node@24.12.4)(typescript@7.0.2))(terser@5.48.0)(tsx@4.23.0)(typescript@7.0.2)(unrun@0.2.39)(utf-8-validate@6.0.6)(yaml@2.9.0)
+
   modules/mail/contracts:
     dependencies:
       '@otterware/module-kit':
@@ -1774,6 +1805,9 @@ importers:
       '@otterware/home-web':
         specifier: workspace:*
         version: link:../../modules/home/web
+      '@otterware/mail-browser':
+        specifier: workspace:*
+        version: link:../../modules/mail/browser
       '@otterware/mail-contracts':
         specifier: workspace:*
         version: link:../../modules/mail/contracts
@@ -11405,6 +11439,9 @@ packages:
   hermes-parser@0.36.1:
     resolution: {integrity: sha512-GApNk4zLHi2UWoWZZkx7LNCOSzLSc5lB55pZ/PhK7ycFeg7u5LcF88p/WbpIi1XUDtE0MpHE3uRR3u3KB7TjSQ==}
 
+  hextreme@1.1.0:
+    resolution: {integrity: sha512-cQUp5BftWlLxLmORvkJSW9P0AacLYwJIE4DiR/9AXKAsI7e33iOqnQ7RKaaNRsXSZ0t9FFXG8KYP4OzIF67M5g==}
+
   hexy@0.2.11:
     resolution: {integrity: sha512-ciq6hFsSG/Bpt2DmrZJtv+56zpPdnq+NQ4ijEFrveKN0ZG1mhl/LdT1NQZ9se6ty1fACcI4d4vYqC9v8EYpH2A==}
     hasBin: true
@@ -13808,6 +13845,9 @@ packages:
 
   stylis@4.4.0:
     resolution: {integrity: sha512-5Z9ZpRzfuH6l/UAvCPAPUo3665Nk2wLaZU3x+TLHKVzIz33+sbJqbtrYoC3KD4/uVOr2Zp+L0LySezP9OHV9yA==}
+
+  subtls@0.5.0:
+    resolution: {integrity: sha512-RS4WpUm6MJ8QD6LqWWvrFpnsC6WtWTj6DwA0Bx3MD4BmdqYhTT+6aDjKlnqPDFz9NWrXFE3RiC0pGApE6el3YQ==}
 
   sumchecker@3.0.1:
     resolution: {integrity: sha512-MvjXzkz/BOfyVDkG0oFOtBxHX2u3gKbMHIF/dXblZsgD3BWOFLmHovIpZY7BykJdAjcqRCBi1WYBNdEC9yI7vg==}
@@ -23829,6 +23869,8 @@ snapshots:
     dependencies:
       hermes-estree: 0.36.1
 
+  hextreme@1.1.0: {}
+
   hexy@0.2.11: {}
 
   hono@4.13.7: {}
@@ -27045,6 +27087,11 @@ snapshots:
       inline-style-parser: 0.2.7
 
   stylis@4.4.0: {}
+
+  subtls@0.5.0:
+    dependencies:
+      '@types/node': 24.12.4
+      hextreme: 1.1.0
 
   sumchecker@3.0.1:
     dependencies:

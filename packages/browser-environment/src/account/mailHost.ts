@@ -1,0 +1,62 @@
+/**
+ * What Mail's browser worker needs from this browser's Otter Account (#27's
+ * session port): the account's Cloud client and channel. Mail reads it when
+ * it starts, so a sign-in, sign-out or account switch restarts a Mail module
+ * that is on.
+ */
+import { type MailBrowserAccount, MailBrowserHost } from "@otterware/composition/browser";
+import { ModuleRuntime } from "@otterware/module-kit/runtime";
+import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
+import * as Layer from "effect/Layer";
+import * as Option from "effect/Option";
+import * as Stream from "effect/Stream";
+
+import { BrowserAccount } from "./BrowserAccount.ts";
+
+export const layerMailHost = Layer.effect(
+  MailBrowserHost,
+  Effect.gen(function* () {
+    const account = yield* BrowserAccount;
+    const read = Effect.gen(function* () {
+      const cloud = yield* Effect.option(account.cloud);
+      const credential = yield* account.credential;
+      if (Option.isNone(cloud) || Option.isNone(credential)) return Option.none();
+      const mail: MailBrowserAccount = {
+        accountId: cloud.value.accountId,
+        cloudOrigin: credential.value.cloudOrigin,
+        client: cloud.value.client,
+        subscribe: (listener) => {
+          const fiber = Effect.runFork(
+            Stream.runForEach(account.events, (event) => Effect.sync(() => listener(event))),
+          );
+          return () => void Effect.runFork(Fiber.interrupt(fiber));
+        },
+      };
+      return Option.some(mail);
+    });
+    return MailBrowserHost.of({ account: read });
+  }),
+);
+
+/** Restarts Mail, if it is on, whenever the signed-in account changes. */
+export const layerMailFollowsAccount = Layer.effectDiscard(
+  Effect.gen(function* () {
+    const account = yield* BrowserAccount;
+    const runtime = yield* ModuleRuntime.ModuleRuntime;
+    if (!runtime.modules.some((module) => module.contract.id === "mail")) return;
+    yield* account.changes.pipe(
+      Stream.map((state) => (state.status === "connected" ? state.userId : null)),
+      Stream.changes,
+      Stream.drop(1),
+      Stream.runForEach(() =>
+        runtime.isOnSync("mail")
+          ? runtime
+              .setEnabled("mail", false)
+              .pipe(Effect.andThen(runtime.setEnabled("mail", true)), Effect.ignore)
+          : Effect.void,
+      ),
+      Effect.forkScoped,
+    );
+  }),
+);
