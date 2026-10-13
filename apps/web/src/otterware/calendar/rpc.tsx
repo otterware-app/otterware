@@ -11,7 +11,7 @@ import {
   CalendarClientProvider,
   createCalendarAtoms,
   type CalendarWebClient,
-} from "@otterware/composition/web";
+} from "@otterware/composition/web/calendar";
 import { useAtomValue } from "@effect/atom-react";
 import { EnvironmentRegistry, EnvironmentSupervisor } from "@t3tools/client-runtime/connection";
 import { request } from "@t3tools/client-runtime/rpc";

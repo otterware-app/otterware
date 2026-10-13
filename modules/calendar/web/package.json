@@ -10,6 +10,10 @@
     "./host": {
       "types": "./src/host.tsx",
       "import": "./src/host.tsx"
+    },
+    "./registration": {
+      "types": "./src/CalendarWebModule.ts",
+      "import": "./src/CalendarWebModule.ts"
     }
   },
   "scripts": {

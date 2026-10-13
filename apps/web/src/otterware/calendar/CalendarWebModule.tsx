@@ -1,29 +1,39 @@
-import {
-  CalendarWebModule as moduleDefinition,
-  CalendarPage,
-  CalendarSettings,
-} from "@otterware/composition/web";
+import { CalendarWebModule as moduleDefinition } from "@otterware/composition/web";
 import type { ModulePageProps } from "@otterware/module-kit/web";
 import { lazy } from "react";
-import { CalendarEnvironmentProvider } from "./rpc";
+import { ModulePageLayout } from "../ModulePageLayout";
 
 export const CalendarWebModule = {
   ...moduleDefinition,
-  page: lazy(async () => ({
-    default: (props: ModulePageProps) => (
-      <CalendarEnvironmentProvider>
-        <CalendarPage {...props} />
-      </CalendarEnvironmentProvider>
-    ),
-  })),
+  page: lazy(async () => {
+    const [{ CalendarPage }, { CalendarEnvironmentProvider }] = await Promise.all([
+      import("@otterware/composition/web/calendar"),
+      import("./rpc"),
+    ]);
+    return {
+      default: (props: ModulePageProps) => (
+        <ModulePageLayout moduleId="calendar">
+          <CalendarEnvironmentProvider>
+            <CalendarPage {...props} />
+          </CalendarEnvironmentProvider>
+        </ModulePageLayout>
+      ),
+    };
+  }),
   settings: {
     ...moduleDefinition.settings,
-    component: lazy(async () => ({
-      default: () => (
-        <CalendarEnvironmentProvider>
-          <CalendarSettings />
-        </CalendarEnvironmentProvider>
-      ),
-    })),
+    component: lazy(async () => {
+      const [{ CalendarSettings }, { CalendarEnvironmentProvider }] = await Promise.all([
+        import("@otterware/composition/web/calendar"),
+        import("./rpc"),
+      ]);
+      return {
+        default: () => (
+          <CalendarEnvironmentProvider>
+            <CalendarSettings />
+          </CalendarEnvironmentProvider>
+        ),
+      };
+    }),
   },
 };

@@ -22,6 +22,10 @@
     "./web": {
       "types": "./src/web.ts",
       "import": "./src/web.ts"
+    },
+    "./web/calendar": {
+      "types": "./src/calendar-web.ts",
+      "import": "./src/calendar-web.ts"
     }
   },
   "scripts": {
