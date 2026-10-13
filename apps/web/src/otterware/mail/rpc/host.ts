@@ -1,3 +1,9 @@
+import {
+  mailDesktop,
+  dockBadgeEnabled,
+  setDockBadgeEnabled,
+  type MailDesktopCapabilities,
+} from "../desktop";
 import type { MailWebHost } from "@otterware/mail-web";
 import type { ThemeSource, UpdateState } from "@otterware/mail-contracts";
 import type { EnvironmentId } from "@t3tools/contracts";
@@ -69,6 +75,7 @@ function pickAttachments(existingBytes: number): Promise<unknown> {
 export function createMailHost(
   environmentId: EnvironmentId,
   callbacks: Pick<MailWebHost, "navigate" | "openAssistant" | "publishSelection">,
+  desktopCapabilities?: MailDesktopCapabilities | null,
 ) {
   const listeners = new Map<string, Set<(payload: unknown) => void>>();
   let stopEvents: (() => void) | undefined;
@@ -78,6 +85,31 @@ export function createMailHost(
   };
   const invoke = async (channel: string, input: unknown): Promise<unknown> => {
     const params = record(input);
+    const desktop = desktopCapabilities && mailDesktop();
+    if (
+      desktop &&
+      [
+        "app:takePendingMailto",
+        "app:getDefaultMailStatus",
+        "app:setDefaultMailApp",
+        "app:listMailApps",
+      ].includes(channel)
+    )
+      return desktop.invoke("mail", channel, input);
+    if (desktop && (channel === "gmail:getSyncSettings" || channel === "gmail:setSyncSettings")) {
+      const { launchAtLogin, dockBadgeEnabled: badge, ...accountSettings } = params;
+      if (channel === "gmail:setSyncSettings") {
+        if (typeof launchAtLogin === "boolean")
+          await desktop.invoke("mail", "app:setLogin", { enabled: launchAtLogin });
+        if (typeof badge === "boolean") setDockBadgeEnabled(badge);
+      }
+      const result = await mailOperations[channel]!(environmentId, accountSettings);
+      return {
+        ...record(result),
+        ...record(await desktop.invoke("mail", "app:settings")),
+        dockBadgeEnabled: dockBadgeEnabled(),
+      };
+    }
     switch (channel) {
       case "window:getSettingsTarget":
       case "window:takePendingOpenMessage":
@@ -115,7 +147,7 @@ export function createMailHost(
   const host: MailWebHost = {
     environmentId,
     ...callbacks,
-    platform: "web",
+    platform: desktopCapabilities?.platform ?? "web",
     canWrite: () => appAtomRegistry.get(mailWriteCommand.permissionAtom(environmentId)),
     subscribeWritePermission: (listener) =>
       appAtomRegistry.subscribe(mailWriteCommand.permissionAtom(environmentId), listener),
@@ -123,9 +155,9 @@ export function createMailHost(
       windowControls: null,
       vibrancy: false,
       historyButtons: false,
-      launchAtLogin: false,
-      dockBadge: false,
-      defaultMailApp: false,
+      launchAtLogin: desktopCapabilities?.launchAtLogin ?? false,
+      dockBadge: desktopCapabilities?.dockBadge ?? false,
+      defaultMailApp: desktopCapabilities?.defaultMailApp ?? false,
       translation: false,
       dragOut: false,
       openFiles: false,
@@ -141,8 +173,12 @@ export function createMailHost(
         listeners.set(channel, channelListeners);
       }
       channelListeners.add(listener);
+      const stopDesktop = mailDesktop()?.on((event) => {
+        if (event.module === "mail" && event.event === channel) listener(event.payload);
+      });
       if (!stopEvents) stopEvents = subscribeMailEvents(environmentId, publish);
       return () => {
+        stopDesktop?.();
         channelListeners.delete(listener);
         if (channelListeners.size === 0) listeners.delete(channel);
         if (listeners.size === 0) {

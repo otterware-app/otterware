@@ -1,3 +1,4 @@
+import { useMailDesktopCapabilities } from "./desktop";
 import { AccountConnections } from "../account/AccountConnections";
 import { MailSurface, SettingsPage, type SettingsRoute } from "@otterware/mail-web";
 import { useLocation, useNavigate } from "@tanstack/react-router";
@@ -19,23 +20,28 @@ export default function MailSettings() {
     modules.status === "available" &&
     modules.modules.some((module) => module.id === "mail" && module.state === "on");
   const navigate = useNavigate();
+  const desktop = useMailDesktopCapabilities();
   const search = useLocation({ select: (location) => location.searchStr });
   const query = new URLSearchParams(search);
   const pane = panes.find((value) => value === query.get("pane")) ?? "general";
   const host = useMemo(
     () =>
       environmentId
-        ? createMailHost(environmentId, {
-            navigate: (path) => {
-              void navigate({ to: path });
+        ? createMailHost(
+            environmentId,
+            {
+              navigate: (path) => {
+                void navigate({ to: path });
+              },
+              openAssistant: () => {
+                void navigate({ to: "/mail" });
+              },
+              publishSelection: () => {},
             },
-            openAssistant: () => {
-              void navigate({ to: "/mail" });
-            },
-            publishSelection: () => {},
-          })
+            desktop,
+          )
         : null,
-    [environmentId, navigate],
+    [environmentId, navigate, desktop],
   );
   const openPane = (route: SettingsRoute) => {
     void navigate({

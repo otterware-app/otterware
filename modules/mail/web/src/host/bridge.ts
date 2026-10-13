@@ -64,7 +64,9 @@ const features = new Proxy(defaultFeatures, {
 });
 /** Local renderer compatibility only. The host maps each operation to a concrete typed RPC. */
 export const mailBridge: DesktopBridge = {
-  platform: "web",
+  get platform() {
+    return current?.platform ?? "web";
+  },
   features,
   invoke: (channel, input) => mailHost().invoke(channel, input),
   on: (channel, listener) => {

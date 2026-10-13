@@ -18,6 +18,8 @@ const rpcHandlers = Effect.gen(function* () {
       Effect.map(runtime.call("gmail:mailProviders", input), (value) => ({
         outlook: (value as { outlook: boolean }).outlook,
       })),
+    "mail.gmail.getUnreadCount": (input) =>
+      Effect.map(runtime.call("gmail:getUnreadCount", input), (value) => Number(value)),
     "mail.gmail.listAccounts": (input) => runtime.call("gmail:listAccounts", input),
     "mail.gmail.listSchedules": (input) => runtime.call("gmail:listSchedules", input),
     "mail.gmail.refreshSignatures": (input) => runtime.call("gmail:refreshSignatures", input),

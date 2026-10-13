@@ -1,3 +1,4 @@
+import { receiveMailUrl } from "../otterware/mail/index.ts";
 import * as NodeURL from "node:url";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -111,7 +112,9 @@ export const make = Effect.gen(function* () {
         return true;
       };
       const args = yield* HostProcess.Arguments;
-      args.some((value) => startProviderAuthHandoff(value) || openAppLink(value));
+      args.some(
+        (value) => receiveMailUrl(value) || startProviderAuthHandoff(value) || openAppLink(value),
+      );
       // As the default browser, macOS hands Otter Code every web link through the same event.
       const openWebLink = (url: string) => {
         if (!DesktopWebLinks.isWebLink(url)) return false;
@@ -120,6 +123,7 @@ export const make = Effect.gen(function* () {
       };
       yield* electronApp.on("open-url", (event: { preventDefault: () => void }, url: string) => {
         if (
+          receiveMailUrl(url) ||
           startProviderAuthHandoff(url) ||
           resumeProviderAuth(url) ||
           openWebLink(url) ||
@@ -137,7 +141,10 @@ export const make = Effect.gen(function* () {
         if (
           argv?.some(
             (value) =>
-              startProviderAuthHandoff(value) || resumeProviderAuth(value) || openAppLink(value),
+              receiveMailUrl(value) ||
+              startProviderAuthHandoff(value) ||
+              resumeProviderAuth(value) ||
+              openAppLink(value),
           )
         )
           return;

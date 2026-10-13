@@ -1,3 +1,4 @@
+import { useMailDesktopCapabilities } from "./desktop";
 import { useModulePageContext, type ModulePageProps } from "@otterware/module-kit/web";
 import { MailSurface, type MailPageSelection } from "@otterware/mail-web";
 import { useLocation, useNavigate } from "@tanstack/react-router";
@@ -12,21 +13,26 @@ export default function MailPage({ subpath, active }: ModulePageProps) {
   const environmentId = usePrimaryEnvironmentId();
   const available = useServerModuleAvailability("mail") === "on";
   const navigate = useNavigate();
+  const desktop = useMailDesktopCapabilities();
   const search = useLocation({ select: (location) => location.searchStr });
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [selection, setSelection] = useState<MailPageSelection | null>(null);
   const host = useMemo(
     () =>
       environmentId
-        ? createMailHost(environmentId, {
-            navigate: (path) => {
-              void navigate({ to: path });
+        ? createMailHost(
+            environmentId,
+            {
+              navigate: (path) => {
+                void navigate({ to: path });
+              },
+              openAssistant: () => setAssistantOpen(true),
+              publishSelection: setSelection,
             },
-            openAssistant: () => setAssistantOpen(true),
-            publishSelection: setSelection,
-          })
+            desktop,
+          )
         : null,
-    [environmentId, navigate],
+    [environmentId, navigate, desktop],
   );
   useModulePageContext(
     {

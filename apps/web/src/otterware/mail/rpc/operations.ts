@@ -48,6 +48,13 @@ export const mailOperations: Record<
     }),
     Schema.decodeUnknownSync(MailOperations["gmail:mailProviders"].payloadSchema),
   ),
+  "gmail:getUnreadCount": operation(
+    createEnvironmentRpcCommand(connectionAtomRuntime, {
+      label: "mail.gmail.getUnreadCount",
+      tag: "mail.gmail.getUnreadCount",
+    }),
+    Schema.decodeUnknownSync(MailOperations["gmail:getUnreadCount"].payloadSchema),
+  ),
   "gmail:listAccounts": operation(
     createEnvironmentRpcCommand(connectionAtomRuntime, {
       label: "mail.gmail.listAccounts",

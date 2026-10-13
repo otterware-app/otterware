@@ -59,6 +59,11 @@ export const MailOperations = {
     success: Schema.Struct({ outlook: B }),
     error: moduleRpcErrors(MailError),
   }),
+  "gmail:getUnreadCount": Rpc.make("mail.gmail.getUnreadCount", {
+    payload: Schema.Struct({}),
+    success: Schema.Int,
+    error: moduleRpcErrors(MailError),
+  }),
   "gmail:listAccounts": Rpc.make("mail.gmail.listAccounts", {
     payload: Schema.Struct({ taskId: Schema.optional(S) }),
     success: Schema.Unknown,
@@ -797,6 +802,7 @@ export const MailOperations = {
 } as const;
 
 export const MailEvent = Schema.Union([
+  Schema.Struct({ channel: Schema.Literal("gmail:unread-count"), params: Schema.Int }),
   Schema.Struct({
     channel: Schema.Literal("gmail:accounts-changed"),
     params: Schema.optional(Schema.Unknown),
@@ -895,6 +901,7 @@ export const MailContract = defineModuleContract({
     "mail.gmail.addOutlookAccount": AuthOrchestrationOperateScope,
     "mail.gmail.mailProviders": AuthOrchestrationReadScope,
     "mail.gmail.listAccounts": AuthOrchestrationReadScope,
+    "mail.gmail.getUnreadCount": AuthOrchestrationReadScope,
     "mail.gmail.listSchedules": AuthOrchestrationReadScope,
     "mail.gmail.refreshSignatures": AuthOrchestrationOperateScope,
     "mail.gmail.cancelAddAccount": AuthOrchestrationOperateScope,
