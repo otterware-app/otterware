@@ -187,7 +187,11 @@ export default defineConfig(() => {
       }),
       tailwindPlugins(bundledDev),
     ],
+    // The in-browser environment's workers code-split (Otterware, ADR 0008).
+    worker: { format: "es" },
     optimizeDeps: {
+      // SQLite in WASM loads its .wasm beside its own module; prebundling moves it.
+      exclude: ["@sqlite.org/sqlite-wasm"],
       include: [
         "@pierre/diffs",
         "@pierre/diffs/edit",

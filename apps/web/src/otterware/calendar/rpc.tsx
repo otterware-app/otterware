@@ -27,7 +27,9 @@ import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import { useMemo, type ReactNode } from "react";
 import { connectionAtomRuntime } from "../../connection/runtime";
 import { appAtomRegistry } from "../../rpc/atomRegistry";
-import { usePrimaryEnvironmentId } from "../../state/environments";
+import { BrowserAccountBridge } from "../browser/BrowserAccountBridge";
+import { useModuleTarget } from "../browser/runtime";
+import { makeBrowserCalendarClient } from "./browserClient";
 import { createEnvironmentSessionAtoms } from "@t3tools/client-runtime/state/session";
 
 const atoms = createCalendarAtoms(connectionAtomRuntime);
@@ -196,11 +198,21 @@ function makeClient(environmentId: EnvironmentId | null): CalendarWebClient {
   };
 }
 
+/**
+ * Calendar talks to a paired environment when there is one and to this
+ * browser otherwise (ADR 0008).
+ */
 export function CalendarEnvironmentProvider({ children }: { children: ReactNode }) {
-  const environmentId = usePrimaryEnvironmentId();
-  const client = useMemo(() => makeClient(environmentId), [environmentId]);
+  const target = useModuleTarget();
+  const environmentId = target._tag === "environment" ? target.environmentId : null;
+  const inBrowser = target._tag === "browser";
+  const client = useMemo(
+    () => (inBrowser ? makeBrowserCalendarClient() : makeClient(environmentId)),
+    [inBrowser, environmentId],
+  );
   return (
-    <CalendarClientProvider client={client} key={environmentId ?? "disconnected"}>
+    <CalendarClientProvider client={client} key={environmentId ?? target._tag}>
+      {inBrowser ? <BrowserAccountBridge /> : null}
       {children}
     </CalendarClientProvider>
   );

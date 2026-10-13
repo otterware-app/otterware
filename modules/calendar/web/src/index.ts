@@ -9,3 +9,4 @@ export {
 } from "./rpc/index.ts";
 
 export { CalendarNotifications } from "./CalendarNotifications.tsx";
+export { applyCalendarWeekEvent, EMPTY_CALENDAR_INSTANCES } from "./runtime/week.ts";
