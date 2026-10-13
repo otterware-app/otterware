@@ -12,7 +12,7 @@
 
 import * as NodeSqlite from "node:sqlite";
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type { Platform, SqlDatabase } from "../../platform.ts";
 import { FakeStream, tagOf } from "../../protocols/test/fake-stream.ts";
@@ -355,6 +355,11 @@ async function boot(
   const labelsOf = (id: string) => mailStore.getAllMessageLabels(account.id).get(id);
   return { mailSync, mailStore, status, labelsOf };
 }
+
+// The first boot transforms the whole engine; warm it outside any one test's time limit.
+beforeAll(async () => {
+  await import("../../index.ts");
+});
 
 beforeEach(() => {
   mail = new Map();
