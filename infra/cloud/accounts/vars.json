@@ -1,0 +1,19 @@
+{
+  "BETTER_AUTH_URL": "https://accounts.otterware.app",
+  "MAIL_AUTH_URL": "https://relay.mail.otterware.app",
+  "APP_ORIGIN": "https://mail.otterware.app",
+  "CODE_ORIGIN": "https://code.otterware.app",
+  "CODE_RELAY_ORIGIN": "https://relay.code.otterware.app",
+  "DRIVE_ORIGIN": "https://drive.otterware.app",
+  "SITE_ORIGIN": "https://otterware.app",
+  "COOKIE_DOMAIN": "mail.otterware.app",
+  "GOOGLE_CLIENT_ID": "997327858649-n30jr99d21200libki4bgeojpr1kfq59.apps.googleusercontent.com",
+  "GOOGLE_IOS_CLIENT_ID": "997327858649-0dfa4knnv1ur7021dn1ojuovoj1i3ed8.apps.googleusercontent.com,997327858649-vcvktkdnrs6p8c31ucsp1oeia7l8taho.apps.googleusercontent.com",
+  "GOOGLE_OTTERWARE_CLIENT_ID": "997327858649-41mr71tt0kku71ktovkbeo58k5vdeeme.apps.googleusercontent.com",
+  "GOOGLE_CALENDAR_CLIENT_ID": "997327858649-lp9asje3r9shdf2iia4ce0vgbm0613n5.apps.googleusercontent.com",
+  "GOOGLE_AUTH_CLIENT_ID": "997327858649-hvcu3vfk5m83q9jid8g17pv6etmc491v.apps.googleusercontent.com",
+  "GOOGLE_LEGACY_CLIENT_IDS": "187875144740-aspevse90oidb4ra3t2fcdfmbagm6jep.apps.googleusercontent.com,187875144740-tegr2te43tofcdogbr72tesmfcg3vbk3.apps.googleusercontent.com,187875144740-vu3ordog4vcqnn0nvh2o4jocvtbkbbdi.apps.googleusercontent.com",
+  "GOOGLE_WEB_CLIENT_ID": "187875144740-drhr59ablkv4ovonrjisd7fj5dv28d6o.apps.googleusercontent.com",
+  "MICROSOFT_CLIENT_ID": "b0c4e8bf-e651-456e-9bc6-408a741b36f9",
+  "EMAIL_FROM": "Otterware <noreply@otterware.app>"
+}

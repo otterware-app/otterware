@@ -44,13 +44,15 @@ Modules: `home`, `mail`, `calendar`, `drive`. Profiles: `otterware` (all), `code
 
 This machine has 15 GB of RAM and several agents at once.
 
-- Work in your own worktree: `git -C ~/projects/otterware worktree add ~/.otter-code/worktrees/otterware/<name> -b <branch> origin/main`, then `flock /tmp/otterware-heavy.lock vp i`.
-- Run typecheck, tests and builds through the shared lock, one at a time, and wait on it rather
-  than polling: `flock /tmp/otterware-heavy.lock vp run --filter <pkg> typecheck`. Vitest with
-  `--maxWorkers=2`. Use `vp run check:changed` for changed-file lint/format and
-  affected typechecks/tests (including dependents); it acquires the lock itself.
-  Use `--base origin/<branch>` for stacked work. CI adds desktop builds and
-  platform checks; do not rerun the full suite locally.
+- Work in your own worktree: `git -C ~/projects/otterware worktree add ~/.otter-code/worktrees/otterware/<name> -b <branch> origin/main`, then `vp i`.
+- `vp run check:changed` is the local check: format and lint of changed files, typecheck of the
+  packages you changed, and the tests next to the files you changed. Nothing more runs locally:
+  dependents, full suites, Rust, release smoke and desktop builds are CI's job.
+- Any other typecheck, test or build goes through a shared slot, one command per call:
+  `scripts/otterware/heavy.sh vp run --filter <pkg> typecheck`. Installs, format and lint need no
+  slot. Never run a whole package's or the whole repo's test suite locally.
+- Push early: open the PR as soon as a slice typechecks, in PRs small enough to review, and let
+  CI find what the local check skipped.
 - Never start a server against `~/.otter-code` or `~/.otterware`. Use a disposable `--home-dir`.
 - Finish with a PR to `main`: conventional title, the problem and fix in the body, and the model
   and harness at the end. Enable auto-merge with `gh pr merge --auto --squash` and end your turn;
