@@ -53,3 +53,40 @@ export async function microsoftToken(session: OtterAccountSession, email: string
   if (!connection) throw new Error("Microsoft account is not connected.");
   return (await session.providerToken(connection.id)).accessToken;
 }
+
+/** Outlook uses the host's Microsoft grant; revocation cannot fall back to a local token. */
+export function accountMicrosoftAuth(
+  session: OtterAccountSession,
+): import("./platform.ts").MicrosoftAuth {
+  let connections: Awaited<ReturnType<OtterAccountSession["connections"]>> = [];
+  return {
+    available: async () => true,
+    async load() {
+      connections = (await session.connections()).filter((c) => c.provider === "microsoft");
+      for (const connection of connections) {
+        const existing = await accountStore.getAccount(connection.email);
+        if (existing && existing.provider !== "outlook") continue;
+        await accountStore.addAccount({
+          ...existing,
+          id: connection.email,
+          email: connection.email,
+          name: existing?.name ?? connection.email,
+          provider: "outlook",
+        });
+      }
+    },
+    async addAccount(email) {
+      const connection = connections.find((c) => !email || c.email === email);
+      if (!connection)
+        throw new Error("Connect a Microsoft mailbox in the host's Account settings.");
+      return { email: connection.email, name: connection.email };
+    },
+    isSignedIn: (id) => connections.some((c) => c.email === id),
+    getAccessToken: (id) => microsoftToken(session, id),
+    async getIdToken() {
+      throw new Error("The host owns Otter Account identity.");
+    },
+    cancelSignIn() {},
+    async removeTokens() {},
+  };
+}

@@ -11,6 +11,7 @@ import {
   registeredHandlers,
   runAgentTool,
   accountGoogleAuth,
+  accountMicrosoftAuth,
   createCloudSync,
   syncAccount,
   renewWatch,
@@ -211,6 +212,7 @@ async function start() {
     database: () => mailDatabase(db as unknown as SqlDatabase),
     files,
     secrets,
+    microsoft: session ? accountMicrosoftAuth(session) : undefined,
     google: session ? accountGoogleAuth(session, google) : google,
     userFiles: {
       open: (name, bytes) => host("openFile", name, bytes),
@@ -243,13 +245,16 @@ async function start() {
         if (push.type === "mail" && typeof push.email === "string")
           void syncAccount(push.email, { force: true });
       }
-      if (event.type === "connections.changed") void platform.google.load().catch(() => {});
+      if (event.type === "connections.changed") {
+        void platform.google.load().catch(() => {});
+        void platform.microsoft?.load().catch(() => {});
+      }
       if (event.type === "sync.changed") void sync?.sync().catch(() => {});
     });
     const renew = async () => {
       if (!options.gmailPushTopic) return;
       for (const account of await accountStore.listAccounts()) {
-        if (account.provider !== "imap" && platform.google.isSignedIn(account.id))
+        if ((account.provider ?? "gmail") === "gmail" && platform.google.isSignedIn(account.id))
           await renewWatch(account.id, options.gmailPushTopic);
       }
     };

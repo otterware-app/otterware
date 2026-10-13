@@ -7,7 +7,7 @@
 import { broadcast } from "../ipc.js";
 import { logger } from "../logger.js";
 import { platform } from "../platform.js";
-import { isSignedIn } from "../providers/index.js";
+import { isSignedIn, providerFor } from "../providers/index.js";
 import { listAccounts, updateAccount } from "./account-store.js";
 import { accountEdited } from "./linked-accounts.js";
 import type { GmailAccount } from "../types.js";
@@ -16,13 +16,18 @@ const USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo";
 const FETCH_TIMEOUT_MS = 10_000;
 
 async function refreshProfile(account: GmailAccount): Promise<boolean> {
-  const token = await platform().google.getAccessToken(account.id);
-  const response = await fetch(USERINFO_URL, {
-    headers: { Authorization: `Bearer ${token}` },
-    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-  });
-  if (!response.ok) return false;
-  const { name, picture } = (await response.json()) as { name?: string; picture?: string };
+  const read = providerFor(account).readProfile;
+  const { name, picture } = read
+    ? await read(account.id)
+    : await (async () => {
+        const token = await platform().google.getAccessToken(account.id);
+        const response = await fetch(USERINFO_URL, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        });
+        if (!response.ok) return {};
+        return (await response.json()) as { name?: string; picture?: string };
+      })();
   // Nothing from Google never clears what's stored.
   const newName = name && name !== account.name ? name : undefined;
   const newPicture = picture && picture !== account.picture ? picture : undefined;

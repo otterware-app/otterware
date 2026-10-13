@@ -49,6 +49,16 @@ const Cursors = Schema.Record(S, NullableString);
 const Keybindings = Schema.Array(Schema.Struct({ key: S, command: S, when: Schema.optional(S) }));
 
 export const MailOperations = {
+  "gmail:addOutlookAccount": Rpc.make("mail.gmail.addOutlookAccount", {
+    payload: Schema.Struct({ email: Schema.optional(S), taskId: Schema.optional(S) }),
+    success: Schema.Unknown,
+    error: moduleRpcErrors(MailError),
+  }),
+  "gmail:mailProviders": Rpc.make("mail.gmail.mailProviders", {
+    payload: Schema.Struct({ taskId: Schema.optional(S) }),
+    success: Schema.Struct({ outlook: B }),
+    error: moduleRpcErrors(MailError),
+  }),
   "gmail:listAccounts": Rpc.make("mail.gmail.listAccounts", {
     payload: Schema.Struct({ taskId: Schema.optional(S) }),
     success: Schema.Unknown,
@@ -882,6 +892,8 @@ export const MailContract = defineModuleContract({
   id: "mail",
   group: MailRpcGroup,
   scopes: {
+    "mail.gmail.addOutlookAccount": AuthOrchestrationOperateScope,
+    "mail.gmail.mailProviders": AuthOrchestrationReadScope,
     "mail.gmail.listAccounts": AuthOrchestrationReadScope,
     "mail.gmail.listSchedules": AuthOrchestrationReadScope,
     "mail.gmail.refreshSignatures": AuthOrchestrationOperateScope,

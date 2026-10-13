@@ -109,6 +109,7 @@ export type EventInput = {
 export type ErrorKind = "rateLimit" | "network" | "notFound";
 
 export interface MailProvider {
+  readProfile?(accountId: string): Promise<{ name?: string; picture?: string }>;
   readonly kind: MailProviderKind;
   readonly capabilities: MailCapabilities;
 

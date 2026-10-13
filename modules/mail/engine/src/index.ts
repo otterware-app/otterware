@@ -1,3 +1,4 @@
+import { registerOutlookAccountHandlers } from "./handlers/outlook-accounts.js";
 /**
  * @otter-mail/core: the mail backend. The desktop app runs it in an Electron
  * utility process, the web app in a Web Worker; each hands `startCore` its
@@ -37,12 +38,14 @@ export async function startCore(
 ): Promise<void> {
   setPlatform(platform);
   await platform.google.load();
+  await platform.microsoft?.load();
   await loadImapPasswords();
   if (!options.hostAccount) await loadOtterAccount();
 
   registerGmailHandlers();
   startMailSchedule();
   registerImapAccountHandlers();
+  registerOutlookAccountHandlers();
   registerSearchHandlers();
   registerCalendarHandlers();
   if (!options.hostAccount) registerOtterAccountHandlers();
@@ -109,7 +112,7 @@ export {
 } from "./services/settings-store.js";
 export type * from "./types.js";
 export { setPlatform } from "./platform.ts";
-export { accountGoogleAuth, microsoftToken } from "./cloudAuth.ts";
+export { accountGoogleAuth, accountMicrosoftAuth, microsoftToken } from "./cloudAuth.ts";
 export { createCloudSync } from "./cloudSync.ts";
 export { syncAccount } from "./services/mail-sync.ts";
 export { invalidateProjectCache } from "./services/projects.ts";

@@ -23,7 +23,7 @@ describe("Mail RPC boundary", () => {
     ).toThrow();
   });
   it("authorizes each named method and refuses arbitrary event channels", () => {
-    expect(Object.keys(MailContract.scopes)).toHaveLength(106);
+    expect(Object.keys(MailContract.scopes)).toHaveLength(108);
     expect(Object.keys(MailContract.scopes).some((name) => /invoke/.test(name))).toBe(false);
     const event = Schema.decodeUnknownSync(MailEvent);
     expect(() => event({ channel: "agent:send", params: {} })).toThrow();
