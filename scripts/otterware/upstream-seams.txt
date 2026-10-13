@@ -101,3 +101,6 @@ apps/desktop/src/app/CodexAuthCallback.test.ts
 # Module unread counts share the host dock/taskbar badge and survive Code focus changes
 apps/desktop/src/ipc/methods/notificationBadge.ts
 apps/desktop/src/ipc/methods/notificationBadge.test.ts
+
+# Packaging verification must account for the staged native Mail translator
+scripts/build-desktop-artifact.test.ts
