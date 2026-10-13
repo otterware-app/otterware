@@ -10,7 +10,9 @@ export function driveStaticRequest(request: Request): Request | null {
     url.pathname !== "/account/callback" &&
     !/^\/[^/]+\/a\/[^/]+(?:\/v[1-9][0-9]*)?\/?$/.test(url.pathname) &&
     !/^\/s\/[^/]+$/.test(url.pathname) &&
-    url.pathname !== "/home"
+    url.pathname !== "/home" &&
+    url.pathname !== "/settings" &&
+    !url.pathname.startsWith("/settings/")
   )
     return null;
   url.pathname = "/drive/index.html";

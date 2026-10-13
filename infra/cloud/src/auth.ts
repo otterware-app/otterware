@@ -2,6 +2,7 @@ import { EncryptJWT, jwtDecrypt } from "jose";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import { derivedKey } from "../mail/src/keys.ts";
+import { isPublicDriveRequest } from "./drive-browser.ts";
 import type { Env, Identity } from "./env.ts";
 
 export const audienceSchema = z
@@ -82,7 +83,7 @@ export async function verifyToken(env: Env, token: string, audience: string): Pr
 }
 
 export async function authenticate(request: Request, env: Env) {
-  requireBrowserOrigin(request, env);
+  if (!isPublicDriveRequest(request)) requireBrowserOrigin(request, env);
   const header = request.headers.get("authorization");
   const audience = request.headers.get("x-otter-audience");
   if (!header?.startsWith("Bearer ") || !audience) throw new HTTPException(401);

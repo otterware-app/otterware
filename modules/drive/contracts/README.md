@@ -2,7 +2,8 @@
 
 `@otterware/drive-contracts` exports the Effect schemas, `DriveContract`, `DRIVE_METHODS`,
 `DriveToolkit` and scoped `DriveSettings`. `@otterware/drive-contracts/api` exports the existing
-Drive REST API's Zod schemas and types. The web layer imports these contracts, never engine
+Drive REST API's Zod schemas and types. `@otterware/drive-contracts/constants` exports
+origin and audience constants without loading Effect or RPC/tool schemas. The web layer imports these contracts, never engine
 internals. RPC names start with `drive.`; their payload and result schemas are the authority.
 
 The browser uses `DriveClient` from `@otterware/otter-cloud-client/drive`, constructed with an

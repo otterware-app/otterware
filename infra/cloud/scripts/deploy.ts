@@ -87,6 +87,16 @@ if (process.argv.includes("--prepare")) {
   await bundle();
   await buildDriveAssets();
   wrangler(["d1", "migrations", "apply", "ACCOUNT_DATA", "--remote"]);
+  // Accounts still owns this shared database. Apply only this idempotent,
+  // additive callback migration, never its entire pending migration history.
+  wrangler([
+    "d1",
+    "execute",
+    "ACCOUNTS_DB",
+    "--remote",
+    "--file",
+    "accounts/migrations/0006_drive_web_callbacks.sql",
+  ]);
   wrangler(["deploy"]);
   const secrets = await api<{ name: string }[]>(
     "/workers/scripts/otterware-cloud/secrets",

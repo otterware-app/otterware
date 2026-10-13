@@ -10,7 +10,8 @@ import * as Stream from "effect/Stream";
 import { makeDriveApi, type DriveApi } from "./DriveApi.ts";
 import { DriveAccountSession } from "./DriveConnection.ts";
 import { DriveUploadSources, uploadInputError } from "./DriveUploadSource.ts";
-import { makeWith } from "./DriveService.ts";
+import { homeContributor } from "./DriveHome.ts";
+import { DriveService, makeWith } from "./DriveService.ts";
 import { DRIVE_MIGRATIONS, makeDriveStore } from "./DriveStore.ts";
 const BASE = "https://drive.otterware.app";
 const TOKEN = "session-token";
@@ -336,6 +337,9 @@ describe("DriveService", () => {
           threadIds: ["thread-1"],
         }),
       ]);
+      const contributor = yield* homeContributor.pipe(Effect.provideService(DriveService, drive));
+      const items = yield* contributor.needsYou;
+      expect(items[0]?.target?.route).toBe("/drive/team-docs/a/q3-plan");
       const latest = yield* drive.linkChanges.pipe(Stream.take(1), Stream.runCollect);
       expect(latest[0]?.links[0]?.changed).toBe(true);
       yield* drive.markViewed(DOC_ID, 3);

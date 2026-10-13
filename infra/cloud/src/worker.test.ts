@@ -298,6 +298,26 @@ describe("parallel Cloud Worker", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ connected: false });
   });
+  it("accepts cookie-free standalone Drive requests and returns canonical document links", async () => {
+    const response = await request("/v1/cloud/drive-token", {
+      method: "POST",
+      headers: { authorization: "Bearer offline-a", origin: "https://drive.otterware.app" },
+    });
+    expect(response.status).toBe(200);
+    const { accessToken } = (await response.json()) as { accessToken: string };
+    const h = { ...headers(accessToken, "otterware:drive"), origin: "https://drive.otterware.app" };
+    const draft = await request("/api/v1/artifacts", {
+      method: "POST",
+      headers: h,
+      body: JSON.stringify({ title: "Standalone document", slug: "standalone-document" }),
+    });
+    expect(draft.status, await draft.clone().text()).toBe(201);
+    const document = (await draft.json()) as { data: { url: string } };
+    expect(new URL(document.data.url).origin).toBe("https://drive.otterware.app");
+    expect((await request("/api/v1/folders", { headers: h })).status).toBe(200);
+    expect((await request("/v1/cloud/connections", { headers: h })).status).toBe(403);
+  });
+
   it("authorizes Drive mutations by the Cloud account despite unrelated host-only cookies", async () => {
     const accessToken = await token();
     const response = await request("/api/v1/folders", {
