@@ -91,7 +91,10 @@ describe("profile identity at runtime and in build scripts", () => {
         scheme,
         linuxEntry: `${appId}.desktop`,
         channel: profile === "code" ? "nightly" : `${profile}-nightly`,
-        artwork: "assets/otter-dev/otter-dev-windows.ico",
+        artwork:
+          profile === "code"
+            ? "assets/otter-dev/otter-dev-windows.ico"
+            : `assets/${profile}/${profile}${profile === "mail" ? "-dev" : ""}-windows.ico`,
       });
     },
   );

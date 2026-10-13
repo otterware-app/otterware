@@ -2172,7 +2172,13 @@ function stageMacIcons(stageResourcesDir: string, sourcePng: string, verbose: bo
       verbose,
     });
 
-    yield* generateMacIconSet(sourcePng, iconIcnsPath, tmpRoot, path, verbose);
+    // Otterware seam: supplied native artwork takes precedence over PNG exports.
+    const sourceIcns = sourcePng.replace(/-macos-1024\.png$/, "-macos.icns");
+    if (yield* fs.exists(sourceIcns)) {
+      yield* fs.copyFile(sourceIcns, iconIcnsPath);
+    } else {
+      yield* generateMacIconSet(sourcePng, iconIcnsPath, tmpRoot, path, verbose);
+    }
   });
 }
 

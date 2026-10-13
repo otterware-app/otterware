@@ -38,6 +38,7 @@ export interface ProfileBrand {
     readonly development: string;
     /** File name prefix inside those directories, e.g. `otter` for `otter-macos-1024.png`. */
     readonly filePrefix: string;
+    readonly developmentFilePrefix?: string;
   };
   /** The CLI's npm identity, or null for profiles that ship no CLI. */
   readonly npm: {
@@ -82,10 +83,21 @@ export const defineProfile = <const P extends AppProfile>(profile: P): P => prof
 
 export const OTTERWARE_RELEASE_REPOSITORY = "otterware-app/otterware";
 
-/** Otter Code's brand kit; the other profiles borrow it until their own art lands. */
+/** Otter Code's existing production, development and nightly kits. */
 export const OTTER_CODE_ICONS: ProfileBrand["icons"] = {
   production: "assets/otter",
   nightly: "assets/otter-nightly",
   development: "assets/otter-dev",
   filePrefix: "otter",
 };
+
+/** Standalone kits reuse production unless the source app supplies a dev export. */
+export function profileArtwork(id: Exclude<ProfileId, "code">): ProfileBrand["icons"] {
+  return {
+    production: `assets/${id}`,
+    nightly: `assets/${id}`,
+    development: `assets/${id}`,
+    filePrefix: id,
+    ...(id === "mail" ? { developmentFilePrefix: "mail-dev" } : {}),
+  };
+}

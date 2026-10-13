@@ -1,4 +1,4 @@
-import { defineProfile, OTTER_CODE_ICONS, OTTERWARE_RELEASE_REPOSITORY } from "./profile.ts";
+import { defineProfile, profileArtwork, OTTERWARE_RELEASE_REPOSITORY } from "./profile.ts";
 
 export const calendarProfile = defineProfile({
   id: "calendar",
@@ -14,7 +14,7 @@ export const calendarProfile = defineProfile({
     slug: "otter-calendar",
     devSlug: "otter-calendar-dev",
     artifactName: "Otter-Calendar-${version}-${arch}.${ext}",
-    icons: OTTER_CODE_ICONS,
+    icons: profileArtwork("calendar"),
     npm: null,
   },
   dataHome: ".otter-calendar",

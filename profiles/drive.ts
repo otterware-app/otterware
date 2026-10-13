@@ -1,4 +1,4 @@
-import { defineProfile, OTTER_CODE_ICONS, OTTERWARE_RELEASE_REPOSITORY } from "./profile.ts";
+import { defineProfile, profileArtwork, OTTERWARE_RELEASE_REPOSITORY } from "./profile.ts";
 
 export const driveProfile = defineProfile({
   id: "drive",
@@ -14,7 +14,7 @@ export const driveProfile = defineProfile({
     slug: "otter-drive",
     devSlug: "otter-drive-dev",
     artifactName: "Otter-Drive-${version}-${arch}.${ext}",
-    icons: OTTER_CODE_ICONS,
+    icons: profileArtwork("drive"),
     npm: null,
   },
   dataHome: ".otter-drive",

@@ -72,6 +72,11 @@ export function profileIconPath(
 ): string {
   const icons = profile.brand.icons;
   if (filename === "app-icon.icon") return `${icons[channel]}/${filename}`;
-  const suffix = channel === "production" ? "" : channel === "development" ? "-dev" : "-nightly";
-  return `${icons[channel]}/${icons.filePrefix}${suffix}-${filename}`;
+  const suffix =
+    icons[channel] === icons.production ? "" : channel === "development" ? "-dev" : "-nightly";
+  const prefix =
+    channel === "development" && icons.developmentFilePrefix
+      ? icons.developmentFilePrefix
+      : `${icons.filePrefix}${suffix}`;
+  return `${icons[channel]}/${prefix}-${filename}`;
 }

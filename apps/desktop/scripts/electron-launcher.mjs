@@ -221,6 +221,13 @@ function ensureMacIconIcns(runtimeDir) {
   const { sourceIconPath, generatedIconPath } = resolveMacLauncherIconPaths(runtimeDir);
   NodeFS.mkdirSync(runtimeDir, { recursive: true });
 
+  // Otterware seam: retain supplied native artwork, including Mail's dev icon.
+  const sourceIcns = sourceIconPath.replace(/-macos-1024\.png$/, "-macos.icns");
+  if (NodeFS.existsSync(sourceIcns)) {
+    NodeFS.copyFileSync(sourceIcns, generatedIconPath);
+    return generatedIconPath;
+  }
+
   if (!NodeFS.existsSync(sourceIconPath)) {
     throw new Error(`Desktop macOS icon source is missing at ${sourceIconPath}`);
   }
