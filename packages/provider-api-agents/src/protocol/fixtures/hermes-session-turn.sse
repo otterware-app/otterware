@@ -1,0 +1,41 @@
+event: run.started
+data: {"event": "run.started", "run_id": "run_5d2f8a", "timestamp": 1760000200.12, "user_message": {"role": "user", "content": "Clean up the build folder"}, "runtime": {"model": "claude-sonnet-4.5", "provider": "anthropic"}}
+
+event: message.started
+data: {"event": "message.started", "run_id": "run_5d2f8a", "timestamp": 1760000200.13, "message": {"id": "msg_9e1", "role": "assistant"}}
+
+event: tool.progress
+data: {"event": "tool.progress", "run_id": "run_5d2f8a", "timestamp": 1760000200.4, "message_id": "msg_9e1", "tool_name": "_thinking", "delta": "I should list the folder first."}
+
+event: assistant.delta
+data: {"event": "assistant.delta", "run_id": "run_5d2f8a", "timestamp": 1760000200.9, "message_id": "msg_9e1", "delta": "I'll check the folder."}
+
+event: tool.started
+data: {"event": "tool.started", "run_id": "run_5d2f8a", "timestamp": 1760000201.0, "message_id": "msg_9e1", "tool_name": "terminal", "preview": "ls build", "args": {"command": "ls build"}}
+
+: keepalive
+
+event: tool.completed
+data: {"event": "tool.completed", "run_id": "run_5d2f8a", "timestamp": 1760000201.6, "message_id": "msg_9e1", "tool_name": "terminal", "preview": "app.js\nassets", "args": null}
+
+event: approval.request
+data: {"command": "rm -rf build", "description": "recursive delete", "pattern_key": "rm_recursive", "request_id": "apr_31c", "allow_session": true, "allow_permanent": false, "event": "approval.request", "run_id": "run_5d2f8a", "timestamp": 1760000202.0, "message_id": "msg_9e1", "choices": ["once", "session", "deny"]}
+
+event: tool.started
+data: {"event": "tool.started", "run_id": "run_5d2f8a", "timestamp": 1760000205.0, "message_id": "msg_9e1", "tool_name": "terminal", "preview": "rm -rf build", "args": {"command": "rm -rf build"}}
+
+event: tool.completed
+data: {"event": "tool.completed", "run_id": "run_5d2f8a", "timestamp": 1760000205.2, "message_id": "msg_9e1", "tool_name": "terminal", "preview": "", "args": null}
+
+event: assistant.delta
+data: {"event": "assistant.delta", "run_id": "run_5d2f8a", "timestamp": 1760000205.5, "message_id": "msg_9e1", "delta": " Done, the build folder is gone."}
+
+event: assistant.completed
+data: {"event": "assistant.completed", "run_id": "run_5d2f8a", "timestamp": 1760000205.6, "session_id": "sess_42", "message_id": "msg_9e1", "content": "I'll check the folder. Done, the build folder is gone.", "completed": true, "runtime": {"model": "claude-sonnet-4.5"}}
+
+event: run.completed
+data: {"event": "run.completed", "run_id": "run_5d2f8a", "timestamp": 1760000205.7, "session_id": "sess_42", "message_id": "msg_9e1", "completed": true, "messages": [], "usage": {"input_tokens": 3210, "output_tokens": 84, "total_tokens": 3294}, "runtime": {"model": "claude-sonnet-4.5"}}
+
+event: done
+data: {"event": "done", "run_id": "run_5d2f8a", "timestamp": 1760000205.8}
+

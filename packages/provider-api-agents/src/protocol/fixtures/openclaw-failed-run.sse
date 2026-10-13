@@ -1,0 +1,8 @@
+data: {"id":"chatcmpl_run-9c2d","object":"chat.completion.chunk","created":1760000102,"model":"openclaw/default","choices":[{"index":0,"delta":{"role":"assistant"}}]}
+
+data: {"id":"chatcmpl_run-9c2d","object":"chat.completion.chunk","created":1760000102,"model":"openclaw/default","choices":[{"index":0,"delta":{"content":"Partial"}}]}
+
+data: {"error":{"message":"agent run was cancelled","type":"api_error"}}
+
+data: [DONE]
+

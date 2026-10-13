@@ -4,6 +4,7 @@ import {
   CodexSettings,
   ProviderDriverKind,
 } from "@t3tools/contracts";
+import { apiAgentClients } from "@otterware/provider-api-agents/client";
 import { acpRegistryClient } from "@t3tools/provider-acp-registry/client";
 import { makeProviderClientRegistry } from "@t3tools/provider-core/client";
 import { cursorClient } from "@t3tools/provider-cursor/client";
@@ -34,5 +35,6 @@ export const providerClients = makeProviderClientRegistry([
   },
   museClient,
   piClient,
+  ...apiAgentClients,
   acpRegistryClient,
 ]);
