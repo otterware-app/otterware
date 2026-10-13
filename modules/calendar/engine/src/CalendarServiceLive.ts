@@ -2291,7 +2291,7 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
               title: row.title,
               start: row.start_ms,
               allDay: (row.flags & 1) !== 0,
-              timeZone: preferences.timeZone ?? row.time_zone ?? serverZone,
+              timeZone: row.time_zone ?? preferences.timeZone ?? serverZone,
               ...fields,
               ...(row.default_reminders_json !== null
                 ? {
