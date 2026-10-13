@@ -17,7 +17,10 @@ import * as SqlClient from "effect/sql/SqlClient";
 export type ReminderCandidate = Omit<
   CalendarReminderNotification,
   "key" | "deliveredAt" | "minutesBefore"
-> & { readonly reminders?: CalendarEventReminders };
+> & {
+  readonly reminders?: CalendarEventReminders;
+  readonly defaultReminders?: CalendarEventReminders["overrides"];
+};
 const encode = Schema.encodeEffect(Schema.fromJsonString(CalendarReminderNotification));
 const decode = Schema.decodeUnknownEffect(Schema.fromJsonString(CalendarReminderNotification));
 const GRACE = 5 * MINUTE_MS;
@@ -54,9 +57,13 @@ export const makeCalendarReminders = (options: {
                 ? (candidate.reminders.overrides ?? [])
                     .filter((rule) => rule.method === "popup")
                     .map((rule) => rule.minutes)
-                : preferences.notificationRules
-                    .filter((rule) => rule.enabled)
-                    .map((rule) => rule.minutesBefore);
+                : candidate.defaultReminders !== undefined
+                  ? candidate.defaultReminders
+                      .filter((rule) => rule.method === "popup")
+                      .map((rule) => rule.minutes)
+                  : preferences.notificationRules
+                      .filter((rule) => rule.enabled)
+                      .map((rule) => rule.minutesBefore);
             for (const minutesBefore of new Set(minutes)) {
               const due = start - minutesBefore * MINUTE_MS;
               if (due > now) {

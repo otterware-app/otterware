@@ -11,6 +11,26 @@
       "types": "./src/host.tsx",
       "import": "./src/host.tsx"
     },
+    "./module": {
+      "types": "./src/CalendarWebModule.ts",
+      "import": "./src/CalendarWebModule.ts"
+    },
+    "./page": {
+      "types": "./src/CalendarPage.tsx",
+      "import": "./src/CalendarPage.tsx"
+    },
+    "./settings": {
+      "types": "./src/CalendarSettings.tsx",
+      "import": "./src/CalendarSettings.tsx"
+    },
+    "./rpc": {
+      "types": "./src/rpc/index.ts",
+      "import": "./src/rpc/index.ts"
+    },
+    "./notifications": {
+      "types": "./src/CalendarNotifications.tsx",
+      "import": "./src/CalendarNotifications.tsx"
+    },
     "./registration": {
       "types": "./src/CalendarWebModule.ts",
       "import": "./src/CalendarWebModule.ts"
@@ -29,12 +49,14 @@
     "clsx": "2.1.1",
     "effect": "catalog:",
     "lucide-react": "^0.564.0",
-    "react": "19.2.6"
+    "react": "19.2.6",
+    "react-dom": "19.2.6"
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
     "@types/node": "catalog:",
     "@types/react": "~19.3.0",
+    "@types/react-dom": "~19.2.3",
     "vite-plus": "catalog:"
   }
 }

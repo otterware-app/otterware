@@ -9,11 +9,10 @@ import {
 import {
   calendarConnectStream,
   calendarNotificationsStream,
-  CalendarNotifications,
-  CalendarClientProvider,
   createCalendarAtoms,
-  type CalendarWebClient,
-} from "@otterware/composition/web/calendar";
+ } from "@otterware/composition/web/calendar/rpc";
+import { CalendarClientProvider, type CalendarWebClient } from "@otterware/composition/web/calendar/host";
+import { CalendarNotifications } from "@otterware/composition/web/calendar/notifications";
 import { useAtomValue } from "@effect/atom-react";
 import { EnvironmentRegistry, EnvironmentSupervisor } from "@t3tools/client-runtime/connection";
 import { request } from "@t3tools/client-runtime/rpc";

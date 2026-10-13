@@ -176,6 +176,9 @@ export const calendarToolHandlers = Effect.gen(function* () {
                 visible: entry.visible,
                 accessRole: entry.accessRole,
                 primary: entry.primary,
+                ...(entry.defaultReminders !== undefined
+                  ? { defaultReminders: entry.defaultReminders }
+                  : {}),
               })),
           })),
         })),

@@ -17,6 +17,9 @@ import type * as Effect from "effect/Effect";
 
 /** `calendarList` entry. */
 export interface RemoteCalendar {
+  readonly defaultReminders?: NonNullable<
+    import("@otterware/calendar-contracts").CalendarEventReminders["overrides"]
+  >;
   readonly id: string;
   readonly summary?: string;
   /** The user's own name for a calendar they subscribed to. */

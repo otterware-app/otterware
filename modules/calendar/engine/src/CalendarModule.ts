@@ -12,6 +12,7 @@ import * as CalendarServiceLive from "./CalendarServiceLive.ts";
 import * as GoogleAuthUnavailable from "./GoogleAuthUnavailable.ts";
 import { GoogleAuth } from "./google/GoogleAuth.ts";
 import { calendarToolHandlers } from "./CalendarTools.ts";
+import calendarReminderDefaultsMigration from "./calendarReminderDefaultsMigration.ts";
 import reminderMigration from "./reminderMigration.ts";
 import migration from "./migration.ts";
 import preferenceSyncMigration from "./preferenceSyncMigration.ts";
@@ -55,6 +56,12 @@ export const makeCalendarModule = <E, R>(auth: Layer.Layer<GoogleAuth, E, R>) =>
       { module: "calendar", id: 2, name: "environment_preferences", run: environmentMigration },
       { module: "calendar", id: 3, name: "account_preference_sync", run: preferenceSyncMigration },
       { module: "calendar", id: 4, name: "reminder_deliveries", run: reminderMigration },
+      {
+        module: "calendar",
+        id: 5,
+        name: "calendar_reminder_defaults",
+        run: calendarReminderDefaultsMigration,
+      },
     ],
     layer: CalendarServiceLive.layer.pipe(Layer.provide(auth)),
     rpcHandlers,

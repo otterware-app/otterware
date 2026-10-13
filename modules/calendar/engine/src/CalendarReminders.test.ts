@@ -165,3 +165,69 @@ it.effect("automatically wakes for changes and stops its timer with the module s
     expect(yield* Ref.get(reads)).toBe(stoppedAt);
   }).pipe(Effect.provide(database)),
 );
+
+it.effect(
+  "inherits Google defaults, respects explicit overrides and uses account rules for demo calendars",
+  () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const sql = yield* seed;
+        const now = DAY_MS;
+        yield* TestClock.setTime(now);
+        const defaults = [
+          { method: "popup" as const, minutes: 5 },
+          { method: "email" as const, minutes: 10 },
+        ];
+        const candidates = [
+          {
+            ...base,
+            eventId: "google",
+            start: now + 5 * MINUTE_MS,
+            reminders: { useDefault: true },
+            defaultReminders: defaults,
+          },
+          {
+            ...base,
+            eventId: "off",
+            start: now + 10 * MINUTE_MS,
+            reminders: { useDefault: false, overrides: [] },
+            defaultReminders: defaults,
+          },
+          { ...base, eventId: "no-defaults", start: now + 10 * MINUTE_MS, defaultReminders: [] },
+          {
+            ...base,
+            eventId: "custom",
+            start: now + 3 * MINUTE_MS,
+            reminders: { useDefault: false, overrides: [{ method: "popup" as const, minutes: 3 }] },
+            defaultReminders: defaults,
+          },
+          { ...base, eventId: "demo", start: now + 10 * MINUTE_MS },
+        ];
+        const worker = yield* makeCalendarReminders({
+          preferences: () => ({
+            ...DEFAULT_CALENDAR_PREFERENCES,
+            notificationRules: [{ minutesBefore: 10, enabled: true }],
+          }),
+          candidates: () => Effect.succeed(candidates),
+          changes: Stream.empty,
+          autoStart: false,
+        });
+        yield* worker.check;
+        const rows = yield* sql<{
+          notification_json: string;
+        }>`SELECT notification_json FROM calendar_reminder_deliveries`;
+        expect(
+          rows
+            .map((row) => {
+              const value = JSON.parse(row.notification_json);
+              return [value.eventId, value.minutesBefore];
+            })
+            .sort(),
+        ).toEqual([
+          ["custom", 3],
+          ["demo", 10],
+          ["google", 5],
+        ]);
+      }),
+    ).pipe(Effect.provide(database)),
+);

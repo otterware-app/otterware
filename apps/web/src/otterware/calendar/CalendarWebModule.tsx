@@ -8,7 +8,7 @@ import { CalendarEnvironmentProvider } from "./rpc";
 export const CalendarWebModule = {
   ...moduleDefinition,
   page: lazy(async () => {
-    const { CalendarPage } = await import("@otterware/composition/web/calendar");
+    const { CalendarPage } = await import("@otterware/composition/web/calendar/page");
     return {
       default: function CalendarHostPage(props: ModulePageProps) {
         const search = useLocation({ select: (location) => location.searchStr });
@@ -25,7 +25,7 @@ export const CalendarWebModule = {
   settings: {
     ...moduleDefinition.settings,
     component: lazy(async () => {
-      const { CalendarSettings } = await import("@otterware/composition/web/calendar");
+      const { CalendarSettings } = await import("@otterware/composition/web/calendar/settings");
       return {
         default: function CalendarHostSettings() {
           return (

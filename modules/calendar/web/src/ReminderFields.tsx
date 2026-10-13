@@ -40,7 +40,7 @@ export function ReminderFields({
           }
         >
           {creating && <option value="account">Account defaults</option>}
-          <option value="provider">Google calendar defaults</option>
+          <option value="provider">Calendar defaults</option>
           <option value="none">No reminders</option>
           <option value="custom">Custom reminders</option>
         </select>

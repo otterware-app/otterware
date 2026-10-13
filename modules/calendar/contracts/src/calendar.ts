@@ -51,6 +51,13 @@ export const TimeZoneName = TrimmedNonEmptyString.check(Schema.isMaxLength(64));
 /** `#rrggbb`. */
 export const HexColor = Schema.String.check(Schema.isPattern(/^#[0-9a-fA-F]{6}$/));
 
+export const CalendarReminderOverrides = Schema.Array(
+  Schema.Struct({
+    method: Schema.Literals(["popup", "email"]),
+    minutes: Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 40320 })),
+  }),
+).check(Schema.isMaxLength(5));
+
 // ── Directory: accounts, calendars, preferences ──────────────────────
 
 export const CalendarProviderKind = Schema.Literals(["google", "demo"]);
@@ -86,6 +93,7 @@ export const CalendarAccessRole = Schema.Literals(["owner", "writer", "reader", 
 export type CalendarAccessRole = typeof CalendarAccessRole.Type;
 
 export const Calendar = Schema.Struct({
+  defaultReminders: Schema.optional(CalendarReminderOverrides),
   calendarId: CalendarId,
   accountId: CalendarAccountId,
   name: Schema.String,
@@ -105,14 +113,7 @@ export const CalendarWeekday = Schema.Int.check(Schema.isBetween({ minimum: 0, m
 /** Google supports at most five email/popup overrides, up to four weeks before an event. */
 export const CalendarEventReminders = Schema.Struct({
   useDefault: Schema.Boolean,
-  overrides: Schema.optional(
-    Schema.Array(
-      Schema.Struct({
-        method: Schema.Literals(["popup", "email"]),
-        minutes: Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 40320 })),
-      }),
-    ).check(Schema.isMaxLength(5)),
-  ),
+  overrides: Schema.optional(CalendarReminderOverrides),
 });
 export type CalendarEventReminders = typeof CalendarEventReminders.Type;
 export const CalendarReminderNotification = Schema.Struct({

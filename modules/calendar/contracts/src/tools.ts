@@ -10,6 +10,7 @@ import { moduleToolFailures, withToolTier } from "@otterware/module-kit/contract
 import {
   CalendarAccessRole,
   CalendarEventReminders,
+  CalendarReminderOverrides,
   CalendarAccountStatus,
   CalendarChangeScope,
   CalendarError,
@@ -96,6 +97,7 @@ const ListAccountsTool = Tool.make("calendar_list_accounts", {
             visible: Schema.Boolean,
             accessRole: CalendarAccessRole,
             primary: Schema.Boolean,
+            defaultReminders: Schema.optional(CalendarReminderOverrides),
           }),
         ),
       }),

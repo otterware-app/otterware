@@ -42,6 +42,7 @@ import {
   type CalendarMutationResult,
   CalendarPreferences,
   CalendarEventReminders,
+  CalendarReminderOverrides,
   type CalendarWeekEvent,
   type GoogleConnectState,
 } from "@otterware/calendar-contracts";
@@ -245,6 +246,15 @@ function sameDirectory(a: CalendarDirectory, b: CalendarDirectory): boolean {
 const decodeReminderFields = Schema.decodeUnknownEffect(
   Schema.fromJsonString(Schema.Struct({ reminders: Schema.optional(CalendarEventReminders) })),
 );
+const encodeDefaultReminders = Schema.encodeEffect(
+  Schema.fromJsonString(CalendarReminderOverrides),
+);
+const readDefaultReminders = Schema.decodeUnknownOption(
+  Schema.fromJsonString(CalendarReminderOverrides),
+);
+const decodeDefaultReminders = Schema.decodeUnknownEffect(
+  Schema.fromJsonString(CalendarReminderOverrides),
+);
 const samePreferences = Schema.toEquivalence(CalendarPreferences);
 
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -405,6 +415,14 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
     color: calendar.color,
     accessRole: calendar.accessRole,
     primary: calendar.primary,
+    ...(calendar.defaultRemindersJson
+      ? {
+          defaultReminders: Option.getOrElse(
+            readDefaultReminders(calendar.defaultRemindersJson),
+            () => [],
+          ),
+        }
+      : {}),
     visible: calendar.visible,
     ...(calendar.timeZone ? { timeZone: calendar.timeZone } : {}),
   });
@@ -425,7 +443,7 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
 
   const getDirectory = loadDirectory.pipe(failedTo("load the calendars"));
 
-  /** Counts open directory and week streams; the first one speeds up the sync schedule. */
+  /** Counts open directory, week and reminder streams; the first one speeds up the sync schedule. */
   const trackSubscriber = Effect.acquireRelease(
     Effect.suspend(() => {
       subscribers += 1;
@@ -907,8 +925,7 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
       if (!time.ok) return yield* invalid(time.detail);
       const write: RemoteEventWrite = {
         ...createWrite(input, nextRequestId),
-        ...(input.reminders === undefined &&
-        preferences.notificationRules.some((rule) => rule.enabled)
+        ...(input.reminders === undefined && preferences.notificationRules.length > 0
           ? {
               reminders: {
                 useDefault: false,
@@ -1838,6 +1855,18 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
                     : "#039be5",
                   accessRole: remote.accessRole ?? "reader",
                   primary: remote.primary === true,
+                  defaultRemindersJson:
+                    remote.defaultReminders === undefined
+                      ? null
+                      : yield* encodeDefaultReminders(remote.defaultReminders).pipe(
+                          Effect.mapError(
+                            () =>
+                              new CalendarProviderError({
+                                reason: "unavailable",
+                                detail: "Could not read Google calendar reminder defaults.",
+                              }),
+                          ),
+                        ),
                   timeZone:
                     remote.timeZone && isValidTimeZone(remote.timeZone) ? remote.timeZone : null,
                 };
@@ -2241,8 +2270,9 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
           flags: number;
           time_zone: string | null;
           json: string | null;
+          default_reminders_json: string | null;
         }>`
-        SELECT i.calendar_id, i.instance_id, i.title, i.start_ms, i.flags, c.time_zone, COALESCE(exception.json, master.json) AS json
+        SELECT i.calendar_id, i.instance_id, i.title, i.start_ms, i.flags, c.time_zone, c.default_reminders_json, COALESCE(exception.json, master.json) AS json
         FROM calendar_instances i JOIN calendar_calendars c ON c.calendar_id = i.calendar_id
         JOIN calendar_accounts a ON a.account_id = c.account_id
         LEFT JOIN calendar_events exception ON exception.calendar_id = i.calendar_id AND exception.event_id = i.instance_id
@@ -2263,13 +2293,25 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
               allDay: (row.flags & 1) !== 0,
               timeZone: preferences.timeZone ?? row.time_zone ?? serverZone,
               ...fields,
+              ...(row.default_reminders_json !== null
+                ? {
+                    defaultReminders: yield* decodeDefaultReminders(
+                      row.default_reminders_json,
+                    ).pipe(Effect.orElseSucceed(() => [])),
+                  }
+                : {}),
             };
           }),
         );
       }).pipe(failedTo("load reminder events")),
   });
   return CalendarService.of({
-    notifications: reminders.stream,
+    notifications: Stream.unwrap(
+      Effect.gen(function* () {
+        yield* trackSubscriber;
+        return reminders.stream;
+      }),
+    ),
     directory,
     getDirectory,
     week,

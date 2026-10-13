@@ -127,6 +127,9 @@ export function EventEditor({
     timeZone: isValidTimeZone(form.timeZone) ? form.timeZone : timeZone,
   };
   const recurrenceLocked = !duplicate && event?.seriesId !== undefined && scope === "this";
+  const providerDefaults = calendars.find(
+    (calendar) => calendar.calendarId === form.calendarId,
+  )?.defaultReminders;
   const account = calendars.find((item) => item.calendarId === event?.calendarId)?.accountId;
   const targets = calendars.filter(
     (item) =>
@@ -432,6 +435,15 @@ export function EventEditor({
             {guest.displayName ?? guest.email}: {guest.responseStatus}
           </p>
         ))}
+        {reminders?.useDefault && providerDefaults !== undefined && (
+          <p>
+            Calendar defaults:{" "}
+            {providerDefaults
+              .map((rule) => `${rule.method}, ${rule.minutes} minutes before`)
+              .join("; ") || "None configured"}
+            .
+          </p>
+        )}
         <ReminderFields
           value={reminders}
           onChange={setReminders}
