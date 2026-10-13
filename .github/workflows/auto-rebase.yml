@@ -1,9 +1,11 @@
 name: Auto-rebase
 
-# Many agents merge into main at once, so auto-merge PRs keep going stale or conflicting,
-# almost always only in pnpm-lock.yaml. After each push to main, rebase every open auto-merge
-# PR into main that conflicts or is behind, regenerating the lockfile instead of merging it.
-# PRs with real conflicts get one comment and are left to their author.
+# Many agents merge into main at once, so PRs keep going stale or conflicting, almost always
+# only in pnpm-lock.yaml, and stacked PRs land on main (GitHub retargets them when their base
+# branch merges) without auto-merge. After each push to main, every open same-repo, non-draft
+# PR into main gets auto-merge (PRs into main merge themselves when green, ADR 0014), and the
+# ones that conflict or are behind are rebased, regenerating the lockfile instead of merging
+# it. PRs with real conflicts get one comment and are left to their author.
 on:
   push:
     branches: [main]
@@ -41,8 +43,12 @@ jobs:
         run: |
           git config user.name "otterware-bot"
           git config user.email "otterware-bot@users.noreply.github.com"
-          prs=$(gh pr list --base main --state open --json number,headRefName,isCrossRepository,autoMergeRequest,mergeStateStatus \
-            --jq '.[] | select(.autoMergeRequest != null and (.isCrossRepository|not) and (.mergeStateStatus == "DIRTY" or .mergeStateStatus == "BEHIND")) | "\(.number) \(.headRefName)"')
+          for number in $(gh pr list --base main --state open --json number,isCrossRepository,isDraft,autoMergeRequest \
+            --jq '.[] | select((.isCrossRepository|not) and (.isDraft|not) and .autoMergeRequest == null) | .number'); do
+            gh pr merge "$number" --auto --squash && echo "Enabled auto-merge on #$number"
+          done
+          prs=$(gh pr list --base main --state open --json number,headRefName,isCrossRepository,isDraft,mergeStateStatus \
+            --jq '.[] | select((.isCrossRepository|not) and (.isDraft|not) and (.mergeStateStatus == "DIRTY" or .mergeStateStatus == "BEHIND")) | "\(.number) \(.headRefName)"')
           [ -z "$prs" ] && { echo "Nothing to rebase."; exit 0; }
           echo "$prs" | while read -r number branch; do
             echo "::group::#$number ($branch)"
