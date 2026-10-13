@@ -1,3 +1,4 @@
+// @effect-diagnostics nodeBuiltinImport:off - Reads the committed seam list; no Effect runtime.
 import * as NodeFS from "node:fs";
 import { describe, expect, it } from "vite-plus/test";
 
