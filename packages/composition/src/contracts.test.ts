@@ -15,7 +15,16 @@ describe("composeContracts", () => {
       "modules.list",
       "modules.setEnabled",
       "assistant.ensureProject",
+      "account.session.attach",
+      "account.session.detach",
+      "account.session.state",
+      "account.connections.list",
+      "account.connections.connect",
+      "account.connections.disconnect",
     ]);
+
+    expect(code.scopes["account.session.attach"]).toBe("settings:write");
+    expect(code.scopes["account.connections.list"]).toBe("orchestration:read");
 
     const calendar = composeContracts(PROFILES.calendar);
     expect(calendar.moduleIds).toEqual(["calendar"]);

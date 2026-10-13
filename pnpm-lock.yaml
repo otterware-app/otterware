@@ -2011,6 +2011,9 @@ importers:
 
   packages/module-kit:
     dependencies:
+      '@otterware/otter-cloud-client':
+        specifier: workspace:*
+        version: link:../otter-cloud-client
       '@t3tools/contracts':
         specifier: workspace:*
         version: link:../contracts

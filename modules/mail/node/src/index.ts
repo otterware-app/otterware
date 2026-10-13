@@ -1,8 +1,9 @@
 import { MailModule, MailRuntime } from "@otterware/mail-engine/module";
 import { MailError, type MailEvent } from "@otterware/mail-contracts/rpc";
 import { MAIL_STORAGE_SCHEMA } from "@otterware/mail-engine/storage";
-import * as Context from "effect/Context";
-import type { MailHost } from "./runtime.ts";
+import { OtterAccountSession } from "@otterware/module-kit/account";
+import * as Option from "effect/Option";
+import { workerLifecycle } from "./workerLifecycle.ts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as PubSub from "effect/PubSub";
@@ -12,11 +13,6 @@ import { openMailWorker, type MailNodeOptions } from "./runtime.ts";
 
 export { openMailWorker, type MailNodeOptions, type MailHost } from "./runtime.ts";
 export type { OtterAccountSession } from "@otterware/mail-engine/account-session";
-
-/** Mail-local host seam while module-kit grows shared account and desktop ports. */
-export const MailHostContext = Context.Reference<MailHost>("@otterware/mail/Host", {
-  defaultValue: () => ({}),
-});
 
 const error = (operation: string) => (cause: unknown) =>
   new MailError({ operation, message: cause instanceof Error ? cause.message : String(cause) });
@@ -37,14 +33,25 @@ export const mailNodeModule = (options: MailNodeOptions) => ({
   layer: Layer.effect(
     MailRuntime,
     Effect.gen(function* () {
-      const host = yield* MailHostContext;
+      const accountService = yield* Effect.serviceOption(OtterAccountSession);
+      const account = Option.getOrUndefined(accountService);
       const events = yield* PubSub.unbounded<MailEvent>();
       yield* Effect.addFinalizer(() => PubSub.shutdown(events));
       const worker = yield* Effect.acquireRelease(
         Effect.tryPromise({
           try: () =>
-            openMailWorker({ ...host, ...options }, (event) =>
-              Effect.runSync(PubSub.publish(events, event)),
+            workerLifecycle(
+              () => {
+                const session = account?.current();
+                return openMailWorker({ ...options, ...(session ? { session } : {}) }, (event) =>
+                  Effect.runSync(PubSub.publish(events, event)),
+                );
+              },
+              (changed) => account?.subscribe(changed) ?? (() => {}),
+              () =>
+                Effect.runSync(
+                  PubSub.publish(events, { channel: "gmail:accounts-changed", params: null }),
+                ),
             ),
           catch: error("start"),
         }),
@@ -53,12 +60,16 @@ export const mailNodeModule = (options: MailNodeOptions) => ({
       return {
         call: (operation: string, input: unknown) =>
           Effect.tryPromise({
-            try: (signal) => worker.call(operation, input, signal),
+            try: async (signal) => (await worker.current()).call(operation, input, signal),
             catch: error(operation),
           }),
-        runTool: (name: string, input: unknown, caller: Parameters<typeof worker.runTool>[2]) =>
+        runTool: (
+          name: string,
+          input: unknown,
+          caller: Parameters<Awaited<ReturnType<typeof openMailWorker>>["runTool"]>[2],
+        ) =>
           Effect.tryPromise({
-            try: (signal) => worker.runTool(name, input, caller, signal),
+            try: async (signal) => (await worker.current()).runTool(name, input, caller, signal),
             catch: error(name),
           }),
         events: Stream.fromPubSub(events),

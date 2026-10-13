@@ -1,3 +1,4 @@
+import { accountHandlers } from "./AccountRpc.ts";
 // @effect-diagnostics anyUnknownInErrorContext:off unsafeEffectTypeAssertion:off -- Bridges forward type-erased module handlers; the merged group and the contracts it was built from share one type.
 /**
  * The host's RPC handlers: the `modules.*` and `assistant.*` methods, and one
@@ -22,6 +23,7 @@ const hostHandlers = Effect.gen(function* () {
   const runtime = yield* ModuleRuntime;
   const assistant = yield* AssistantProjectHost;
   return HostRpcGroup.of({
+    ...(yield* accountHandlers),
     [HOST_METHODS.modulesList]: () => Effect.map(runtime.list, (modules) => ({ modules })),
     [HOST_METHODS.modulesSetEnabled]: ({ id, enabled }) => runtime.setEnabled(id, enabled),
     [HOST_METHODS.assistantEnsureProject]: () => assistant.ensure,

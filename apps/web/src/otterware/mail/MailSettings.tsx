@@ -1,3 +1,4 @@
+import { AccountConnections } from "../account/AccountConnections";
 import { MailSurface, SettingsPage, type SettingsRoute } from "@otterware/mail-web";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { useMemo } from "react";
@@ -50,6 +51,9 @@ export default function MailSettings() {
           credentials stay on the selected environment.
         </p>
       </div>
+      {pane === "accounts" && environmentId ? (
+        <AccountConnections environmentId={environmentId} />
+      ) : null}
       <nav aria-label="Mail settings" className="flex flex-wrap gap-2">
         {panes.map((value) => (
           <Button

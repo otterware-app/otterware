@@ -1,3 +1,4 @@
+import * as AccountSession from "./AccountSession.ts";
 /**
  * Where the module runtime joins the upstream server. The upstream files each
  * change by a line or two (see `scripts/otterware/upstream-seams.txt`):
@@ -80,6 +81,7 @@ export const layer = layerHostRpcHandlers.pipe(
     ),
   ),
   Layer.provide(CalendarAccountCredential.layer),
+  Layer.provideMerge(AccountSession.layer),
   Layer.provide(CodeHomeContributor.layerHostContributors),
   Layer.provideMerge(AssistantProject.layer),
 );
