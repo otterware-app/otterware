@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   type AnchorHTMLAttributes,
   type MouseEvent,
@@ -53,28 +54,9 @@ export function resolvePath(
   return `${pathname}${writeSearch(search)}`;
 }
 
-interface Blocker {
-  shouldBlock: ShouldBlockFn;
-  onBlocked: (proceed: () => void) => void;
-}
-
-const blockers = new Set<Blocker>();
-
-/** Navigates within Drive unless something on the page holds it (unsaved edits). */
+/** Navigates within Drive; the host's history applies any blocker. */
 function go(host: DriveHost, path: string, replace: boolean) {
-  const next = new URL(path, "https://drive.invalid");
-  const proceed = () => host.navigate(path, { replace });
-  for (const blocker of blockers)
-    if (
-      blocker.shouldBlock({
-        current: { pathname: host.location.pathname },
-        next: { pathname: next.pathname },
-      })
-    ) {
-      blocker.onBlocked(proceed);
-      return;
-    }
-  proceed();
+  host.navigate(path, { replace });
 }
 
 export function useNavigate() {
@@ -98,10 +80,10 @@ type BlockerState =
 const idle: BlockerState = { status: "idle", proceed: () => {}, reset: () => {} };
 
 /**
- * Holds Drive's own navigations while `shouldBlockFn` says so, until the page
- * proceeds or resets; `enableBeforeUnload` also asks before the tab closes.
- * Leaving Drive for another page of the Otterware shell keeps Drive mounted,
- * so nothing is lost there.
+ * Holds Drive's navigations, the browser's Back and Forward included, while
+ * `shouldBlockFn` says so, until the page proceeds or resets;
+ * `enableBeforeUnload` also asks before the tab closes. Leaving Drive for
+ * another page of the Otterware shell keeps Drive mounted, so that is never held.
  */
 export function useBlocker({
   shouldBlockFn,
@@ -111,32 +93,36 @@ export function useBlocker({
   enableBeforeUnload: () => boolean;
   withResolver: true;
 }): BlockerState {
+  const host = useDriveHost();
   const [state, setState] = useState<BlockerState>(idle);
+  const current = useRef(host.location);
   useEffect(() => {
-    const blocker: Blocker = {
-      shouldBlock: shouldBlockFn,
-      onBlocked: (proceed) =>
-        setState({
-          status: "blocked",
-          proceed: () => {
-            setState(idle);
-            proceed();
-          },
-          reset: () => setState(idle),
-        }),
-    };
-    blockers.add(blocker);
-    return () => {
-      blockers.delete(blocker);
-    };
-  }, [shouldBlockFn]);
-  useEffect(() => {
-    const ask = (event: BeforeUnloadEvent) => {
-      if (enableBeforeUnload()) event.preventDefault();
-    };
-    window.addEventListener("beforeunload", ask);
-    return () => window.removeEventListener("beforeunload", ask);
-  }, [enableBeforeUnload]);
+    current.current = host.location;
+  }, [host.location]);
+  const { blockNavigation } = host;
+  useEffect(
+    () =>
+      blockNavigation({
+        shouldBlock: (next) =>
+          shouldBlockFn({ current: current.current, next })
+            ? new Promise<boolean>((resolve) =>
+                setState({
+                  status: "blocked",
+                  proceed: () => {
+                    setState(idle);
+                    resolve(false);
+                  },
+                  reset: () => {
+                    setState(idle);
+                    resolve(true);
+                  },
+                }),
+              )
+            : false,
+        beforeUnload: enableBeforeUnload,
+      }),
+    [blockNavigation, shouldBlockFn, enableBeforeUnload],
+  );
   return state;
 }
 

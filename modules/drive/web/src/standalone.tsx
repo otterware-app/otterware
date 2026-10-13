@@ -1,6 +1,7 @@
 // @effect-diagnostics globalDate:off -- Browser OAuth authorization expiry.
 import { StrictMode, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { createRoot } from "react-dom/client";
+import { createBrowserHistory } from "@tanstack/history";
 import { createAccountSession } from "@t3tools/client-runtime/accounts";
 import {
   ACCOUNT_CLIENT_IDS,
@@ -28,34 +29,42 @@ const prefix =
   location.pathname === "/drive" || location.pathname.startsWith("/drive/") ? "/drive" : "";
 const redirectUri = `${location.origin}${CALLBACK_PATH}`;
 
-function currentLocation() {
-  return `${location.pathname}${location.search}`;
-}
+/** The browser history; its blockers also hold Back and Forward (`DriveHost.blockNavigation`). */
+const browserHistory = createBrowserHistory();
 
-function subscribeToHistory(onChange: () => void) {
-  window.addEventListener("popstate", onChange);
-  window.addEventListener("drive:navigate", onChange);
-  return () => {
-    window.removeEventListener("popstate", onChange);
-    window.removeEventListener("drive:navigate", onChange);
-  };
+function currentLocation() {
+  return `${browserHistory.location.pathname}${browserHistory.location.search}`;
 }
 
 function useBrowserLocation() {
-  const current = useSyncExternalStore(subscribeToHistory, currentLocation);
-  return useMemo(() => {
-    const url = new URL(current, location.origin);
-    const pathname = url.pathname.startsWith(prefix)
-      ? url.pathname.slice(prefix.length) || "/"
-      : url.pathname;
-    return { pathname, search: url.search };
-  }, [current]);
+  const current = useSyncExternalStore(browserHistory.subscribe, currentLocation);
+  return useMemo(() => toDrivePath(new URL(current, location.origin)), [current]);
+}
+
+/** A page path of this site as a Drive path (below `prefix`). */
+function toDrivePath(url: { pathname: string; search: string }) {
+  const pathname = url.pathname.startsWith(prefix)
+    ? url.pathname.slice(prefix.length) || "/"
+    : url.pathname;
+  return { pathname, search: url.search };
 }
 
 function go(to: string, replace = false) {
-  history[replace ? "replaceState" : "pushState"](null, "", `${prefix}${to}`);
-  window.dispatchEvent(new Event("drive:navigate"));
+  if (replace) browserHistory.replace(`${prefix}${to}`);
+  else browserHistory.push(`${prefix}${to}`);
 }
+
+/** The parts of the host that only depend on the browser's history. */
+const routing = {
+  navigate: (to, options) => go(to, options?.replace),
+  href: (to) => `${prefix}${to}`,
+  openInNewTab: (to) => void window.open(`${location.origin}${prefix}${to}`, "_blank", "noopener"),
+  blockNavigation: ({ shouldBlock, beforeUnload }) =>
+    browserHistory.block({
+      blockerFn: ({ nextLocation }) => shouldBlock(toDrivePath(nextLocation)),
+      enableBeforeUnload: beforeUnload,
+    }),
+} satisfies Pick<DriveHost, "navigate" | "href" | "openInNewTab" | "blockNavigation">;
 
 function readPending(): { state: string; verifier: string; returnTo: string } {
   const stored = sessionStorage.getItem(PENDING_KEY);
@@ -128,8 +137,7 @@ function StandaloneDrive() {
         )
           throw new Error("This sign-in request expired. Start sign-in again.");
         await manager.signIn({ code, verifier: pending.verifier, redirectUri });
-        history.replaceState(null, "", safeReturn(pending.returnTo));
-        window.dispatchEvent(new Event("drive:navigate"));
+        browserHistory.replace(safeReturn(pending.returnTo), undefined, { ignoreBlocker: true });
       } else await manager.validate();
     })()
       .catch((cause: unknown) => {
@@ -189,8 +197,7 @@ function StandaloneDrive() {
         client.clearSession();
       },
       location: where.pathname === CALLBACK_PATH ? { pathname: "/home", search: "" } : where,
-      navigate: (to, options) => go(to, options?.replace),
-      href: (to) => `${prefix}${to}`,
+      ...routing,
       embedded: false,
       active: true,
     }),

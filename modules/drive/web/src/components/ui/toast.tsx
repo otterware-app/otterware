@@ -1,5 +1,5 @@
 import { Toast } from "@base-ui/react/toast";
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import {
   CheckIcon,
   CircleAlertIcon,
@@ -34,6 +34,50 @@ type ToastData = {
 
 const toastManager = Toast.createToastManager<ToastData>();
 export type ToastId = ReturnType<typeof toastManager.add>;
+type ToastInput = Parameters<typeof toastManager.add>[0] & { id: string };
+
+/**
+ * Toasts raised while no Drive surface shows them (Drive's page hidden behind
+ * another page of the Otterware shell) wait here, and appear when one does.
+ */
+const waiting = new Map<string, ToastInput>();
+let showing = 0;
+let lastId = 0;
+
+function add(input: Omit<ToastInput, "id">): ToastId {
+  const toast = { ...input, id: `drive-toast-${++lastId}` };
+  if (showing > 0) return toastManager.add(toast);
+  waiting.set(toast.id, toast);
+  return toast.id;
+}
+
+function update(id: ToastId, patch: Partial<ToastInput>) {
+  const queued = waiting.get(id);
+  if (queued) waiting.set(id, { ...queued, ...patch, id });
+  else toastManager.update(id, patch);
+}
+
+function close(id?: ToastId) {
+  for (const [key, queued] of waiting)
+    if (id === undefined || key === id) {
+      waiting.delete(key);
+      queued.onRemove?.();
+    }
+  toastManager.close(id);
+}
+
+/** Shows what waited while nothing showed toasts; counts this surface while it shows them. */
+function useShowsToasts(visible: boolean) {
+  useEffect(() => {
+    if (!visible) return;
+    showing += 1;
+    for (const queued of waiting.values()) toastManager.add(queued);
+    waiting.clear();
+    return () => {
+      showing -= 1;
+    };
+  }, [visible]);
+}
 
 const TOAST_ICONS = {
   error: CircleAlertIcon,
@@ -171,6 +215,7 @@ export function ToastProvider({
    */
   visible?: boolean;
 }) {
+  useShowsToasts(visible);
   return (
     <Toast.Provider toastManager={toastManager}>
       {children}
@@ -330,14 +375,14 @@ function actionPropsFor(id: () => ToastId, action: ToastOptions["action"]) {
   return {
     children: action.label,
     onClick: () => {
-      toastManager.close(id());
+      close(id());
       action.onClick();
     },
   };
 }
 
 function show(type: ToastType | undefined, title: ReactNode, options: ToastOptions = {}): ToastId {
-  const id: ToastId = toastManager.add({
+  const id: ToastId = add({
     type,
     title,
     description: options.description,
@@ -365,7 +410,7 @@ export const toast = Object.assign(
       title: ReactNode,
       options: ToastOptions = {},
     ) =>
-      toastManager.update(id, {
+      update(id, {
         type,
         title,
         description: options.description,
@@ -373,6 +418,6 @@ export const toast = Object.assign(
         data: { onClose: options.onClose },
         actionProps: actionPropsFor(() => id, options.action),
       }),
-    close: (id?: ToastId) => toastManager.close(id),
+    close,
   },
 );

@@ -6,6 +6,7 @@ import { DriveHostProvider, type DriveHost } from "./host";
 import { setDriveClient } from "./lib/api";
 import { UserAvatar } from "./main/drive/folder-mark";
 import { FolderPane } from "./main/settings/folder-pane";
+import { ListDensityRow } from "./main/settings/density-row";
 import { MembersPane } from "./main/settings/members-pane";
 import { SettingsRow, SettingsSection, SettingsSectionsInline } from "./main/settings/settings-ui";
 import "./styles/drive.css";
@@ -51,6 +52,9 @@ export function DriveSettings({ host }: { host: DriveHost }) {
                     }
                   />
                 )}
+              </SettingsSection>
+              <SettingsSection title="Display">
+                <ListDensityRow />
               </SettingsSection>
               {user ? (
                 <>

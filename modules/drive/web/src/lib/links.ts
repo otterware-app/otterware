@@ -4,7 +4,7 @@ import { DEFAULT_API_URL } from "@otterware/drive-contracts/api";
  * Links people copy and share point at Drive's public site, whichever app
  * they were copied from (the Otterware shell may run on a local server).
  */
-function publicDriveUrl(path: string): string {
+export function publicDriveUrl(path: string): string {
   return new URL(path, DEFAULT_API_URL).href;
 }
 

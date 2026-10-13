@@ -14,6 +14,7 @@ import type { Artifact } from "@otterware/drive-contracts/api";
 import { DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub } from "../../components/ui/menu";
 import { toast } from "../../components/ui/toast";
 import { apiFetch } from "../../lib/api";
+import { useDriveHost } from "../../host";
 import { useFolderRole } from "../folder-role";
 import {
   announceSharingChanged,
@@ -131,13 +132,14 @@ export function DocumentMenuItems({
    * shared with you on its own, which is addressed by its id.
    */
   folderId: string | undefined;
-  /** Offers "Open in new tab" (rows, not the viewer). */
+  /** A Drive path; offers "Open in new tab" (rows, not the viewer). */
   href?: string;
   /** The version showing, for Download. */
   version?: number;
   onMoved?: (artifact: Artifact, destination: Folder) => void;
   onDeleted?: (artifact: Artifact) => void;
 }) {
+  const host = useDriveHost();
   const { folders } = useFolders();
   // The document's own role covers sharing; the folder's is the fallback for
   // responses from before it was reported.
@@ -167,10 +169,7 @@ export function DocumentMenuItems({
   return (
     <>
       {href ? (
-        <DropdownMenuItem
-          icon={<ExternalLinkIcon />}
-          onClick={() => window.open(href, "_blank", "noopener")}
-        >
+        <DropdownMenuItem icon={<ExternalLinkIcon />} onClick={() => host.openInNewTab(href)}>
           Open in new tab
         </DropdownMenuItem>
       ) : null}

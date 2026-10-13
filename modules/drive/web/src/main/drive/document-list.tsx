@@ -29,6 +29,7 @@ import {
 } from "../../components/ui/menu";
 import { HintTooltip } from "../../components/ui/tooltip";
 import { cn } from "../../lib/utils";
+import { useListDensity } from "../../lib/density";
 import { shortcutLabel } from "../keybindings/commands";
 import { useCommandHandlers } from "../keybindings/dispatch";
 import { TitleBand } from "../top-bar";
@@ -490,6 +491,7 @@ function FolderRow({
   onOpen: () => void;
 }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const compact = useListDensity() === "compact";
   const details = [
     "Folder",
     folder.shared ? "Shared" : null,
@@ -507,13 +509,17 @@ function FolderRow({
             <button type="button" onClick={onOpen} data-folder={folder.id} draggable={false} />
           }
           className={cn(
-            "group relative flex w-full items-center gap-3 overflow-hidden rounded-lg px-3 py-2.5 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus-ring",
+            "group relative flex w-full items-center gap-3 overflow-hidden rounded-lg px-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus-ring",
+            compact ? "py-1.5" : "py-2.5",
             menuOpen ? "bg-sidebar-row-hover" : "group-hover/row:bg-sidebar-row-hover",
           )}
         >
           <span
             aria-hidden
-            className="relative flex size-9 shrink-0 items-center justify-center rounded-md bg-accent-surface/70 text-icon-muted"
+            className={cn(
+              "relative flex shrink-0 items-center justify-center rounded-md bg-accent-surface/70 text-icon-muted",
+              compact ? "size-6" : "size-9",
+            )}
           >
             <FolderIcon className="size-4.5" strokeWidth={1.75} />
             {folder.shared || sharedBy ? (
@@ -526,11 +532,13 @@ function FolderRow({
             <span className="min-w-0 truncate text-sm leading-snug font-medium text-foreground">
               {folderLabel(folder)}
             </span>
-            <span className="truncate text-[13px] leading-snug text-muted-foreground">
-              {sharedBy
-                ? `${sharedByLabel(sharedBy)} · ${formatListDate(sharedBy.at)}`
-                : details.join(" · ")}
-            </span>
+            {compact ? null : (
+              <span className="truncate text-[13px] leading-snug text-muted-foreground">
+                {sharedBy
+                  ? `${sharedByLabel(sharedBy)} · ${formatListDate(sharedBy.at)}`
+                  : details.join(" · ")}
+              </span>
+            )}
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>
@@ -574,6 +582,7 @@ function DocumentRow({
 }) {
   const { artifact, folderSlug, folderId, sharedBy } = entry;
   const [menuOpen, setMenuOpen] = useState(false);
+  const compact = useListDensity() === "compact";
   const kind = KIND_META[documentKind(artifact)].one;
   const version = artifact.currentVersion?.number ?? 1;
   const href = `/${folderSlug}/a/${artifact.slug}`;
@@ -591,7 +600,10 @@ function DocumentRow({
     // real height once it has rendered.
     <div
       role="listitem"
-      className="group/row relative px-1 py-px [contain-intrinsic-size:auto_68px] [content-visibility:auto]"
+      className={cn(
+        "group/row relative px-1 py-px [content-visibility:auto]",
+        compact ? "[contain-intrinsic-size:auto_38px]" : "[contain-intrinsic-size:auto_68px]",
+      )}
     >
       <ContextMenu>
         <ContextMenuTrigger
@@ -608,7 +620,8 @@ function DocumentRow({
             />
           }
           className={cn(
-            "group relative flex w-full items-start gap-3 overflow-hidden rounded-lg px-3 py-2.5 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus-ring",
+            "group relative flex w-full gap-3 overflow-hidden rounded-lg px-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus-ring",
+            compact ? "items-center py-1.5" : "items-start py-2.5",
             selected
               ? "bg-sidebar-row-active"
               : menuOpen
@@ -616,7 +629,7 @@ function DocumentRow({
                 : "group-hover/row:bg-sidebar-row-hover",
           )}
         >
-          <DocumentThumb artifact={artifact} className="mt-0.5 size-9" />
+          <DocumentThumb artifact={artifact} className={compact ? "size-6" : "mt-0.5 size-9"} />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <div className="flex items-center justify-between gap-2">
               <span className="min-w-0 truncate text-sm leading-snug font-medium text-foreground">
@@ -632,24 +645,28 @@ function DocumentRow({
                 {formatListDate(sharedBy?.at ?? artifact.updatedAt)}
               </span>
             </div>
-            <span
-              className={cn(
-                "truncate text-[13px] leading-snug",
-                artifact.description || sharedBy
-                  ? "text-muted-foreground"
-                  : "text-muted-foreground/60",
-              )}
-            >
-              {sharedBy
-                ? sharedByLabel(sharedBy)
-                : artifact.description || artifact.currentVersion?.entryPath || artifact.slug}
-            </span>
-            <span className="flex min-w-0 items-center gap-1 truncate text-2xs text-muted-foreground/75">
-              {artifact.shared && !sharedBy ? (
-                <UsersIcon aria-hidden className="size-3 shrink-0" />
-              ) : null}
-              <span className="truncate">{details.join(" · ")}</span>
-            </span>
+            {compact ? null : (
+              <>
+                <span
+                  className={cn(
+                    "truncate text-[13px] leading-snug",
+                    artifact.description || sharedBy
+                      ? "text-muted-foreground"
+                      : "text-muted-foreground/60",
+                  )}
+                >
+                  {sharedBy
+                    ? sharedByLabel(sharedBy)
+                    : artifact.description || artifact.currentVersion?.entryPath || artifact.slug}
+                </span>
+                <span className="flex min-w-0 items-center gap-1 truncate text-2xs text-muted-foreground/75">
+                  {artifact.shared && !sharedBy ? (
+                    <UsersIcon aria-hidden className="size-3 shrink-0" />
+                  ) : null}
+                  <span className="truncate">{details.join(" · ")}</span>
+                </span>
+              </>
+            )}
           </div>
         </ContextMenuTrigger>
         <ContextMenuContent>{menu}</ContextMenuContent>
