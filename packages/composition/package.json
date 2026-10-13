@@ -46,6 +46,10 @@
     "./web/calendar/notifications": {
       "types": "./src/calendar-notifications.ts",
       "import": "./src/calendar-notifications.ts"
+    },
+    "./web/drive": {
+      "types": "./src/drive-web.ts",
+      "import": "./src/drive-web.ts"
     }
   },
   "scripts": {
@@ -60,6 +64,7 @@
     "@otterware/drive-contracts": "workspace:*",
     "@otterware/drive-engine": "workspace:*",
     "@otterware/drive-node": "workspace:*",
+    "@otterware/drive-web": "workspace:*",
     "@otterware/home-contracts": "workspace:*",
     "@otterware/home-engine": "workspace:*",
     "@otterware/home-web": "workspace:*",

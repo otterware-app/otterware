@@ -1,0 +1,277 @@
+/*
+ * Drive's utilities. Drive renders inside the Otterware shell, whose own
+ * Tailwind build never scans this package, so Drive generates the utilities
+ * its components use. Two rules keep it from disturbing the shell's styles:
+ *
+ * - The theme is a reference: no variables are emitted on :root, utilities
+ *   fall back to Tailwind's defaults where the page defines nothing.
+ * - Color names the shell also has map exactly as the shell maps them
+ *   (apps/web/src/index.css), so a utility both builds emit is the same rule.
+ *   Drive's own roles, and every variable its components read, are prefixed
+ *   `--drive-` and follow the shell's theme below, or the standalone app's
+ *   palette (`standalone.css`, on `<html data-drive-standalone>`).
+ */
+@import "tailwindcss/theme.css" layer(theme) theme(reference);
+@import "tailwindcss/utilities.css" layer(utilities);
+@source "../";
+
+@custom-variant dark (&:is(.dark, .dark *));
+
+@theme inline {
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: calc(1 / 0.6875);
+  --text-3xs: 0.625rem;
+  --text-3xs--line-height: calc(0.875 / 0.625);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --animate-skeleton: skeleton 2.4s infinite;
+  --animate-status-pulse: status-pulse 2s infinite;
+
+  /* The shell's mapping, verbatim. */
+  --color-background: var(--background);
+  --color-foreground: var(--contrast-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--contrast-card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--contrast-popover-foreground);
+  --color-surface-raised: var(--surface-raised);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--contrast-secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--contrast-muted-foreground);
+  --color-placeholder: var(--contrast-placeholder);
+  --color-icon-muted: var(--contrast-icon-muted);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-error: var(--error);
+  --color-error-foreground: var(--error-foreground);
+  --color-error-surface: var(--error-surface);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-surface: var(--warning-surface);
+  --color-border: var(--contrast-border);
+  --color-input: var(--contrast-input);
+  --color-sidebar-foreground: var(--contrast-sidebar-foreground);
+  --color-sidebar-muted-foreground: var(--contrast-sidebar-muted-foreground);
+  --color-sidebar-control-surface: var(--sidebar-control-surface);
+  --color-sidebar-row-hover: var(--sidebar-row-hover);
+  --color-sidebar-row-active: var(--sidebar-row-active);
+  --color-sidebar-row-selected: var(--sidebar-row-selected);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+
+  /* Drive's own roles. */
+  --color-canvas: var(--drive-canvas);
+  --color-sidebar-surface: var(--drive-sidebar-surface);
+  --color-sidebar-line: var(--drive-sidebar-line);
+  --color-accent-surface: var(--drive-accent-surface);
+  --color-accent-surface-foreground: var(--drive-accent-surface-foreground);
+  --color-link: var(--drive-link);
+  --color-focus-ring: var(--drive-ring);
+
+  @keyframes skeleton {
+    0%,
+    42% {
+      opacity: 1;
+      animation-timing-function: steps(4);
+    }
+    50%,
+    92% {
+      opacity: 0.55;
+      animation-timing-function: steps(4);
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+  @keyframes status-pulse {
+    0%,
+    40% {
+      opacity: 1;
+      animation-timing-function: steps(6);
+    }
+    50%,
+    90% {
+      opacity: 0.5;
+      animation-timing-function: steps(6);
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+}
+
+/* Frosted surfaces (popovers, menus, floating bars, dialogs). */
+@utility drive-surface-glass {
+  background: color-mix(in srgb, var(--drive-canvas) var(--drive-glass-opacity), transparent);
+  -webkit-backdrop-filter: blur(var(--drive-glass-blur)) saturate(var(--drive-glass-saturation));
+  backdrop-filter: blur(var(--drive-glass-blur)) saturate(var(--drive-glass-saturation));
+}
+@utility drive-dropdown-glass {
+  background: color-mix(
+    in srgb,
+    var(--drive-popover) 18%,
+    color-mix(in srgb, var(--drive-popover) var(--drive-glass-opacity), transparent)
+  );
+  -webkit-backdrop-filter: blur(var(--drive-glass-blur)) saturate(var(--drive-glass-saturation));
+  backdrop-filter: blur(var(--drive-glass-blur)) saturate(var(--drive-glass-saturation));
+  border: 1px solid color-mix(in srgb, var(--drive-foreground) 10%, transparent);
+}
+@utility drive-dialog-glass {
+  background: color-mix(in srgb, var(--drive-canvas) var(--drive-glass-opacity), transparent);
+  -webkit-backdrop-filter: blur(var(--drive-glass-blur)) saturate(var(--drive-glass-saturation));
+  backdrop-filter: blur(var(--drive-glass-blur)) saturate(var(--drive-glass-saturation));
+  border-color: color-mix(in srgb, var(--drive-foreground) 10%, transparent);
+  box-shadow: 0 24px 64px -24px rgb(0 0 0 / 65%);
+}
+/* Dimmed, lightly blurred window behind a modal dialog. */
+@utility drive-dialog-backdrop {
+  background: color-mix(in srgb, var(--drive-canvas) 60%, transparent);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+/* Fine paper grain over the window frame. */
+@utility drive-surface-grain {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+/* A scroller whose rows fade out at both ends instead of being cut off. */
+@utility drive-scroll-fade-y {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 0.75rem,
+    black calc(100% - 2rem),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent,
+    black 0.75rem,
+    black calc(100% - 2rem),
+    transparent
+  );
+}
+
+@keyframes dialog-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes dialog-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes dialog-pop-in {
+  from {
+    opacity: 0;
+    scale: 0.97;
+  }
+}
+@keyframes dialog-pop-out {
+  to {
+    opacity: 0;
+    scale: 0.98;
+  }
+}
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    scale: 0.98;
+  }
+}
+@keyframes onboarding-in {
+  from {
+    opacity: 0;
+    translate: 0 8px;
+  }
+}
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+    scale: 0.98;
+  }
+}
+.tooltip-in {
+  animation: tooltip-in 120ms ease-out;
+}
+.te-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Drive's window: text defaults, the hairline border role, and selectable fields. */
+.drive-root {
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  color: var(--drive-foreground);
+  -webkit-user-select: none;
+  user-select: none;
+}
+.drive-root :where(*, ::before, ::after),
+[data-drive-portal] :where(*, ::before, ::after) {
+  border-color: var(--drive-border);
+}
+.drive-root :where(input, textarea, code, [data-selectable]) {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* While a drag resizes a pane, the window keeps the resize cursor and
+   frames stop swallowing the pointer. */
+body[data-resizing] {
+  cursor: col-resize;
+}
+body[data-resizing] iframe,
+body[data-resizing] [data-univer-host] {
+  pointer-events: none;
+}
+
+/*
+ * In the Otterware shell, Drive's roles follow the shell's theme
+ * (apps/web/src/index.css), so it looks like the rest of the app and follows
+ * Settings › Appearance. On :root, because dialogs, menus and toasts are
+ * portaled outside Drive's window.
+ */
+:root:not([data-drive-standalone]) {
+  --drive-canvas: var(--background);
+  --drive-foreground: var(--contrast-foreground);
+  --drive-border: var(--contrast-border);
+  --drive-muted: var(--muted);
+  --drive-muted-foreground: var(--contrast-muted-foreground);
+  --drive-popover: var(--popover);
+  --drive-primary: var(--primary);
+  --drive-ring: var(--ring);
+  --drive-link: var(--primary);
+  --drive-accent-surface: var(--accent);
+  --drive-accent-surface-foreground: var(--contrast-accent-foreground);
+  --drive-sidebar-surface: var(--sidebar);
+  --drive-sidebar-line: var(--contrast-sidebar-border);
+  --drive-sidebar-panel-surface: color-mix(in srgb, var(--sidebar) 50%, var(--background));
+  --drive-panel-edge: color-mix(in srgb, var(--contrast-foreground) 5%, var(--sidebar));
+  --drive-radius: var(--radius);
+  --drive-radius-xl: calc(var(--radius) + 4px);
+  --drive-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --drive-glass-blur: var(--glass-blur, 12px);
+  --drive-glass-opacity: var(--glass-opacity, 80%);
+  --drive-glass-saturation: var(--glass-saturation, 1.14);
+  --drive-sidebar-content-inset: var(--sidebar-content-inset);
+  --drive-sidebar-row-content-inset: var(--sidebar-row-content-inset);
+  /* The shell draws the window chrome: Drive's title bands stay compact. */
+  --drive-workspace-topbar-height: 42px;
+  --drive-workspace-titlebar-control-size: 1.75rem;
+  --drive-workspace-rail-width: 52px;
+  --drive-workspace-controls-left: calc(
+    (var(--drive-workspace-rail-width) - var(--drive-workspace-titlebar-control-size)) / 2
+  );
+}

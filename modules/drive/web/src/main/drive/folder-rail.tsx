@@ -1,0 +1,236 @@
+import { useState, type ReactNode } from "react";
+import { useNavigate } from "../../lib/router";
+import {
+  CircleUserRoundIcon,
+  LogOutIcon,
+  MonitorIcon,
+  MoonIcon,
+  PlusIcon,
+  SettingsIcon,
+  SunIcon,
+  SunMoonIcon,
+  UsersIcon,
+} from "lucide-react";
+import { useTheme, type ThemeChoice } from "../../lib/theme";
+import { useDriveHost } from "../../host";
+import {
+  DropdownMenu,
+  DropdownMenuCheckItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuTrigger,
+} from "../../components/ui/menu";
+import { HintTooltip } from "../../components/ui/tooltip";
+import { cn } from "../../lib/utils";
+import { shortcutLabel, type KeybindingCommand } from "../keybindings/commands";
+import { folderLabel, type Folder } from "../folders";
+import { NewFolderDialog } from "./new-folder-dialog";
+import { FolderMark, UserAvatar } from "./folder-mark";
+
+/** A rail button: a square that lights up on hover, and stays lit where you are. */
+const RAIL_BUTTON =
+  "relative flex size-9 shrink-0 items-center justify-center rounded-lg text-sidebar-muted-foreground outline-none transition-colors hover:bg-sidebar-row-hover hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-focus-ring data-popup-open:bg-sidebar-row-hover";
+const RAIL_BUTTON_SELECTED = "bg-sidebar-row-selected text-sidebar-foreground";
+
+export function useCanCreateFolders(): boolean {
+  return Boolean(useDriveHost().account);
+}
+
+/**
+ * The rail down the window's left edge (Otter Mail's mailbox rail, Google
+ * Drive's places): My Drive, Shared with me, then your shared drives, and
+ * who you are at the bottom, with the app's menu. It stays when the sidebar
+ * hides, so switching drives never needs the sidebar.
+ */
+export function FolderRail({
+  folders,
+  currentFolderId,
+  settingsOpen,
+  sharedOpen = false,
+  onSelectFolder,
+  onOpenShared,
+}: {
+  /** Your drives: My Drive first, then the shared drives. */
+  folders: Folder[];
+  /** The drive showing; none is lit while Settings is. */
+  currentFolderId: string | null;
+  settingsOpen: boolean;
+  /** "Shared with me", or a folder in it, is showing. */
+  sharedOpen?: boolean;
+  onSelectFolder: (folder: Folder) => void;
+  onOpenShared?: () => void;
+}) {
+  const [newFolderOpen, setNewFolderOpen] = useState(false);
+  const canCreateFolders = useCanCreateFolders();
+  const personal = folders.filter((folder) => folder.kind === "personal");
+  const shared = folders.filter((folder) => folder.kind !== "personal");
+  const button = (folder: Folder) => {
+    const index = folders.indexOf(folder);
+    const selected = !settingsOpen && !sharedOpen && folder.id === currentFolderId;
+    const label = folderLabel(folder);
+    return (
+      <HintTooltip
+        key={folder.id}
+        label={label}
+        hint={
+          index < 9 ? shortcutLabel(`folder.jump.${index + 1}` as KeybindingCommand) : undefined
+        }
+        side="right"
+      >
+        <button
+          type="button"
+          aria-label={label}
+          aria-current={selected ? "page" : undefined}
+          onClick={() => onSelectFolder(folder)}
+          className={cn(RAIL_BUTTON, selected && RAIL_BUTTON_SELECTED)}
+        >
+          <FolderMark folder={folder} className="size-6 rounded-md text-[10px]" />
+        </button>
+      </HintTooltip>
+    );
+  };
+
+  return (
+    <nav
+      aria-label="Drives"
+      data-app-sidebar=""
+      className="flex w-(--drive-workspace-rail-width) shrink-0 flex-col items-center pb-(--drive-sidebar-content-inset) text-sidebar-foreground"
+    >
+      {/* Under the title band (the pinned sidebar toggle sits over it), and
+          past the panel's rounded corner: level with the sidebar's heading. */}
+      <div aria-hidden className="h-(--drive-workspace-topbar-height) w-full shrink-0" />
+      <div className="scrollbar-gutter-both mt-(--drive-radius-xl) flex min-h-0 flex-col items-center gap-1 overflow-y-auto">
+        {personal.map(button)}
+        {onOpenShared ? (
+          <HintTooltip label="Shared with me" side="right">
+            <button
+              type="button"
+              aria-label="Shared with me"
+              aria-current={sharedOpen && !settingsOpen ? "page" : undefined}
+              onClick={onOpenShared}
+              className={cn(RAIL_BUTTON, sharedOpen && !settingsOpen && RAIL_BUTTON_SELECTED)}
+            >
+              <UsersIcon className="size-4.5" />
+            </button>
+          </HintTooltip>
+        ) : null}
+        <span aria-hidden className="my-1 h-px w-5 shrink-0 bg-sidebar-muted-foreground/25" />
+        {shared.map(button)}
+        {canCreateFolders ? (
+          <HintTooltip label="New shared drive" side="right">
+            <button
+              type="button"
+              aria-label="New shared drive"
+              className={RAIL_BUTTON}
+              onClick={() => setNewFolderOpen(true)}
+            >
+              <PlusIcon className="size-4.5" />
+            </button>
+          </HintTooltip>
+        ) : null}
+      </div>
+      <span className="flex-1" />
+      <AccountMenu active={settingsOpen} />
+      <NewFolderDialog kind="shared" open={newFolderOpen} onOpenChange={setNewFolderOpen} />
+    </nav>
+  );
+}
+
+/** Light, dark, or the system's: a submenu in the app's menus. */
+function AppearanceSubmenu() {
+  const { theme, setTheme } = useTheme();
+  // Inside the Otterware shell, Settings › Appearance owns the theme.
+  if (!setTheme) return null;
+  const options: { value: ThemeChoice; label: string; icon: ReactNode }[] = [
+    { value: "system", label: "System", icon: <MonitorIcon /> },
+    { value: "light", label: "Light", icon: <SunIcon /> },
+    { value: "dark", label: "Dark", icon: <MoonIcon /> },
+  ];
+  return (
+    <DropdownMenuSub label="Appearance" icon={<SunMoonIcon />}>
+      {options.map((option) => (
+        <DropdownMenuCheckItem
+          key={option.value}
+          icon={option.icon}
+          checked={(theme ?? "system") === option.value}
+          onClick={() => setTheme(option.value)}
+        >
+          {option.label}
+        </DropdownMenuCheckItem>
+      ))}
+    </DropdownMenuSub>
+  );
+}
+
+/**
+ * The rail's foot: you, opening the app's menu (who you are, Settings,
+ * Appearance, Sign out).
+ */
+function AccountMenu({ active }: { active: boolean }) {
+  const host = useDriveHost();
+  const navigate = useNavigate();
+  const user = host.account;
+  return (
+    <DropdownMenu>
+      <HintTooltip label={user ? user.name || user.email : "Account"} side="right">
+        <DropdownMenuTrigger
+          render={
+            <button
+              type="button"
+              aria-label="Account and settings"
+              className={cn(RAIL_BUTTON, active && RAIL_BUTTON_SELECTED)}
+            />
+          }
+        >
+          {user ? (
+            <UserAvatar user={user} className="size-6" />
+          ) : (
+            <CircleUserRoundIcon className="size-5" />
+          )}
+        </DropdownMenuTrigger>
+      </HintTooltip>
+      <DropdownMenuContent side="right" align="end" className="min-w-56">
+        {user ? (
+          <DropdownMenuItem
+            icon={<UserAvatar user={user} className="size-5" />}
+            className="h-auto py-1.5"
+            onClick={() =>
+              void navigate({
+                to: "/settings/$pane",
+                params: { pane: host.embedded ? "folder" : "account" },
+              })
+            }
+          >
+            <span className="block truncate text-foreground">{user.name || user.email}</span>
+            {user.name ? (
+              <span className="block truncate text-[13px] text-muted-foreground">{user.email}</span>
+            ) : null}
+          </DropdownMenuItem>
+        ) : null}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          icon={<SettingsIcon />}
+          onClick={() =>
+            void navigate({
+              to: "/settings/$pane",
+              params: { pane: host.embedded ? "folder" : "account" },
+            })
+          }
+        >
+          Settings
+        </DropdownMenuItem>
+        <AppearanceSubmenu />
+        {host.signOut ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem icon={<LogOutIcon />} onClick={() => void host.signOut?.()}>
+              Sign out of Otter
+            </DropdownMenuItem>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}

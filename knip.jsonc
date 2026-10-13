@@ -104,6 +104,12 @@
       // React Native codegen discovers component specifications by filename.
       "entry": ["src/*NativeComponent.ts!"],
     },
+    "modules/drive/web": {
+      // tsconfig.base.json's language service plugin, configured per package.
+      "ignoreDependencies": ["@effect/language-service"],
+      // UI components came over from Otter Drive as cohesive sets.
+      "ignoreIssues": { "src/components/ui/*.tsx": ["exports", "nsExports", "duplicates"] },
+    },
     "infra/cloud": {
       // Bundled by scripts/bundle.ts (the Worker, and the cutover Worker described in
       // CUTOVER.md) and scripts/build-cli.ts (the otterdrive CLI); the CLI test loads it with tsx.
