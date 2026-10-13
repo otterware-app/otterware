@@ -1,10 +1,21 @@
+import { assert, it as effectIt } from "@effect/vitest";
 import { EnvironmentId } from "@t3tools/contracts";
+import * as Context from "effect/Context";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
+import * as Stream from "effect/Stream";
+import * as SubscriptionRef from "effect/SubscriptionRef";
 import { describe, expect, it } from "vite-plus/test";
 
 import type { ConnectionCatalogEntry } from "../connection/catalog.ts";
 import { BearerConnectionTarget, PrimaryConnectionTarget } from "../connection/model.ts";
-import { selectModuleTarget } from "./browserEnvironment.ts";
+import {
+  BrowserEnvironment,
+  type EnvironmentLock,
+  layer,
+  selectModuleTarget,
+} from "./browserEnvironment.ts";
 
 const remote = EnvironmentId.make("remote");
 const primary = EnvironmentId.make("primary");
@@ -51,3 +62,38 @@ describe("selectModuleTarget", () => {
     ).toEqual({ _tag: "environment", environmentId: primary });
   });
 });
+
+effectIt.effect("a second tab waits for the environment instead of starting a worker", () =>
+  Effect.gen(function* () {
+    let spawned = 0;
+    let closeOtherTab!: () => void;
+    const otherTabClosed = new Promise<void>((resolve) => (closeOtherTab = resolve));
+    // Another tab holds the environment until it closes.
+    const lock: EnvironmentLock = (waiting) => {
+      waiting();
+      return otherTabClosed.then(() => () => {});
+    };
+    const context = yield* Layer.build(
+      layer(() => {
+        spawned += 1;
+        // A port nobody answers: the test only needs to see whether the tab spawns.
+        return new MessageChannel().port1;
+      }, lock),
+    );
+    const environment = Context.get(context, BrowserEnvironment);
+    assert.strictEqual(yield* SubscriptionRef.get(environment.status), "idle");
+
+    yield* Effect.forkScoped(environment.connection);
+    yield* Effect.yieldNow;
+    assert.strictEqual(yield* SubscriptionRef.get(environment.status), "elsewhere");
+    assert.strictEqual(spawned, 0);
+
+    // When the other tab lets go, this one takes over.
+    closeOtherTab();
+    const next = yield* SubscriptionRef.changes(environment.status).pipe(
+      Stream.filter((status) => status !== "elsewhere"),
+      Stream.runHead,
+    );
+    assert.deepStrictEqual(next, Option.some("starting"));
+  }).pipe(Effect.scoped),
+);

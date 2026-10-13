@@ -28,6 +28,7 @@ import { useMemo, type ReactNode } from "react";
 import { connectionAtomRuntime } from "../../connection/runtime";
 import { appAtomRegistry } from "../../rpc/atomRegistry";
 import { BrowserAccountBridge } from "../browser/BrowserAccountBridge";
+import { BrowserEnvironmentNotice } from "../browser/BrowserEnvironmentNotice";
 import { useModuleTarget } from "../browser/runtime";
 import { makeBrowserCalendarClient } from "./browserClient";
 import { createEnvironmentSessionAtoms } from "@t3tools/client-runtime/state/session";
@@ -212,7 +213,12 @@ export function CalendarEnvironmentProvider({ children }: { children: ReactNode 
   );
   return (
     <CalendarClientProvider client={client} key={environmentId ?? target._tag}>
-      {inBrowser ? <BrowserAccountBridge /> : null}
+      {inBrowser ? (
+        <>
+          <BrowserAccountBridge />
+          <BrowserEnvironmentNotice />
+        </>
+      ) : null}
       {children}
     </CalendarClientProvider>
   );
