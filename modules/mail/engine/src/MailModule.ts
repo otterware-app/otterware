@@ -1,17 +1,10 @@
-import { MailContract, MailError, type MailEvent } from "@otterware/mail-contracts/rpc";
+import { MailContract } from "@otterware/mail-contracts/rpc";
 import { defineServerModule } from "@otterware/module-kit/engine";
-import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
-import type * as Stream from "effect/Stream";
 
-/** Supplied by the environment worker or browser worker. No channel tunnel crosses the client wire. */
-export class MailRuntime extends Context.Service<
-  MailRuntime,
-  {
-    readonly call: (operation: string, input: unknown) => Effect.Effect<unknown, MailError>;
-    readonly events: Stream.Stream<MailEvent, MailError>;
-  }
->()("@otterware/mail/MailRuntime") {}
+import { MailRuntime } from "./MailRuntime.ts";
+import { MailToolkit, toolHandlers } from "./MailToolkit.ts";
+export { MailRuntime } from "./MailRuntime.ts";
 
 const rpcHandlers = Effect.gen(function* () {
   const runtime = yield* MailRuntime;
@@ -131,4 +124,7 @@ export const MailModule = defineServerModule({
   contract: MailContract,
   migrations: [],
   rpcHandlers,
+  tools: { toolkit: MailToolkit, handlers: toolHandlers },
+  agentInstructions:
+    "Mail tools read the environment's mailboxes. Prepare drafts unless the user explicitly asks to send. Calendar-in-Mail, projects, views and themes use the same access tiers. Never send invitations or mail without an explicit user request.",
 });
