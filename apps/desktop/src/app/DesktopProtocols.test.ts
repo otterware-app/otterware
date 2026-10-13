@@ -274,8 +274,8 @@ it.effect("hands web and app links to the renderer and leaves other links alone"
       // Prompt and thread links ride the same queue; the renderer routes them in the app.
       assert.strictEqual(open("ottercode://new?prompt=hi"), 1);
       assert.strictEqual(open("ottercode://threads/env-1/thread-1"), 1);
-      // Mail links are queued for the module, including before its page mounts.
-      assert.strictEqual(open("mailto:hello@example.com"), 1);
+      // This suite runs as the Code profile, so Mail links stay with the OS.
+      assert.strictEqual(open("mailto:hello@example.com"), 0);
       assert.strictEqual(open("ottercode://somewhere-else"), 0);
       yield* Effect.yieldNow;
       assert.deepStrictEqual(received, [
