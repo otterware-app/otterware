@@ -61,3 +61,6 @@ pnpm-workspace.yaml
 **/vite.config.ts
 **/tsconfig.json
 knip.jsonc
+
+# Dependency notice registry: preserve notices omitted from Mail dependency tarballs
+third-party-licenses.config.json

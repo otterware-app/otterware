@@ -14,7 +14,7 @@ import {
   type ProjectDocument,
   type ProjectLink,
   type ProjectStatus,
-} from "./projects.js";
+} from "./projects.ts";
 
 /** A store of projects, the relay's or a device's. */
 export interface ProjectBackend {

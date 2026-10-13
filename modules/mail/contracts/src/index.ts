@@ -5,9 +5,9 @@
  * (main → renderer pushes, sent with `broadcast`).
  */
 
-export * from "./google.js";
-export * from "./mail.js";
-export * from "./settings.js";
+export * from "./google.ts";
+export * from "./mail.ts";
+export * from "./settings.ts";
 
 export type ThemeSource = "system" | "light" | "dark";
 

@@ -22,8 +22,8 @@ export interface RelayUser {
   picture: string | null;
 }
 
-import type { AgentToken } from "./agent-tokens.js";
-import type { ImapSettings, MailProviderKind } from "./mail.js";
+import type { AgentToken } from "./agent-tokens.ts";
+import type { ImapSettings, MailProviderKind } from "./mail.ts";
 
 /** A mailbox linked to an Otter account, with the profile shown in the app. */
 export interface RelayAccount {

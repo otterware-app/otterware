@@ -653,6 +653,24 @@
         "licenseId": "MIT",
         "copyrights": ["Copyright (c) Samuel Maddock <sam@samuelmaddock.com>"]
       }
+    },
+    {
+      "name": "@better-auth/utils",
+      "version": "0.4.2",
+      "sourceUrl": "https://github.com/better-auth/utils",
+      "generatedNotice": {
+        "licenseId": "MIT",
+        "copyrights": ["Copyright (c) 2024 - present, Bereket Engida"]
+      }
+    },
+    {
+      "name": "@better-auth/utils",
+      "version": "0.5.0",
+      "sourceUrl": "https://github.com/better-auth/utils",
+      "generatedNotice": {
+        "licenseId": "MIT",
+        "copyrights": ["Copyright (c) 2024 - present, Bereket Engida"]
+      }
     }
   ]
 }
