@@ -49,6 +49,7 @@ export interface AccountRecord {
 }
 
 export interface CalendarRecord {
+  readonly defaultRemindersJson?: string | null;
   readonly calendarId: string;
   readonly accountId: string;
   readonly remoteId: string;
@@ -112,6 +113,7 @@ const accountOf = (row: Row): AccountRecord => ({
 });
 
 const calendarOf = (row: Row): CalendarRecord => ({
+  defaultRemindersJson: textOrNull(row.default_reminders_json),
   calendarId: text(row.calendar_id),
   accountId: text(row.account_id),
   remoteId: text(row.remote_id),
@@ -299,13 +301,13 @@ export function makeCalendarStore(sql: SqlClient.SqlClient) {
     sql`
       INSERT INTO calendar_calendars (
         calendar_id, account_id, remote_id, name, description, color, color_local, access_role,
-        is_primary, visible, time_zone, position, sync_token, synced_at, horizon_start, horizon_end
+        is_primary, visible, time_zone, position, sync_token, synced_at, horizon_start, horizon_end, default_reminders_json
       ) VALUES (
         ${calendar.calendarId}, ${calendar.accountId}, ${calendar.remoteId}, ${calendar.name},
         ${calendar.description}, ${calendar.color}, ${calendar.colorLocal ? 1 : 0},
         ${calendar.accessRole}, ${calendar.primary ? 1 : 0}, ${calendar.visible ? 1 : 0},
         ${calendar.timeZone}, ${calendar.position}, ${calendar.syncToken}, ${calendar.syncedAt},
-        ${calendar.horizonStart}, ${calendar.horizonEnd}
+        ${calendar.horizonStart}, ${calendar.horizonEnd}, ${calendar.defaultRemindersJson ?? null}
       )
     `.pipe(Effect.asVoid);
 
@@ -319,6 +321,7 @@ export function makeCalendarStore(sql: SqlClient.SqlClient) {
       readonly accessRole: CalendarAccessRole;
       readonly primary: boolean;
       readonly timeZone: string | null;
+      readonly defaultRemindersJson?: string | null;
     },
   ) =>
     sql`
@@ -328,7 +331,8 @@ export function makeCalendarStore(sql: SqlClient.SqlClient) {
         color = CASE WHEN color_local = 1 THEN color ELSE ${remote.color} END,
         access_role = ${remote.accessRole},
         is_primary = ${remote.primary ? 1 : 0},
-        time_zone = ${remote.timeZone}
+        time_zone = ${remote.timeZone},
+        default_reminders_json = COALESCE(${remote.defaultRemindersJson ?? null}, default_reminders_json)
       WHERE calendar_id = ${calendarId}
     `.pipe(Effect.asVoid);
 

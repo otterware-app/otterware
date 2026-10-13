@@ -1,5 +1,6 @@
 /**
- * GoogleAuth - Google sign-in for calendar accounts, owned by the environment.
+ * GoogleAuth - Google Calendar access through account-held connections or local PKCE.
+ * AccountGoogleAuth uses Otter Cloud; the local adapter below keeps environment-owned grants.
  *
  * The OAuth client (a Google "Desktop app" client) comes from, in order: the calendar settings
  * (client id and secret stored together in the server's secret store), the

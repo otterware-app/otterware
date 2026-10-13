@@ -132,6 +132,7 @@ describe("listEvents", () => {
       "attendees(email,displayName,responseStatus,optional,organizer,self,resource,comment)",
     );
     expect(CALENDARS_PAGE_FIELDS.startsWith("nextPageToken,nextSyncToken,items(id,")).toBe(true);
+    expect(CALENDARS_PAGE_FIELDS).toContain("defaultReminders(method,minutes)");
   });
 
   it.effect("reports an expired sync token as gone, without retrying", () =>

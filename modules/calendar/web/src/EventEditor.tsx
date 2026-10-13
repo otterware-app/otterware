@@ -6,6 +6,7 @@ import {
   type CalendarUpdateEventInput,
   type CalendarChangeScope,
   type CalendarSendUpdates,
+  type CalendarEventReminders,
 } from "@otterware/calendar-contracts";
 import {
   DAY_MS,
@@ -19,6 +20,7 @@ import {
   type RepeatOptions,
 } from "@otterware/calendar-contracts/recurrence";
 import { useEffect, useRef, useState } from "react";
+import { ReminderFields } from "./ReminderFields.tsx";
 import type { CalendarDraft } from "./grid/types.ts";
 import {
   createInput,
@@ -85,13 +87,20 @@ export function EventEditor({
     ...(duplicate
       ? {
           repeat: "none",
-          calendarId: calendars.some((item) => item.calendarId === initial.calendarId)
+          calendarId: calendars.some(
+            (item) =>
+              item.calendarId === initial.calendarId &&
+              (item.accessRole === "owner" || item.accessRole === "writer"),
+          )
             ? initial.calendarId
             : (defaultCalendar ?? ""),
         }
       : {}),
   }));
   const [scope, setScope] = useState<CalendarChangeScope>("this");
+  const [reminders, setReminders] = useState<CalendarEventReminders | undefined>(
+    event?.reminders ?? (event ? { useDefault: true } : undefined),
+  );
   const [sendUpdates, setSendUpdates] = useState<CalendarSendUpdates>("all");
   const [guests, setGuests] = useState(form.guests.join(", "));
   const [customRule, setCustomRule] = useState((event?.recurrence ?? []).join("\n"));
@@ -118,17 +127,32 @@ export function EventEditor({
     timeZone: isValidTimeZone(form.timeZone) ? form.timeZone : timeZone,
   };
   const recurrenceLocked = !duplicate && event?.seriesId !== undefined && scope === "this";
+  const providerDefaults = calendars.find(
+    (calendar) => calendar.calendarId === form.calendarId,
+  )?.defaultReminders;
   const account = calendars.find((item) => item.calendarId === event?.calendarId)?.accountId;
-  const targets = calendars.filter((item) => !event || duplicate || item.accountId === account);
+  const targets = calendars.filter(
+    (item) =>
+      (!event || duplicate || item.accountId === account) &&
+      (item.accessRole === "owner" ||
+        item.accessRole === "writer" ||
+        (!duplicate && item.calendarId === event?.calendarId)),
+  );
   useEffect(() => {
     const node = dialog.current;
-    node?.showModal();
+    node?.show();
     return () => node?.close();
   }, []);
   return (
     <dialog
       ref={dialog}
       onCancel={onClose}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.stopPropagation();
+          onClose();
+        }
+      }}
       aria-labelledby="calendar-editor-title"
       className="calendar-editor"
     >
@@ -156,6 +180,10 @@ export function EventEditor({
             // An occurrence cannot replace its master's schedule.
             onSave({
               ...changed,
+              ...(reminders &&
+              JSON.stringify(reminders) !== JSON.stringify(event.reminders ?? { useDefault: true })
+                ? { reminders }
+                : {}),
               ...(!recurrenceLocked && recurrence ? { recurrence } : {}),
               ...(!recurrenceLocked &&
               custom &&
@@ -170,6 +198,7 @@ export function EventEditor({
           } else
             onSave({
               ...createInput(value),
+              ...(reminders ? { reminders } : {}),
               ...(custom ? { recurrence: custom } : {}),
               sendUpdates,
             });
@@ -380,7 +409,7 @@ export function EventEditor({
             <option value="private">Private</option>
           </select>
         </label>
-        {!event?.conference && (
+        {(!event?.conference || duplicate) && (
           <label>
             <input
               type="checkbox"
@@ -391,7 +420,7 @@ export function EventEditor({
             Add Google Meet
           </label>
         )}
-        {event?.conference && (
+        {event?.conference && !duplicate && (
           <a href={event.conference.url} target="_blank" rel="noreferrer">
             Join meeting
           </a>
@@ -406,6 +435,21 @@ export function EventEditor({
             {guest.displayName ?? guest.email}: {guest.responseStatus}
           </p>
         ))}
+        {reminders?.useDefault && providerDefaults !== undefined && (
+          <p>
+            Calendar defaults:{" "}
+            {providerDefaults
+              .map((rule) => `${rule.method}, ${rule.minutes} minutes before`)
+              .join("; ") || "None configured"}
+            .
+          </p>
+        )}
+        <ReminderFields
+          value={reminders}
+          onChange={setReminders}
+          disabled={readOnly}
+          creating={!event || duplicate}
+        />
         <label>
           Notify guests
           <select

@@ -11,6 +11,26 @@
       "types": "./src/host.tsx",
       "import": "./src/host.tsx"
     },
+    "./module": {
+      "types": "./src/CalendarWebModule.ts",
+      "import": "./src/CalendarWebModule.ts"
+    },
+    "./page": {
+      "types": "./src/CalendarPage.tsx",
+      "import": "./src/CalendarPage.tsx"
+    },
+    "./settings": {
+      "types": "./src/CalendarSettings.tsx",
+      "import": "./src/CalendarSettings.tsx"
+    },
+    "./rpc": {
+      "types": "./src/rpc/index.ts",
+      "import": "./src/rpc/index.ts"
+    },
+    "./notifications": {
+      "types": "./src/CalendarNotifications.tsx",
+      "import": "./src/CalendarNotifications.tsx"
+    },
     "./registration": {
       "types": "./src/CalendarWebModule.ts",
       "import": "./src/CalendarWebModule.ts"

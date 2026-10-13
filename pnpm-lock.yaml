@@ -201,6 +201,12 @@ importers:
       '@napi-rs/keyring':
         specifier: ^1.3.0
         version: 1.3.0
+      '@otterware/calendar-contracts':
+        specifier: workspace:*
+        version: link:../../modules/calendar/contracts
+      '@otterware/calendar-node':
+        specifier: workspace:*
+        version: link:../../modules/calendar/node
       '@otterware/profiles':
         specifier: workspace:*
         version: link:../../profiles

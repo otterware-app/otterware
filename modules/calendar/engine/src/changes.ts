@@ -29,6 +29,7 @@ export type EventFieldsInput = Pick<
   | "addConference"
   | "free"
   | "visibility"
+  | "reminders"
 >;
 
 /** A Google Meet (or demo placeholder) request, created with the event. */
@@ -85,6 +86,7 @@ export function fieldPatch(
   }
   if (input.free !== undefined) patch.transparency = input.free ? "transparent" : "opaque";
   if (input.visibility !== undefined) patch.visibility = input.visibility;
+  if (input.reminders !== undefined) patch.reminders = input.reminders;
   return patch;
 }
 
@@ -101,6 +103,7 @@ function previousFields(
   if (input.location !== undefined) fields.location = previous.location ?? "";
   if (input.attendees !== undefined) fields.attendees = guestEmails(previous);
   if (input.recurrence !== undefined) fields.recurrence = previous.recurrence ?? [];
+  if (input.reminders !== undefined) fields.reminders = previous.reminders ?? { useDefault: true };
   if (input.free !== undefined) fields.free = previous.transparency === "transparent";
   if (input.visibility !== undefined) {
     fields.visibility =
@@ -153,6 +156,7 @@ export function seriesCopy(master: RemoteEvent, requestId: () => string): Remote
   if (master.colorId !== undefined) copy.colorId = master.colorId;
   if (master.transparency !== undefined) copy.transparency = master.transparency;
   if (master.visibility !== undefined) copy.visibility = master.visibility;
+  if (master.reminders !== undefined) copy.reminders = master.reminders;
   if (master.guestsCanModify !== undefined) copy.guestsCanModify = master.guestsCanModify;
   if (master.attendees !== undefined) copy.attendees = master.attendees;
   // Google asks for a fresh conference per event rather than a copied one.
@@ -199,6 +203,7 @@ export function createWrite(
     write.recurrence = input.recurrence;
   }
   if (input.addConference === true) write.conferenceData = conferenceRequest(requestId());
+  if (input.reminders !== undefined) write.reminders = input.reminders;
   if (input.free !== undefined) write.transparency = input.free ? "transparent" : "opaque";
   if (input.visibility !== undefined) write.visibility = input.visibility;
   return write;

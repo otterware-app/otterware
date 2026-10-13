@@ -5,6 +5,10 @@ import {
   type GoogleConnectState,
 } from "@otterware/calendar-contracts";
 import { useCalendarClient, useCalendarDirectory } from "./host.tsx";
+import {
+  calendarDesktopBridge,
+  CALENDAR_NOTIFICATION_DEVICE_KEY,
+} from "./CalendarNotifications.tsx";
 import "./calendar.css";
 
 export default function CalendarSettings() {
@@ -16,6 +20,10 @@ export default function CalendarSettings() {
   const [clientSecret, setClientSecret] = useState("");
   const [flow, setFlow] = useState<GoogleConnectState | null>(null);
   const [callback, setCallback] = useState("");
+  const callbackAuthorization = useRef<string | null>(null);
+  const [deviceNotifications, setDeviceNotifications] = useState(
+    () => localStorage.getItem(CALENDAR_NOTIFICATION_DEVICE_KEY) === "true",
+  );
   const cancelFlow = useRef<(() => void) | null>(null);
   useEffect(() => () => cancelFlow.current?.(), []);
   const run = async (work: () => Promise<void>) => {
@@ -33,11 +41,43 @@ export default function CalendarSettings() {
     cancelFlow.current?.();
     setError(null);
     setFlow(null);
-    cancelFlow.current = client.connect(
+    const cancel = client.connect(
       { ...(source ? { source } : {}), returnTo: window.location.href },
-      (state) => setFlow(state),
-      (message) => setError(message),
+      (state) => {
+        setFlow(state);
+        const desktop = calendarDesktopBridge();
+        if (state._tag === "waiting" && !state.flowId.startsWith("cloud:") && desktop) {
+          callbackAuthorization.current = state.authorizationUrl;
+          void desktop
+            .receiveGoogleCallback(state.authorizationUrl)
+            .then((callbackUrl) => {
+              if (callbackAuthorization.current === state.authorizationUrl)
+                return client.completeConnect(state.flowId, callbackUrl);
+            })
+            .catch((cause) => {
+              if (callbackAuthorization.current === state.authorizationUrl)
+                setError(
+                  cause instanceof Error
+                    ? cause.message
+                    : "Open the sign-in link or paste its callback address.",
+                );
+            });
+        }
+      },
+      (message) => {
+        setError(message);
+        cancelFlow.current?.();
+      },
     );
+    cancelFlow.current = () => {
+      cancel();
+      const url = callbackAuthorization.current;
+      callbackAuthorization.current = null;
+      if (url)
+        void calendarDesktopBridge()
+          ?.cancelGoogleCallback(url)
+          .catch(() => undefined);
+    };
   };
   return (
     <div className="calendar-module">
@@ -344,6 +384,137 @@ export default function CalendarSettings() {
                     void run(() => client.preferences({ defaultEventMinutes: minutes }));
                 }}
               />
+            </label>
+          </section>
+        )}
+        {directory && (
+          <section>
+            <h2>Calendar colors · Account</h2>
+            {directory.calendars.map((calendar) => (
+              <label className="calendar-settings-row" key={calendar.calendarId}>
+                <input
+                  key={calendar.color}
+                  type="color"
+                  defaultValue={calendar.color}
+                  disabled={!canWrite || busy}
+                  aria-label={`Color for ${calendar.name}`}
+                  onBlur={(event) => {
+                    if (event.target.value !== calendar.color)
+                      void run(() =>
+                        client.calendar({
+                          calendarId: calendar.calendarId,
+                          color: event.target.value,
+                        }),
+                      );
+                  }}
+                />
+                {calendar.name}
+              </label>
+            ))}
+          </section>
+        )}
+        {directory && (
+          <section>
+            <h2>Event reminders · Account</h2>
+            <p>
+              Default popup reminders for new events and local reminders for upcoming events.
+              Per-event overrides take priority.
+            </p>
+            {directory.preferences.notificationRules.map((rule, index) => (
+              <div className="calendar-settings-row" key={`${index}/${rule.minutesBefore}`}>
+                <label>
+                  <input
+                    type="checkbox"
+                    disabled={!canWrite || busy}
+                    checked={rule.enabled}
+                    onChange={(event) =>
+                      void run(() =>
+                        client.preferences({
+                          notificationRules: directory.preferences.notificationRules.map(
+                            (item, i) =>
+                              i === index ? { ...item, enabled: event.target.checked } : item,
+                          ),
+                        }),
+                      )
+                    }
+                  />
+                  Enabled
+                </label>
+                <label>
+                  Minutes before
+                  <input
+                    type="number"
+                    min={0}
+                    max={40320}
+                    defaultValue={rule.minutesBefore}
+                    disabled={!canWrite || busy}
+                    onBlur={(event) => {
+                      const minutesBefore = Number(event.target.value);
+                      if (minutesBefore !== rule.minutesBefore)
+                        void run(() =>
+                          client.preferences({
+                            notificationRules: directory.preferences.notificationRules.map(
+                              (item, i) => (i === index ? { ...item, minutesBefore } : item),
+                            ),
+                          }),
+                        );
+                    }}
+                  />
+                </label>
+                <button
+                  type="button"
+                  disabled={!canWrite || busy}
+                  onClick={() =>
+                    void run(() =>
+                      client.preferences({
+                        notificationRules: directory.preferences.notificationRules.filter(
+                          (_, i) => i !== index,
+                        ),
+                      }),
+                    )
+                  }
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              disabled={!canWrite || busy || directory.preferences.notificationRules.length >= 5}
+              onClick={() =>
+                void run(() =>
+                  client.preferences({
+                    notificationRules: [
+                      ...directory.preferences.notificationRules,
+                      { minutesBefore: 10, enabled: true },
+                    ],
+                  }),
+                )
+              }
+            >
+              Add reminder
+            </button>
+            <label>
+              <input
+                type="checkbox"
+                checked={deviceNotifications}
+                onChange={(event) => {
+                  const enabled = event.target.checked;
+                  void run(async () => {
+                    if (enabled && !calendarDesktopBridge()) {
+                      if (typeof Notification === "undefined")
+                        throw new Error("This browser does not support notifications.");
+                      if ((await Notification.requestPermission()) !== "granted")
+                        throw new Error(
+                          "Allow notifications in this browser's settings to receive reminders.",
+                        );
+                    }
+                    localStorage.setItem(CALENDAR_NOTIFICATION_DEVICE_KEY, String(enabled));
+                    setDeviceNotifications(enabled);
+                  });
+                }}
+              />
+              System notifications on this device
             </label>
           </section>
         )}

@@ -1,3 +1,4 @@
+import { exposeOtterwareBridges } from "./otterware/preload.ts";
 import type {
   DesktopBridge,
   DesktopPreviewOpenLinkEvent,
@@ -473,3 +474,5 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     },
   },
 } satisfies DesktopBridge);
+
+exposeOtterwareBridges();

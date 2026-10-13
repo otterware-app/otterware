@@ -5,6 +5,7 @@ import { defineModuleContract, moduleRpcErrors } from "@otterware/module-kit/con
 import { AuthOrchestrationReadScope, AuthOrchestrationOperateScope } from "@t3tools/contracts";
 import {
   CalendarEnvironmentPreferences,
+  CalendarReminderNotification,
   CalendarAccountRefInput,
   CalendarAddDemoInput,
   CalendarApplyChangesInput,
@@ -31,6 +32,7 @@ import {
   GoogleConnectState,
 } from "./calendar.ts";
 export const WS_METHODS = {
+  calendarSubscribeNotifications: "calendar.subscribeNotifications",
   calendarUpdateEnvironmentPreferences: "calendar.updateEnvironmentPreferences",
   calendarSubscribeDirectory: "calendar.subscribeDirectory",
   calendarSubscribeWeek: "calendar.subscribeWeek",
@@ -173,9 +175,17 @@ const WsCalendarUpdateEnvironmentPreferencesRpc = Rpc.make(
   { payload: CalendarEnvironmentPreferences, error: CalendarRpcError },
 );
 
+const WsCalendarSubscribeNotificationsRpc = Rpc.make(WS_METHODS.calendarSubscribeNotifications, {
+  payload: Schema.Struct({}),
+  success: CalendarReminderNotification,
+  error: CalendarRpcError,
+  stream: true,
+});
+
 export const CalendarContract = defineModuleContract({
   id: "calendar",
   group: RpcGroup.make(
+    WsCalendarSubscribeNotificationsRpc,
     WsCalendarUpdateEnvironmentPreferencesRpc,
     WsCalendarSubscribeDirectoryRpc,
     WsCalendarSubscribeWeekRpc,
@@ -198,6 +208,7 @@ export const CalendarContract = defineModuleContract({
     WsCalendarGoogleClearClientRpc,
   ),
   scopes: {
+    [WS_METHODS.calendarSubscribeNotifications]: AuthOrchestrationReadScope,
     [WS_METHODS.calendarUpdateEnvironmentPreferences]: AuthOrchestrationOperateScope,
     [WS_METHODS.calendarSubscribeDirectory]: AuthOrchestrationReadScope,
     [WS_METHODS.calendarSubscribeWeek]: AuthOrchestrationReadScope,

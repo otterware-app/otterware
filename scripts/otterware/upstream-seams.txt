@@ -91,3 +91,7 @@ apps/mobile/src/features/settings/environment-maintenance*.ts
 apps/server/src/cli/update.ts
 
 apps/server/src/cloud/pinnedRuntime.test.ts
+
+# Desktop: module-owned IPC and preload bridges (Calendar OAuth callbacks/reminders)
+apps/desktop/src/ipc/DesktopIpcHandlers.ts
+apps/desktop/src/preload.ts

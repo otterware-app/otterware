@@ -9,6 +9,8 @@ import { moduleToolFailures, withToolTier } from "@otterware/module-kit/contract
  */
 import {
   CalendarAccessRole,
+  CalendarEventReminders,
+  CalendarReminderOverrides,
   CalendarAccountStatus,
   CalendarChangeScope,
   CalendarError,
@@ -47,6 +49,7 @@ const EventEntry = Schema.Struct({
 });
 
 const EventDetail = Schema.Struct({
+  reminders: Schema.optional(CalendarEventReminders),
   ...EventEntry.fields,
   timeZone: Schema.optional(Schema.String),
   description: Schema.String,
@@ -94,6 +97,7 @@ const ListAccountsTool = Tool.make("calendar_list_accounts", {
             visible: Schema.Boolean,
             accessRole: CalendarAccessRole,
             primary: Schema.Boolean,
+            defaultReminders: Schema.optional(CalendarReminderOverrides),
           }),
         ),
       }),
@@ -164,6 +168,8 @@ const GetEventTool = Tool.make("calendar_get_event", {
   .annotate(Tool.OpenWorld, false);
 
 const EventWriteFields = {
+  reminders: Schema.optional(CalendarEventReminders),
+  visibility: Schema.optional(Schema.Literals(["default", "public", "private"])),
   title: Schema.optional(Schema.String),
   description: Schema.optional(Schema.String),
   location: Schema.optional(Schema.String),

@@ -14,6 +14,10 @@
     "./recurrence": {
       "types": "./src/recurrence.ts",
       "import": "./src/recurrence.ts"
+    },
+    "./desktop": {
+      "types": "./src/desktop.ts",
+      "import": "./src/desktop.ts"
     }
   },
   "scripts": {

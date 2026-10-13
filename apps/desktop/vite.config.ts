@@ -115,6 +115,8 @@ export default defineConfig({
         __OTTERWARE_PROFILE__: JSON.stringify(resolveProfile(process.env.OTTERWARE_PROFILE).id),
       },
       entry: ["src/preload.ts"],
+      // The sandboxed preload cannot require workspace modules at runtime; inline them.
+      deps: { alwaysBundle: (id) => id.startsWith("@otterware/") },
     },
     {
       format: "cjs",

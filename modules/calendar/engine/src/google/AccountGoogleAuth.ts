@@ -18,6 +18,7 @@ export const GOOGLE_CALENDAR_SCOPES = [
 ];
 const PREFIX = "cloud:";
 const required = (scopes: readonly string[]) =>
+  scopes.includes("https://www.googleapis.com/auth/calendar") ||
   GOOGLE_CALENDAR_SCOPES.every((scope) => scopes.includes(scope));
 
 /** Account connections and local PKCE share the provider interface and never share refresh tokens. */
@@ -79,8 +80,9 @@ export const layer = Layer.effect(
     const connect: GoogleAuthShape["connect"] = (input) =>
       Stream.unwrap(
         Effect.gen(function* () {
+          if (input.source === "local") return local.connect(input);
           const context = yield* account.current;
-          if (input.source === "local" || Option.isNone(context)) return local.connect(input);
+          if (Option.isNone(context)) return local.connect(input);
           const before = yield* cloudCall(() => context.value.client.connections());
           const authorization = yield* cloudCall(() =>
             context.value.client.connect(

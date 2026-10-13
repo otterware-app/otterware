@@ -134,6 +134,7 @@ function detailOf(details: CalendarEventDetails, names: Map<string, string>, zon
     })),
     ...(details.conference !== undefined ? { videoCall: details.conference.url } : {}),
     canRespond: details.canRespond,
+    ...(details.reminders ? { reminders: details.reminders } : {}),
     ...(details.htmlLink !== undefined ? { link: details.htmlLink } : {}),
   };
 }
@@ -175,6 +176,9 @@ export const calendarToolHandlers = Effect.gen(function* () {
                 visible: entry.visible,
                 accessRole: entry.accessRole,
                 primary: entry.primary,
+                ...(entry.defaultReminders !== undefined
+                  ? { defaultReminders: entry.defaultReminders }
+                  : {}),
               })),
           })),
         })),

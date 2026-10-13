@@ -8,10 +8,14 @@ import {
 } from "@otterware/composition/contracts";
 import {
   calendarConnectStream,
-  CalendarClientProvider,
+  calendarNotificationsStream,
   createCalendarAtoms,
+} from "@otterware/composition/web/calendar/rpc";
+import {
+  CalendarClientProvider,
   type CalendarWebClient,
-} from "@otterware/composition/web/calendar";
+} from "@otterware/composition/web/calendar/host";
+import { CalendarNotifications } from "@otterware/composition/web/calendar/notifications";
 import { useAtomValue } from "@effect/atom-react";
 import { EnvironmentRegistry, EnvironmentSupervisor } from "@t3tools/client-runtime/connection";
 import { request } from "@t3tools/client-runtime/rpc";
@@ -93,6 +97,28 @@ function makeClient(environmentId: EnvironmentId | null): CalendarWebClient {
       ),
     );
   return {
+    environmentId,
+    watchNotifications: (onNotification, onError) => {
+      if (!environmentId) return () => {};
+      const controller = new AbortController();
+      const task = Effect.scoped(
+        Effect.gen(function* () {
+          yield* AtomRegistry.mount(appAtomRegistry, connectionAtomRuntime);
+          const context = yield* AtomRegistry.getResult(appAtomRegistry, connectionAtomRuntime);
+          const registry = yield* EnvironmentRegistry.EnvironmentRegistry.pipe(
+            Effect.provide(context),
+          );
+          yield* registry.runStream(environmentId, calendarNotificationsStream).pipe(
+            Stream.runForEach((notification) => Effect.sync(() => onNotification(notification))),
+            Effect.provide(context),
+          );
+        }),
+      );
+      void Effect.runPromise(task, { signal: controller.signal }).catch((cause) => {
+        if (!controller.signal.aborted) onError(String(cause));
+      });
+      return () => controller.abort();
+    },
     useDirectory: () => {
       const result = useAtomValue(
         environmentId ? atoms.directory({ environmentId, input: {} }) : emptyDirectory,
@@ -176,7 +202,7 @@ export function CalendarEnvironmentProvider({ children }: { children: ReactNode 
   const client = useMemo(() => makeClient(environmentId), [environmentId]);
   return (
     <CalendarClientProvider client={client} key={environmentId ?? "disconnected"}>
-      {children}
+      <CalendarNotifications>{children}</CalendarNotifications>
     </CalendarClientProvider>
   );
 }

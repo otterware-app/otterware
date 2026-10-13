@@ -27,6 +27,7 @@ import { applyCalendarWeekEvent, EMPTY_CALENDAR_INSTANCES } from "../runtime/wee
 type CalendarMutationTag = Exclude<
   keyof typeof CalendarContract.scopes,
   | "calendar.subscribeDirectory"
+  | "calendar.subscribeNotifications"
   | "calendar.subscribeWeek"
   | "calendar.google.connect"
   | "calendar.getEvent"
@@ -165,3 +166,13 @@ export const calendarConnectStream = (
         : current.value.client[CALENDAR_METHODS.calendarGoogleConnect](input);
     }),
   );
+
+export const calendarNotificationsStream = Stream.unwrap(
+  Effect.gen(function* () {
+    const supervisor = yield* EnvironmentSupervisor.EnvironmentSupervisor;
+    const session = yield* SubscriptionRef.get(supervisor.session);
+    return Option.isNone(session)
+      ? Stream.empty
+      : session.value.client[CALENDAR_METHODS.calendarSubscribeNotifications]({});
+  }),
+);

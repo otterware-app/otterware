@@ -52,6 +52,7 @@ const EVENT_FIELDS = Object.values({
   recurrence: "recurrence",
   recurringEventId: "recurringEventId",
   originalStartTime: "originalStartTime",
+  reminders: "reminders(useDefault,overrides(method,minutes))",
   transparency: "transparency",
   visibility: "visibility",
   attendees: "attendees(email,displayName,responseStatus,optional,organizer,self,resource,comment)",
@@ -75,6 +76,7 @@ const EVENT_FIELDS = Object.values({
 
 const CALENDAR_FIELDS = Object.values({
   id: "id",
+  defaultReminders: "defaultReminders(method,minutes)",
   summary: "summary",
   summaryOverride: "summaryOverride",
   description: "description",
@@ -343,7 +345,10 @@ export function makeGoogleCalendarClient(
         Effect.flatMap((body): Effect.Effect<RemoteCalendarsPage, CalendarProviderError> =>
           asItems<RemoteCalendar>(body).pipe(
             Effect.map((calendars) => ({
-              calendars,
+              calendars: calendars.map((calendar) => ({
+                ...calendar,
+                defaultReminders: calendar.defaultReminders ?? [],
+              })),
               ...optionalString(body, "nextPageToken"),
               ...optionalString(body, "nextSyncToken"),
             })),
