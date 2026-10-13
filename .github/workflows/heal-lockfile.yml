@@ -2,7 +2,8 @@ name: Heal lockfile
 
 # A PR whose pnpm-lock.yaml came out of a merge inconsistent fails every CI job at install.
 # Regenerate it from the base branch's lockfile and push the fix, so no one resolves
-# pnpm-lock.yaml by hand. The push uses the release app's token so CI runs again on it.
+# pnpm-lock.yaml by hand. The push uses OTTERWARE_RELEASES_TOKEN (not GITHUB_TOKEN) so CI runs
+# again on it; the release GitHub App is not installed on this repository.
 on:
   pull_request:
     paths:
@@ -24,18 +25,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - name: App token
-        id: app-token
-        uses: actions/create-github-app-token@v2
-        with:
-          app-id: ${{ secrets.RELEASE_APP_ID }}
-          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
-
       - name: Checkout
         uses: actions/checkout@v5
         with:
           ref: ${{ github.event.pull_request.head.ref }}
-          token: ${{ steps.app-token.outputs.token }}
+          token: ${{ secrets.OTTERWARE_RELEASES_TOKEN }}
           fetch-depth: 0
 
       - name: Setup Vite+
