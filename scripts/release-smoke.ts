@@ -9,7 +9,18 @@ import * as Effect from "effect/Effect";
 
 import { collectWorkspaceManifestPaths } from "./otterware/release-workspace-manifests.ts";
 
+import {
+  assertServerRuntimeBundle,
+  assertServerRuntimeDependencies,
+} from "./otterware/server-runtime-dependencies.ts";
+
 const repoRoot = NodePath.resolve(NodePath.dirname(NodeURL.fileURLToPath(import.meta.url)), "..");
+
+assertServerRuntimeDependencies(repoRoot);
+if (process.argv.includes("--server-bundle")) {
+  assertServerRuntimeBundle(repoRoot);
+  process.exit(0);
+}
 
 const workspaceFiles = [
   "package.json",
