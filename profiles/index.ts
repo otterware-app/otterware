@@ -63,3 +63,15 @@ export function profileUpdateChannel(profile: AppProfile, channel: "latest" | "n
   const prefix = profile.updateFeed.channelPrefix;
   return prefix === null ? channel : `${prefix}-${channel}`;
 }
+
+/** Channel artwork follows the exported brand kit's filename convention. */
+export function profileIconPath(
+  profile: AppProfile,
+  channel: "production" | "nightly" | "development",
+  filename: string,
+): string {
+  const icons = profile.brand.icons;
+  if (filename === "app-icon.icon") return `${icons[channel]}/${filename}`;
+  const suffix = channel === "production" ? "" : channel === "development" ? "-dev" : "-nightly";
+  return `${icons[channel]}/${icons.filePrefix}${suffix}-${filename}`;
+}

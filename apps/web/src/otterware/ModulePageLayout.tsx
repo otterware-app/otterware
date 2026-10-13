@@ -90,7 +90,7 @@ function ModuleUnavailable({
             <EmptyTitle>{label} isn’t available here</EmptyTitle>
             <EmptyDescription>
               {availability === "no-modules"
-                ? `This environment runs Otter Code without modules. Connect to an Otterware environment to use ${label}.`
+                ? `Module state could not be read. Reconnect or use an environment that supports ${label}.`
                 : `This environment’s build doesn’t include ${label}.`}
             </EmptyDescription>
           </EmptyHeader>

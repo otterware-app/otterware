@@ -1,3 +1,8 @@
+import { vi } from "vite-plus/test";
+// These fixtures cover Otter Code's existing artifact and npm identities.
+vi.mock("@otterware/profiles/active", async () => ({
+  activeProfile: (await import("@otterware/profiles")).PROFILES.code,
+}));
 // @effect-diagnostics nodeBuiltinImport:off - Tests use Node's glob matcher to verify electron-builder exclusions.
 import * as NodeCrypto from "node:crypto";
 import * as NodePath from "node:path";

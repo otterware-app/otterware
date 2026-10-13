@@ -1,4 +1,5 @@
 import { moduleWorkerPlugin } from "../../scripts/otterware/module-workers.ts";
+import { resolveProfile } from "../../profiles/index.ts";
 import "vite-plus/test/config";
 import { defineConfig, mergeConfig } from "vite-plus";
 
@@ -120,7 +121,7 @@ export default mergeConfig(
       },
       define: {
         // Otterware seam: the app profile this build runs as (profiles/active.ts).
-        __OTTERWARE_PROFILE__: JSON.stringify(process.env.OTTERWARE_PROFILE?.trim() ?? ""),
+        __OTTERWARE_PROFILE__: JSON.stringify(resolveProfile(process.env.OTTERWARE_PROFILE).id),
         __T3CODE_BUILD_CHANNEL__: JSON.stringify(cliBuildChannel),
         __T3CODE_BUILD_RELAY_URL__: JSON.stringify(repoEnv.T3CODE_RELAY_URL?.trim() ?? ""),
         __T3CODE_BUILD_ACCOUNTS_URL__: JSON.stringify(repoEnv.T3CODE_ACCOUNTS_URL?.trim() ?? ""),

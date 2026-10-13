@@ -1,3 +1,5 @@
+import { activeProfile } from "@otterware/profiles/active";
+import { profileAppIdentity } from "@otterware/profiles";
 import { fromLenientJson } from "@t3tools/shared/schemaJson";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
@@ -10,7 +12,7 @@ import {
   type LinuxPasswordStorePreference,
 } from "../linuxSecretStorage.ts";
 import {
-  resolveDesktopBaseDir,
+  resolveDesktopClientBaseDir,
   resolveDesktopStateDir,
   type JoinPath,
 } from "./DesktopStatePaths.ts";
@@ -31,8 +33,9 @@ export interface EarlyLinuxElectronOptions {
   readonly passwordStore: LinuxPasswordStoreSwitch | null;
 }
 
+// Otterware seam: build identity comes from the active app profile.
 export const resolveLinuxDesktopEntryName = (isDevelopment: boolean): string =>
-  isDevelopment ? "dev.otterware.code.dev.desktop" : "dev.otterware.code.desktop";
+  `${profileAppIdentity(activeProfile, isDevelopment).appId}.desktop`;
 
 const trimNonEmpty = (value: string | undefined): string | null => {
   const trimmed = value?.trim();
@@ -55,7 +58,7 @@ function resolveEarlyDesktopSettingsPath(input: {
   readonly joinPath: JoinPath;
 }): string {
   const t3Home = Option.fromUndefinedOr(input.env.T3CODE_HOME);
-  const baseDir = resolveDesktopBaseDir({
+  const baseDir = resolveDesktopClientBaseDir({
     homeDirectory: input.homeDirectory,
     joinPath: input.joinPath,
     t3Home,
@@ -160,7 +163,7 @@ export function resolveEarlyLinuxElectronOptions(
   const isDevelopment = isDevelopmentEnvironment(input.env);
   return {
     isDevelopment,
-    linuxWmClass: isDevelopment ? "otter-code-dev" : "otter-code",
+    linuxWmClass: profileAppIdentity(activeProfile, isDevelopment).slug,
     linuxDesktopEntryName: resolveLinuxDesktopEntryName(isDevelopment),
     passwordStore: resolveLinuxPasswordStoreSwitch({
       preference,

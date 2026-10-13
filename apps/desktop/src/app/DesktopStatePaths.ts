@@ -1,3 +1,4 @@
+import { activeProfile } from "@otterware/profiles/active";
 import * as Option from "effect/Option";
 
 export type JoinPath = (first: string, ...segments: string[]) => string;
@@ -10,13 +11,14 @@ function normalizeConfiguredBaseDir(t3Home: Option.Option<string>): Option.Optio
   return trimmed.length > 0 ? Option.some(trimmed) : Option.none();
 }
 
+// Otterware seam: build identity comes from the active app profile.
 export function resolveDesktopBaseDir(input: {
   readonly homeDirectory: string;
   readonly joinPath: JoinPath;
   readonly t3Home: Option.Option<string>;
 }): string {
   return Option.getOrElse(normalizeConfiguredBaseDir(input.t3Home), () =>
-    input.joinPath(input.homeDirectory, ".otter-code"),
+    input.joinPath(input.homeDirectory, activeProfile.dataHome),
   );
 }
 
@@ -29,4 +31,15 @@ export function resolveDesktopStateDir(input: {
   const useDevSubdir =
     input.isDevelopment && Option.isNone(normalizeConfiguredBaseDir(input.t3Home));
   return input.joinPath(input.baseDir, useDevSubdir ? "dev" : "userdata");
+}
+
+/** Explicit homes keep all development state in the supplied sandbox. */
+export function resolveDesktopClientBaseDir(input: {
+  readonly homeDirectory: string;
+  readonly joinPath: JoinPath;
+  readonly t3Home: Option.Option<string>;
+}): string {
+  return Option.getOrElse(normalizeConfiguredBaseDir(input.t3Home), () =>
+    input.joinPath(input.homeDirectory, activeProfile.clientDataHome),
+  );
 }

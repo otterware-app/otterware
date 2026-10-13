@@ -20,7 +20,11 @@ Settings screen, scoped settings), 0012 (data homes), 0013 (package per layer).
 
 The profile is chosen at build time with `OTTERWARE_PROFILE` (`otterware` by default) and baked
 into the server, web and desktop bundles as `__OTTERWARE_PROFILE__`; unbundled code reads the
-variable. `profiles/active.ts` is the one place that resolves it.
+variable. `profiles/active.ts` is the one place that resolves it. Builds reject unknown ids
+while loading Vite config. `OTTERWARE_PROFILE=code` keeps the Code app ID, URL scheme,
+server home, icon paths, npm identity and bare update channels. Other desktop feeds use
+profile-prefixed channels. Explicit homes keep client preferences in that sandbox; otherwise
+Otterware separates its client files in `~/.otterware/userdata` from the shared server home.
 
 ## Adding a module
 
@@ -62,6 +66,10 @@ other modules only through Home contributions and agent tools, never by importin
 - **Agent instructions.** `ModuleRuntime.agentInstructions` joins the instructions of modules that
   are on. Provider adapters build prompts synchronously, so `AgentInstructions` supplies
   a synchronous read in the current Effect fiber. Each runtime gets its own service; there is no process-global snapshot.
+- **Account session.** W3 implements `OtterAccountSession` (`module-kit/engine`, also exported
+  from `/server`): audience-bound `accessToken` and connection-bound `providerToken`. Credentials
+  are redacted values; the host owns refresh and storage. Portable engines never import the Cloud
+  client or the server to get credentials.
 - **Home.** `HomeContributors.current` is the host's contributors (Code, from the orchestration
   projections) plus those of modules that are on. The Home module reads it per overview.
 - **In the browser.** The in-browser environment (ADR 0008, `packages/browser-environment`) runs
@@ -78,7 +86,7 @@ An upstream-owned file may change only if it is listed in `scripts/otterware/ups
 `scripts/otterware/check-upstream-seams.ts` fails a PR otherwise. Each seam is a call into a
 registry marked `Otterware seam` in the source. Extending the list is a decision made in the PR.
 
-Two constraints behind the current layout, to revisit rather than work around:
+Constraints behind the current layout, to revisit rather than work around:
 
 - The merged RPC group lives in `packages/composition`, not `packages/contracts`: module contracts
   import `@t3tools/contracts`, so the reverse import would be an evaluation cycle. The server
@@ -86,7 +94,8 @@ Two constraints behind the current layout, to revisit rather than work around:
 - The retained pages host keys pages only by module id. Environment changes update hooks; auth
   transitions hide the shell with React Activity. Hidden pages pause effects without discarding
   form state. Never key this host or a page by an environment id or an auth token.
-- Module pages live under `apps/web/src/otterware/<m>/` and reach the host's UI kit and client
-  state through the `~` alias, because `components/ui` and the web state are not packages. Moving
-  them to `modules/<m>/web` (ADR 0013) needs that extraction first; `@otterware/module-kit/web`
-  already holds the framework-independent registry and page context so the move is mechanical.
+- Home uses the host UI kit and client state under `apps/web/src/otterware/home/`, because
+  `components/ui` and the web state are not packages. Moving that UI to `modules/home/web`
+  needs the UI kit extraction first. Modules with their own UI, such as Calendar, keep it in
+  `modules/<m>/web`; host adapters provide environment RPC and the shared page/side-chat frame.
+  Composition keeps their registration cheap and loads their full UI only on first use.

@@ -1,3 +1,4 @@
+import { activeProfile } from "@otterware/profiles/active";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -13,9 +14,10 @@ import * as Scope from "effect/Scope";
 import * as Electron from "electron";
 
 export const DESKTOP_HOST = "app";
-const DESKTOP_PRODUCTION_SCHEME = "ottercode";
-const DESKTOP_DEVELOPMENT_SCHEME = "ottercode-dev";
+const DESKTOP_PRODUCTION_SCHEME = activeProfile.brand.urlScheme;
+const DESKTOP_DEVELOPMENT_SCHEME = activeProfile.brand.devUrlScheme;
 
+// Otterware seam: build identity comes from the active app profile.
 export function getDesktopScheme(isDevelopment: boolean): string {
   return isDevelopment ? DESKTOP_DEVELOPMENT_SCHEME : DESKTOP_PRODUCTION_SCHEME;
 }

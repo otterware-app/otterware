@@ -18,6 +18,7 @@ export const mailProfile = defineProfile({
     npm: null,
   },
   dataHome: ".otter-mail",
+  clientDataHome: ".otter-mail",
   updateFeed: { repository: OTTERWARE_RELEASE_REPOSITORY, channelPrefix: "mail" },
   landingRoute: "/mail",
 });

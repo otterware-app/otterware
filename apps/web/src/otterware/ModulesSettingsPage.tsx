@@ -85,7 +85,7 @@ export function ModulesSettingsPage() {
             environmentId === null
               ? "Connect an environment to manage its modules."
               : states.status === "unavailable"
-                ? "This environment runs Otter Code without modules."
+                ? "Modules could not be read. Reconnect or use an environment that supports modules."
                 : !canWrite
                   ? "Your access to this environment does not include changing settings."
                   : undefined

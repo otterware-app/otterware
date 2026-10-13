@@ -23,6 +23,7 @@ export const codeProfile = defineProfile({
     },
   },
   dataHome: ".otter-code",
+  clientDataHome: ".otter-code",
   updateFeed: { repository: OTTERWARE_RELEASE_REPOSITORY, channelPrefix: null },
   landingRoute: "/",
 });

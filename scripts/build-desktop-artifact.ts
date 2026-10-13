@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { releaseFeed } from "../profiles/release-feed.ts";
+import { activeProfile } from "@otterware/profiles/active";
+import { profileUpdateChannel } from "@otterware/profiles";
 // @effect-diagnostics nodeBuiltinImport:off - Node's typed junction API avoids Windows symlink privileges while keeping the probe isolated.
 
 import * as NodeFSP from "node:fs/promises";
@@ -60,7 +62,8 @@ import { Command, Flag } from "effect/cli";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
 const LINUX_ICON_SIZES = [16, 22, 24, 32, 48, 64, 128, 256, 512] as const;
-const DESKTOP_APP_ID = "dev.otterware.code";
+// Otterware seam: build identity comes from the active app profile.
+const DESKTOP_APP_ID = activeProfile.brand.appId;
 
 const BuildPlatform = Schema.Literals(["mac", "linux", "win"]);
 const BuildArch = Schema.Literals(["arm64", "x64", "universal"]);
@@ -2351,7 +2354,7 @@ export const resolveGitHubPublishConfig = Effect.fn("resolveGitHubPublishConfig"
   const rawRepo = (
     Option.getOrUndefined(env.updateRepository)?.trim() ||
     Option.getOrUndefined(env.githubRepository)?.trim() ||
-    ""
+    activeProfile.updateFeed.repository
   ).trim();
   if (!rawRepo) return undefined;
 
@@ -2363,7 +2366,9 @@ export const resolveGitHubPublishConfig = Effect.fn("resolveGitHubPublishConfig"
     owner,
     repo,
     releaseType: updateChannel === "nightly" ? "prerelease" : "release",
-    ...(updateChannel === "nightly" ? { channel: "nightly" as const } : {}),
+    ...(updateChannel === "nightly" || activeProfile.updateFeed.channelPrefix !== null
+      ? { channel: profileUpdateChannel(activeProfile, updateChannel) }
+      : {}),
   };
 });
 
@@ -2419,11 +2424,8 @@ export function resolvePackageManagerUserAgent(packageManager: string): string {
   return `${trimmed.slice(0, versionSeparator)}/${trimmed.slice(versionSeparator + 1)}`;
 }
 
-export function resolveDesktopProductName(version: string): string {
-  // Otter Code ships daily builds on the nightly channel under the same product name.
-  return resolveDesktopUpdateChannel(version) === "nightly"
-    ? "Otter Code"
-    : (desktopPackageJson.productName ?? "Otter Code");
+export function resolveDesktopProductName(_version: string): string {
+  return activeProfile.brand.productName;
 }
 
 export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
@@ -2448,7 +2450,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   const buildConfig: Record<string, unknown> = {
     appId: DESKTOP_APP_ID,
     productName: resolveDesktopProductName(version),
-    artifactName: "Otter-Code-${version}-${arch}.${ext}",
+    artifactName: activeProfile.brand.artifactName,
     electronLanguages: [...DESKTOP_ELECTRON_LANGUAGES],
     files: [
       ...DESKTOP_FILE_EXCLUSIONS,
@@ -2499,10 +2501,8 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       icon: "icon.icns",
       category: "public.app-category.developer-tools",
       extendInfo: {
-        NSLocalNetworkUsageDescription:
-          "Otter Code connects to devices on your local network for remote environments and commands run by terminals and coding agents.",
-        NSScreenCaptureUsageDescription:
-          "Otter Code captures the active window when you use the window capture shortcut.",
+        NSLocalNetworkUsageDescription: `${activeProfile.brand.productName} connects to devices on your local network for remote environments and commands run by terminals and ${activeProfile.codeVisible ? "coding agents" : "agents"}.`,
+        NSScreenCaptureUsageDescription: `${activeProfile.brand.productName} captures the active window when you use the window capture shortcut.`,
         // macOS lists an app under Default web browser only when it opens web
         // pages as documents as well as http and https links (see protocols).
         CFBundleDocumentTypes: [
@@ -2516,8 +2516,8 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       },
       protocols: [
         {
-          name: "Otter Code",
-          schemes: ["ottercode", "ottercode-dev"],
+          name: activeProfile.brand.productName,
+          schemes: [activeProfile.brand.urlScheme, activeProfile.brand.devUrlScheme],
         },
         // Lets people choose Otter Code as their default web browser, which opens
         // each link in a new thread's browser panel.
@@ -2572,7 +2572,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       // resources/package-type into the .deb only, so electron-updater updates
       // each install in its own format.
       target: target === "AppImage" ? [target, "deb"] : [target],
-      executableName: "otter-code",
+      executableName: activeProfile.brand.slug,
       icon: "icons",
       category: "Development",
       synopsis: "Desktop GUI for coding agents",
@@ -2583,13 +2583,13 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       // t3code:// OAuth callbacks to the app.
       protocols: [
         {
-          name: "Otter Code",
-          schemes: ["ottercode", "ottercode-dev"],
+          name: activeProfile.brand.productName,
+          schemes: [activeProfile.brand.urlScheme, activeProfile.brand.devUrlScheme],
         },
       ],
       desktop: {
         entry: {
-          StartupWMClass: "otter-code",
+          StartupWMClass: activeProfile.brand.slug,
         },
       },
     };
@@ -3540,7 +3540,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
       ? path.join(stageAppDir, WINDOWS_SERVER_RESOURCE_SOURCE_DIR, WINDOWS_SERVER_ASAR_RESOURCE)
       : undefined;
   const stagePackageJson: StagePackageJson = {
-    name: "otter-code",
+    name: activeProfile.brand.slug,
     version: appVersion,
     buildVersion: appVersion,
     t3codeCommitHash: commitHash,

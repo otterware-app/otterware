@@ -1,3 +1,4 @@
+import { activeProfile } from "@otterware/profiles/active";
 import type { ComposerContextRecord } from "@t3tools/contracts";
 import { ThreadFind, ThreadFindCanvas, type ThreadFindControls } from "./chat/ThreadFindProvider";
 import { THREAD_FIND_BAR_RESERVED_HEIGHT } from "./chat/ThreadFindBar";
@@ -1619,9 +1620,10 @@ export default function ChatView(props: ChatViewProps) {
     onDiffPanelOpen,
     reserveTitleBarControlInset = true,
     forceExpandedMobileComposer = false,
-    compact = false,
+    compact: embeddedCompact = false,
     decorateOutgoingMessage,
   } = props;
+  const compact = embeddedCompact || !activeProfile.codeVisible;
   const canOperateThread = useEnvironmentScope(environmentId, AuthOrchestrationOperateScope);
   const canOperateTerminal = useEnvironmentScope(environmentId, AuthTerminalOperateScope);
   const hasTerminalWriteAccess = useCallback(
