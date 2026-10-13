@@ -2,7 +2,9 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   requestedRange,
   serveRawContent,
+  serveSignedContent,
   signContentGrant,
+  signedContentBase,
   signThumbnailGrant,
   startContentSession,
 } from "./content";
@@ -179,5 +181,79 @@ describe("content ranges", () => {
     expect(response.status).toBe(416);
     expect(response.headers.get("content-range")).toBe("bytes */10");
     expect(gets).toEqual([]);
+  });
+});
+
+describe("signed content URLs", () => {
+  function filesEnv() {
+    const env = testEnv();
+    const paths: unknown[] = [];
+    env.DB = {
+      prepare: () => ({
+        bind: (_versionId: unknown, path: unknown) => {
+          paths.push(path);
+          return {
+            first: async () => ({
+              path,
+              content_type: "text/html",
+              size: 2,
+              r2_key: `artifacts/${String(path)}`,
+            }),
+          };
+        },
+      }),
+    } as unknown as D1Database;
+    env.ARTIFACTS = {
+      get: async () => ({ body: new TextEncoder().encode("ok") }),
+    } as unknown as R2Bucket;
+    return { env, paths };
+  }
+  const grant = {
+    principal: { service: true } as const,
+    artifactId: "artifact-1",
+    versionId: "version-1",
+    entryPath: "index.html",
+  };
+
+  it("serves a version's files without a cookie, to any page", async () => {
+    const { env, paths } = filesEnv();
+    const base = await signedContentBase(env, grant);
+    expect(base).toMatch(/^http:\/\/localhost:3000\/raw\/t\/[^/]+\/$/);
+    const token = new URL(base).pathname.split("/")[3]!;
+
+    const entry = await serveSignedContent(new Request(base), env, token, "");
+    const asset = await serveSignedContent(
+      new Request(new URL("img/a.png", base)),
+      env,
+      token,
+      "img/a.png",
+    );
+
+    expect(entry.status).toBe(200);
+    expect(asset.status).toBe(200);
+    expect(paths).toEqual(["index.html", "img/a.png"]);
+    expect(entry.headers.get("cross-origin-resource-policy")).toBe("cross-origin");
+    expect(entry.headers.get("content-security-policy")).toContain("sandbox");
+    expect(entry.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("refuses a grant that was changed", async () => {
+    const { env } = filesEnv();
+    const base = await signedContentBase(env, grant);
+    const [body, signature] = new URL(base).pathname.split("/")[3]!.split(".");
+    const forged = `${body}x.${signature}`;
+
+    await expect(
+      serveSignedContent(new Request(base), env, forged, "index.html"),
+    ).rejects.toMatchObject({ status: 401 });
+  });
+
+  it("refuses an expired grant", async () => {
+    const { env } = filesEnv();
+    const expired = await signContentGrant(env, grant, -1);
+
+    await expect(
+      serveSignedContent(new Request("http://localhost:3000/raw/t/x/"), env, expired, ""),
+    ).rejects.toMatchObject({ status: 401 });
   });
 });

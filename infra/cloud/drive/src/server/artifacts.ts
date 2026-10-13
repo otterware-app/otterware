@@ -19,7 +19,7 @@ import {
 import { Zip, ZipPassThrough } from "fflate";
 import { waitUntil } from "cloudflare:workers";
 import { assertCanPermanentlyDelete, assertCanWrite, canReadWithKey } from "./actor";
-import { signContentGrant, signThumbnailGrant } from "./content";
+import { signContentGrant, signedContentBase, signThumbnailGrant } from "./content";
 import { artifactAccess, strongerRole } from "./access";
 import { HttpError, json, parseJson } from "./http";
 import { folderAccess, type AccessRole } from "./folders";
@@ -875,10 +875,21 @@ export async function previewArtifact(
     versionId: version.id,
     entryPath: version.entry_path,
   });
+  const signedBaseUrl = await signedContentBase(env, {
+    principal: {
+      userId: actor.userId!,
+      ...(actor.type === "api_key" ? { keyId: actor.id } : {}),
+    },
+    artifactId: artifact.id,
+    versionId: version.id,
+    entryPath: version.entry_path,
+  });
   return json(
     artifactPreviewResponseSchema.parse({
       data: {
         url: new URL(`/raw/session/${token}`, env.CONTENT_URL).toString(),
+        signedUrl: new URL(encodeEntryPath(version.entry_path), signedBaseUrl).toString(),
+        signedBaseUrl,
         expiresAt: new Date(Date.now() + 5 * 60 * 1_000).toISOString(),
         version: mapVersion(version),
         contentType: entryFile.content_type,
@@ -889,6 +900,11 @@ export async function previewArtifact(
       },
     }),
   );
+}
+
+/** An entry path as a URL path below a signed base: each segment encoded, slashes kept. */
+function encodeEntryPath(path: string): string {
+  return path.split("/").map(encodeURIComponent).join("/");
 }
 
 export async function bootstrapArtifact(
@@ -926,6 +942,15 @@ export async function bootstrapArtifact(
     versionId: selected.id,
     entryPath: selected.entry_path,
   });
+  const signedBaseUrl = await signedContentBase(env, {
+    principal: {
+      userId: actor.userId!,
+      ...(actor.type === "api_key" ? { keyId: actor.id } : {}),
+    },
+    artifactId: artifact.id,
+    versionId: selected.id,
+    entryPath: selected.entry_path,
+  });
   return json(
     artifactBootstrapResponseSchema.parse({
       data: {
@@ -939,6 +964,8 @@ export async function bootstrapArtifact(
         versions,
         preview: {
           url: new URL(`/raw/session/${token}`, env.CONTENT_URL).toString(),
+          signedUrl: new URL(encodeEntryPath(selected.entry_path), signedBaseUrl).toString(),
+          signedBaseUrl,
           expiresAt: new Date(Date.now() + 5 * 60 * 1_000).toISOString(),
           version: mapVersion(selected),
           contentType: entryFile.content_type,

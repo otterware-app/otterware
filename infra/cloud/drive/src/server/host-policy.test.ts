@@ -23,6 +23,15 @@ describe("production host isolation", () => {
       isAllowedHostPath(new Request("https://usercontent.otterware.app/raw/thumbnail/grant"), env),
     ).toBe(true);
     expect(
+      isAllowedHostPath(new Request("https://usercontent.otterware.app/raw/t/grant/"), env),
+    ).toBe(true);
+    expect(
+      isAllowedHostPath(new Request("https://usercontent.otterware.app/raw/t/grant/a/b.png"), env),
+    ).toBe(true);
+    expect(isAllowedHostPath(new Request("https://drive.otterware.app/raw/t/grant/"), env)).toBe(
+      false,
+    );
+    expect(
       isAllowedHostPath(new Request("https://drive.otterware.app/raw/session/grant"), env),
     ).toBe(false);
     expect(

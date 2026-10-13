@@ -12,6 +12,7 @@ import { handler as driveAuth } from "../drive/src/auth-handler.ts";
 import { identityRequest } from "../drive/src/server/identity.ts";
 import {
   serveRawContent,
+  serveSignedContent,
   serveThumbnail,
   startContentSession,
 } from "../drive/src/server/content.ts";
@@ -123,6 +124,8 @@ export async function drive(request: Request, env: Env, parallel: boolean) {
       if (parts[2] === "session" && parts[3])
         return startContentSession(request, bindings, parts[3]);
       if (parts[2] === "thumbnail" && parts[3]) return serveThumbnail(request, bindings, parts[3]);
+      if (parts[2] === "t" && parts[3])
+        return serveSignedContent(request, bindings, parts[3], parts.slice(4).join("/"));
       if (parts[2] === "a" && parts[3] && parts[4])
         return serveRawContent(request, bindings, parts[3], parts[4], parts.slice(5).join("/"));
       return hostNotFound();
