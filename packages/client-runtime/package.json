@@ -425,6 +425,7 @@
     "test": "vp test run"
   },
   "dependencies": {
+    "@otterware/composition": "workspace:*",
     "@pierre/diffs": "catalog:",
     "@t3tools/contracts": "workspace:*",
     "@t3tools/shared": "workspace:*",

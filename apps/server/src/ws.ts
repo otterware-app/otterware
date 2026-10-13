@@ -222,6 +222,7 @@ import * as EnvironmentAuth from "./auth/EnvironmentAuth.ts";
 import { requiredScopeForDeviceList, rpcAuthorizationError } from "./auth/RpcAuthorization.ts";
 import * as RpcAuthorization from "./auth/RpcAuthorization.ts";
 import { RpcInstrumentation, rpcInstrumentationLayer } from "./observability/RpcInstrumentation.ts";
+import * as OtterwareServer from "./otterware/OtterwareServer.ts";
 import * as ProcessDiagnostics from "./diagnostics/ProcessDiagnostics.ts";
 import * as ProcessResourceMonitor from "./diagnostics/ProcessResourceMonitor.ts";
 import * as ResourceTelemetry from "./resourceTelemetry/ResourceTelemetry.ts";
@@ -3247,7 +3248,8 @@ export const layer = Layer.unwrap(
         );
         const rpcWebSocketHttpEffect = yield* Effect.gen(function* () {
           const { protocol, httpEffect } = yield* RpcServer.makeProtocolWithHttpEffectWebsocket;
-          yield* RpcServer.make(ServerWsRpcGroup, WS_RPC_SERVER_OPTIONS).pipe(
+          // Otterware seam: serve the upstream group plus this build's host and module RPCs.
+          yield* RpcServer.make(OtterwareServer.ServerRpcGroup, WS_RPC_SERVER_OPTIONS).pipe(
             Effect.provideService(RpcServer.Protocol, withTerminalOutputWindow(protocol)),
             Effect.provide(
               Layer.merge(RpcAuthorization.layer(session.scopes), rpcInstrumentationLayer),
@@ -3266,6 +3268,8 @@ export const layer = Layer.unwrap(
               serverBrowser,
               workspaceLanguage,
             ).pipe(
+              // Otterware seam: host and module RPC handlers.
+              Layer.merge(OtterwareServer.layerRpcHandlers),
               Layer.provideMerge(RpcSerialization.layerJson),
               // Request fibers run in the handlers' context, so this reporter sees
               // their defects, not the rest of the server's.

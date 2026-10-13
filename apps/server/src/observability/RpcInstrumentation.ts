@@ -5,6 +5,7 @@ import * as References from "effect/References";
 import type * as RpcGroup from "effect/rpc/RpcGroup";
 import * as RpcMiddleware from "effect/rpc/RpcMiddleware";
 
+import { OTTERWARE_RPC_AGGREGATES } from "@otterware/composition/contracts";
 import { rpcRequestDuration, rpcRequestsTotal, withMetrics } from "./Metrics.ts";
 
 type WsRpcMethod = RpcGroup.Rpcs<typeof WsRpcGroup>["_tag"];
@@ -255,7 +256,10 @@ export const rpcInstrumentationLayer = Layer.succeed(RpcInstrumentation)((effect
       attributes: {
         ...DEFAULT_RPC_SPAN_ATTRIBUTES,
         "rpc.method": method,
-        "rpc.aggregate": RPC_AGGREGATES[method as WsRpcMethod],
+        // Otterware seam: `host` and `module.<id>` labels for the host and module methods.
+        "rpc.aggregate":
+          RPC_AGGREGATES[method as WsRpcMethod] ??
+          OTTERWARE_RPC_AGGREGATES[method as keyof typeof OTTERWARE_RPC_AGGREGATES],
       },
     }),
   );
