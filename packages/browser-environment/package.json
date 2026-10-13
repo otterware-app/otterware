@@ -24,6 +24,7 @@
     "@effect/platform-browser": "catalog:",
     "@otterware/composition": "workspace:*",
     "@otterware/module-kit": "workspace:*",
+    "@otterware/otter-cloud-client": "workspace:*",
     "@otterware/profiles": "workspace:*",
     "@sqlite.org/sqlite-wasm": "3.53.4-build1",
     "effect": "catalog:"
