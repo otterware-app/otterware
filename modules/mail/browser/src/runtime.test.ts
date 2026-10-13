@@ -57,6 +57,7 @@ describe("Mail's browser worker", () => {
     const mail = await openMailWorker(
       account(requests),
       () => {},
+      undefined,
       () => worker as never,
     );
     expect(worker.received[0]).toEqual({
@@ -89,6 +90,7 @@ describe("Mail's browser worker", () => {
     await openMailWorker(
       undefined,
       () => {},
+      undefined,
       () => worker as never,
     );
     const answered = new Promise<ToWorker>((resolve) => {

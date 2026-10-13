@@ -19,6 +19,7 @@ import {
   syncAccount,
   type GmailAccount,
   type GoogleAuth,
+  type PickedFile,
   type Platform,
   type ToolCaller,
 } from "@otterware/mail-engine";
@@ -150,12 +151,11 @@ async function start(options: WorkerOptions) {
     files,
     secrets,
     google: session ? accountGoogleAuth(session, noLocalGoogle) : noLocalGoogle,
+    // The page does these (page.ts); the environment worker relays them.
     userFiles: {
-      open: async () => {
-        throw new Error("Opening attachments in the browser comes with Mail's web app.");
-      },
-      save: async () => false,
-      pick: async () => [],
+      open: (name, bytes) => host("openFile", name, bytes),
+      save: (name, bytes) => host<boolean>("saveFile", name, bytes),
+      pick: () => host<PickedFile[]>("pickFiles"),
     },
     connect: (hostName, port, opts) => {
       if (!cloudOrigin)
@@ -173,7 +173,7 @@ async function start(options: WorkerOptions) {
     relaySession: "bearer",
     broadcast,
     notify: (notification) => void host("notify", notification).catch(() => {}),
-    setUnreadCount: () => {},
+    setUnreadCount: (count) => void host("setUnreadCount", count).catch(() => {}),
     onResume: (listener) => {
       self.addEventListener("online", listener);
       return () => self.removeEventListener("online", listener);
