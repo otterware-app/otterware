@@ -1,3 +1,4 @@
+import { mailBridge } from "../host/bridge";
 import { useEffect, useRef, useState } from "react";
 import type { UpdateState } from "@otterware/mail-contracts";
 import { changelogUrl } from "../lib/changelog";
@@ -15,10 +16,10 @@ export function useUpdateState(): UpdateState | null {
   const [state, setState] = useState<UpdateState | null>(null);
   useEffect(() => {
     let alive = true;
-    void window.desktopBridge.updates.getState().then((next) => {
+    void mailBridge.updates.getState().then((next) => {
       if (alive) setState(next);
     });
-    const off = window.desktopBridge.updates.onState(setState);
+    const off = mailBridge.updates.onState(setState);
     return () => {
       alive = false;
       off();
@@ -38,9 +39,9 @@ export function UpdateNotifier() {
 
   useEffect(
     () =>
-      window.desktopBridge.on("updates:checkRequested", () => {
+      mailBridge.on("updates:checkRequested", () => {
         manualCheck.current = true;
-        void window.desktopBridge.updates.check();
+        void mailBridge.updates.check();
       }),
     [],
   );
@@ -70,7 +71,7 @@ export function UpdateNotifier() {
  * download underway is waited for, a downloaded update installs at once.
  */
 export function updateNow(): void {
-  const updates = window.desktopBridge.updates;
+  const updates = mailBridge.updates;
   console.log("[Updates:updateNow]");
   const id = toast.loading("Checking for updates…");
   const fail = (title: string, s: UpdateState) => {
@@ -80,7 +81,7 @@ export function updateNow(): void {
       description: s.message ?? undefined,
       timeout: 0,
       action: url
-        ? { label: "Download", onClick: () => void window.desktopBridge.openExternal(url) }
+        ? { label: "Download", onClick: () => void mailBridge.openExternal(url) }
         : { label: "Try again", onClick: updateNow },
     });
   };
@@ -202,7 +203,7 @@ export function UpdateCard() {
           size="xs"
           variant="primary"
           className="mt-2 w-full"
-          onClick={() => void window.desktopBridge.updates.install()}
+          onClick={() => void mailBridge.updates.install()}
         >
           Restart to update
         </Btn>
@@ -212,16 +213,12 @@ export function UpdateCard() {
           size="xs"
           variant="primary"
           className="mt-2 w-full"
-          onClick={() => void window.desktopBridge.openExternal(manualUrl)}
+          onClick={() => void mailBridge.openExternal(manualUrl)}
         >
           Download {version}
         </Btn>
       ) : failed ? (
-        <Btn
-          size="xs"
-          className="mt-2 w-full"
-          onClick={() => void window.desktopBridge.updates.download()}
-        >
+        <Btn size="xs" className="mt-2 w-full" onClick={() => void mailBridge.updates.download()}>
           Retry
         </Btn>
       ) : null}
@@ -255,14 +252,10 @@ export function UpdatesSection() {
   const state = useUpdateState();
   if (!state) return null;
 
-  const updates = window.desktopBridge.updates;
+  const updates = mailBridge.updates;
   const manualUrl = state.manualDownloadUrl;
   const control = manualUrl ? (
-    <Btn
-      variant="primary"
-      size="sm"
-      onClick={() => void window.desktopBridge.openExternal(manualUrl)}
-    >
+    <Btn variant="primary" size="sm" onClick={() => void mailBridge.openExternal(manualUrl)}>
       Download {state.availableVersion}
     </Btn>
   ) : state.status === "available" ? (

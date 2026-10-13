@@ -1,3 +1,4 @@
+import { mailBridge } from "../../host/bridge";
 import { useLatest } from "../use-latest";
 import { DEFAULT_SETTINGS } from "@otterware/mail-contracts";
 import { TodoistSettingsPane } from "../integrations/todoist";
@@ -13,11 +14,9 @@ import {
 import { AppearancePane } from "./appearance-pane";
 import { KeybindingsPane } from "./keybindings-pane";
 import { AccountsPane } from "./accounts-pane";
-import { OtterAccountPane } from "./otter-account-pane";
-import { ProvidersPane } from "./providers-pane";
-import { BrowserSettingsPane } from "../browser/browser-settings";
+
 import { TranslationSection } from "./translation-section";
-import { UpdatesSection } from "../updates";
+
 import {
   RowSelect,
   SettingResetButton,
@@ -109,7 +108,7 @@ function GeneralPane() {
     void loadSyncSettingsForEffect.current();
     void loadMailAppsForEffect.current();
     // Changed on another device.
-    const offSettings = window.desktopBridge.on(
+    const offSettings = mailBridge.on(
       "settings:changed",
       () => void loadSyncSettingsForEffect.current(),
     );
@@ -366,7 +365,6 @@ function GeneralPane() {
         />
       </SettingsSection>
 
-      <UpdatesSection />
       <SettingsSection title="Support">
         <SettingsRow
           {...searchableSetting("send-feedback")}
@@ -410,8 +408,6 @@ function SettingsPane({ route }: { route: SettingsRoute }) {
   if (route.pane === "keybindings") return <KeybindingsPane />;
   if (route.pane === "integrations") return <TodoistSettingsPane />;
   if (route.pane === "accounts") return <AccountsPane />;
-  if (route.pane === "otter") return <OtterAccountPane />;
-  if (route.pane === "agents") return <ProvidersPane />;
-  if (route.pane === "browser" && features.browser) return <BrowserSettingsPane />;
+
   return <GeneralPane />;
 }

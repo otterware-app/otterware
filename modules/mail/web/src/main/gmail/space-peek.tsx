@@ -1,3 +1,4 @@
+import { mailDocument } from "../../host/dom";
 /**
  * Peeking at a space (ChatGPT's): with the sidebar collapsed, hovering a
  * mailbox or Projects in the rail shows its sidebar over the window after a
@@ -20,7 +21,7 @@ export function useSpacePeek() {
       return;
     }
     const close = () => {
-      if (document.querySelector('[role="menu"], [role="dialog"]')) {
+      if (mailDocument.querySelector('[role="menu"], [role="dialog"]')) {
         timer.current = window.setTimeout(close, 300);
         return;
       }

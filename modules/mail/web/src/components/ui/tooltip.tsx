@@ -1,3 +1,4 @@
+import { mailRoot } from "../../host/dom";
 /**
  * Ported from Otter Code (github.com/otterware-app/otter-code) at a944cac52:
  * apps/web/src/components/ui/tooltip.tsx, unchanged.
@@ -32,7 +33,7 @@ function TooltipPopup({
   anchor?: TooltipPrimitive.Positioner.Props["anchor"];
 }) {
   return (
-    <TooltipPrimitive.Portal>
+    <TooltipPrimitive.Portal container={mailRoot()}>
       <TooltipPrimitive.Positioner
         align={align}
         anchor={anchor}

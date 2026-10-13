@@ -1,6 +1,5 @@
 import {
-  createBrowserHistory,
-  createHashHistory,
+  createMemoryHistory,
   createRootRouteWithContext,
   createRoute,
   createRouter,
@@ -158,35 +157,28 @@ const routeTree = rootRoute.addChildren([
   appRoute,
 ]);
 
-const queryClient = new QueryClient();
+export const createMailRouter = (queryClient: QueryClient, initialPath = "/") =>
+  createRouter({
+    routeTree,
+    // The Mac app's pages are files (ottermail://app/index.html), so it keeps
+    // the route in the hash; the web app's are real paths, which the site
+    // Worker answers with the app.
+    history: createMemoryHistory({ initialEntries: [initialPath] }),
+    // Mailboxes are email addresses: keep them readable.
+    pathParamsAllowedCharacters: ["@"],
+    // The query holds only strings (ids, addresses): plainly, where the default
+    // would quote the ids that look like numbers.
+    parseSearch: (search) => Object.fromEntries(new URLSearchParams(search)),
+    stringifySearch: (search) => {
+      const entries = Object.entries(search).filter(([, value]) => value !== undefined);
+      const query = new URLSearchParams(entries).toString().replaceAll("%40", "@");
+      return query ? `?${query}` : "";
+    },
+    defaultPreloadStaleTime: 0,
+    scrollRestoration: true,
+    context: {
+      queryClient,
+    },
+  });
 
-const router = createRouter({
-  routeTree,
-  // The Mac app's pages are files (ottermail://app/index.html), so it keeps
-  // the route in the hash; the web app's are real paths, which the site
-  // Worker answers with the app.
-  history: window.desktopBridge.platform === "web" ? createBrowserHistory() : createHashHistory(),
-  // Mailboxes are email addresses: keep them readable.
-  pathParamsAllowedCharacters: ["@"],
-  // The query holds only strings (ids, addresses): plainly, where the default
-  // would quote the ids that look like numbers.
-  parseSearch: (search) => Object.fromEntries(new URLSearchParams(search)),
-  stringifySearch: (search) => {
-    const entries = Object.entries(search).filter(([, value]) => value !== undefined);
-    const query = new URLSearchParams(entries).toString().replaceAll("%40", "@");
-    return query ? `?${query}` : "";
-  },
-  defaultPreloadStaleTime: 0,
-  scrollRestoration: true,
-  context: {
-    queryClient,
-  },
-});
-
-declare module "@tanstack/react-router" {
-  interface Register {
-    router: typeof router;
-  }
-}
-
-export { router, queryClient };
+export type MailRouter = ReturnType<typeof createMailRouter>;

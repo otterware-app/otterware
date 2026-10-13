@@ -1,3 +1,5 @@
+import { mailDocument } from "../../host/dom";
+import { mailBridge } from "../../host/bridge";
 import { useLatest } from "../use-latest";
 import { useEffect } from "react";
 import { labelMoveName, type CommandHandlerKey, type KeybindingCommand } from "./commands";
@@ -41,7 +43,9 @@ function isEditable(target: EventTarget | null): boolean {
 
 export function keybindingContext(event?: KeyboardEvent): WhenContext {
   const context: WhenContext = {
-    editableFocus: isEditable(event?.target ?? document.activeElement),
+    editableFocus: isEditable(
+      event?.composedPath()[0] ?? event?.target ?? mailDocument.activeElement,
+    ),
     dialogOpen: isOverlayOpen(),
   };
   for (const [key, value] of published) context[key] = value;
@@ -109,13 +113,13 @@ export function useKeybindingDispatcher(): void {
     getKeybindings();
     window.addEventListener("keydown", onKeyDown);
     // Menu accelerators and focused browser pages don't deliver DOM keydowns.
-    const off = window.desktopBridge.on("keybindings:keydown", (params) => {
+    const off = mailBridge.on("keybindings:keydown", (params) => {
       const event = new KeyboardEvent("keydown", {
         ...(params as KeyboardEventInit),
         bubbles: true,
         cancelable: true,
       });
-      (document.activeElement ?? document.body).dispatchEvent(event);
+      (mailDocument.activeElement ?? mailDocument.body).dispatchEvent(event);
     });
     return () => {
       window.removeEventListener("keydown", onKeyDown);

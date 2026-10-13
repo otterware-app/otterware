@@ -1,3 +1,4 @@
+import { mailDocument } from "../../host/dom";
 import { useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { toast } from "./toast";
@@ -122,7 +123,7 @@ export function SenderHoverCard({
                 />
               </div>
             </div>,
-            document.body,
+            mailDocument.body,
           )
         : null}
     </>

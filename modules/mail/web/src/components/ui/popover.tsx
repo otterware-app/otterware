@@ -1,4 +1,5 @@
-"use client";
+import { mailRoot } from "../../host/dom";
+("use client");
 
 /**
  * Ported from Otter Code (github.com/otterware-app/otter-code) at a944cac52:
@@ -70,7 +71,7 @@ function PopoverPopup({
   // single-trigger forms need a stable container to retain drafts and submit guards.
   const Viewport = keepMounted ? "div" : PopoverPrimitive.Viewport;
   return (
-    <PopoverPrimitive.Portal keepMounted={keepMounted}>
+    <PopoverPrimitive.Portal container={mailRoot()} keepMounted={keepMounted}>
       <PopoverPrimitive.Positioner
         align={align}
         alignOffset={alignOffset}

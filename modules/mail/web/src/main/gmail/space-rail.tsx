@@ -4,7 +4,6 @@ import {
   CircleUserRoundIcon,
   FolderClosedIcon,
   LayersIcon,
-  LogInIcon,
   MessageSquareIcon,
   PlusIcon,
   RotateCwIcon,
@@ -27,8 +26,7 @@ import { useViewUnreadCounts } from "./hooks";
 import { useInboxUnread, useMailboxOptions } from "./top-bar";
 import type { GmailAccount, MailView } from "./types";
 import type { SettingsPane } from "./api";
-import { useOtterAccount } from "../otter-account";
-import { OtterAvatar } from "../settings/otter-account-pane";
+
 import { requestProblemReport } from "../support/report-problem";
 import { setSyncedPreference } from "../synced-preferences";
 import { PROJECTS_SPACE } from "./spaces";
@@ -262,42 +260,20 @@ function AccountMenu({
   onSync: () => void;
   syncing: boolean;
 }) {
-  const otter = useOtterAccount();
-  const user = otter?.user ?? null;
   return (
     <DropdownMenu>
-      <HintTooltip label={user ? (user.name ?? user.email) : "Settings"} side="right">
+      <HintTooltip label="Mail settings" side="right">
         <DropdownMenuTrigger asChild>
           <button
             type="button"
             aria-label="Account and settings"
             className={cn(RAIL_BUTTON, active && RAIL_BUTTON_SELECTED)}
           >
-            {user ? (
-              <OtterAvatar user={user} className="size-6" />
-            ) : (
-              <CircleUserRoundIcon className="size-5" />
-            )}
+            <CircleUserRoundIcon className="size-5" />
           </button>
         </DropdownMenuTrigger>
       </HintTooltip>
       <DropdownMenuContent side="right" align="end" className="min-w-56">
-        {user ? (
-          <DropdownMenuItem
-            icon={<OtterAvatar user={user} className="size-5" />}
-            onSelect={() => onOpenSettings("otter")}
-            className="h-auto py-1.5"
-          >
-            <span className="block truncate text-foreground">{user.name ?? user.email}</span>
-            {user.name ? (
-              <span className="block truncate text-[13px] text-muted-foreground">{user.email}</span>
-            ) : null}
-          </DropdownMenuItem>
-        ) : (
-          <DropdownMenuItem icon={<LogInIcon />} onSelect={() => onOpenSettings("otter")}>
-            Sign in to Otter Mail
-          </DropdownMenuItem>
-        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           icon={<SettingsIcon />}
@@ -309,7 +285,7 @@ function AccountMenu({
         <DropdownMenuItem icon={<MessageSquareIcon />} onSelect={requestProblemReport}>
           Send feedback
         </DropdownMenuItem>
-        {otter?.realtime === "live" ? null : (
+        {
           <DropdownMenuItem
             icon={<RotateCwIcon className={syncing ? "animate-spin" : undefined} />}
             accelerator={shortcutText("mod+r")}
@@ -318,7 +294,7 @@ function AccountMenu({
           >
             {syncing ? "Syncing…" : "Sync now"}
           </DropdownMenuItem>
-        )}
+        }
       </DropdownMenuContent>
     </DropdownMenu>
   );

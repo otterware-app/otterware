@@ -1,3 +1,4 @@
+import { mailDocument } from "../../host/dom";
 import { useLatest } from "../use-latest";
 import {
   useCallback,
@@ -107,7 +108,7 @@ export function SettingsNav({
   useEffect(() => {
     const result = results[activeResultIndex];
     if (!result) return;
-    document
+    mailDocument
       .getElementById(`settings-search-result-${result.id}`)
       ?.scrollIntoView({ block: "nearest" });
   }, [activeResultIndex, results]);

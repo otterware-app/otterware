@@ -1,3 +1,4 @@
+import type { MailRouter } from "../router";
 import type { ReactNode } from "react";
 import { useRouter, type RouterHistory } from "@tanstack/react-router";
 import { useSyncExternalStore } from "react";
@@ -82,7 +83,7 @@ const RECENT_ICONS: Record<RecentIcon, typeof InboxIcon> = {
 
 /** The clock: where you've been lately (recently-viewed.ts), to go back to in one click. */
 function RecentlyViewedMenu() {
-  const { navigate } = useRouter();
+  const { navigate } = useRouter<MailRouter>();
   const places = useRecentlyViewed();
   return (
     <DropdownMenu>
@@ -129,7 +130,7 @@ function RecentlyViewedMenu() {
  * offers them: after the pinned sidebar toggle.
  */
 export function HistoryControls() {
-  const { history } = useRouter();
+  const { history } = useRouter<MailRouter>();
   trackHistory(history);
   const where = useSyncExternalStore(history.subscribe, () => {
     const index = history.location.state.__TSR_index;

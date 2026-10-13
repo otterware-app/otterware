@@ -1,3 +1,4 @@
+import { mailBridge } from "../../host/bridge";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   ArrowLeftIcon,
@@ -228,17 +229,17 @@ function BrowserPage({
 
   // Extensions see the page showing as the active tab, and can show or close one.
   useEffect(() => {
-    if (active && pageId !== null) void window.desktopBridge.invoke("browser:activeTab", pageId);
+    if (active && pageId !== null) void mailBridge.invoke("browser:activeTab", pageId);
   }, [active, pageId]);
   useEffect(() => {
     if (pageId === null) return;
     const mine = (params: unknown) =>
       (params as { webContentsId?: number }).webContentsId === pageId;
     const offs = [
-      window.desktopBridge.on("browser:selectTab", (params) => {
+      mailBridge.on("browser:selectTab", (params) => {
         if (mine(params)) selectTab(tab.id);
       }),
-      window.desktopBridge.on("browser:closeTab", (params) => {
+      mailBridge.on("browser:closeTab", (params) => {
         if (mine(params)) closeTab(tab.id);
       }),
     ];
@@ -410,7 +411,7 @@ function AddressBar({
             <IconBtn
               label="Open in default browser"
               className="absolute right-0.5 rounded-full opacity-0 group-hover/address:opacity-100 focus-visible:opacity-100"
-              onClick={() => void window.desktopBridge.openExternal(url).catch(() => {})}
+              onClick={() => void mailBridge.openExternal(url).catch(() => {})}
             >
               <ArrowUpRightIcon className="size-4" />
             </IconBtn>
@@ -434,7 +435,7 @@ function SiteInfo({
   const secure = url.startsWith("https:");
   const clear = async () => {
     try {
-      await window.desktopBridge.invoke("browser:clearData", { origin });
+      await mailBridge.invoke("browser:clearData", { origin });
       toast.success(`Cleared ${hostOf(url)}'s cookies and data`);
       onCleared();
     } catch (error) {
@@ -487,7 +488,7 @@ function PageMenu({ url, onDevTools }: { url: string; onDevTools?: () => void })
           <>
             <DropdownMenuItem
               icon={<ArrowUpRightIcon className="size-4" />}
-              onSelect={() => void window.desktopBridge.openExternal(url).catch(() => {})}
+              onSelect={() => void mailBridge.openExternal(url).catch(() => {})}
             >
               Open in Default Browser
             </DropdownMenuItem>

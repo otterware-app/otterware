@@ -1,5 +1,6 @@
+import { mailBridge } from "../host/bridge";
 export const ipc = <T = unknown>(channel: string, params?: unknown): Promise<T> =>
-  window.desktopBridge.invoke<T>(channel, params);
+  mailBridge.invoke<T>(channel, params);
 
 /**
  * For calls that can outlast the 5s IPC timeout (file dialogs, big downloads):
@@ -9,7 +10,7 @@ export const ipc = <T = unknown>(channel: string, params?: unknown): Promise<T> 
 export const task = <T>(channel: string, params: Record<string, unknown>): Promise<T> =>
   new Promise<T>((resolve, reject) => {
     const taskId = crypto.randomUUID();
-    const off = window.desktopBridge.on("task:done", (payload: unknown) => {
+    const off = mailBridge.on("task:done", (payload: unknown) => {
       const p = payload as { taskId?: string; result?: T; error?: string } | undefined;
       if (p?.taskId !== taskId) return;
       off();

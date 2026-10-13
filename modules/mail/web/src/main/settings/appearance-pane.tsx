@@ -1,3 +1,5 @@
+import { mailDocument } from "../../host/dom";
+import { mailBridge } from "../../host/bridge";
 import { useLatest } from "../use-latest";
 import { setSyncedPreference } from "../synced-preferences";
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
@@ -91,7 +93,6 @@ import {
   SettingsSection,
 } from "./settings-ui";
 import { searchableSetting } from "./settings-search";
-import { AppIconPicker } from "./app-icon-picker";
 
 export type ColorScheme = "system" | "light" | "dark";
 
@@ -392,7 +393,7 @@ function ThemeGroup({ title, children }: { title: string; children: ReactNode })
 // Otter Code's (ThemeSettings.tsx).
 function downloadThemeFile(filename: string, contents: string): void {
   const url = URL.createObjectURL(new Blob([contents], { type: "application/json" }));
-  const anchor = document.createElement("a");
+  const anchor = mailDocument.createElement("a");
   anchor.href = url;
   anchor.download = filename;
   anchor.click();
@@ -969,7 +970,7 @@ export function useColorScheme(): [ColorScheme, (next: ColorScheme) => Promise<v
 
   const refreshThemeInfo = async () => {
     try {
-      setThemeInfo(await window.desktopBridge.nativeTheme.getInfo());
+      setThemeInfo(await mailBridge.nativeTheme.getInfo());
     } catch (error) {
       toast.error(`Failed to get theme info: ${error}`);
     }
@@ -983,7 +984,7 @@ export function useColorScheme(): [ColorScheme, (next: ColorScheme) => Promise<v
   const setScheme = async (next: ColorScheme) => {
     console.log("[Settings:setColorScheme]", { scheme: next });
     try {
-      await window.desktopBridge.nativeTheme.setThemeSource(next);
+      await mailBridge.nativeTheme.setThemeSource(next);
       setSyncedPreference("otter:theme-source", next);
       await refreshThemeInfo();
     } catch (error) {
@@ -1035,7 +1036,6 @@ export function AppearancePane() {
         </SettingsSection>
 
         <ThemeLibrary />
-        <AppIconPicker />
       </div>
 
       <MailLayoutPicker />

@@ -18,13 +18,13 @@
  *
  * Quiet zinc surfaces in light mode, a neutral-black canvas in dark mode,
  * hairline alpha borders, one blue "primary" for solid controls and focus.
- * Raw roles live on :root / .dark; the @theme inline block below exposes them
+ * Raw roles live on .mail-root / .dark; the @theme inline block below exposes them
  * as Tailwind utilities (bg-card, text-muted-foreground, border-input, …).
  * Short names that read ambiguously here (--background, --sidebar, --accent)
  * are spelled out: canvas, sidebar-surface, accent-surface. `--accent` is the
  * focus/brand color (the active account's color when one is selected).
  * ------------------------------------------------------------------------- */
-:root {
+.mail-root {
   --radius: 0.5rem;
   --control-radius: 0.5rem;
   --sidebar-content-inset: 0.5rem;
@@ -124,7 +124,7 @@
     var(--sidebar-muted-foreground) 60%,
     var(--sidebar-surface)
   );
-  /* The sidebar's body in the panel (home-view.tsx): halfway from the
+  /* The sidebar's .mail-root in the panel (home-view.tsx): halfway from the
      frame's surface to the canvas (ChatGPT's), so the rail stands apart.
      Resolved here, from the window's palette, not the sidebar's own scope. */
   --sidebar-panel-surface: color-mix(in srgb, var(--sidebar-surface) 50%, var(--canvas));
@@ -144,7 +144,7 @@
    pins there (the agent panel toggle) moves left of them. The title bar area
    is the window controls overlay's (os/linux main window). With no traffic
    lights to clear, the sidebar toggle sits over the rail. */
-html[data-window-controls="right"] {
+.mail-root[data-window-controls="right"] {
   --workspace-window-controls-width: calc(
     100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw)
   );
@@ -158,7 +158,7 @@ html[data-window-controls="right"] {
    are as tall as that takes), and the sidebar toggle pins at the panel's
    start instead, in line with the sidebar's icons. The sidebar's heading
    leaves it room. */
-html[data-window-controls="none"] {
+.mail-root[data-window-controls="none"] {
   --workspace-topbar-height: 52px;
   --workspace-controls-left: calc(var(--workspace-rail-width) + 0.75rem);
   --sidebar-heading-inset: calc(
@@ -251,7 +251,7 @@ html[data-window-controls="none"] {
 /* Contrast (Otter Code's): the text and border roles the utilities paint,
    derived from the raw ones above (or a theme's). Surfaces keep their color.
    The sidebar declares them again so they come from its own palette. */
-:root,
+.mail-root,
 [data-app-sidebar] {
   --contrast-foreground: color-mix(
     in oklab,
@@ -707,9 +707,9 @@ html[data-window-controls="none"] {
 }
 
 /* While a theme is being applied (theme/apply-theme.ts), nothing fades. */
-html[data-theme-switching] *,
-html[data-theme-switching] *::before,
-html[data-theme-switching] *::after {
+.mail-root[data-theme-switching] *,
+.mail-root[data-theme-switching] *::before,
+.mail-root[data-theme-switching] *::after {
   transition: none !important;
 }
 
@@ -781,14 +781,14 @@ html[data-theme-switching] *::after {
   /* A native-feeling window: 13px system text, no page scroll, no stray text
      selection (fields and message bodies opt back in), and a transparent
      page so the window's vibrancy shows through. */
-  html,
-  body,
+  .mail-root,
+  .mail-root,
   #root {
     width: 100%;
     height: 100%;
     background: transparent;
   }
-  body {
+  .mail-root {
     overflow: hidden;
     font-size: 0.8125rem;
     line-height: 1.125rem;
@@ -798,7 +798,7 @@ html[data-theme-switching] *::after {
     -webkit-font-smoothing: antialiased;
     font-synthesis: none;
   }
-  .no-background body {
+  .no-background .mail-root {
     background: transparent;
   }
 
@@ -1077,10 +1077,10 @@ html[data-theme-switching] *::after {
 /* The theme editor's spotlight (settings/theme/themeInspector.ts), from Otter Code's index.css. */
 /* Theme-token dependency probes are restored synchronously, before paint. Keep
    transitions from observing the temporary sentinel color in between. */
-html[data-theme-token-probe],
-html[data-theme-token-probe] *,
-html[data-theme-token-probe] *::before,
-html[data-theme-token-probe] *::after {
+.mail-root[data-theme-token-probe],
+.mail-root[data-theme-token-probe] *,
+.mail-root[data-theme-token-probe] *::before,
+.mail-root[data-theme-token-probe] *::after {
   transition: none !important;
 }
 

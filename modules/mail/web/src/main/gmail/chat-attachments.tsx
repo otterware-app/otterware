@@ -1,3 +1,4 @@
+import { mailDocument } from "../../host/dom";
 import { HintTooltip as ImportedMailTooltip } from "./ui";
 import { useLatest } from "../use-latest";
 /**
@@ -56,7 +57,7 @@ function thumbnail(url: string): Promise<string | undefined> {
       "load",
       () => {
         const scale = Math.min(1, 240 / Math.max(img.width, img.height));
-        const canvas = document.createElement("canvas");
+        const canvas = mailDocument.createElement("canvas");
         canvas.width = Math.max(1, Math.round(img.width * scale));
         canvas.height = Math.max(1, Math.round(img.height * scale));
         canvas.getContext("2d")?.drawImage(img, 0, 0, canvas.width, canvas.height);

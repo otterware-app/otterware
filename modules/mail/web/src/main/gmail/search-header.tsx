@@ -1,3 +1,4 @@
+import { mailDocument } from "../../host/dom";
 import { HintTooltip as ImportedMailTooltip } from "./ui";
 import { useLatest } from "../use-latest";
 /**
@@ -671,7 +672,7 @@ export function SearchHeader({
     const down = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented || isTypingTarget(e)) return;
       if (messageOpenRef.current) return;
-      if (document.querySelector('[role="menu"]')) return;
+      if (mailDocument.querySelector('[role="menu"]')) return;
       e.preventDefault();
       escapeRef.current();
     };

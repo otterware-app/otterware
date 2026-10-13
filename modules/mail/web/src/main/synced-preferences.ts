@@ -1,3 +1,4 @@
+import { mailBridge } from "../host/bridge";
 /**
  * UI choices that follow the Otter account to every device. They're kept in
  * localStorage (read synchronously, and shared by this app's windows) and
@@ -47,7 +48,7 @@ const settled = new Set<string>();
 export function setSyncedPreference(key: SyncedKey, value: string): void {
   settled.add(key);
   localStorage.setItem(key, value);
-  void window.desktopBridge.invoke("preferences:setUi", { key, value });
+  void mailBridge.invoke("preferences:setUi", { key, value });
 }
 
 function apply(ui: UiPreferences, skip: ReadonlySet<string> = new Set()): void {
@@ -57,8 +58,7 @@ function apply(ui: UiPreferences, skip: ReadonlySet<string> = new Set()): void {
     settled.add(key);
     if (value === localStorage.getItem(key)) continue;
     localStorage.setItem(key, value);
-    if (key === THEME_SOURCE)
-      void window.desktopBridge.nativeTheme.setThemeSource(value as ThemeSource);
+    if (key === THEME_SOURCE) void mailBridge.nativeTheme.setThemeSource(value as ThemeSource);
     window.dispatchEvent(new StorageEvent("storage", { key, newValue: value }));
   }
 }
@@ -67,7 +67,7 @@ let initialPreferences: Promise<void> | undefined;
 
 /** The browser awaits this before mounting, so its first render uses its saved palette. */
 export function loadSyncedPreferences(initialize = false): Promise<void> {
-  return (initialPreferences ??= window.desktopBridge
+  return (initialPreferences ??= mailBridge
     .invoke<UiPreferences>("preferences:getUi", { initialize })
     .then((ui) => {
       const newer = new Set(settled);
@@ -83,5 +83,5 @@ export function loadSyncedPreferences(initialize = false): Promise<void> {
 /** Takes the account's UI choices, gives it the ones it lacks, and follows its changes. */
 export function startSyncedPreferences(): () => void {
   void loadSyncedPreferences().catch((err) => console.warn("Couldn't load UI preferences", err));
-  return window.desktopBridge.on("preferences:uiChanged", (ui) => apply(ui as UiPreferences));
+  return mailBridge.on("preferences:uiChanged", (ui) => apply(ui as UiPreferences));
 }

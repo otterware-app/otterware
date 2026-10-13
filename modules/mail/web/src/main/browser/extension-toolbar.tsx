@@ -1,3 +1,4 @@
+import { mailBridge } from "../../host/bridge";
 import { useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -50,8 +51,8 @@ export function useExtensionActions(): ExtensionAction[] {
   useEffect(() => {
     const refresh = () => void queryClient.invalidateQueries({ queryKey: ACTIONS_KEY });
     const offs = [
-      window.desktopBridge.on("browser:extensionActionsChanged", refresh),
-      window.desktopBridge.on("browser:extensionsChanged", refresh),
+      mailBridge.on("browser:extensionActionsChanged", refresh),
+      mailBridge.on("browser:extensionsChanged", refresh),
     ];
     return () => offs.forEach((off) => off());
   }, [queryClient]);
@@ -106,7 +107,7 @@ export function ExtensionToolbar() {
   // chrome.action.openPopup with no button clicked yet: from its own, or the menu's.
   useEffect(
     () =>
-      window.desktopBridge.on("browser:openExtensionPopup", (params) => {
+      mailBridge.on("browser:openExtensionPopup", (params) => {
         const { id } = params as { id: string };
         run(id, buttons.current.get(id) ?? menuButton.current);
       }),

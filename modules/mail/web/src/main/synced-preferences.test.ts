@@ -7,6 +7,9 @@ const on = vi.fn(() => () => {});
 
 beforeEach(() => {
   vi.resetModules();
+  vi.doMock("../host/bridge", () => ({
+    mailBridge: { invoke, on, nativeTheme: { setThemeSource } },
+  }));
   storage.clear();
   invoke.mockReset();
   setThemeSource.mockReset();

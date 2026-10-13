@@ -1,3 +1,4 @@
+import { mailRoot } from "../../host/dom";
 import type { ComponentProps } from "react";
 import { Select as Primitive } from "radix-ui";
 import { CheckIcon, ChevronDownIcon } from "lucide-react";
@@ -57,7 +58,7 @@ export function SelectContent({
   ...props
 }: ComponentProps<typeof Primitive.Content>) {
   return (
-    <Primitive.Portal>
+    <Primitive.Portal container={mailRoot()}>
       <Primitive.Content
         position={position}
         sideOffset={4}

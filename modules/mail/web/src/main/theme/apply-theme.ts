@@ -1,3 +1,4 @@
+import { mailDocument } from "../../host/dom";
 import { setSyncedPreference } from "../synced-preferences";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import {
@@ -206,10 +207,10 @@ export function applyAppTheme(): void {
   const colors = draft?.colors ?? themeColors(themeId, mode);
   const exact = draft !== null || isCustom(themeId) || (findTheme(themeId)?.exact ?? false);
 
-  const root = document.documentElement;
+  const root = mailDocument.documentElement;
   withoutTransitions(root);
   root.classList.toggle("dark", mode === "dark");
-  let style = document.getElementById(STYLE_ID);
+  let style = mailDocument.getElementById(STYLE_ID);
   if (themeId === DEFAULT_THEME_ID) {
     root.removeAttribute("data-theme-id");
     style?.remove();
@@ -217,13 +218,13 @@ export function applyAppTheme(): void {
   }
   root.setAttribute("data-theme-id", themeId);
   if (!style) {
-    style = document.createElement("style");
+    style = mailDocument.createElement("style");
     style.id = STYLE_ID;
   }
   // Appended last in <head>, and the attribute selectors out-rank both the
   // stock `.dark` tokens and the sidebar's own [data-app-sidebar] scope.
-  style.textContent = `html[data-theme-id],\nhtml[data-theme-id] [data-app-sidebar] {\n${cssVariables(colors, exact)}\n}`;
-  document.head.appendChild(style);
+  style.textContent = `.mail-root[data-theme-id],\n.mail-root[data-theme-id] [data-app-sidebar] {\n${cssVariables(colors, exact)}\n}`;
+  mailDocument.head.appendChild(style);
 }
 
 /** Applies now and keeps the window in sync (appearance switches, other windows' picks). */

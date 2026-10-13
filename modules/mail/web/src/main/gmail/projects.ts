@@ -1,3 +1,4 @@
+import { mailBridge } from "../../host/bridge";
 /**
  * Projects (contracts' projects.ts): the backend's channels and the hooks
  * the sidebar, the list and the project page read them with. Projects are a
@@ -28,13 +29,13 @@ export type { Project, ProjectDocument, ProjectLink, ProjectThread };
 export const ALL_PROJECTS = "all";
 
 const ipc = <T>(channel: string, params?: unknown): Promise<T> =>
-  window.desktopBridge.invoke<T>(channel, params);
+  mailBridge.invoke<T>(channel, params);
 
 /** A long call: acknowledged at once, answered as `task:done` (api.ts' `task`). */
 const task = <T>(channel: string, params: Record<string, unknown>): Promise<T> =>
   new Promise<T>((resolve, reject) => {
     const taskId = crypto.randomUUID();
-    const off = window.desktopBridge.on("task:done", (payload: unknown) => {
+    const off = mailBridge.on("task:done", (payload: unknown) => {
       const p = payload as { taskId?: string; result?: T; error?: string } | undefined;
       if (p?.taskId !== taskId) return;
       off();
@@ -79,7 +80,7 @@ export function useProjects() {
   const qc = useQueryClient();
   useEffect(
     () =>
-      window.desktopBridge.on("projects:changed", () => {
+      mailBridge.on("projects:changed", () => {
         void qc.invalidateQueries({ queryKey: KEY });
         void qc.invalidateQueries({ queryKey: [THREADS_KEY] });
       }),

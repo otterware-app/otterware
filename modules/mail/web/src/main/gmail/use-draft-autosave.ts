@@ -1,7 +1,10 @@
+import { useMailRef, useMailSession } from "../../host/session";
+import { mailDocument } from "../../host/dom";
 import { useLatest } from "../use-latest";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { gmailApi } from "./api";
+import { createGmailApi } from "./api";
+import { mailHost } from "../../host/bridge";
 import type { ComposeAttachment, GmailMessageDetail } from "./types";
 
 export type DraftSaveState = "idle" | "saving" | "saved" | "error";
@@ -36,6 +39,7 @@ const REMOTE_NOTICE_MS = 4_000;
  */
 export function useDraftAutosave({
   accountId,
+  retainKey,
   threadId,
   signal,
   getPayload,
@@ -46,6 +50,7 @@ export function useDraftAutosave({
   onRemoteChange,
 }: {
   accountId: string | null;
+  retainKey?: string;
   threadId?: string;
   /** Debounce after the last edit (longer when big attachments ride along). */
   delayMs?: number;
@@ -70,27 +75,35 @@ export function useDraftAutosave({
   /** Loads another version into the composer's fields. */
   onRemoteChange?: (detail: GmailMessageDetail) => void | Promise<void>;
 }) {
+  const retained =
+    retainKey ?? `draft:${accountId}:${threadId ?? initialDraftId ?? initialMessageId ?? "reply"}`;
+  const session = useMailSession();
+  const [resumed] = useState(() => session.values.has(`${retained}:draftIdRef`));
+  const [gmailApi] = useState(() => createGmailApi(mailHost().invoke.bind(mailHost())));
   const qc = useQueryClient();
   const [saveState, setSaveState] = useState<DraftSaveState>("idle");
   const [remote, setRemote] = useState<DraftRemoteState | null>(null);
   const [remoteNotice, setRemoteNotice] = useState(false);
 
-  const draftIdRef = useRef<string | null>(initialDraftId ?? null);
-  const draftAccountRef = useRef<string | null>(initialDraftId ? accountId : null);
+  const draftIdRef = useMailRef<string | null>(`${retained}:draftIdRef`, initialDraftId ?? null);
+  const draftAccountRef = useMailRef<string | null>(
+    `${retained}:draftAccountRef`,
+    initialDraftId ? accountId : null,
+  );
   // The version this composer's content builds on (our last save, or the one
   // we opened / loaded). Anything else on Gmail was written elsewhere.
-  const versionRef = useRef<string | null>(initialMessageId ?? null);
+  const versionRef = useMailRef<string | null>(`${retained}:versionRef`, initialMessageId ?? null);
   // Thread Gmail assigned on the first save. Without pinning it, every update
   // re-threads the draft — a new list row per save until sync reconciles.
-  const adoptedThreadRef = useRef<string | null>(null);
+  const adoptedThreadRef = useMailRef<string | null>(`${retained}:adoptedThreadRef`, null);
   const doneRef = useRef(false);
-  const savingRef = useRef(false);
+  const savingRef = useMailRef(`${retained}:savingRef`, false);
   const unmountedRef = useRef(false);
   /** Saves suspended: loading, applying another version, or awaiting a choice. */
   const pausedRef = useRef(!enabled);
   const remoteRef = useLatest(remote);
-  const sessionKeyRef = useRef(crypto.randomUUID());
-  const snapshotRef = useRef(signal);
+  const sessionKeyRef = useMailRef(`${retained}:sessionKeyRef`, crypto.randomUUID());
+  const snapshotRef = useMailRef(`${retained}:snapshotRef`, signal);
 
   const signalRef = useLatest(signal);
   const accountRef = useLatest(accountId);
@@ -125,9 +138,9 @@ export function useDraftAutosave({
   const adoptCurrentSoonForEffect = useLatest(adoptCurrentSoon);
   useEffect(() => {
     if (!enabled) return;
-    adoptCurrentSoonForEffect.current();
+    if (!resumed) adoptCurrentSoonForEffect.current();
     pausedRef.current = remoteRef.current != null;
-  }, [enabled, adoptCurrentSoonForEffect, remoteRef]);
+  }, [enabled, resumed, adoptCurrentSoonForEffect, remoteRef]);
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ["gmail:messages"] });
@@ -237,7 +250,7 @@ export function useDraftAutosave({
   const saveRef = useLatest(save);
   // The in-flight save, so finalize can await the unmount flush before
   // deleting (send path closes the composer first, optimistically).
-  const pendingRef = useRef<Promise<void> | null>(null);
+  const pendingRef = useMailRef<Promise<void> | null>(`${retained}:pendingRef`, null);
   const trigger = () => {
     const p = saveRef.current();
     pendingRef.current = p;
@@ -264,7 +277,7 @@ export function useDraftAutosave({
       const draftId = draftIdRef.current;
       if (!account || !draftId || !versionRef.current) return;
       if (doneRef.current || pausedRef.current || savingRef.current) return;
-      if (typeof document !== "undefined" && !document.hasFocus()) return;
+      if (typeof document !== "undefined" && !mailDocument.hasFocus()) return;
       try {
         const { messageId } = await gmailApi.getDraftVersion(account, draftId);
         // Re-check: a save of ours may have landed while we asked.
@@ -331,6 +344,7 @@ export function useDraftAutosave({
 
   /** Stop autosaving (send/discard); optionally delete the persisted draft. */
   const finalize = async (opts?: { deleteDraft?: boolean }) => {
+    session.clear(`${retained}:`);
     doneRef.current = true;
     // A flush kicked off by unmounting may still be creating the draft.
     if (pendingRef.current) await pendingRef.current;

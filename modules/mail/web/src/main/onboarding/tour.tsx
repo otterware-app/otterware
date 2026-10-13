@@ -1,3 +1,4 @@
+import { mailDocument } from "../../host/dom";
 import { useLatest } from "../use-latest";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
@@ -113,7 +114,7 @@ function useTargetBox(target: string | undefined): Box | null {
     let raf = 0;
     let last: string | null = null;
     const tick = () => {
-      const el = target ? document.querySelector(`[data-tour="${target}"]`) : null;
+      const el = target ? mailDocument.querySelector(`[data-tour="${target}"]`) : null;
       const r = el?.getBoundingClientRect();
       const next =
         r && r.width > 0 && r.height > 0
@@ -285,6 +286,6 @@ export function Tour({ actions, onClose }: { actions: TourActions; onClose: () =
         </div>
       </div>
     </div>,
-    document.body,
+    mailDocument.body,
   );
 }

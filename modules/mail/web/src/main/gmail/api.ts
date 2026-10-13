@@ -407,329 +407,339 @@ export type AddImapAccountParams = {
   imap: ImapSettings;
 };
 
-export const gmailApi = {
-  saveSupportReport: (contents: string, filename?: "Otter Mail diagnostics.json") =>
-    task<boolean>("support:saveReport", { contents, filename }),
-  listAccounts: (): Promise<GmailAccount[]> => ipc("gmail:listAccounts"),
+export const createGmailApi = (ipcCall = ipc, taskCall = task) => {
+  const ipc = ipcCall;
+  const task = taskCall;
+  return {
+    saveSupportReport: (contents: string, filename?: "Otter Mail diagnostics.json") =>
+      task<boolean>("support:saveReport", { contents, filename }),
+    listAccounts: (): Promise<GmailAccount[]> => ipc("gmail:listAccounts"),
 
-  /** Browser sign-in; `email` signs an existing account back in. */
-  /** Resolves null when the sign-in was cancelled. */
-  addAccount: (email?: string): Promise<GmailAccount | null> =>
-    ipc("gmail:addAccount", email ? { email } : undefined),
-  /** Re-reads every account's signature from Gmail (answers at once; accounts-changed follows). */
-  refreshSignatures: (): Promise<void> => ipc("gmail:refreshSignatures"),
-  /** Stops waiting for the browser sign-in; the pending addAccount resolves null. */
-  cancelAddAccount: (): Promise<void> => ipc("gmail:cancelAddAccount"),
+    /** Browser sign-in; `email` signs an existing account back in. */
+    /** Resolves null when the sign-in was cancelled. */
+    addAccount: (email?: string): Promise<GmailAccount | null> =>
+      ipc("gmail:addAccount", email ? { email } : undefined),
+    /** Re-reads every account's signature from Gmail (answers at once; accounts-changed follows). */
+    refreshSignatures: (): Promise<void> => ipc("gmail:refreshSignatures"),
+    /** Stops waiting for the browser sign-in; the pending addAccount resolves null. */
+    cancelAddAccount: (): Promise<void> => ipc("gmail:cancelAddAccount"),
 
-  /** The servers an address's mail lives on, from its domain; null when unknown. */
-  discoverImap: (email: string): Promise<ImapSettings | null> =>
-    ipc("gmail:discoverImap", { email }),
-  /** Adds an IMAP mailbox once its login and SMTP work; rejects with a readable message. */
-  addImapAccount: (params: AddImapAccountParams): Promise<GmailAccount> =>
-    ipc("gmail:addImapAccount", params),
-  /** Signs an IMAP mailbox in on this device (its password never syncs). */
-  signInImap: (accountId: string, password: string): Promise<void> =>
-    ipc("gmail:signInImap", { accountId, password }),
+    /** The servers an address's mail lives on, from its domain; null when unknown. */
+    discoverImap: (email: string): Promise<ImapSettings | null> =>
+      ipc("gmail:discoverImap", { email }),
+    /** Adds an IMAP mailbox once its login and SMTP work; rejects with a readable message. */
+    addImapAccount: (params: AddImapAccountParams): Promise<GmailAccount> =>
+      ipc("gmail:addImapAccount", params),
+    /** Signs an IMAP mailbox in on this device (its password never syncs). */
+    signInImap: (accountId: string, password: string): Promise<void> =>
+      ipc("gmail:signInImap", { accountId, password }),
 
-  removeAccount: (accountId: string): Promise<{ ok: boolean }> =>
-    ipc("gmail:removeAccount", { accountId }),
+    removeAccount: (accountId: string): Promise<{ ok: boolean }> =>
+      ipc("gmail:removeAccount", { accountId }),
 
-  updateAccount: (params: UpdateAccountParams): Promise<GmailAccount> =>
-    ipc("gmail:updateAccount", params),
+    updateAccount: (params: UpdateAccountParams): Promise<GmailAccount> =>
+      ipc("gmail:updateAccount", params),
 
-  listLabels: (accountId: string): Promise<GmailLabel[]> => ipc("gmail:listLabels", { accountId }),
+    listLabels: (accountId: string): Promise<GmailLabel[]> =>
+      ipc("gmail:listLabels", { accountId }),
 
-  createLabel: (accountId: string, name: string): Promise<GmailLabel> =>
-    ipc("gmail:createLabel", { accountId, name }),
+    createLabel: (accountId: string, name: string): Promise<GmailLabel> =>
+      ipc("gmail:createLabel", { accountId, name }),
 
-  updateLabel: (params: {
-    accountId: string;
-    labelId: string;
-    name?: string;
-    color?: { backgroundColor: string; textColor: string };
-  }): Promise<{ ok: boolean }> => ipc("gmail:updateLabel", params),
+    updateLabel: (params: {
+      accountId: string;
+      labelId: string;
+      name?: string;
+      color?: { backgroundColor: string; textColor: string };
+    }): Promise<{ ok: boolean }> => ipc("gmail:updateLabel", params),
 
-  deleteLabel: (accountId: string, labelId: string): Promise<{ ok: boolean }> =>
-    ipc("gmail:deleteLabel", { accountId, labelId }),
+    deleteLabel: (accountId: string, labelId: string): Promise<{ ok: boolean }> =>
+      ipc("gmail:deleteLabel", { accountId, labelId }),
 
-  listMessages: (params: ListMessagesParams): Promise<ListMessagesResult> =>
-    ipc("gmail:listMessages", params),
+    listMessages: (params: ListMessagesParams): Promise<ListMessagesResult> =>
+      ipc("gmail:listMessages", params),
 
-  listCombinedMessages: (params: ListCombinedMessagesParams): Promise<ListMessagesResult> =>
-    ipc("gmail:listCombinedMessages", params),
+    listCombinedMessages: (params: ListCombinedMessagesParams): Promise<ListMessagesResult> =>
+      ipc("gmail:listCombinedMessages", params),
 
-  /** How this message offers unsubscribing (List-Unsubscribe), or null. */
-  getUnsubscribe: (
-    accountId: string,
-    messageId: string,
-    fromEmail: string,
-  ): Promise<{
-    method: "oneClick" | "mailto" | "web";
-    target: string;
-    unsubscribed: boolean;
-  } | null> => ipc("gmail:getUnsubscribe", { accountId, messageId, fromEmail }),
+    /** How this message offers unsubscribing (List-Unsubscribe), or null. */
+    getUnsubscribe: (
+      accountId: string,
+      messageId: string,
+      fromEmail: string,
+    ): Promise<{
+      method: "oneClick" | "mailto" | "web";
+      target: string;
+      unsubscribed: boolean;
+    } | null> => ipc("gmail:getUnsubscribe", { accountId, messageId, fromEmail }),
 
-  /** Unsubscribes in place, or returns the page to open (web-only lists). */
-  unsubscribe: (
-    accountId: string,
-    messageId: string,
-  ): Promise<{ done: true } | { openUrl: string }> =>
-    task("gmail:unsubscribe", { accountId, messageId }),
+    /** Unsubscribes in place, or returns the page to open (web-only lists). */
+    unsubscribe: (
+      accountId: string,
+      messageId: string,
+    ): Promise<{ done: true } | { openUrl: string }> =>
+      task("gmail:unsubscribe", { accountId, messageId }),
 
-  /** The calendar invitation in a message, with your current answer (null: none). */
-  getCalendarInvite: (accountId: string, messageId: string): Promise<CalendarInvite | null> =>
-    task("calendar:getInvite", { accountId, messageId }),
+    /** The calendar invitation in a message, with your current answer (null: none). */
+    getCalendarInvite: (accountId: string, messageId: string): Promise<CalendarInvite | null> =>
+      task("calendar:getInvite", { accountId, messageId }),
 
-  /** RSVP to an invitation (Calendar API, or an email reply to the organizer). */
-  respondToInvite: (
-    accountId: string,
-    messageId: string,
-    response: RsvpResponse,
-  ): Promise<CalendarInvite | null> => task("calendar:respond", { accountId, messageId, response }),
+    /** RSVP to an invitation (Calendar API, or an email reply to the organizer). */
+    respondToInvite: (
+      accountId: string,
+      messageId: string,
+      response: RsvpResponse,
+    ): Promise<CalendarInvite | null> =>
+      task("calendar:respond", { accountId, messageId, response }),
 
-  /** Gmail's own search (all operators, all mail) across the given accounts. */
-  gmailSearch: (params: {
-    q: string;
-    accountIds: string[];
-    cursors?: Record<string, string | null>;
-  }): Promise<GmailSearchResult> => task("gmail:search", params),
+    /** Gmail's own search (all operators, all mail) across the given accounts. */
+    gmailSearch: (params: {
+      q: string;
+      accountIds: string[];
+      cursors?: Record<string, string | null>;
+    }): Promise<GmailSearchResult> => task("gmail:search", params),
 
-  searchMessages: (params: SearchMessagesParams): Promise<ListMessagesResult> =>
-    ipc("gmail:searchMessages", params),
+    searchMessages: (params: SearchMessagesParams): Promise<ListMessagesResult> =>
+      ipc("gmail:searchMessages", params),
 
-  countCombinedMessages: (params: { rules: ViewRule[] }): Promise<CombinedCounts> =>
-    ipc("gmail:countCombinedMessages", params),
+    countCombinedMessages: (params: { rules: ViewRule[] }): Promise<CombinedCounts> =>
+      ipc("gmail:countCombinedMessages", params),
 
-  getMessage: (accountId: string, messageId: string): Promise<GmailMessageDetail> =>
-    ipc("gmail:getMessage", { accountId, messageId }),
+    getMessage: (accountId: string, messageId: string): Promise<GmailMessageDetail> =>
+      ipc("gmail:getMessage", { accountId, messageId }),
 
-  modifyMessage: (params: ModifyMessageParams): Promise<{ ok: boolean }> =>
-    ipc("gmail:modifyMessage", params),
+    modifyMessage: (params: ModifyMessageParams): Promise<{ ok: boolean }> =>
+      ipc("gmail:modifyMessage", params),
 
-  trashMessage: (accountId: string, messageId: string): Promise<{ ok: boolean }> =>
-    ipc("gmail:trashMessage", { accountId, messageId }),
+    trashMessage: (accountId: string, messageId: string): Promise<{ ok: boolean }> =>
+      ipc("gmail:trashMessage", { accountId, messageId }),
 
-  getThread: (accountId: string, threadId: string): Promise<GmailMessageSummary[]> =>
-    ipc("gmail:getThread", { accountId, threadId }),
+    getThread: (accountId: string, threadId: string): Promise<GmailMessageSummary[]> =>
+      ipc("gmail:getThread", { accountId, threadId }),
 
-  modifyThread: (params: ModifyThreadParams): Promise<{ ok: boolean }> =>
-    ipc("gmail:modifyThread", params),
+    modifyThread: (params: ModifyThreadParams): Promise<{ ok: boolean }> =>
+      ipc("gmail:modifyThread", params),
 
-  trashThread: (accountId: string, threadId: string): Promise<{ ok: boolean }> =>
-    ipc("gmail:trashThread", { accountId, threadId }),
+    trashThread: (accountId: string, threadId: string): Promise<{ ok: boolean }> =>
+      ipc("gmail:trashThread", { accountId, threadId }),
 
-  untrashThread: (accountId: string, threadId: string): Promise<{ ok: boolean }> =>
-    ipc("gmail:untrashThread", { accountId, threadId }),
+    untrashThread: (accountId: string, threadId: string): Promise<{ ok: boolean }> =>
+      ipc("gmail:untrashThread", { accountId, threadId }),
 
-  untrashMessage: (accountId: string, messageId: string): Promise<{ ok: boolean }> =>
-    ipc("gmail:untrashMessage", { accountId, messageId }),
+    untrashMessage: (accountId: string, messageId: string): Promise<{ ok: boolean }> =>
+      ipc("gmail:untrashMessage", { accountId, messageId }),
 
-  deleteThreadsForever: (accountId: string, threadIds: string[]): Promise<{ ok: boolean }> =>
-    ipc("gmail:deleteThreadsForever", { accountId, threadIds }),
-  /** Empty Junk / Empty Trash: deletes every message there forever. */
-  emptyFolder: (accountId: string, labelId: "SPAM" | "TRASH"): Promise<{ deleted: number }> =>
-    task("gmail:emptyFolder", { accountId, labelId }),
+    deleteThreadsForever: (accountId: string, threadIds: string[]): Promise<{ ok: boolean }> =>
+      ipc("gmail:deleteThreadsForever", { accountId, threadIds }),
+    /** Empty Junk / Empty Trash: deletes every message there forever. */
+    emptyFolder: (accountId: string, labelId: "SPAM" | "TRASH"): Promise<{ deleted: number }> =>
+      task("gmail:emptyFolder", { accountId, labelId }),
 
-  listSchedules: (): Promise<import("@otterware/mail-contracts").MailSchedule[]> =>
-    ipc("gmail:listSchedules"),
-  cancelSchedule: (id: string): Promise<void> => task("gmail:cancelSchedule", { id }),
-  snoozeThread: (accountId: string, threadId: string, dueAt: number): Promise<void> =>
-    task("gmail:snoozeThread", { accountId, threadId, dueAt }),
-  sendMessage: (params: SendMessageParams): Promise<{ ok: boolean }> =>
-    params.scheduledAt === undefined
-      ? ipc("gmail:sendMessage", params)
-      : task("gmail:scheduleMessage", params),
+    listSchedules: (): Promise<import("@otterware/mail-contracts").MailSchedule[]> =>
+      ipc("gmail:listSchedules"),
+    cancelSchedule: (id: string): Promise<void> => task("gmail:cancelSchedule", { id }),
+    snoozeThread: (accountId: string, threadId: string, dueAt: number): Promise<void> =>
+      task("gmail:snoozeThread", { accountId, threadId, dueAt }),
+    sendMessage: (params: SendMessageParams): Promise<{ ok: boolean }> =>
+      params.scheduledAt === undefined
+        ? ipc("gmail:sendMessage", params)
+        : task("gmail:scheduleMessage", params),
 
-  saveDraft: (params: SaveDraftParams): Promise<SaveDraftResult> => ipc("gmail:saveDraft", params),
+    saveDraft: (params: SaveDraftParams): Promise<SaveDraftResult> =>
+      ipc("gmail:saveDraft", params),
 
-  /** The message backing a draft right now; null = the draft is gone. */
-  getDraftVersion: (accountId: string, draftId: string): Promise<{ messageId: string | null }> =>
-    ipc("gmail:getDraftVersion", { accountId, draftId }),
+    /** The message backing a draft right now; null = the draft is gone. */
+    getDraftVersion: (accountId: string, draftId: string): Promise<{ messageId: string | null }> =>
+      ipc("gmail:getDraftVersion", { accountId, draftId }),
 
-  /** A draft's content at a given version (also refreshes the cache). */
-  loadDraftVersion: (
-    accountId: string,
-    draftId: string,
-    messageId: string,
-  ): Promise<GmailMessageDetail> =>
-    ipc("gmail:loadDraftVersion", { accountId, draftId, messageId }),
+    /** A draft's content at a given version (also refreshes the cache). */
+    loadDraftVersion: (
+      accountId: string,
+      draftId: string,
+      messageId: string,
+    ): Promise<GmailMessageDetail> =>
+      ipc("gmail:loadDraftVersion", { accountId, draftId, messageId }),
 
-  deleteDraft: (accountId: string, draftId: string): Promise<{ ok: boolean }> =>
-    ipc("gmail:deleteDraft", { accountId, draftId }),
+    deleteDraft: (accountId: string, draftId: string): Promise<{ ok: boolean }> =>
+      ipc("gmail:deleteDraft", { accountId, draftId }),
 
-  /** Deletes a composer's draft: by id when known, else whatever its session's
+    /** Deletes a composer's draft: by id when known, else whatever its session's
       saves created (even if that id never reached the renderer). */
-  deleteSessionDraft: (
-    accountId: string,
-    sessionKey: string,
-    draftId?: string,
-  ): Promise<{ ok: boolean }> => ipc("gmail:deleteDraft", { accountId, sessionKey, draftId }),
+    deleteSessionDraft: (
+      accountId: string,
+      sessionKey: string,
+      draftId?: string,
+    ): Promise<{ ok: boolean }> => ipc("gmail:deleteDraft", { accountId, sessionKey, draftId }),
 
-  getDraftForMessage: (
-    accountId: string,
-    messageId: string,
-    threadId?: string,
-  ): Promise<{ draftId: string | null }> =>
-    ipc("gmail:getDraftForMessage", { accountId, messageId, threadId }),
+    getDraftForMessage: (
+      accountId: string,
+      messageId: string,
+      threadId?: string,
+    ): Promise<{ draftId: string | null }> =>
+      ipc("gmail:getDraftForMessage", { accountId, messageId, threadId }),
 
-  getAttachment: (params: GetAttachmentParams): Promise<GetAttachmentResult> =>
-    task("gmail:getAttachment", params),
+    getAttachment: (params: GetAttachmentParams): Promise<GetAttachmentResult> =>
+      task("gmail:getAttachment", params),
 
-  getAttachmentData: (params: GetAttachmentDataParams): Promise<{ base64: string; size: number }> =>
-    task("gmail:getAttachmentData", params),
+    getAttachmentData: (
+      params: GetAttachmentDataParams,
+    ): Promise<{ base64: string; size: number }> => task("gmail:getAttachmentData", params),
 
-  openComposeAttachment: (params: { name: string; base64: string }): Promise<{ ok: boolean }> =>
-    ipc("gmail:openComposeAttachment", params),
+    openComposeAttachment: (params: { name: string; base64: string }): Promise<{ ok: boolean }> =>
+      ipc("gmail:openComposeAttachment", params),
 
-  /** Fetch a remote email image server-side (bypasses the iframe's CORP block). */
-  proxyImage: (url: string): Promise<{ dataUrl: string }> => ipc("gmail:proxyImage", { url }),
+    /** Fetch a remote email image server-side (bypasses the iframe's CORP block). */
+    proxyImage: (url: string): Promise<{ dataUrl: string }> => ipc("gmail:proxyImage", { url }),
 
-  openAttachment: (params: AttachmentFileParams): Promise<{ ok: boolean }> =>
-    task("gmail:openAttachment", params),
+    openAttachment: (params: AttachmentFileParams): Promise<{ ok: boolean }> =>
+      task("gmail:openAttachment", params),
 
-  dragAttachment: (params: AttachmentFileParams): Promise<{ ok: boolean }> =>
-    task("gmail:dragAttachment", params),
+    dragAttachment: (params: AttachmentFileParams): Promise<{ ok: boolean }> =>
+      task("gmail:dragAttachment", params),
 
-  pickAttachments: (existingBytes: number): Promise<PickAttachmentsResult> =>
-    task("gmail:pickAttachments", { existingBytes }),
+    pickAttachments: (existingBytes: number): Promise<PickAttachmentsResult> =>
+      task("gmail:pickAttachments", { existingBytes }),
 
-  suggestContacts: (params: { q: string; limit?: number }): Promise<ContactSuggestion[]> =>
-    ipc("gmail:suggestContacts", params),
+    suggestContacts: (params: { q: string; limit?: number }): Promise<ContactSuggestion[]> =>
+      ipc("gmail:suggestContacts", params),
 
-  syncAccount: (accountId: string): Promise<SyncStatus> => ipc("gmail:syncAccount", { accountId }),
+    syncAccount: (accountId: string): Promise<SyncStatus> =>
+      ipc("gmail:syncAccount", { accountId }),
 
-  getSyncStatus: (accountId: string): Promise<SyncStatus> =>
-    ipc("gmail:getSyncStatus", { accountId }),
+    getSyncStatus: (accountId: string): Promise<SyncStatus> =>
+      ipc("gmail:getSyncStatus", { accountId }),
 
-  getSenderAvatar: (accountId: string, email: string): Promise<{ dataUrl: string | null }> =>
-    ipc("gmail:getSenderAvatar", { accountId, email }),
+    getSenderAvatar: (accountId: string, email: string): Promise<{ dataUrl: string | null }> =>
+      ipc("gmail:getSenderAvatar", { accountId, email }),
 
-  getSyncSettings: (): Promise<SyncSettings> => ipc("gmail:getSyncSettings"),
+    getSyncSettings: (): Promise<SyncSettings> => ipc("gmail:getSyncSettings"),
 
-  setSyncSettings: (params: Partial<SyncSettings>): Promise<SyncSettings> =>
-    ipc("gmail:setSyncSettings", params),
+    setSyncSettings: (params: Partial<SyncSettings>): Promise<SyncSettings> =>
+      ipc("gmail:setSyncSettings", params),
 
-  getTranslationSettings: (): Promise<TranslationSettings> => ipc("translation:getSettings"),
+    getTranslationSettings: (): Promise<TranslationSettings> => ipc("translation:getSettings"),
 
-  setTranslationSettings: (params: Partial<TranslationSettings>): Promise<TranslationSettings> =>
-    ipc("translation:setSettings", params),
+    setTranslationSettings: (params: Partial<TranslationSettings>): Promise<TranslationSettings> =>
+      ipc("translation:setSettings", params),
 
-  /** Apple's on-device language detection. */
-  detectLanguage: (text: string): Promise<{ language: string | null; confidence: number }> =>
-    ipc("translation:detect", { text }),
+    /** Apple's on-device language detection. */
+    detectLanguage: (text: string): Promise<{ language: string | null; confidence: number }> =>
+      ipc("translation:detect", { text }),
 
-  /** Apple's on-device translation, one result per segment. */
-  translate: (params: {
-    segments: string[];
-    source: string;
-    target: string;
-  }): Promise<{ status: TranslationStatus; texts: string[] }> =>
-    task("translation:translate", params),
+    /** Apple's on-device translation, one result per segment. */
+    translate: (params: {
+      segments: string[];
+      source: string;
+      target: string;
+    }): Promise<{ status: TranslationStatus; texts: string[] }> =>
+      task("translation:translate", params),
 
-  listViews: (): Promise<MailView[]> => ipc("gmail:listViews"),
+    listViews: (): Promise<MailView[]> => ipc("gmail:listViews"),
 
-  saveView: (params: SaveViewParams): Promise<MailView> => ipc("gmail:saveView", params),
+    saveView: (params: SaveViewParams): Promise<MailView> => ipc("gmail:saveView", params),
 
-  deleteView: (viewId: string): Promise<{ ok: boolean }> => ipc("gmail:deleteView", { viewId }),
+    deleteView: (viewId: string): Promise<{ ok: boolean }> => ipc("gmail:deleteView", { viewId }),
 
-  resetView: (viewId: string): Promise<{ ok: boolean }> => ipc("gmail:resetView", { viewId }),
+    resetView: (viewId: string): Promise<{ ok: boolean }> => ipc("gmail:resetView", { viewId }),
 
-  importViews: (views: MailView[]): Promise<MailView[]> => ipc("gmail:importViews", { views }),
+    importViews: (views: MailView[]): Promise<MailView[]> => ipc("gmail:importViews", { views }),
 
-  openSettings: (target?: SettingsTarget): Promise<void> => ipc("window:openSettings", target),
-  closeMainWindow: (): Promise<void> => ipc("window:closeMain"),
+    openSettings: (target?: SettingsTarget): Promise<void> => ipc("window:openSettings", target),
+    closeMainWindow: (): Promise<void> => ipc("window:closeMain"),
 
-  getSettingsTarget: (): Promise<SettingsTarget | null> => ipc("window:getSettingsTarget"),
+    getSettingsTarget: (): Promise<SettingsTarget | null> => ipc("window:getSettingsTarget"),
 
-  /** Cmd+click: open a single message in its own window. */
-  /** A conversation a notification asked this window to open, if any. */
-  takePendingOpenMessage: (): Promise<{ accountId: string; messageId: string } | null> =>
-    ipc("window:takePendingOpenMessage"),
+    /** Cmd+click: open a single message in its own window. */
+    /** A conversation a notification asked this window to open, if any. */
+    takePendingOpenMessage: (): Promise<{ accountId: string; messageId: string } | null> =>
+      ipc("window:takePendingOpenMessage"),
 
-  takePendingMailto: (): Promise<MailtoTarget | null> => ipc("app:takePendingMailto"),
+    takePendingMailto: (): Promise<MailtoTarget | null> => ipc("app:takePendingMailto"),
 
-  getDefaultMailStatus: (): Promise<{ isDefault: boolean }> => ipc("app:getDefaultMailStatus"),
+    getDefaultMailStatus: (): Promise<{ isDefault: boolean }> => ipc("app:getDefaultMailStatus"),
 
-  /** No id = register Otter Mail itself; with one, hand the default to that app. */
-  setDefaultMailApp: (id?: string): Promise<{ ok: boolean }> =>
-    ipc("app:setDefaultMailApp", id ? { id } : undefined),
+    /** No id = register Otter Mail itself; with one, hand the default to that app. */
+    setDefaultMailApp: (id?: string): Promise<{ ok: boolean }> =>
+      ipc("app:setDefaultMailApp", id ? { id } : undefined),
 
-  listMailApps: (): Promise<MailAppsResult> => ipc("app:listMailApps"),
+    listMailApps: (): Promise<MailAppsResult> => ipc("app:listMailApps"),
 
-  /** Cached provider snapshots; stale ones re-check and arrive as `agent:providersChanged`. */
-  agentProviders: (): Promise<ProvidersState> => ipc("agent:providers"),
+    /** Cached provider snapshots; stale ones re-check and arrive as `agent:providersChanged`. */
+    agentProviders: (): Promise<ProvidersState> => ipc("agent:providers"),
 
-  openrouterConnection: (): Promise<OpenRouterConnection> => ipc("agent:openrouterConnection"),
-  connectOpenRouter: (apiKey: string): Promise<ProvidersState> =>
-    ipc("agent:connectOpenRouter", { apiKey }),
-  disconnectOpenRouter: (): Promise<ProvidersState> => ipc("agent:disconnectOpenRouter"),
+    openrouterConnection: (): Promise<OpenRouterConnection> => ipc("agent:openrouterConnection"),
+    connectOpenRouter: (apiKey: string): Promise<ProvidersState> =>
+      ipc("agent:connectOpenRouter", { apiKey }),
+    disconnectOpenRouter: (): Promise<ProvidersState> => ipc("agent:disconnectOpenRouter"),
 
-  refreshAgentProviders: (): Promise<{ ok: boolean }> => ipc("agent:refreshProviders"),
+    refreshAgentProviders: (): Promise<{ ok: boolean }> => ipc("agent:refreshProviders"),
 
-  updateAgentSettings: (patch: AgentSettingsPatch): Promise<ProvidersState> =>
-    ipc("agent:updateSettings", patch),
+    updateAgentSettings: (patch: AgentSettingsPatch): Promise<ProvidersState> =>
+      ipc("agent:updateSettings", patch),
 
-  connectHermes: (params: { baseUrl: string; apiKey: string }): Promise<ProvidersState> =>
-    ipc("agent:connectHermes", params),
+    connectHermes: (params: { baseUrl: string; apiKey: string }): Promise<ProvidersState> =>
+      ipc("agent:connectHermes", params),
 
-  /**
-   * Starts a turn and returns at once; it streams as `agent:chatEvent`.
-   * Without `sessionId` the provider opens a session and reports it in a
-   * `session` event; Hermes legacy chats chain via `previousResponseId`.
-   */
-  agentSend: (params: {
-    provider: ProviderKind;
-    requestId: string;
-    input: string;
-    sessionId?: string;
-    title?: string;
-    skill?: { name: string; path?: string };
-    attachments?: ChatAttachment[];
-    previousResponseId?: string;
-  }): Promise<{ ok: boolean }> => ipc("agent:send", params),
+    /**
+     * Starts a turn and returns at once; it streams as `agent:chatEvent`.
+     * Without `sessionId` the provider opens a session and reports it in a
+     * `session` event; Hermes legacy chats chain via `previousResponseId`.
+     */
+    agentSend: (params: {
+      provider: ProviderKind;
+      requestId: string;
+      input: string;
+      sessionId?: string;
+      title?: string;
+      skill?: { name: string; path?: string };
+      attachments?: ChatAttachment[];
+      previousResponseId?: string;
+    }): Promise<{ ok: boolean }> => ipc("agent:send", params),
 
-  /** Copies dropped, picked or pasted files into the attachments folder. */
-  agentStageAttachments: (
-    items: { name: string; mime: string; bytes: Uint8Array }[],
-  ): Promise<{ attachments: ChatAttachment[]; errors: string[] }> =>
-    ipc("agent:stageAttachments", { items }),
+    /** Copies dropped, picked or pasted files into the attachments folder. */
+    agentStageAttachments: (
+      items: { name: string; mime: string; bytes: Uint8Array }[],
+    ): Promise<{ attachments: ChatAttachment[]; errors: string[] }> =>
+      ipc("agent:stageAttachments", { items }),
 
-  agentRespondApproval: (params: {
-    provider: ProviderKind;
-    requestId: string;
-    approvalId: string;
-    decision: ApprovalDecision;
-  }): Promise<{ ok: boolean }> => ipc("agent:respondApproval", params),
+    agentRespondApproval: (params: {
+      provider: ProviderKind;
+      requestId: string;
+      approvalId: string;
+      decision: ApprovalDecision;
+    }): Promise<{ ok: boolean }> => ipc("agent:respondApproval", params),
 
-  /** Adds a message to the running turn; `accepted: false` → queue it instead. */
-  agentSteer: (
-    provider: ProviderKind,
-    requestId: string,
-    input: string,
-  ): Promise<{ accepted: boolean }> => ipc("agent:steer", { provider, requestId, input }),
+    /** Adds a message to the running turn; `accepted: false` → queue it instead. */
+    agentSteer: (
+      provider: ProviderKind,
+      requestId: string,
+      input: string,
+    ): Promise<{ accepted: boolean }> => ipc("agent:steer", { provider, requestId, input }),
 
-  agentCancel: (provider: ProviderKind, requestId: string): Promise<{ ok: boolean }> =>
-    ipc("agent:cancel", { provider, requestId }),
+    agentCancel: (provider: ProviderKind, requestId: string): Promise<{ ok: boolean }> =>
+      ipc("agent:cancel", { provider, requestId }),
 
-  agentSkills: (provider: ProviderKind): Promise<Skill[]> => ipc("agent:skills", { provider }),
+    agentSkills: (provider: ProviderKind): Promise<Skill[]> => ipc("agent:skills", { provider }),
 
-  agentSessions: (provider: ProviderKind, limit = 40): Promise<ChatSession[]> =>
-    ipc("agent:sessions", { provider, limit }),
+    agentSessions: (provider: ProviderKind, limit = 40): Promise<ChatSession[]> =>
+      ipc("agent:sessions", { provider, limit }),
 
-  agentSessionMessages: (
-    provider: ProviderKind,
-    sessionId: string,
-  ): Promise<ChatSessionMessage[]> => ipc("agent:sessionMessages", { provider, sessionId }),
+    agentSessionMessages: (
+      provider: ProviderKind,
+      sessionId: string,
+    ): Promise<ChatSessionMessage[]> => ipc("agent:sessionMessages", { provider, sessionId }),
 
-  agentDeleteSession: (provider: ProviderKind, sessionId: string): Promise<{ ok: boolean }> =>
-    ipc("agent:deleteSession", { provider, sessionId }),
+    agentDeleteSession: (provider: ProviderKind, sessionId: string): Promise<{ ok: boolean }> =>
+      ipc("agent:deleteSession", { provider, sessionId }),
 
-  // Agents on the Mac given Otter Mail's tools with a token (the Mac only).
-  connectedAgents: (): Promise<AgentTokens<ConnectedAgent>> => ipc("mcp:listAgents"),
-  /** Answers the token, this once. */
-  addConnectedAgent: (name: string, access: AgentAccess): Promise<string> =>
-    ipc("mcp:addAgent", { name, access }),
-  setConnectedAgentAccess: (id: string, access: AgentAccess): Promise<void> =>
-    ipc("mcp:setAgentAccess", { id, access }),
-  removeConnectedAgent: (id: string): Promise<void> => ipc("mcp:removeAgent", { id }),
+    // Agents on the Mac given Otter Mail's tools with a token (the Mac only).
+    connectedAgents: (): Promise<AgentTokens<ConnectedAgent>> => ipc("mcp:listAgents"),
+    /** Answers the token, this once. */
+    addConnectedAgent: (name: string, access: AgentAccess): Promise<string> =>
+      ipc("mcp:addAgent", { name, access }),
+    setConnectedAgentAccess: (id: string, access: AgentAccess): Promise<void> =>
+      ipc("mcp:setAgentAccess", { id, access }),
+    removeConnectedAgent: (id: string): Promise<void> => ipc("mcp:removeAgent", { id }),
+  };
 };
+export const gmailApi = createGmailApi();

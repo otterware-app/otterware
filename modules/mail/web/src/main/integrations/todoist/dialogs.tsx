@@ -1,3 +1,5 @@
+import type { MailRouter } from "../../router";
+import { mailBridge } from "../../../host/bridge";
 import type { TodoistPage, TodoistTask } from "@otterware/mail-contracts/todoist";
 import { useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
@@ -51,11 +53,11 @@ export function TodoistDialogs() {
   const qc = useQueryClient();
   useEffect(() => {
     listeners.add(setRequest);
-    const off = window.desktopBridge.on("todoist:changed", () => {
+    const off = mailBridge.on("todoist:changed", () => {
       setRequest(null);
       void qc.resetQueries({ queryKey: ["todoist"] });
     });
-    const offTasks = window.desktopBridge.on("todoist:tasksChanged", (payload: unknown) => {
+    const offTasks = mailBridge.on("todoist:tasksChanged", (payload: unknown) => {
       const completedId = (payload as { completedId?: string } | undefined)?.completedId;
       if (completedId)
         qc.setQueriesData<InfiniteData<TodoistPage>>({ queryKey: ["todoist", "tasks"] }, (data) =>
@@ -95,7 +97,7 @@ export function TodoistDialogs() {
 }
 
 function ConnectTodoist({ onClose }: { onClose: () => void }) {
-  const navigate = useNavigate();
+  const navigate = useNavigate<MailRouter>();
   return (
     <div className="flex items-center justify-between gap-3">
       <p>Connect your Todoist account to get started.</p>
