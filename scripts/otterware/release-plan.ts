@@ -30,18 +30,21 @@ export function releaseBranch(input: string) {
 
 if (process.argv[1]?.endsWith("release-plan.ts")) {
   const profiles = releaseProfiles(process.env.RELEASE_PROFILES ?? "");
-  if (
-    profiles.some((profile) => profile.id !== "code") &&
-    process.env.REQUIRE_PROFILE_IDENTITY === "1"
-  ) {
-    const packager = NodeFS.readFileSync("scripts/build-desktop-artifact.ts", "utf8");
-    if (!packager.includes("activeProfile.brand.appId"))
-      throw new Error("Non-Code builds require W2 profile identity wiring");
-  }
   const tagBranch = /^otterware-build-channel-(.+)--[^-].*$/.exec(
     process.env.GITHUB_REF_NAME ?? "",
   )?.[1];
   const branch = releaseBranch(process.env.RELEASE_BRANCH || tagBranch || "");
+  if (process.env.REQUIRE_PROFILE_IDENTITY === "1") {
+    const packager = NodeFS.readFileSync("scripts/build-desktop-artifact.ts", "utf8");
+    const codeSigningTest =
+      profiles.length === 1 && profiles[0]?.id === "code" && branch === "test";
+    if (!packager.includes("activeProfile.brand.appId") && !codeSigningTest) {
+      throw new Error(
+        "Profile releases require W2 identity wiring; only code/test may verify signing before it lands",
+      );
+    }
+  }
+
   const core = JSON.parse(NodeFS.readFileSync("apps/desktop/package.json", "utf8")).version.split(
     /[-+]/,
   )[0];
