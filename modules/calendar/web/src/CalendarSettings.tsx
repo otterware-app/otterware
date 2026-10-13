@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import type { CalendarId, GoogleConnectState } from "@otterware/calendar-contracts";
+import {
+  DEFAULT_CALENDAR_SHORTCUTS,
+  type CalendarId,
+  type GoogleConnectState,
+} from "@otterware/calendar-contracts";
 import { useCalendarClient, useCalendarDirectory } from "./host.tsx";
 import "./calendar.css";
 
@@ -163,6 +167,95 @@ export default function CalendarSettings() {
           <section>
             <h2>Preferences · Account</h2>
             <label>
+              Custom view days
+              <input
+                key={directory.preferences.customDays}
+                type="number"
+                min={2}
+                max={14}
+                defaultValue={directory.preferences.customDays}
+                disabled={!canWrite || busy}
+                onBlur={(event) => {
+                  const customDays = Number(event.target.value);
+                  if (customDays !== directory.preferences.customDays)
+                    void run(() => client.preferences({ customDays }));
+                }}
+              />
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={directory.preferences.showWeekends}
+                disabled={!canWrite || busy}
+                onChange={(event) =>
+                  void run(() => client.preferences({ showWeekends: event.target.checked }))
+                }
+              />
+              Show weekends
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={directory.preferences.showDeclined}
+                disabled={!canWrite || busy}
+                onChange={(event) =>
+                  void run(() => client.preferences({ showDeclined: event.target.checked }))
+                }
+              />
+              Show declined events
+            </label>
+            <div className="calendar-field-pair">
+              {(["start", "end"] as const).map((part) => (
+                <label key={part}>
+                  Working hours {part}
+                  <input
+                    key={directory.preferences.workingHours[part]}
+                    type="time"
+                    disabled={!canWrite || busy}
+                    defaultValue={`${String(Math.floor(directory.preferences.workingHours[part] / 60)).padStart(2, "0")}:${String(directory.preferences.workingHours[part] % 60).padStart(2, "0")}`}
+                    onBlur={(event) => {
+                      const [hour, minute] = event.target.value.split(":").map(Number);
+                      if (hour !== undefined && minute !== undefined)
+                        void run(() =>
+                          client.preferences({
+                            workingHours: {
+                              ...directory.preferences.workingHours,
+                              [part]: hour * 60 + minute,
+                            },
+                          }),
+                        );
+                    }}
+                  />
+                </label>
+              ))}
+            </div>
+            <div className="calendar-weekdays">
+              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => (
+                <label key={day}>
+                  <input
+                    type="checkbox"
+                    disabled={!canWrite || busy}
+                    checked={directory.preferences.workingHours.days.includes(index)}
+                    onChange={(event) =>
+                      void run(() =>
+                        client.preferences({
+                          workingHours: {
+                            ...directory.preferences.workingHours,
+                            days: event.target.checked
+                              ? [...directory.preferences.workingHours.days, index]
+                              : directory.preferences.workingHours.days.filter(
+                                  (value) => value !== index,
+                                ),
+                          },
+                        }),
+                      )
+                    }
+                  />
+                  {day}
+                </label>
+              ))}
+            </div>
+            <label>
               Default calendar
               <select
                 disabled={!canWrite || busy}
@@ -207,6 +300,7 @@ export default function CalendarSettings() {
             <label>
               Time zone
               <input
+                key={directory.preferences.timeZone}
                 defaultValue={directory.preferences.timeZone ?? ""}
                 placeholder="Follow this device"
                 disabled={!canWrite || busy}
@@ -241,6 +335,7 @@ export default function CalendarSettings() {
                 type="number"
                 min={5}
                 max={1440}
+                key={directory.preferences.defaultEventMinutes}
                 defaultValue={directory.preferences.defaultEventMinutes}
                 disabled={!canWrite || busy}
                 onBlur={(event) => {
@@ -250,6 +345,43 @@ export default function CalendarSettings() {
                 }}
               />
             </label>
+          </section>
+        )}
+        {directory && (
+          <section>
+            <h2>Keyboard shortcuts · Account</h2>
+            <p>
+              Use a key such as a or a combination such as Mod+Shift+2. Mod means Command or
+              Control. Leave a binding blank to disable it.
+            </p>
+            {Object.entries(directory.preferences.shortcuts).map(([action, binding]) => (
+              <label key={action}>
+                {action}
+                <input
+                  key={binding}
+                  defaultValue={binding}
+                  disabled={!canWrite || busy}
+                  onBlur={(event) => {
+                    const value = event.target.value.trim();
+                    if (value !== binding)
+                      void run(() =>
+                        client.preferences({
+                          shortcuts: { ...directory.preferences.shortcuts, [action]: value },
+                        }),
+                      );
+                  }}
+                />
+              </label>
+            ))}
+            <button
+              type="button"
+              disabled={!canWrite || busy}
+              onClick={() =>
+                void run(() => client.preferences({ shortcuts: DEFAULT_CALENDAR_SHORTCUTS }))
+              }
+            >
+              Reset shortcuts
+            </button>
           </section>
         )}
         {directory && (

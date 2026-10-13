@@ -17,6 +17,7 @@
     "test": "vp test run --config ../../../vite.config.ts --dir . --passWithNoTests"
   },
   "dependencies": {
+    "@legendapp/list": "catalog:",
     "@otterware/calendar-contracts": "workspace:*",
     "@otterware/module-kit": "workspace:*",
     "@t3tools/client-runtime": "workspace:*",

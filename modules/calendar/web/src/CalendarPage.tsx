@@ -2,28 +2,26 @@ import {
   DEFAULT_CALENDAR_PREFERENCES,
   type CalendarEventInstance,
   type CalendarEventDetails,
-  type CalendarId,
-  type CalendarChangeScope,
+  type CalendarSearchResult,
   type CalendarMutationResult,
 } from "@otterware/calendar-contracts";
 import {
   DAY_MS,
   fromZoned,
-  addMonths,
   zonedDay,
   systemTimeZone,
   civilDate,
-  dayNumber,
-  weekday,
   formatDayNumber,
   parseDayNumber,
-  formatZonedIso,
-  parseInstant,
 } from "@otterware/calendar-contracts/time";
 import { useModulePageContext, type ModulePageProps } from "@otterware/module-kit/web";
 import { useEffectEvent, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useCalendarClient, useCalendarDirectory, useCalendarWeeks } from "./host.tsx";
 import { TimeGrid } from "./grid/TimeGrid.tsx";
+import { AgendaList } from "./grid/AgendaList.tsx";
+import { EventEditor } from "./EventEditor.tsx";
+import { monthViewWeeks, timeGridDays, stepAnchor, type CalendarViewKind } from "./runtime/days.ts";
+import { shortcutAction } from "./runtime/shortcuts.ts";
 import { MonthGrid } from "./grid/MonthGrid.tsx";
 import type { CalendarDraft, CalendarEventChange } from "./grid/types.ts";
 import { chunkWeeksForDays } from "./runtime/chunks.ts";
@@ -42,7 +40,7 @@ export default function CalendarPage({ active, subpath }: ModulePageProps) {
   const [date, setDate] = useState(
     () => parseDayNumber(new URLSearchParams(window.location.search).get("date") ?? "") ?? today,
   );
-  const [view, setView] = useState<"week" | "day" | "month">("week");
+  const [view, setView] = useState<CalendarViewKind>("week");
   const [selected, setSelected] = useState<CalendarEventInstance | null>(null);
   const [draft, setDraft] = useState<(CalendarDraft & { readonly duplicate?: boolean }) | null>(
     null,
@@ -54,16 +52,37 @@ export default function CalendarPage({ active, subpath }: ModulePageProps) {
   const stack = useSyncExternalStore(history.subscribe, history.getState);
   const root = useRef<HTMLDivElement>(null);
   const month = civilDate(date);
-  const first = view === "month" ? dayNumber(month.year, month.month, 1) : date;
-  const start =
-    view === "day" ? date : first - ((weekday(first) - preferences.weekStartsOn + 7) % 7);
+  const [agendaRange, setAgendaRange] = useState({ anchor: date, from: date, to: date + 42 });
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [searchResult, setSearchResult] = useState<CalendarSearchResult | null>(null);
+  const [searching, setSearching] = useState(false);
+  const searchInput = useRef<HTMLInputElement>(null);
+  const searchSequence = useRef(0);
+  useEffect(() => {
+    if (active && searchOpen) searchInput.current?.focus();
+  }, [active, searchOpen]);
+  const [goToDate, setGoToDate] = useState(false);
+  const monthWeeks = useMemo(
+    () => monthViewWeeks(date, preferences.weekStartsOn, preferences.showWeekends),
+    [date, preferences.weekStartsOn, preferences.showWeekends],
+  );
   const days = useMemo(
     () =>
-      Array.from({ length: view === "day" ? 1 : view === "month" ? 42 : 7 }, (_, i) => start + i),
-    [start, view],
+      view === "month"
+        ? monthWeeks.flat()
+        : view === "agenda"
+          ? [date, date + 42]
+          : timeGridDays(view, date, preferences),
+    [view, date, monthWeeks, preferences],
   );
-  const weeks = chunkWeeksForDays(days[0]!, days[days.length - 1]!, zone);
-  const { instances, loading, error: weekError } = useCalendarWeeks(weeks);
+  const range = agendaRange.anchor === date ? agendaRange : { from: date, to: date + 42 };
+  const weeks = chunkWeeksForDays(
+    view === "agenda" ? range.from : days[0]!,
+    view === "agenda" ? range.to : days[days.length - 1]!,
+    zone,
+  );
+  const { instances, loading, error: weekError } = useCalendarWeeks(active ? weeks : []);
   const calendars = useMemo(
     () => new Map(directory?.calendars.map((calendar) => [calendar.calendarId, calendar]) ?? []),
     [directory],
@@ -144,8 +163,18 @@ export default function CalendarPage({ active, subpath }: ModulePageProps) {
     if (!active) return;
     // eslint-disable-next-line react/set-state-in-effect -- Palette navigation updates the retained calendar view.
     if (subpath === "today") setDate(today);
-    else if (subpath === "month" || subpath === "week" || subpath === "day") setView(subpath);
-    else if (subpath === "new" && canWrite) openFromRoute();
+    else if (
+      subpath === "month" ||
+      subpath === "week" ||
+      subpath === "day" ||
+      subpath === "custom" ||
+      subpath === "agenda"
+    )
+      setView(subpath);
+    else if (subpath === "search") {
+      setSearchOpen(true);
+      searchInput.current?.focus();
+    } else if (subpath === "new" && canWrite) openFromRoute();
   }, [active, subpath, today, canWrite]);
   useEffect(() => {
     // eslint-disable-next-line react/set-state-in-effect -- Clear the old event while fetching the newly selected event.
@@ -194,7 +223,7 @@ export default function CalendarPage({ active, subpath }: ModulePageProps) {
     if (
       target instanceof HTMLElement &&
       (target.closest("input,textarea,select,[contenteditable=true]") ||
-        target.closest("[role=dialog]"))
+        target.closest("dialog,[role=dialog]"))
     )
       return;
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z") {
@@ -202,20 +231,26 @@ export default function CalendarPage({ active, subpath }: ModulePageProps) {
       undo(event.shiftKey);
       return;
     }
-    if (event.metaKey || event.ctrlKey || event.altKey) return;
-    const action = event.key.toLowerCase();
-    if (action === "t") setDate(today);
-    else if (action === "w") setView("week");
-    else if (action === "d") setView("day");
-    else if (action === "m") setView("month");
-    else if (action === "j" || action === "k")
-      setDate((value) =>
-        view === "month"
-          ? addMonths(value, action === "j" ? 1 : -1)
-          : value + (action === "j" ? 1 : -1) * (view === "day" ? 1 : 7),
-      );
-    else if (action === "c" && canWrite) newEvent();
-    else if (action === "escape") {
+    const action = shortcutAction(event, preferences.shortcuts);
+    if (action === "today") setDate(today);
+    else if (
+      action === "week" ||
+      action === "day" ||
+      action === "month" ||
+      action === "agenda" ||
+      action === "custom"
+    )
+      setView(action);
+    else if (action === "next" || action === "previous")
+      setDate((value) => stepAnchor(view, value, action === "next" ? 1 : -1, preferences));
+    else if (action === "create" && canWrite) newEvent();
+    else if (action === "search") {
+      setSearchOpen(true);
+      searchInput.current?.focus();
+    } else if (action === "goToDate") setGoToDate(true);
+    else if (event.key === "Escape") {
+      setSearchOpen(false);
+      setGoToDate(false);
       setSelected(null);
       setDraft(null);
     } else return;
@@ -277,18 +312,14 @@ export default function CalendarPage({ active, subpath }: ModulePageProps) {
         <button
           type="button"
           aria-label="Previous period"
-          onClick={() =>
-            setDate(view === "month" ? addMonths(date, -1) : date - (view === "day" ? 1 : 7))
-          }
+          onClick={() => setDate(stepAnchor(view, date, -1, preferences))}
         >
           ‹
         </button>
         <button
           type="button"
           aria-label="Next period"
-          onClick={() =>
-            setDate(view === "month" ? addMonths(date, 1) : date + (view === "day" ? 1 : 7))
-          }
+          onClick={() => setDate(stepAnchor(view, date, 1, preferences))}
         >
           ›
         </button>
@@ -300,7 +331,21 @@ export default function CalendarPage({ active, subpath }: ModulePageProps) {
           <option value="day">Day</option>
           <option value="week">Week</option>
           <option value="month">Month</option>
+          <option value="custom">{preferences.customDays} days</option>
+          <option value="agenda">Agenda</option>
         </select>
+        <button
+          type="button"
+          onClick={() => {
+            setSearchOpen((value) => !value);
+            searchInput.current?.focus();
+          }}
+        >
+          Search events
+        </button>
+        <button type="button" onClick={() => setGoToDate((value) => !value)}>
+          Go to date
+        </button>
         <button type="button" disabled={!canWrite || busy || !defaultCalendar} onClick={newEvent}>
           Create event
         </button>
@@ -319,6 +364,87 @@ export default function CalendarPage({ active, subpath }: ModulePageProps) {
           Redo
         </button>
       </header>
+      {goToDate && (
+        <label className="calendar-date-jump">
+          Go to date
+          <input
+            type="date"
+            value={formatDayNumber(date)}
+            onChange={(event) => {
+              const day = parseDayNumber(event.target.value);
+              if (day !== null) {
+                setDate(day);
+                setGoToDate(false);
+              }
+            }}
+          />
+        </label>
+      )}
+      <section className="calendar-search" hidden={!searchOpen} aria-label="Search all calendars">
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            const sequence = ++searchSequence.current;
+            setSearching(true);
+            setError(null);
+            client
+              .search({ query: query.trim(), limit: 100 })
+              .then(
+                (result) => {
+                  if (sequence === searchSequence.current) setSearchResult(result);
+                },
+                (cause) => {
+                  if (sequence === searchSequence.current) setError(String(cause));
+                },
+              )
+              .finally(() => {
+                if (sequence === searchSequence.current) setSearching(false);
+              });
+          }}
+        >
+          <label>
+            Search all calendars
+            <input
+              ref={searchInput}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Title, location, description or guest"
+            />
+          </label>
+          <button type="submit" disabled={searching || !query.trim()}>
+            {searching ? "Searching…" : "Search"}
+          </button>
+          <button type="button" onClick={() => setSearchOpen(false)}>
+            Close search
+          </button>
+        </form>
+        {searchResult && (
+          <div className="calendar-search-results">
+            {searchResult.results.map((event) => (
+              <button
+                type="button"
+                key={`${event.calendarId}/${event.eventId}`}
+                onClick={() => {
+                  setDate(
+                    event.allDay ? Math.floor(event.start / DAY_MS) : zonedDay(event.start, zone),
+                  );
+                  setSelected(event);
+                  setSearchOpen(false);
+                }}
+              >
+                <strong>{event.title || "Untitled event"}</strong>
+                <span>
+                  {formatLongDate(
+                    event.allDay ? Math.floor(event.start / DAY_MS) : zonedDay(event.start, zone),
+                  )}{" "}
+                  · {calendars.get(event.calendarId)?.name}
+                </span>
+              </button>
+            ))}
+            {searchResult.results.length === 0 && <p role="status">No matching events.</p>}
+          </div>
+        )}
+      </section>
       {(error ?? directoryError ?? weekError) && (
         <p role="alert" className="calendar-error">
           {error ?? directoryError ?? weekError}
@@ -368,13 +494,29 @@ export default function CalendarPage({ active, subpath }: ModulePageProps) {
           ) : view === "month" ? (
             <MonthGrid
               {...common}
-              weeks={Array.from({ length: 6 }, (_, i) => days.slice(i * 7, i * 7 + 7))}
+              weeks={monthWeeks}
               month={month.month}
               onOpenDay={(day) => {
                 setDate(day);
                 setView("day");
               }}
               onShowMore={(day) => {
+                setDate(day);
+                setView("day");
+              }}
+            />
+          ) : view === "agenda" ? (
+            <AgendaList
+              {...common}
+              anchorDay={date}
+              onNeedRange={(from, to) =>
+                setAgendaRange((previous) =>
+                  previous.anchor === date && previous.from === from && previous.to === to
+                    ? previous
+                    : { anchor: date, from, to },
+                )
+              }
+              onOpenDay={(day) => {
                 setDate(day);
                 setView("day");
               }}
@@ -408,23 +550,14 @@ export default function CalendarPage({ active, subpath }: ModulePageProps) {
           }}
           onSave={(input) =>
             void run(async () => {
-              await mutate(selected ? "Edited event" : "Created event", () =>
-                selected && !draft?.duplicate
-                  ? client.update({
-                      ...input,
-                      calendarId: selected.calendarId,
-                      eventId: selected.eventId,
-                    })
-                  : client.create({
-                      ...input,
-                      recurrence: draft?.duplicate ? [] : input.recurrence,
-                    }),
+              await mutate("eventId" in input ? "Edited event" : "Created event", () =>
+                "eventId" in input ? client.update(input) : client.create(input),
               );
               setSelected(null);
               setDraft(null);
             })
           }
-          onDelete={(scope) =>
+          onDelete={(scope, sendUpdates) =>
             selected &&
             void run(async () => {
               await mutate("Deleted event", () =>
@@ -432,6 +565,7 @@ export default function CalendarPage({ active, subpath }: ModulePageProps) {
                   calendarId: selected.calendarId,
                   eventId: selected.eventId,
                   scope,
+                  sendUpdates,
                 }),
               );
               setSelected(null);
@@ -453,268 +587,5 @@ export default function CalendarPage({ active, subpath }: ModulePageProps) {
         />
       )}
     </div>
-  );
-}
-
-function EventEditor({
-  event,
-  duplicate,
-  draft,
-  timeZone,
-  calendars,
-  defaultCalendar,
-  canWrite,
-  busy,
-  onClose,
-  onSave,
-  onDelete,
-  onRespond,
-}: {
-  event: CalendarEventDetails | null;
-  duplicate: boolean;
-  draft: CalendarDraft | null;
-  timeZone: string;
-  calendars: ReadonlyArray<{ calendarId: CalendarId; name: string }>;
-  defaultCalendar: CalendarId | undefined;
-  canWrite: boolean;
-  busy: boolean;
-  onClose: () => void;
-  onSave: (input: {
-    calendarId: CalendarId;
-    title: string;
-    description: string;
-    location: string;
-    time: ReturnType<typeof eventTimeInput>;
-    scope: CalendarChangeScope;
-    attendees: string[];
-    recurrence?: string[];
-  }) => void;
-  onDelete: (scope: CalendarChangeScope) => void;
-  onRespond: (response: "accepted" | "declined" | "tentative") => void;
-}) {
-  const [title, setTitle] = useState(event?.title ?? "");
-  const [description, setDescription] = useState(event?.description ?? "");
-  const [location, setLocation] = useState(event?.location ?? "");
-  const [guests, setGuests] = useState(
-    event?.attendees.map((guest) => guest.email).join(", ") ?? "",
-  );
-  const [repeat, setRepeat] = useState(event?.recurrence?.length ? "custom" : "none");
-  const [calendarId, setCalendarId] = useState(event?.calendarId ?? defaultCalendar);
-  const [scope, setScope] = useState<CalendarChangeScope>("this");
-  const [allDay, setAllDay] = useState(draft?.allDay ?? event?.allDay === true);
-  const fields = draft ?? event;
-  const local = (millis: number) => formatZonedIso(millis, timeZone).slice(0, 16);
-  const [start, setStart] = useState(
-    fields
-      ? fields.allDay
-        ? `${formatDayNumber(Math.floor(fields.start / DAY_MS))}T00:00`
-        : local(fields.start)
-      : "",
-  );
-  const [end, setEnd] = useState(
-    fields
-      ? fields.allDay
-        ? `${formatDayNumber(Math.floor(fields.end / DAY_MS))}T00:00`
-        : local(fields.end)
-      : "",
-  );
-  const from = allDay
-    ? Date.parse(`${start.slice(0, 10)}T00:00:00Z`)
-    : parseInstant(start, timeZone);
-  const to = allDay ? Date.parse(`${end.slice(0, 10)}T00:00:00Z`) : parseInstant(end, timeZone);
-  const valid =
-    calendarId !== undefined &&
-    from !== null &&
-    to !== null &&
-    Number.isFinite(from) &&
-    Number.isFinite(to) &&
-    to > from;
-  const dialog = useRef<HTMLDialogElement>(null);
-  useEffect(() => {
-    dialog.current?.showModal();
-    return () => dialog.current?.close();
-  }, []);
-  return (
-    <dialog
-      ref={dialog}
-      onCancel={onClose}
-      aria-labelledby="calendar-editor-title"
-      className="calendar-editor"
-    >
-      <h2 id="calendar-editor-title">
-        {duplicate
-          ? "Copy event"
-          : event
-            ? "Event details"
-            : draft
-              ? "New event"
-              : "Loading event…"}
-      </h2>
-      <form
-        onSubmit={(submit) => {
-          submit.preventDefault();
-          if (valid && calendarId && from !== null && to !== null)
-            onSave({
-              calendarId,
-              title,
-              description,
-              location,
-              time: eventTimeInput({ start: from, end: to, allDay }, timeZone),
-              scope,
-              attendees: guests
-                .split(/[,\n]/)
-                .map((value) => value.trim())
-                .filter(Boolean),
-              ...(event && (repeat === "custom" || (event.seriesId && scope === "this"))
-                ? {}
-                : { recurrence: repeat === "none" ? [] : [`RRULE:FREQ=${repeat.toUpperCase()}`] }),
-            });
-        }}
-      >
-        <label>
-          Title
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            disabled={!canWrite || event?.readOnly}
-            autoFocus
-          />
-        </label>
-        <label>
-          Calendar
-          <select
-            value={calendarId ?? ""}
-            onChange={(e) => setCalendarId(e.target.value as CalendarId)}
-            disabled={event !== null || !canWrite}
-          >
-            {calendars.map((c) => (
-              <option key={c.calendarId} value={c.calendarId}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          <input
-            type="checkbox"
-            checked={allDay}
-            onChange={(e) => setAllDay(e.target.checked)}
-            disabled={!canWrite || event?.readOnly}
-          />{" "}
-          All day
-        </label>
-        <label>
-          Starts
-          <input
-            type={allDay ? "date" : "datetime-local"}
-            value={allDay ? start.slice(0, 10) : start}
-            onChange={(e) => setStart(allDay ? `${e.target.value}T00:00` : e.target.value)}
-            disabled={!canWrite || event?.readOnly}
-          />
-        </label>
-        <label>
-          Ends{allDay && " (exclusive)"}
-          <input
-            type={allDay ? "date" : "datetime-local"}
-            value={allDay ? end.slice(0, 10) : end}
-            onChange={(e) => setEnd(allDay ? `${e.target.value}T00:00` : e.target.value)}
-            disabled={!canWrite || event?.readOnly}
-          />
-        </label>
-        <label>
-          Location
-          <input
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            disabled={!canWrite || event?.readOnly}
-          />
-        </label>
-        <label>
-          Description
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            disabled={!canWrite || event?.readOnly}
-          />
-        </label>
-        <label>
-          Guests
-          <input
-            value={guests}
-            onChange={(e) => setGuests(e.target.value)}
-            placeholder="Emails separated by commas"
-            disabled={!canWrite || event?.readOnly}
-          />
-        </label>
-        <label>
-          Repeats
-          <select
-            value={repeat}
-            onChange={(event) => setRepeat(event.target.value)}
-            disabled={
-              !canWrite || event?.readOnly || (event?.seriesId !== undefined && scope === "this")
-            }
-          >
-            <option value="none">Does not repeat</option>
-            <option value="daily">Every day</option>
-            <option value="weekly">Every week</option>
-            <option value="monthly">Every month</option>
-            <option value="yearly">Every year</option>
-            {event?.recurrence?.length && <option value="custom">Keep current schedule</option>}
-          </select>
-        </label>
-        {event?.seriesId && !duplicate && (
-          <label>
-            Apply to
-            <select value={scope} onChange={(e) => setScope(e.target.value as CalendarChangeScope)}>
-              <option value="this">This event</option>
-              <option value="following">This and following</option>
-              <option value="all">All events</option>
-            </select>
-          </label>
-        )}
-        {event?.conference && (
-          <a href={event.conference.url} target="_blank" rel="noreferrer">
-            Join meeting
-          </a>
-        )}
-        {event?.attendees.map((guest) => (
-          <p key={guest.email}>
-            {guest.displayName ?? guest.email}: {guest.responseStatus}
-          </p>
-        ))}
-        {event?.canRespond && !duplicate && (
-          <div>
-            {(["accepted", "tentative", "declined"] as const).map((response) => (
-              <button
-                key={response}
-                type="button"
-                disabled={!canWrite || busy}
-                onClick={() => onRespond(response)}
-              >
-                {response}
-              </button>
-            ))}
-          </div>
-        )}
-        <div className="calendar-editor-actions">
-          <button type="button" onClick={onClose}>
-            Close
-          </button>
-          <button type="submit" disabled={!canWrite || busy || !valid || event?.readOnly === true}>
-            Save
-          </button>
-          {event && !duplicate && (
-            <button
-              type="button"
-              disabled={!canWrite || busy || event.readOnly}
-              onClick={() => onDelete(scope)}
-            >
-              Delete
-            </button>
-          )}
-        </div>
-      </form>
-    </dialog>
   );
 }

@@ -2,6 +2,8 @@ import { defineModuleSettings } from "@otterware/module-kit/contracts";
 import * as Schema from "effect/Schema";
 import {
   CalendarId,
+  CalendarShortcuts,
+  DEFAULT_CALENDAR_SHORTCUTS,
   CalendarNotificationRules,
   CalendarEnvironmentPreferences,
 } from "./calendar.ts";
@@ -24,6 +26,12 @@ export const CalendarSettings = defineModuleSettings({
     schema: Schema.Array(CalendarId),
     default: [],
     label: "Visible calendars",
+  },
+  shortcuts: {
+    scope: "account",
+    schema: CalendarShortcuts,
+    default: DEFAULT_CALENDAR_SHORTCUTS,
+    label: "Calendar shortcuts",
   },
   notificationRules: {
     scope: "account",

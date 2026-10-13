@@ -119,9 +119,39 @@ export const DEFAULT_CALENDAR_ENVIRONMENT_PREFERENCES: CalendarEnvironmentPrefer
   syncWindow: { pastWeeks: 52, futureWeeks: 104 },
 };
 
+export const DEFAULT_CALENDAR_SHORTCUTS = {
+  today: "t",
+  day: "d",
+  week: "w",
+  month: "m",
+  custom: "x",
+  agenda: "a",
+  next: "j",
+  previous: "k",
+  create: "c",
+  search: "/",
+  goToDate: "g",
+};
+const Shortcut = Schema.String.check(Schema.isMaxLength(64));
+export const CalendarShortcuts = Schema.Struct({
+  today: Shortcut,
+  day: Shortcut,
+  week: Shortcut,
+  month: Shortcut,
+  custom: Shortcut,
+  agenda: Shortcut,
+  next: Shortcut,
+  previous: Shortcut,
+  create: Shortcut,
+  search: Shortcut,
+  goToDate: Shortcut,
+});
+export type CalendarShortcuts = typeof CalendarShortcuts.Type;
+
 export const CalendarPreferences = Schema.Struct({
   /** 0 = Sunday, 1 = Monday, 6 = Saturday. */
   notificationRules: CalendarNotificationRules,
+  shortcuts: CalendarShortcuts,
   weekStartsOn: CalendarWeekday,
   /** The zone the calendar is shown in; null follows each device's zone. */
   timeZone: Schema.NullOr(TimeZoneName),
@@ -144,6 +174,7 @@ export type CalendarPreferences = typeof CalendarPreferences.Type;
 
 export const DEFAULT_CALENDAR_PREFERENCES: CalendarPreferences = {
   notificationRules: [],
+  shortcuts: DEFAULT_CALENDAR_SHORTCUTS,
   weekStartsOn: 1,
   timeZone: null,
   workingHours: { start: 9 * 60, end: 17 * 60, days: [1, 2, 3, 4, 5] },
@@ -157,6 +188,7 @@ export const DEFAULT_CALENDAR_PREFERENCES: CalendarPreferences = {
 
 export const CalendarPreferencesPatch = Schema.Struct({
   notificationRules: Schema.optional(CalendarNotificationRules),
+  shortcuts: Schema.optional(CalendarShortcuts),
   weekStartsOn: Schema.optional(CalendarWeekday),
   timeZone: Schema.optional(Schema.NullOr(TimeZoneName)),
   workingHours: Schema.optional(CalendarPreferences.fields.workingHours),
