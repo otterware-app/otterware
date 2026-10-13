@@ -95,6 +95,18 @@ export function shouldBundleCliDependency(id: string): boolean {
   return !isExternalCliDependency(id);
 }
 
+/** Zod is pure JS; SEA must inline it because its ESM loader only resolves builtins.
+ * Keep its disk copy in the staged runtime for Cursor's external dependency closure.
+ */
+export function isExternalCliExecutableDependency(id: string): boolean {
+  if (id === "zod" || id.startsWith("zod/")) return false;
+  return isExternalCliDependency(id);
+}
+
+export function shouldBundleCliExecutableDependency(id: string): boolean {
+  return !id.startsWith("node:") && !isExternalCliExecutableDependency(id);
+}
+
 /** Select direct dependency roots whose runtime closure belongs in the sidecar. */
 export function selectCliRuntimeExternalDependencies(
   dependencies: Readonly<Record<string, string>>,

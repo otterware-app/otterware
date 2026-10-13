@@ -18,7 +18,9 @@ import { WeightedShardSequencer } from "./src/testUtils/weightedShardSequencer.t
 // inlined. See scripts/lib/cli-external-packages.ts for what earns an exemption.
 import {
   isExternalCliDependency,
+  isExternalCliExecutableDependency,
   shouldBundleCliDependency,
+  shouldBundleCliExecutableDependency,
 } from "../../scripts/lib/cli-external-packages.ts";
 
 export { shouldBundleCliDependency };
@@ -112,8 +114,10 @@ export default mergeConfig(
         // false from `alwaysBundle` only means "no opinion", so a transitive
         // dependency would still be bundled — which silently inlined native
         // loaders such as node-gyp-build, losing native acceleration.
-        alwaysBundle: shouldBundleCliDependency,
-        neverBundle: (id: string) => isExternalCliDependency(id),
+        alwaysBundle: packExecutable
+          ? shouldBundleCliExecutableDependency
+          : shouldBundleCliDependency,
+        neverBundle: packExecutable ? isExternalCliExecutableDependency : isExternalCliDependency,
         onlyBundle: false,
       },
       banner: {

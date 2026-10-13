@@ -145,3 +145,27 @@ export function assertServerBundleRegions(sources: ReadonlyArray<string>) {
   if (!scans.some((scan) => scan.inlinedPackages.includes("effect")))
     throw new Error("Server bundle externalized effect; the staged runtime cannot load it");
 }
+
+/** Unlike plain Node, SEA's ESM loader cannot resolve any filesystem package. */
+export function assertServerExecutableImports(sources: ReadonlyArray<string>) {
+  const external = [...new Set(sources.flatMap(findEsmImportsOfExternalPackages))].sort();
+  if (external.length)
+    throw new Error(`Single-executable bundle has file-backed ESM imports: ${external.join(", ")}`);
+}
+
+/** PR CI builds the real SEA artifact and verifies startup, not just the normal Node bundle. */
+export function assertServerRuntimeExecutable(root: string) {
+  const dist = NodePath.join(root, "apps/server/dist-exe");
+  assertServerExecutableImports([NodeFS.readFileSync(NodePath.join(dist, "bin.mjs"), "utf8")]);
+  const home = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "otterware-sea-smoke-"));
+  try {
+    NodeChildProcess.execFileSync(NodePath.join(dist, "t3"), ["serve", "--help"], {
+      cwd: root,
+      env: { ...process.env, T3CODE_HOME: home },
+      timeout: 30_000,
+      stdio: "pipe",
+    });
+  } finally {
+    NodeFS.rmSync(home, { recursive: true, force: true });
+  }
+}
