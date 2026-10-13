@@ -129,7 +129,7 @@
       "generatedNotices": [
         {
           "licenseId": "Apache-2.0",
-          "copyrights": ["Copyright 2009, 2010, 2013 André Berg"]
+          "copyrights": ["Copyright 2009, 2010, 2013 Andr\u00e9 Berg"]
         }
       ]
     },
@@ -682,6 +682,40 @@
           "SQLite itself is in the public domain: https://sqlite.org/copyright.html\nIts WebAssembly build is packaged for npm by the SQLite project at https://github.com/sqlite/sqlite-wasm under the Apache License 2.0."
         ]
       }
+    },
+    {
+      "name": "ot-json1",
+      "generatedNotice": {
+        "licenseId": "ISC",
+        "copyrights": ["Copyright (c) 2013-2018, Joseph Gentle <me@josephg.com>"]
+      }
+    },
+    {
+      "name": "ot-text-unicode",
+      "generatedNotice": {
+        "licenseId": "ISC",
+        "copyrights": ["Copyright (c) Joseph Gentle <me@josephg.com>"]
+      }
+    },
+    {
+      "name": "unicount",
+      "generatedNotice": {
+        "licenseId": "ISC",
+        "copyrights": ["Copyright 2019 Joseph Gentle"]
+      }
+    },
+    {
+      "name": "franc-min",
+      "generatedNotice": {
+        "licenseId": "MIT",
+        "copyrights": ["Copyright (c) Titus Wormer <tituswormer@gmail.com>"]
+      }
+    },
+    {
+      "license": "Apache-2.0",
+      "name": "@univerjs/telemetry",
+      "version": "0.25.1",
+      "noticeFile": "LICENSE"
     }
   ]
 }

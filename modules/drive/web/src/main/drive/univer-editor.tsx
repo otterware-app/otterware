@@ -3,8 +3,10 @@ import { createPortal } from "react-dom";
 import { useBlocker, useNavigate, type ShouldBlockFn } from "../../lib/router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "../../lib/theme";
-import { defaultTheme, LocaleType } from "@univerjs/presets";
-import type { ICellData, IDocumentData, IWorkbookData, IWorksheetData } from "@univerjs/presets";
+import { LocaleType, mergeLocales } from "@univerjs/core";
+import type { ICellData, IDocumentData, IWorkbookData, IWorksheetData } from "@univerjs/core";
+import { defaultTheme } from "@univerjs/themes";
+import { createUniver } from "./univer";
 import { publishDocumentVersion } from "../../lib/publish-document-version";
 import type { DocumentSheet } from "./use-document-content";
 import { removeSessionCachePrefix } from "../../lib/session-cache";
@@ -213,8 +215,7 @@ export function UniverEditor(props: EditorProps) {
       // Only the preset this document needs: the sheets preset, loaded for a
       // text document, throws as it looks for sheet services that aren't there.
       const isSheet = props.kind === "spreadsheet";
-      const [{ createUniver, LocaleType, mergeLocales }, { preset, locale }] = await Promise.all([
-        import("@univerjs/presets"),
+      const [{ preset, locale }] = await Promise.all([
         isSheet
           ? Promise.all([
               import("@univerjs/preset-sheets-core"),
