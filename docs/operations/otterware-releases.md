@@ -11,6 +11,14 @@ Code and Otterware optionally use their existing macOS provisioning profiles. Li
 produces an AppImage, deb and self-contained server archive. The workflow verifies the
 macOS signature/notarization ticket and smoke-tests the server archive before publishing.
 
+`MACOS_PROVISIONING_PROFILE` is base64 of the CMS-signed Developer ID profile for
+`dev.otterware.code`; `OTTERWARE_MACOS_PROVISIONING_PROFILE` belongs to `dev.otterware.suite`.
+The packager must receive the decoded `.provisionprofile`, not its extracted XML plist.
+Mail, Calendar and Drive currently sign without profiles and omit restricted passkey
+entitlements. No new Apple profiles are required for those releases. Enabling restricted
+passkey entitlements later requires separate Developer ID profiles for `dev.otterware.mail`,
+`dev.otterware.calendar` and `dev.otterware.drive`, with the desired capabilities authorized.
+
 Publishing uses `OTTERWARE_RELEASES_TOKEN`, scoped to this repository. The release GitHub App
 is not installed here; merely having `RELEASE_APP_*` secrets does not authorize publishing.
 Immutable releases are `otterware-<profile>-v<version>`. Rolling manifests reference those

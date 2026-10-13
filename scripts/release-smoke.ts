@@ -12,11 +12,16 @@ import { collectWorkspaceManifestPaths } from "./otterware/release-workspace-man
 import {
   assertServerRuntimeBundle,
   assertServerRuntimeDependencies,
+  assertServerRuntimeExecutable,
 } from "./otterware/server-runtime-dependencies.ts";
 
 const repoRoot = NodePath.resolve(NodePath.dirname(NodeURL.fileURLToPath(import.meta.url)), "..");
 
 assertServerRuntimeDependencies(repoRoot);
+if (process.argv.includes("--server-executable")) {
+  assertServerRuntimeExecutable(repoRoot);
+  process.exit(0);
+}
 if (process.argv.includes("--server-bundle")) {
   assertServerRuntimeBundle(repoRoot);
   process.exit(0);

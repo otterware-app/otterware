@@ -16,6 +16,8 @@ import {
   findInlinedExternalPackages,
   selectCliRuntimeExternalDependencies,
   shouldBundleCliDependency,
+  isExternalCliExecutableDependency,
+  shouldBundleCliExecutableDependency,
 } from "./cli-external-packages.ts";
 
 // Only the field this test cares about; decoding ignores everything else.
@@ -33,6 +35,21 @@ type PackageManifest = typeof PackageManifest.Type;
 const decodeManifest = Schema.decodeUnknownSync(Schema.fromJsonString(PackageManifest));
 
 describe("shouldBundleCliDependency", () => {
+  it("inlines Zod in SEA while preserving its disk copy and native external boundaries", () => {
+    for (const id of ["zod", "zod/v4"]) {
+      assert.strictEqual(shouldBundleCliDependency(id), false);
+      assert.strictEqual(isExternalCliExecutableDependency(id), false);
+      assert.strictEqual(shouldBundleCliExecutableDependency(id), true);
+    }
+    for (const id of ["node-pty", "@cursor/sdk", "playwright-core", "ffi-rs"]) {
+      assert.strictEqual(isExternalCliExecutableDependency(id), true);
+      assert.strictEqual(shouldBundleCliExecutableDependency(id), false);
+    }
+    assert.deepStrictEqual(selectCliRuntimeExternalDependencies({ zod: "4.6.5" }), {
+      zod: "4.6.5",
+    });
+    assert.strictEqual(shouldBundleCliExecutableDependency("node:fs"), false);
+  });
   it("bundles ordinary runtime dependencies", () => {
     for (const id of ["effect", "@effect/platform", "hono", "@t3tools/shared/HostProcess"]) {
       assert.strictEqual(shouldBundleCliDependency(id), true, id);

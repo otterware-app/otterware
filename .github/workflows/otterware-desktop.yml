@@ -103,9 +103,16 @@ jobs:
             if [[ -n "$MACOS_PROVISIONING_PROFILE" ]]; then
               profile_path="$RUNNER_TEMP/mac.provisionprofile"
               printf '%s' "$MACOS_PROVISIONING_PROFILE" | base64 -D > "$profile_path"
-              security cms -D -i "$profile_path" > "$RUNNER_TEMP/mac-profile.plist"
+              decoded_profile="$RUNNER_TEMP/mac-profile.plist"
+              security cms -D -i "$profile_path" > "$decoded_profile"
+              expected_id=$(node --input-type=module -e 'import { resolveProfile } from "./profiles/index.ts"; console.log(resolveProfile(process.env.OTTERWARE_PROFILE).brand.appId)')
+              granted_id=$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:com.apple.application-identifier' "$decoded_profile")
+              test "$granted_id" = "$APPLE_TEAM_ID.$expected_id" || {
+                echo "::error::Provisioning profile does not authorize this profile's app ID"
+                exit 1
+              }
               export T3CODE_APPLE_TEAM_ID="$APPLE_TEAM_ID"
-              export T3CODE_MACOS_PROVISIONING_PROFILE="$RUNNER_TEMP/mac-profile.plist"
+              export T3CODE_MACOS_PROVISIONING_PROFILE="$profile_path"
             fi
             args+=(--signed)
           fi

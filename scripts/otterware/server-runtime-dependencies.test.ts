@@ -5,11 +5,23 @@ import * as NodePath from "node:path";
 import { describe, expect, it } from "vite-plus/test";
 import {
   assertServerBundleRegions,
+  assertServerExecutableImports,
   assertServerRuntimeDependencies,
   missingServerBundleDependencies,
 } from "./server-runtime-dependencies.ts";
 
 describe("server runtime dependencies", () => {
+  it("rejects file-backed SEA imports even when the regular server declares them", () => {
+    expect(() => assertServerExecutableImports(['import { z } from "zod";'])).toThrow(/zod/);
+    expect(() =>
+      assertServerExecutableImports(['const load = () => import("future-module");']),
+    ).toThrow(/future-module/);
+    expect(() =>
+      assertServerExecutableImports([
+        'import { createRequire } from "node:module"; const load = createRequire(import.meta.url); load("zod");',
+      ]),
+    ).not.toThrow();
+  });
   it("rejects unsafe host inlining but permits self-contained embedded workers", () => {
     const region = (name: string) => `//#region ../../node_modules/${name}/index.js\n`;
     expect(() => assertServerBundleRegions([region("effect") + region("zod")])).toThrow(/zod/);
