@@ -10,8 +10,7 @@ concurrency:
 jobs:
   build:
     name: Build signed archive (no upload)
-      # The runner's default Xcode (a release, never a beta: App Store Connect
-    # refuses beta builds).
+    # GitHub's Xcode 27 preview image supports Mail's iOS 27 SDK; artifacts only.
     runs-on: xcode-27
     timeout-minutes: 45
     steps:
@@ -54,7 +53,7 @@ jobs:
           printf '%s' "$DISTRIBUTION_P12" | base64 --decode > "$RUNNER_TEMP/distribution.p12"
           security import "$RUNNER_TEMP/distribution.p12" -k "$keychain" -P "$DISTRIBUTION_P12_PASSWORD" -f pkcs12 -A
           security set-key-partition-list -S apple-tool:,apple: -k "$keychain_password" "$keychain" > /dev/null
-          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          security list-keychains -d user -s "$keychain" login.keychain-db
           rm "$RUNNER_TEMP/distribution.p12"
 
           # The "Otter Mail App Store" profile, where Xcode looks for profiles.
