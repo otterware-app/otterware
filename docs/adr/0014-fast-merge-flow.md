@@ -6,8 +6,9 @@ five minutes: format and lint on changed files, per-package typecheck with no bu
 focused tests, and the upstream seam check (ADR 0013). Lockfile, toolchain, host-seam and
 contract changes widen the set; when the graph is unsure, it widens rather than narrows.
 
-Desktop packaging, signing and full profile matrices run on `main` and in releases, never as PR
-gates. Releases are cut from a validated `main` commit by the release workflow, not babysat inside
+The desktop `Build` pipeline runs on PRs affecting desktop, its server/web build inputs,
+build scripts or their dependencies, and always on `main`. Signing and full profile
+matrices run on `main` and in releases. Releases are cut from a validated `main` commit by the release workflow, not babysat inside
 feature threads.
 
 Agent guidance follows the same rule: a short root `AGENTS.md`, plus a short `AGENTS.md` per

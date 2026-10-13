@@ -14,10 +14,53 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # Lint, typecheck, and the desktop build each get a runner so they run side by
-  # side instead of one after another. The `Check` job at the end of this file
-  # passes only when every other job does.
+  plan:
+    name: Plan affected checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      affected: ${{ steps.plan.outputs.affected }}
+      jobs: ${{ steps.plan.outputs.jobs }}
+      lint: ${{ steps.plan.outputs.lint }}
+      typecheck: ${{ steps.plan.outputs.typecheck }}
+      build: ${{ steps.plan.outputs.build }}
+      test: ${{ steps.plan.outputs.test }}
+      test_web: ${{ steps.plan.outputs.test_web }}
+      test_server: ${{ steps.plan.outputs.test_server }}
+      rust: ${{ steps.plan.outputs.rust }}
+      mobile_native_static_analysis: ${{ steps.plan.outputs.mobile_native_static_analysis }}
+      release_smoke: ${{ steps.plan.outputs.release_smoke }}
+      seams: ${{ steps.plan.outputs.seams }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: package.json
+      - name: Test affected planning and aggregate policy
+        run: node --test scripts/otterware/fast-loop.node-test.mjs
+      - name: Plan affected checks
+        id: plan
+        env:
+          BASE_REF: ${{ github.base_ref || 'main' }}
+        run: |
+          args=(--base "origin/$BASE_REF" --committed)
+          if test "$GITHUB_EVENT_NAME" = push; then args+=(--all); fi
+          node scripts/otterware/affected.mjs "${args[@]}"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: affected-check-plan
+          path: .otterware-ci-plan.json
+          include-hidden-files: true
+
   lint:
+    needs: plan
+    if: ${{ needs.plan.outputs.lint == 'true' }}
     name: Lint
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -38,24 +81,35 @@ jobs:
             exit 1
           fi
 
+      - uses: actions/download-artifact@v8
+        with:
+          name: affected-check-plan
+          path: .
+
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@v1
         with:
           node-version-file: package.json
           cache: true
-          run-install: true
+          run-install: |
+            args:
+              - --filter=@t3tools/monorepo
+              - --filter=@t3tools/oxlint-plugin-t3code
 
-      - name: Ensure Electron runtime is installed
+      - name: Install all workspaces for main dependency analysis
+        if: ${{ github.event_name == 'push' }}
+        run: vp install --frozen-lockfile
+
+      - name: Ensure Electron for main dependency analysis
+        if: ${{ github.event_name == 'push' }}
         run: vp run --filter @t3tools/desktop ensure:electron
 
-      # Files/dependencies are repo-wide; export checks cover clean workspaces only.
-      - name: Check unused code
-        run: vp run knip:check
-
-      - name: Check
-        run: vp check
+      - name: Check changed files
+        run: node scripts/otterware/check-changed.mjs --part lint
 
   typecheck:
+    needs: plan
+    if: ${{ needs.plan.outputs.typecheck == 'true' }}
     name: Typecheck
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -68,6 +122,11 @@ jobs:
             !/.repos/
           sparse-checkout-cone-mode: false
 
+      - uses: actions/download-artifact@v8
+        with:
+          name: affected-check-plan
+          path: .
+
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@v1
         with:
@@ -76,12 +135,15 @@ jobs:
           run-install: true
 
       - name: Ensure Electron runtime is installed
+        if: ${{ contains(fromJSON(needs.plan.outputs.affected), '@t3tools/desktop') }}
         run: vp run --filter @t3tools/desktop ensure:electron
 
       - name: Typecheck
-        run: vpr typecheck
+        run: node scripts/otterware/check-changed.mjs --part typecheck
 
   build:
+    needs: plan
+    if: ${{ needs.plan.outputs.build == 'true' }}
     name: Build
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -99,7 +161,6 @@ jobs:
       # Runs in the background while Vite+ installs; the step before the build waits for it.
       - name: Start installing browser secret helper build libraries
         run: |
-          sudo sed -i 's|http://|https://|g' /etc/apt/blacksmith-ubuntu-mirrors.txt /etc/apt/sources.list.d/ubuntu.sources
           (
             set +e
             sudo apt-get update && sudo apt-get install -y libsecret-1-dev pkg-config
@@ -129,13 +190,11 @@ jobs:
       - name: Verify preload bundle output
         run: node apps/desktop/scripts/verify-preload-bundle.mjs
 
-  # Everything except `t3` (apps/server) and the web app, which has its own job
-  # below. `--parallel` drops the package dependency ordering that `vp run`
-  # applies by default: these `test` tasks declare no `dependsOn` and resolve
-  # workspace deps from source, so ordering only bought us idle runners between
-  # dependency layers. The concurrency limit stays at the default 4 so peak load
-  # per runner is unchanged.
+  # Other affected packages share one runner; the local loop uses the same commands
+  # sequentially so the shared development machine has bounded memory use.
   test:
+    needs: plan
+    if: ${{ needs.plan.outputs.test == 'true' }}
     name: Test
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -153,23 +212,30 @@ jobs:
       # and soft-skip when it is missing. Install build-essential so that path
       # always runs in CI instead of silently no-oping.
       - name: Install C toolchain for process-tree fixtures
+        if: ${{ contains(fromJSON(needs.plan.outputs.affected), 'effect-acp') }}
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential
-          command -v cc
+          if ! command -v cc; then
+            sudo apt-get update
+            sudo apt-get install -y --no-install-recommends build-essential
+          fi
 
       - uses: ./.github/actions/setup-apt-mirrors
 
       # The desktop tests compile the browser secret helper. The install runs in
       # the background while Vite+ installs; the step before the tests waits for it.
       - name: Start installing browser secret helper build libraries
+        if: ${{ contains(fromJSON(needs.plan.outputs.affected), '@t3tools/desktop') }}
         run: |
-          sudo sed -i 's|http://|https://|g' /etc/apt/blacksmith-ubuntu-mirrors.txt /etc/apt/sources.list.d/ubuntu.sources
           (
             set +e
             sudo apt-get update && sudo apt-get install -y libsecret-1-dev pkg-config
             echo "$?" > "$RUNNER_TEMP/apt-status"
           ) > "$RUNNER_TEMP/apt.log" 2>&1 < /dev/null &
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: affected-check-plan
+          path: .
 
       - name: Setup Vite+
         uses: voidzero-dev/setup-vp@v1
@@ -179,15 +245,11 @@ jobs:
           run-install: true
 
       - name: Ensure Electron runtime is installed
+        if: ${{ contains(fromJSON(needs.plan.outputs.affected), '@t3tools/desktop') }}
         run: vp run --filter @t3tools/desktop ensure:electron
 
-      - name: Test preview artifact validation
-        run: python3 -B .github/scripts/stage-preview-bundle.test.py
-
-      - name: Test nightly release checks
-        run: node --test .github/scripts/check-nightly-release.test.cjs
-
       - name: Finish installing browser secret helper build libraries
+        if: ${{ contains(fromJSON(needs.plan.outputs.affected), '@t3tools/desktop') }}
         timeout-minutes: 5
         run: |
           until test -s "$RUNNER_TEMP/apt-status"; do sleep 1; done
@@ -195,11 +257,13 @@ jobs:
           exit "$(cat "$RUNNER_TEMP/apt-status")"
 
       - name: Test
-        run: vp run --parallel --concurrency-limit 4 --filter '!t3' --filter '!@t3tools/monorepo' --filter '!@t3tools/web' test
+        run: node scripts/otterware/check-changed.mjs --part test
 
   # The web suite is the largest outside the server. In the shared Test job it
   # started last and ran alone for about 40s after everything else finished.
   test_web:
+    needs: plan
+    if: ${{ needs.plan.outputs.test_web == 'true' }}
     name: Test Web
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -220,7 +284,7 @@ jobs:
           run-install: true
 
       - name: Test
-        run: vp run --filter @t3tools/web test
+        run: vp run --filter @t3tools/web test --maxWorkers=2
 
   # apps/server sets `fileParallelism: false`, so its test files run strictly
   # one at a time. Sharding spreads them over separate runners instead of
@@ -229,6 +293,8 @@ jobs:
   # about 1.5 cores busy, so 4 vCPU runners lose nothing against 8. The shards
   # split files by recorded duration (apps/server/src/testUtils/weightedShardSequencer.ts).
   test_server:
+    needs: plan
+    if: ${{ needs.plan.outputs.test_server == 'true' }}
     name: Test Server ${{ matrix.shard }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -262,7 +328,7 @@ jobs:
         env:
           T3CODE_TRANSFER_BUDGET_REPORT_PATH: ${{ runner.temp }}/t3code-transfer-budget.md
           T3CODE_TRANSFER_BUDGET_RESULT_PATH: ${{ runner.temp }}/thread-transfer-result.json
-        run: vp run --filter t3 test --shard ${{ matrix.shard }}/${{ strategy.job-total }}
+        run: vp run --filter t3 test --maxWorkers=2 --shard ${{ matrix.shard }}/${{ strategy.job-total }}
 
       # integration/transferBudgetV2.integration.test.ts writes the report; exactly one shard
       # produces these files. Gating the upload on their presence keeps a
@@ -298,7 +364,8 @@ jobs:
 
   transfer-report:
     name: Transfer report artifact
-    needs: test_server
+    needs: [plan, test_server]
+    if: ${{ needs.plan.outputs.test_server == 'true' }}
     # On Blacksmith like every other job here: the GitHub-hosted queue is shared
     # with the PR bots and can leave this job waiting until it is abandoned,
     # which fails `Check` on an otherwise green run.
@@ -314,6 +381,8 @@ jobs:
   # Split out of Check and Test: both paid ~7-9s to install a Rust toolchain
   # for checks that take under 3s, on the critical path of every PR.
   rust:
+    needs: plan
+    if: ${{ needs.plan.outputs.rust == 'true' }}
     name: Rust
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -343,90 +412,10 @@ jobs:
             cargo test --locked --manifest-path "native/$crate/Cargo.toml"
           done
 
-  # The static analysis below needs a macOS runner, which bills ~6.7x a Linux
-  # minute, so gate it on the native sources it actually lints instead of paying
-  # for it on every push. Detection is API-only (no checkout) and fails open: if
-  # the diff cannot be resolved, the lint runs.
-  mobile_native_changes:
-    name: Mobile Native Changes
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      pull-requests: read
-    outputs:
-      changed: ${{ steps.detect.outputs.changed }}
-    steps:
-      - name: Detect mobile native changes
-        id: detect
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          BEFORE_SHA: ${{ github.event.before }}
-        run: |
-          set -uo pipefail
-
-          fail_open() {
-            echo "$* Running native static analysis."
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          }
-
-          count_rows() {
-            printf '%s\n' "$1" | grep -c . || true
-          }
-
-          # One row per changed file, holding the new path and, for a rename,
-          # the path it replaced: renaming a matched file out of the matched
-          # paths removes a lint input just like editing it.
-          row='[.filename, (.previous_filename // empty)] | @tsv'
-
-          if [[ -n "${PR_NUMBER}" ]]; then
-            # The PR files endpoint stops at 3000 files and pagination cannot
-            # extend it, so cross-check against the count the PR itself reports.
-            expected=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.changed_files') \
-              || fail_open "Could not read the pull request."
-            rows=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files" --paginate --jq ".[] | ${row}") \
-              || fail_open "Could not resolve changed files."
-
-            listed=$(count_rows "$rows")
-            if [[ "$listed" -lt "$expected" ]]; then
-              fail_open "GitHub listed only ${listed} of ${expected} changed files."
-            fi
-          else
-            rows=$(gh api "repos/${GITHUB_REPOSITORY}/compare/${BEFORE_SHA}...${GITHUB_SHA}" --jq ".files[]? | ${row}") \
-              || fail_open "Could not resolve changed files."
-
-            # The compare endpoint reports at most 300 files and pagination does
-            # not extend that list, so a full list may be hiding native changes.
-            listed=$(count_rows "$rows")
-            if [[ "$listed" -ge 300 ]]; then
-              fail_open "GitHub listed ${listed} changed files, the compare endpoint maximum."
-            fi
-          fi
-
-          paths=$(tr '\t' '\n' <<< "$rows")
-
-          # Sources scripts/mobile-native-static-check.ts lints, plus the tool
-          # and rule configuration that decides how it lints them, plus the
-          # root package.json that defines the lint:mobile command.
-          pattern='^apps/mobile/.*\.(swift|kt|kts)$|^apps/mobile/(\.swiftlint\.yml|detekt\.yml|\.editorconfig|Brewfile)$|^scripts/mobile-native-static-check\.ts$|^package\.json$|^\.github/workflows/ci\.yml$'
-
-          if grep -qE "$pattern" <<< "$paths"; then
-            echo "Native sources or lint configuration changed:"
-            grep -E "$pattern" <<< "$paths"
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "No mobile native sources or lint configuration changed."
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          fi
-
   mobile_native_static_analysis:
+    needs: plan
+    if: ${{ needs.plan.outputs.mobile_native_static_analysis == 'true' }}
     name: Mobile Native Static Analysis
-    needs: mobile_native_changes
-    # Skip only on an explicit "no": a gate job that failed or errored leaves the
-    # output empty, and that must run the lint rather than silently skip it.
-    if: ${{ !cancelled() && needs.mobile_native_changes.outputs.changed != 'false' }}
     runs-on: macos-15
     timeout-minutes: 10
     steps:
@@ -454,6 +443,8 @@ jobs:
         run: vp run lint:mobile
 
   release_smoke:
+    needs: plan
+    if: ${{ needs.plan.outputs.release_smoke == 'true' }}
     name: Release Smoke
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -478,16 +469,32 @@ jobs:
       - name: Exercise release-only workflow steps
         run: node scripts/release-smoke.ts
 
-  # Branch protection requires this job by its name, `Check`. It fails when any
-  # other job fails, is cancelled, or is skipped without a reason, so splitting
-  # or resharding jobs needs no ruleset change. Add every new job to `needs`.
-  # `always()` rather than `!cancelled()`: a skipped job reports success to
-  # branch protection, so a cancelled run must still produce a failing check.
+  seams:
+    name: Upstream seams
+    needs: plan
+    if: ${{ needs.plan.outputs.seams == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v6
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: true
+      - name: Check upstream seams when installed
+        run: |
+          if test -f scripts/otterware/check-upstream-seams.ts; then
+            node scripts/otterware/check-upstream-seams.ts
+          fi
+
+  # Require only this name in branch protection. Every omission must match the plan.
   check:
-    name: Check
+    name: CI gate
     if: ${{ always() }}
     needs:
       [
+        plan,
         lint,
         typecheck,
         build,
@@ -496,19 +503,18 @@ jobs:
         test_server,
         transfer-report,
         rust,
-        mobile_native_changes,
         mobile_native_static_analysis,
         release_smoke,
+        seams,
       ]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: Require every job to pass
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: scripts/otterware
+      - name: Require the plan to pass
         env:
-          RESULTS: ${{ toJSON(needs) }}
-        run: |
-          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
-          # Only the macOS lint skips on purpose, when no native mobile code changed.
-          echo "$RESULTS" | jq -e 'all(to_entries[];
-            .value.result == "success"
-            or (.key == "mobile_native_static_analysis" and .value.result == "skipped"))' > /dev/null
+          CI_GATE_RESULTS: ${{ toJSON(needs) }}
+          CI_GATE_JOBS: ${{ needs.plan.outputs.jobs || '{}' }}
+        run: node scripts/otterware/ci-gate.mjs

@@ -2,8 +2,8 @@
 
 This repository (`otterware-app/otterware`) builds every Otterware app from one codebase: Otter
 Code, Otter Mail, Calendar, Drive, and the combined Otterware app. It is the T3 Code fork that
-used to live in `otterware-app/otter-code`; [OTTER.md](OTTER.md) still describes how it stays in
-sync with upstream and applies here with `otterware-app/otterware` as `origin`.
+used to live in `otterware-app/otter-code`; [fork operations](docs/operations/otter-fork.md) describes upstream sync, branding,
+and legacy releases. Ordinary tasks read this file and [AGENTS.md](AGENTS.md).
 
 Decisions and their reasons are in [docs/adr](docs/adr) (vocabulary: [CONTEXT.md](docs/adr/CONTEXT.md)).
 Read the ADR for the area you touch before changing it; do not reopen a decision in code.
@@ -42,13 +42,16 @@ Modules: `home`, `mail`, `calendar`, `drive`. Profiles: `otterware` (all), `code
 
 This machine has 15 GB of RAM and several agents at once.
 
-- Work in your own worktree: `git -C ~/projects/otterware worktree add ~/.otter-code/worktrees/otterware/<name> -b <branch> origin/main`, then `vp i`.
+- Work in your own worktree: `git -C ~/projects/otterware worktree add ~/.otter-code/worktrees/otterware/<name> -b <branch> origin/main`, then `flock /tmp/otterware-heavy.lock vp i`.
 - Run typecheck, tests and builds through the shared lock, one at a time, and wait on it rather
   than polling: `flock /tmp/otterware-heavy.lock vp run --filter <pkg> typecheck`. Vitest with
-  `--maxWorkers=2`. Typecheck only the packages you changed; CI runs the rest.
+  `--maxWorkers=2`. Use `vp run check:changed` for changed-file lint/format and
+  affected typechecks/tests (including dependents); it acquires the lock itself.
+  Use `--base origin/<branch>` for stacked work. CI adds desktop builds and
+  platform checks; do not rerun the full suite locally.
 - Never start a server against `~/.otter-code` or `~/.otterware`. Use a disposable `--home-dir`.
 - Finish with a PR to `main`: conventional title, the problem and fix in the body, and the model
   and harness at the end. Enable auto-merge with `gh pr merge --auto --squash` and end your turn;
-  do not watch CI inside the task.
+  do not watch CI inside the task unless measuring it is an explicit deliverable.
 - Publishing and deploy workflows inherited from Otter Code are disabled in this repository
   until the release workstream replaces them. Do not re-enable them.
