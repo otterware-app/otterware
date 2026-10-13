@@ -1,3 +1,5 @@
+import { RELEASE_CHANNEL } from "../../../../profiles/release-channel.ts";
+import { releaseUpdaterChannel } from "../../../../profiles/release-feed.ts";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -99,18 +101,18 @@ export const make = ElectronUpdater.of({
     }),
   setChannel: (channel) =>
     Effect.suspend(() => {
-      autoUpdater.channel = channel;
+      autoUpdater.channel = releaseUpdaterChannel(channel);
       return Effect.void;
     }),
   setAllowPrerelease: (value) =>
     Effect.suspend(() => {
-      autoUpdater.allowPrerelease = value;
+      autoUpdater.allowPrerelease = RELEASE_CHANNEL ? true : value;
       return Effect.void;
     }),
   allowDowngrade: Effect.sync(() => autoUpdater.allowDowngrade),
   setAllowDowngrade: (value) =>
     Effect.suspend(() => {
-      autoUpdater.allowDowngrade = value;
+      autoUpdater.allowDowngrade = RELEASE_CHANNEL ? false : value;
       return Effect.void;
     }),
   setFullChangelog: (value) =>

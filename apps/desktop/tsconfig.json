@@ -9,6 +9,7 @@
     "src",
     "vite.config.ts",
     "../../scripts/lib",
-    "../../packages/shared/src/otterAccounts.ts"
+    "../../packages/shared/src/otterAccounts.ts",
+    "../../profiles"
   ]
 }

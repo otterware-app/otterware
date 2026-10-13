@@ -1,0 +1,152 @@
+name: Package Otterware profile desktop
+
+on:
+  workflow_call:
+    inputs:
+      profile:
+        type: string
+        required: true
+      channel:
+        type: string
+        required: true
+      version:
+        type: string
+        required: true
+      platform:
+        type: string
+        required: true
+      runner:
+        type: string
+        required: true
+      target:
+        type: string
+        required: true
+      rust_target:
+        type: string
+        required: true
+      cli_archive:
+        type: boolean
+        required: true
+
+permissions:
+  contents: read
+  actions: read
+jobs:
+  package:
+    runs-on: ${{ inputs.runner }}
+    timeout-minutes: 40
+    env:
+      OTTERWARE_PROFILE: ${{ inputs.profile }}
+      OTTERWARE_RELEASE_CHANNEL: ${{ inputs.channel }}
+      T3CODE_ACCOUNTS_URL: ${{ vars.ACCOUNTS_URL || 'https://accounts.otterware.app/v1/auth' }}
+      T3CODE_ACCOUNTS_CLI_CLIENT_ID: ${{ vars.ACCOUNTS_CLI_CLIENT_ID || 'otter-code-cli' }}
+      T3CODE_RELAY_URL: https://relay.code.otterware.app
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - run: vp install --filter=@t3tools/desktop... --filter=t3... --filter=@t3tools/scripts...
+      - run: node scripts/otterware/prepare-release.ts
+      - run: node scripts/update-release-package-versions.ts "${{ inputs.version }}"
+      - uses: actions/download-artifact@v8
+        with:
+          name: js-bundle-${{ inputs.profile }}
+          path: apps
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ inputs.rust_target }}
+      - uses: actions/cache@v4
+        with:
+          path: |
+            native/resource-monitor/target
+            native/kde-snap-shot/target
+            native/hyprland-snap-shot/target
+          key: profile-native-${{ inputs.rust_target }}-${{ hashFiles('native/**/Cargo.lock', 'native/**/src/**') }}
+      - uses: ./.github/actions/setup-apt-mirrors
+        if: inputs.platform == 'linux'
+      - name: Linux packaging libraries
+        if: inputs.platform == 'linux'
+        run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev pkg-config imagemagick
+      - name: Package desktop (macOS requires signing and notarization)
+        shell: bash
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          MACOS_PROVISIONING_PROFILE: ${{ inputs.profile == 'code' && secrets.MACOS_PROVISIONING_PROFILE || inputs.profile == 'otterware' && secrets.OTTERWARE_MACOS_PROVISIONING_PROFILE || '' }}
+          BUILD_PLATFORM: ${{ inputs.platform }}
+          BUILD_TARGET: ${{ inputs.target }}
+          BUILD_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          arch=x64
+          args=()
+          if [[ "$BUILD_PLATFORM" == mac ]]; then
+            arch=arm64
+            for name in CSC_LINK CSC_KEY_PASSWORD APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER APPLE_TEAM_ID; do
+              test -n "${!name}" || { echo "::error::Missing $name"; exit 1; }
+            done
+            key_path="$RUNNER_TEMP/AuthKey_${APPLE_API_KEY_ID}.p8"
+            printf '%s' "$APPLE_API_KEY" > "$key_path"
+            export APPLE_API_KEY="$key_path"
+            if [[ -n "$MACOS_PROVISIONING_PROFILE" ]]; then
+              profile_path="$RUNNER_TEMP/mac.provisionprofile"
+              printf '%s' "$MACOS_PROVISIONING_PROFILE" | base64 -D > "$profile_path"
+              security cms -D -i "$profile_path" > "$RUNNER_TEMP/mac-profile.plist"
+              export T3CODE_APPLE_TEAM_ID="$APPLE_TEAM_ID"
+              export T3CODE_MACOS_PROVISIONING_PROFILE="$RUNNER_TEMP/mac-profile.plist"
+            fi
+            args+=(--signed)
+          fi
+          vp run dist:desktop:artifact --platform "$BUILD_PLATFORM" --target "$BUILD_TARGET" --arch "$arch" --build-version "$BUILD_VERSION" --skip-build "${args[@]}"
+      - name: Verify Developer ID signature and stapled notarization ticket
+        if: inputs.platform == 'mac'
+        shell: bash
+        run: |
+          set -euo pipefail
+          zip=$(find release -maxdepth 1 -name '*-arm64.zip' -print -quit)
+          test -n "$zip"
+          ditto -x -k "$zip" "$RUNNER_TEMP/verify-app"
+          app=$(find "$RUNNER_TEMP/verify-app" -maxdepth 1 -name '*.app' -print -quit)
+          test -n "$app"
+          codesign --verify --deep --strict "$app"
+          codesign -dvv "$app" 2>&1 | grep -q 'Authority=Developer ID Application:'
+          xcrun stapler validate "$app"
+      - name: Build Linux server single-executable
+        if: inputs.cli_archive
+        env:
+          VP_NODE_VERSION: "26.8.2"
+        run: node apps/server/scripts/cli.ts build-exe --verbose
+      - name: Archive and smoke-test server runtime
+        if: inputs.cli_archive
+        run: |
+          mkdir -p "$RUNNER_TEMP/resource-monitor/linux-x64"
+          cp native/resource-monitor/target/${{ inputs.rust_target }}/release/t3-resource-monitor "$RUNNER_TEMP/resource-monitor/linux-x64/"
+          node scripts/build-cli-archive.ts --platform linux --arch x64 --version "${{ inputs.version }}" --resource-monitor-dir "$RUNNER_TEMP/resource-monitor" --output-dir release-cli
+          node scripts/smoke-cli-archive.ts --archive release-cli/* --expect-version "${{ inputs.version }}"
+      - name: Collect profile artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p release-publish
+          shopt -s nullglob
+          for file in release/*.dmg release/*.zip release/*.AppImage release/*.deb release/*.blockmap release/latest*.yml release-cli/*.tar.gz; do
+            cp "$file" release-publish/
+          done
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-${{ inputs.profile }}-${{ inputs.platform }}
+          path: release-publish/*
+          if-no-files-found: error
+          retention-days: 7
