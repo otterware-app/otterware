@@ -3,6 +3,8 @@
  * the host wires in at its seams (`apps/server/src/otterware/`). This is the
  * only place that imports module engines.
  */
+import { CalendarModule } from "@otterware/calendar-engine";
+import { calendarNodeModule } from "@otterware/calendar-node";
 import { HomeModule } from "@otterware/home-engine";
 import type { ServerModule, ServerModuleRequirements } from "@otterware/module-kit/engine";
 import { HostLayer, layerRpcHandlers as moduleKitRpcHandlers } from "@otterware/module-kit/server";
@@ -14,6 +16,7 @@ import { type KnownModuleId, OtterwareRpcGroup, selectModuleIds } from "./contra
 /** Every module engine this repository knows. A new module adds one line. */
 export const SERVER_MODULES = {
   home: HomeModule,
+  calendar: CalendarModule,
 } as const satisfies Record<KnownModuleId, ServerModule>;
 
 /** What the host must provide beneath the module runtime, for every known module. */
@@ -28,7 +31,12 @@ export const activeServerModules = selectServerModules(activeProfile);
 
 /** `suite.sqlite`, migrations and the module runtime for this data home. */
 export const layer = (stateDir: string) =>
-  HostLayer.layer<ServerModulesRequirements>({ stateDir, modules: activeServerModules });
+  HostLayer.layer<ServerModulesRequirements>({
+    stateDir,
+    modules: activeServerModules.map((module) =>
+      module.contract.id === "calendar" ? calendarNodeModule(stateDir) : module,
+    ),
+  });
 
 /** Handlers for the host and module RPCs merged into `WsRpcGroup`. */
 export const layerRpcHandlers = () => moduleKitRpcHandlers(OtterwareRpcGroup);
