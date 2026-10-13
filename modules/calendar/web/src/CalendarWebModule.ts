@@ -18,6 +18,30 @@ export const CalendarWebModule = defineWebModule({
   },
   commands: [
     {
+      id: "calendar.search",
+      title: "Calendar: search events",
+      searchTerms: ["search", "find", "event"],
+      subpath: "search",
+    },
+    {
+      id: "calendar.agenda",
+      title: "Calendar: agenda view",
+      searchTerms: ["list", "schedule"],
+      subpath: "agenda",
+    },
+    {
+      id: "calendar.day",
+      title: "Calendar: day view",
+      searchTerms: ["day", "calendar"],
+      subpath: "day",
+    },
+    {
+      id: "calendar.custom",
+      title: "Calendar: custom days",
+      searchTerms: ["custom", "calendar"],
+      subpath: "custom",
+    },
+    {
       id: "calendar.today",
       title: "Calendar: today",
       searchTerms: ["today", "calendar"],

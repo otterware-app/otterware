@@ -115,6 +115,7 @@ function makeClient(environmentId: EnvironmentId | null): CalendarWebClient {
       const key = JSON.stringify({ environmentId, weeks });
       return useAtomValue(environmentId ? chunks(key) : emptyChunks);
     },
+    search: (input) => read(request(CALENDAR_METHODS.calendarSearch, input)),
     getEvent: (calendarId, eventId) =>
       read(
         request(CALENDAR_METHODS.calendarGetEvent, {

@@ -1,6 +1,8 @@
 import type {
   CalendarEnvironmentPreferences,
   CalendarDirectory,
+  CalendarSearchInput,
+  CalendarSearchResult,
   CalendarEventDetails,
   CalendarEventInstance,
   CalendarCreateEventInput,
@@ -28,6 +30,7 @@ export interface CalendarWebClient {
     loading: boolean;
     error: string | null;
   };
+  search: (input: CalendarSearchInput) => Promise<CalendarSearchResult>;
   getEvent: (calendarId: string, eventId: string) => Promise<CalendarEventDetails>;
   create: (input: CalendarCreateEventInput) => Promise<CalendarMutationResult>;
   update: (input: CalendarUpdateEventInput) => Promise<CalendarMutationResult>;

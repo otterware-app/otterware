@@ -1269,6 +1269,9 @@ importers:
 
   modules/calendar/web:
     dependencies:
+      '@legendapp/list':
+        specifier: 'catalog:'
+        version: 3.3.5(patch_hash=680cc6a5c5b4a4032e467e7b3fde22f89a84c0ee2e6eac6fda737d6277cc0806)(react-dom@19.2.6(react@19.2.6))(react-native@0.88.0-rc.3(@babel/core@7.29.7)(@react-native/metro-config@0.88.0-rc.3(@babel/core@7.29.7)(bufferutil@4.1.0)(utf-8-validate@6.0.6))(@types/react@19.3.0)(bufferutil@4.1.0)(react@19.2.6)(utf-8-validate@6.0.6))(react@19.2.6)
       '@otterware/calendar-contracts':
         specifier: workspace:*
         version: link:../contracts
