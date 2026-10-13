@@ -1750,9 +1750,18 @@ importers:
 
   packages/otter-cloud-client:
     dependencies:
+      '@noble/hashes':
+        specifier: 'catalog:'
+        version: 1.8.0
+      '@otterware/drive-contracts':
+        specifier: workspace:*
+        version: link:../../modules/drive/contracts
       effect:
         specifier: 4.0.2
         version: 4.0.2(patch_hash=ec61ee307eaec3e17f757e0e6a16296ea4b7a8c3188df0c6ec5e66301fd78688)
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
     devDependencies:
       typescript:
         specifier: 'catalog:'

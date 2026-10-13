@@ -1,3 +1,4 @@
+import { driveStaticRequest } from "./drive-static.ts";
 import { HTTPException } from "hono/http-exception";
 import accountsVars from "../accounts/vars.json";
 import mailVars from "../mail/vars.json";
@@ -127,7 +128,8 @@ export async function drive(request: Request, env: Env, parallel: boolean) {
         return serveRawContent(request, bindings, parts[3], parts[4], parts.slice(5).join("/"));
       return hostNotFound();
     }
-    return env.ASSETS.fetch(request);
+    const asset = driveStaticRequest(request);
+    return asset ? env.ASSETS.fetch(asset) : hostNotFound();
   } catch (error) {
     if (error instanceof HTTPException)
       return Response.json({ error: error.message }, { status: error.status });

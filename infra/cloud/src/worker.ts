@@ -23,6 +23,8 @@ import {
   startConnection,
 } from "./providers.ts";
 import { pullRecords, pushRecords, pushSchema } from "./sync.ts";
+import { DRIVE_BROWSER_AUDIENCE, isPublicDriveRequest } from "./drive-browser.ts";
+import { driveStaticRequest } from "./drive-static.ts";
 import { drive, legacy } from "./legacy.ts";
 import type { App, Env } from "./env.ts";
 import { SESSION_HEADER } from "../mail/src/user-hub.ts";
@@ -35,10 +37,18 @@ app.use("*", async (c, next) => {
   c.header("referrer-policy", "no-referrer");
   c.header("x-content-type-options", "nosniff");
   return cors({
-    origin: (origin) => (allowedOrigin(c.env, origin) ? origin : ""),
-    allowHeaders: ["Authorization", "Content-Type", "X-Otter-Audience"],
+    origin: isPublicDriveRequest(c.req.raw)
+      ? "*"
+      : (origin) => (allowedOrigin(c.env, origin) ? origin : ""),
+    allowHeaders: [
+      "Authorization",
+      "Content-Type",
+      "X-Otter-Audience",
+      "X-Otterdrive-Folder",
+      "X-Content-Sha256",
+    ],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    credentials: true,
+    credentials: !isPublicDriveRequest(c.req.raw),
   })(c, next);
 });
 app.onError((error, c) => {
@@ -81,6 +91,12 @@ app.post("/v1/cloud/token", async (c) => {
     .strict()
     .parse(await c.req.json());
   return c.json(await issueToken(c.env, header.slice(7), audience));
+});
+app.post("/v1/cloud/drive-token", async (c) => {
+  if (c.req.header("cookie")) throw new HTTPException(403);
+  const header = c.req.header("authorization");
+  if (!header?.startsWith("Bearer ")) throw new HTTPException(401);
+  return c.json(await issueToken(c.env, header.slice(7), DRIVE_BROWSER_AUDIENCE));
 });
 app.get("/v1/cloud/providers/:provider/callback", async (c) => {
   const provider = providerSchema.parse(c.req.param("provider"));
@@ -216,6 +232,10 @@ app.all("/v1/cloud/mail/*", async (c) => {
   );
 });
 app.all("/api/*", (c) => drive(c.req.raw, c.env, true));
+app.notFound((c) => {
+  const asset = driveStaticRequest(c.req.raw);
+  return asset ? c.env.ASSETS.fetch(asset) : new Response("Not found", { status: 404 });
+});
 
 export default {
   fetch(request: Request, env: Env, ctx: ExecutionContext) {

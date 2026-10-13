@@ -4,14 +4,21 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./contracts": "./src/contracts.ts"
+    "./contracts": "./src/contracts.ts",
+    "./drive": {
+      "types": "./src/drive/client.ts",
+      "import": "./src/drive/client.ts"
+    }
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vp test run"
   },
   "dependencies": {
-    "effect": "catalog:"
+    "@noble/hashes": "catalog:",
+    "@otterware/drive-contracts": "workspace:*",
+    "effect": "catalog:",
+    "zod": "4.6.5"
   },
   "devDependencies": {
     "typescript": "catalog:",

@@ -10,6 +10,7 @@ const { Buffer } = NodeBuffer;
 import * as NodeCrypto from "node:crypto";
 const { randomBytes } = NodeCrypto;
 
+import { buildDriveAssets } from "./drive-assets.ts";
 import { bundle } from "./bundle.ts";
 
 // Run only in the new repository's main deployment. No old Worker is ever a mutation target.
@@ -84,6 +85,7 @@ if (process.argv.includes("--prepare")) {
   );
 } else {
   await bundle();
+  await buildDriveAssets();
   wrangler(["d1", "migrations", "apply", "ACCOUNT_DATA", "--remote"]);
   wrangler(["deploy"]);
   const secrets = await api<{ name: string }[]>(
