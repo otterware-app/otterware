@@ -10,6 +10,49 @@ export function run(command, args, cwd = process.cwd()) {
   if (result.status !== 0) throw new Error(`${command} failed (${result.status ?? result.signal})`);
 }
 
+/** Runs one heavy command in a shared machine slot (scripts/otterware/heavy.sh). */
+function heavy(command, args, cwd = process.cwd()) {
+  run("bash", [NodePath.resolve("scripts/otterware/heavy.sh"), command, ...args], cwd);
+}
+
+/** The workspace packages that directly own the changed files (not their dependents). */
+function ownedPackages(files) {
+  const manifests = NodeChildProcess.execFileSync("git", ["ls-files", "*package.json"], {
+    encoding: "utf8",
+  })
+    .split("\n")
+    .filter((f) => f && !f.includes("node_modules") && !f.startsWith(".repos/"));
+  const packages = manifests.flatMap((manifest) => {
+    const json = JSON.parse(NodeFS.readFileSync(manifest, "utf8"));
+    if (!json.name) return [];
+    const dir = NodePath.dirname(manifest);
+    return [{ name: json.name, dir, typecheck: Boolean(json.scripts?.typecheck) }];
+  });
+  const owners = new Map();
+  for (const file of files) {
+    const owner = packages
+      .filter((p) => p.dir !== "." && file.startsWith(`${p.dir}/`))
+      .sort((a, b) => b.dir.length - a.dir.length)[0];
+    if (owner) owners.set(owner.name, owner);
+  }
+  return [...owners.values()];
+}
+
+/** Changed test files plus the test file next to each changed source file, relative to the package. */
+function focusedTests(owner, files) {
+  const tests = new Set();
+  for (const file of files) {
+    if (!file.startsWith(`${owner.dir}/`) || !NodeFS.existsSync(file)) continue;
+    if (/\.test\.[cm]?[jt]sx?$/.test(file)) tests.add(file);
+    else
+      for (const ext of [".test.ts", ".test.tsx"]) {
+        const sibling = file.replace(/\.[cm]?[jt]sx?$/, ext);
+        if (sibling !== file && NodeFS.existsSync(sibling)) tests.add(sibling);
+      }
+  }
+  return [...tests].map((file) => NodePath.relative(owner.dir, file));
+}
+
 const args = process.argv.slice(2);
 const baseIndex = args.indexOf("--base");
 const partIndex = args.indexOf("--part");
@@ -35,7 +78,8 @@ if (part === "lint" || part === "local") {
 }
 if (part === "typecheck" || part === "local") {
   if (part === "local") {
-    for (const pkg of plan.typecheck) run("vp", ["run", "--filter", pkg, "typecheck"]);
+    for (const owner of ownedPackages(plan.files).filter((o) => o.typecheck))
+      heavy("vp", ["run", "--filter", owner.name, "typecheck"]);
   } else if (plan.typecheck.length) {
     run("vp", [
       "run",
@@ -51,7 +95,10 @@ if (part === "test" || part === "local") {
   if (plan.affected.includes("@t3tools/scripts"))
     run("node", ["--test", "scripts/otterware/fast-loop.node-test.mjs"]);
   if (part === "local") {
-    for (const pkg of plan.tests) run("vp", ["run", "--filter", pkg, "test", "--maxWorkers=2"]);
+    for (const owner of ownedPackages(plan.files)) {
+      const tests = focusedTests(owner, plan.files);
+      if (tests.length) heavy("vp", ["test", "run", "--maxWorkers=2", ...tests], owner.dir);
+    }
   } else if (plan.tests.length) {
     run("vp", [
       "run",
@@ -63,29 +110,16 @@ if (part === "test" || part === "local") {
       "--maxWorkers=2",
     ]);
   }
-  if (plan.full) {
+  if (plan.full && part !== "local") {
     run("python3", ["-B", ".github/scripts/stage-preview-bundle.test.py"]);
     run("node", ["--test", ".github/scripts/check-nightly-release.test.cjs"]);
   }
 }
 if (part === "local") {
-  if (plan.jobs.test_web) run("vp", ["run", "--filter", "@t3tools/web", "test", "--maxWorkers=2"]);
-  if (plan.jobs.test_server) run("vp", ["run", "--filter", "t3", "test", "--maxWorkers=2"]);
-  if (plan.jobs.seams) run("node", ["scripts/otterware/check-upstream-seams.ts"]);
-  if (plan.jobs.rust) {
-    for (const crate of ["resource-monitor", "kde-snap-shot", "hyprland-snap-shot"]) {
-      const manifest = NodePath.join("native", crate, "Cargo.toml");
-      run("cargo", ["fmt", "--manifest-path", manifest, "--", "--check"]);
-      run("cargo", ["test", "--locked", "--manifest-path", manifest]);
-    }
-  }
-  if (plan.jobs.release_smoke) run("node", ["scripts/release-smoke.ts"]);
-  if (plan.jobs.mobile_native_static_analysis) {
-    // oxlint-disable-next-line t3code/no-global-process-runtime -- This dependency-free CLI runs outside the host Effect runtime.
-    if (process.platform === "darwin") run("vp", ["run", "lint:mobile"]);
-    else console.log("Native mobile static analysis requires macOS; CI will run it.");
-  }
-  // Desktop packaging is exercised by CI; the local loop stops at source checks.
+  console.log(
+    "Local checks cover the packages and tests you changed. CI runs dependents, full suites, " +
+      "seams, Rust, release smoke and desktop builds.",
+  );
 }
 if (!["local", "lint", "typecheck", "test"].includes(part))
   throw new Error(`Unknown part: ${part}`);
