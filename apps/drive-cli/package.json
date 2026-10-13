@@ -38,6 +38,7 @@
     "@types/mime-types": "3.0.1",
     "@types/node": "catalog:",
     "esbuild": "0.28.1",
+    "tsx": "4.23.0",
     "typescript": "catalog:",
     "vite-plus": "catalog:"
   },

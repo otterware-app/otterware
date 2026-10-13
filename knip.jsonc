@@ -112,6 +112,10 @@
       ],
       "ignoreDependencies": ["tsx"],
     },
+    "apps/drive-cli": {
+      // test/version-options.test.ts runs the CLI with `node --import tsx`.
+      "ignoreDependencies": ["tsx"],
+    },
     "infra/relay": {
       "entry": ["alchemy.run.ts!", "src/persistence/schema.ts!"],
     },
