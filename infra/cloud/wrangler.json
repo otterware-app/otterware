@@ -1,0 +1,69 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "otterware-cloud",
+  "main": "dist/worker.mjs",
+  "no_bundle": true,
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "routes": [{ "pattern": "cloud.otterware.app", "custom_domain": true }],
+  "assets": { "directory": "public", "binding": "ASSETS", "run_worker_first": true },
+  "browser": { "binding": "BROWSER" },
+  "d1_databases": [
+    {
+      "binding": "ACCOUNT_DATA",
+      "database_name": "otterware-cloud",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    },
+    {
+      "binding": "ACCOUNTS_DB",
+      "database_name": "otter-accounts",
+      "database_id": "10e8f94e-0bee-4ccf-be35-8ecf293617a8"
+    },
+    {
+      "binding": "DRIVE_DB",
+      "database_name": "otterware",
+      "database_id": "779560bb-941f-4dd9-9c9e-cb4e4cd5c84d"
+    },
+    {
+      "binding": "MAIL_DB",
+      "database_name": "otter-mail-relay",
+      "database_id": "c622d59a-1c2e-4fb8-bc4a-e01fa71b3c13"
+    }
+  ],
+  "r2_buckets": [{ "binding": "ARTIFACTS", "bucket_name": "otterware-artifacts" }],
+  "services": [
+    { "binding": "ACCOUNTS", "service": "otter-accounts", "entrypoint": "MailIdentity" },
+    {
+      "binding": "MAIL_LIFECYCLE",
+      "service": "otter-mail-relay",
+      "entrypoint": "IdentityLifecycle"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      { "name": "ENVIRONMENT_HUB", "class_name": "EnvironmentHub" },
+      { "name": "CLOUD_AGENT_HUB", "class_name": "CloudAgentHub" },
+      { "name": "LEGACY_USER_HUB", "class_name": "UserHub", "script_name": "otter-mail-relay" },
+      { "name": "LEGACY_AGENT_HUB", "class_name": "AgentHub", "script_name": "otter-mail-relay" }
+    ]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["EnvironmentHub", "CloudAgentHub"] }],
+  "ratelimits": [
+    { "name": "TUNNEL_LIMIT", "namespace_id": "2001", "simple": { "limit": 30, "period": 60 } },
+    {
+      "name": "TUNNEL_UNLINKED_LIMIT",
+      "namespace_id": "2002",
+      "simple": { "limit": 6, "period": 60 }
+    }
+  ],
+  "vars": {
+    "CLOUD_ORIGIN": "https://cloud.otterware.app",
+    "CONTENT_ORIGIN": "https://usercontent.otterware.app",
+    "ALLOWED_ORIGINS": "https://mail.otterware.app,https://drive.otterware.app,https://calendar.otterware.app,https://code.otterware.app,https://otterware.app",
+    "GOOGLE_PROVIDER_CLIENT_ID": "997327858649-hvcu3vfk5m83q9jid8g17pv6etmc491v.apps.googleusercontent.com",
+    "MICROSOFT_PROVIDER_CLIENT_ID": "b0c4e8bf-e651-456e-9bc6-408a741b36f9"
+  },
+  "observability": { "enabled": true }
+}
