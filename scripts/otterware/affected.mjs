@@ -47,7 +47,7 @@ export function readWorkspace(root) {
 }
 
 const isDocumentation = (file) =>
-  /\.(md|mdx|txt)$/.test(file) && !file.startsWith("scripts/") && !file.startsWith(".github/");
+  /\.(md|mdx)$/.test(file) && !file.startsWith("scripts/") && !file.startsWith(".github/");
 const isGlobal = (file) =>
   file.startsWith(".github/") ||
   file.startsWith("patches/") ||

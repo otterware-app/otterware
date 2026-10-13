@@ -1,5 +1,9 @@
 # Otter fork operations
 
+> This page preserves legacy Code identities and procedures. The monorepo origin is
+> `otterware-app/otterware`. Publishing and deployment workflows here remain disabled
+> until the release workstream replaces them; the root agent rules take precedence.
+
 Otter Code is a fork of [T3 Code](https://github.com/pingdotgg/t3code) with its own name, app IDs,
 relay, and release channel. Everything in [AGENTS.md](../../AGENTS.md) and [OTTERWARE.md](../../OTTERWARE.md) still applies. This file covers what is
 different and how to keep the fork aligned with upstream.
@@ -142,7 +146,7 @@ list text that must keep matching what the server or agents emit.
 | URL scheme           | `ottercode` (`ottercode-dev`, `ottercode-preview`)                                      |
 | Data home            | `~/.otter-code` (never `~/.t3`, so it can sit beside an installed T3 Code)              |
 | Background service   | `otter-code.service` (systemd user unit), `dev.otterware.code.service` (launchd)        |
-| Releases and updates | GitHub Releases of `otterware-app/otterware`, nightly channel                           |
+| Releases and updates | GitHub Releases of `otterware-app/otter-code`, nightly channel                          |
 | Relay                | `https://relay.code.otterware.app` (Cloudflare Worker, deployed from `infra/relay`)     |
 | Tunnels              | `prod-<digest>.otterware.app`, one per linked machine                                   |
 | Hosted web app       | `https://code.otterware.app` (Cloudflare Worker `otter-code-web`)                       |
