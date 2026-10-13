@@ -28,8 +28,13 @@ describe("composeContracts", () => {
     expect([...mail.group.requests.keys()]).not.toContain("calendar.subscribeWeek");
     expect(mail.scopes["mail.gmail.sendMessage"]).toBe("orchestration:operate");
 
+    const drive = composeContracts(PROFILES.drive);
+    expect(drive.moduleIds).toEqual(["drive"]);
+    expect([...drive.group.requests.keys()]).toContain("drive.uploadFile");
+    expect([...drive.group.requests.keys()]).not.toContain("calendar.subscribeWeek");
+
     const otterware = composeContracts(PROFILES.otterware);
-    expect(otterware.moduleIds).toEqual(["home", "mail", "calendar"]);
+    expect(otterware.moduleIds).toEqual(["home", "mail", "calendar", "drive"]);
     expect([...otterware.group.requests.keys()]).toContain("home.overview");
     expect(otterware.scopes["home.overview"]).toBe("orchestration:read");
   });
@@ -43,7 +48,9 @@ describe("composeContracts", () => {
             ? "module.calendar"
             : tag.startsWith("mail.")
               ? "module.mail"
-              : "host",
+              : tag.startsWith("drive.")
+                ? "module.drive"
+                : "host",
       );
     }
   });
