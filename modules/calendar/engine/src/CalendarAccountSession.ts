@@ -56,7 +56,7 @@ export const cloudCall = <A>(work: () => Promise<A>) =>
 
 /** Adapts Cloud's portable fetch interface to the engine's HttpClient, including cancellation. */
 export const makeCloudFetch =
-  (http: HttpClient.HttpClient): typeof fetch =>
+  (http: HttpClient.HttpClient, scopeSignal?: AbortSignal): typeof fetch =>
   async (input, init) => {
     const request = new Request(input, init);
     const body =
@@ -78,7 +78,7 @@ export const makeCloudFetch =
           { status: response.status, headers: response.headers },
         );
       }),
-      { signal: request.signal },
+      { signal: scopeSignal ? AbortSignal.any([request.signal, scopeSignal]) : request.signal },
     );
   };
 
@@ -91,17 +91,18 @@ export const accountSessionLayer = <E, R>(
       const http = yield* HttpClient.HttpClient;
       const context = yield* Effect.context<R>();
       const readCredential = credential.pipe(Effect.provide(context));
-      const fetcher = makeCloudFetch(http);
       const lock = yield* Semaphore.make(1);
       let cached: {
         credential: CalendarAccountCredential;
         expiresAt: number;
         context: CalendarCloudContext;
+        abort: AbortController;
       } | null = null;
       const current = lock.withPermits(1)(
         Effect.gen(function* () {
           const saved = yield* readCredential.pipe(Effect.mapError(failed));
           if (Option.isNone(saved)) {
+            cached?.abort.abort();
             cached?.context.client.clearSession();
             cached = null;
             return Option.none<CalendarCloudContext>();
@@ -117,6 +118,10 @@ export const accountSessionLayer = <E, R>(
             cached.expiresAt > now + 60_000
           )
             return Option.some(cached.context);
+          // Retire old requests even when exchanging the replacement grant fails.
+          cached?.abort.abort();
+          cached?.context.client.clearSession();
+          cached = null;
           const response = yield* http
             .execute(
               HttpClientRequest.post(`${key.accountsUrl.replace(/\/$/, "")}/suite/session`).pipe(
@@ -129,19 +134,24 @@ export const accountSessionLayer = <E, R>(
             Effect.mapError(failed),
           );
           if (session.expiresAt <= now) return yield* failed();
-          cached?.context.client.clearSession();
+          const abort = new AbortController();
           const client = new OtterCloudClient({
             origin: key.cloudOrigin,
             audience: key.audience,
             sessionToken: async () => session.token,
-            fetch: fetcher,
+            fetch: makeCloudFetch(http, abort.signal),
           });
           const context = { accountId: session.user.id, client, cloudOrigin: key.cloudOrigin };
-          cached = { credential: key, expiresAt: session.expiresAt, context };
+          cached = { credential: key, expiresAt: session.expiresAt, context, abort };
           return Option.some(context);
         }),
       );
-      yield* Effect.addFinalizer(() => Effect.sync(() => cached?.context.client.clearSession()));
+      yield* Effect.addFinalizer(() =>
+        Effect.sync(() => {
+          cached?.abort.abort();
+          cached?.context.client.clearSession();
+        }),
+      );
       return { current };
     }),
   );
