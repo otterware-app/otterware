@@ -4,6 +4,9 @@ Otter Code is a fork of [T3 Code](https://github.com/pingdotgg/t3code) with its 
 relay, and release channel. Everything in `AGENTS.md` still applies. This file covers what is
 different and how to keep the fork aligned with upstream.
 
+> This fork now lives in `otterware-app/otterware` and builds the Otterware apps too. Read
+> [OTTERWARE.md](OTTERWARE.md) for the repository layout and the rules for working here.
+
 ## How the fork stays in sync
 
 - **Upstream is `pingdotgg/t3code`'s `main`.** Julius's orchestration V2 PR #2829 merged on
@@ -36,7 +39,7 @@ different and how to keep the fork aligned with upstream.
 Work in a clean worktree on a dedicated sync branch. Configure the remotes once:
 
 ```sh
-git remote set-url origin https://github.com/otterware-app/otter-code.git
+git remote set-url origin https://github.com/otterware-app/otterware.git
 git remote add -t main --no-tags upstream https://github.com/pingdotgg/t3code.git
 ```
 
