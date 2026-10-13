@@ -1,6 +1,8 @@
 // @effect-diagnostics nodeBuiltinImport:off -- Release checks inspect manifests and emitted Node bundles before packaging.
 import * as NodeChildProcess from "node:child_process";
 import * as NodeFS from "node:fs";
+import * as NodeModule from "node:module";
+import ts from "typescript-legacy";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import { findEsmImportsOfExternalPackages } from "../lib/cli-executable-imports.ts";
@@ -30,6 +32,55 @@ export function assertServerRuntimeDependencies(root: string) {
   }
 }
 
+/** Include CommonJS loaders without matching code samples inside strings or comments. */
+function findServerRuntimeImports(source: string) {
+  const specifiers = new Set(findEsmImportsOfExternalPackages(source));
+  const module = ts.createSourceFile(
+    "bundle.mjs",
+    source,
+    ts.ScriptTarget.Latest,
+    false,
+    ts.ScriptKind.JS,
+  );
+  const requireNames = new Set(["require", "__require"]);
+  const isCreateRequire = (node: ts.Node) =>
+    (ts.isIdentifier(node) && /^createRequire(?:\$\d+)?$/.test(node.text)) ||
+    (ts.isPropertyAccessExpression(node) && node.name.text === "createRequire");
+  const visit = (node: ts.Node): void => {
+    if (
+      ts.isVariableDeclaration(node) &&
+      ts.isIdentifier(node.name) &&
+      node.initializer &&
+      ts.isCallExpression(node.initializer) &&
+      isCreateRequire(node.initializer.expression)
+    ) {
+      requireNames.add(node.name.text);
+    }
+    if (
+      ts.isCallExpression(node) &&
+      ((ts.isIdentifier(node.expression) &&
+        (requireNames.has(node.expression.text) || /^require_\d+$/.test(node.expression.text))) ||
+        (ts.isCallExpression(node.expression) && isCreateRequire(node.expression.expression)))
+    ) {
+      const argument = node.arguments[0];
+      if (argument && ts.isStringLiteralLike(argument)) {
+        const specifier = argument.text;
+        // ws's two optional accelerators are intentionally absent; its guarded requires fall back to JS.
+        if (
+          !NodeModule.isBuiltin(specifier) &&
+          !specifier.startsWith(".") &&
+          specifier !== "bufferutil" &&
+          specifier !== "utf-8-validate"
+        )
+          specifiers.add(specifier);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(module);
+  return specifiers;
+}
+
 /** ESM imports in emitted chunks resolve from dist, not a workspace module's node_modules. */
 export function missingServerBundleDependencies(
   sources: ReadonlyArray<string>,
@@ -37,7 +88,7 @@ export function missingServerBundleDependencies(
 ) {
   const missing = new Set<string>();
   for (const source of sources) {
-    for (const specifier of findEsmImportsOfExternalPackages(source)) {
+    for (const specifier of findServerRuntimeImports(source)) {
       const name = specifier.startsWith("@")
         ? specifier.split("/").slice(0, 2).join("/")
         : specifier.split("/")[0]!;

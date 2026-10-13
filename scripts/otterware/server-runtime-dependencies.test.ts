@@ -43,9 +43,12 @@ describe("server runtime dependencies", () => {
     const source = `import { z } from "zod/v4"; import "@connectrpc/connect";
       const lazy = () => import("unexpected-package/subpath");
       import fs from "node:fs"; import "./local.mjs";
-      const example = 'import "example-only";';`;
+      const example = 'import "example-only";';
+      const load = createRequire(import.meta.url);
+      load("native-helper"); __require("bufferutil"); __require("utf-8-validate");`;
     expect(missingServerBundleDependencies([source], { zod: "4.6.5" })).toEqual([
       "@connectrpc/connect",
+      "native-helper",
       "unexpected-package",
     ]);
   });
