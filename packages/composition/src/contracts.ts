@@ -7,6 +7,7 @@
  * so one client build serves every profile; its value holds only the active
  * modules, so a server never answers a method of a module it does not ship.
  */
+import { DriveContract } from "@otterware/drive-contracts";
 import { CalendarContract } from "@otterware/calendar-contracts";
 import { MailContract } from "@otterware/mail-contracts/rpc";
 import { HomeContract } from "@otterware/home-contracts";
@@ -22,6 +23,7 @@ import { type AuthEnvironmentScope, RpcScopeAuthorization, WsRpcGroup } from "@t
 /** Every module contract this repository knows. A new module adds one line. */
 export const MODULE_CONTRACTS = {
   home: HomeContract,
+  drive: DriveContract,
   mail: MailContract,
   calendar: CalendarContract,
 } as const satisfies Partial<Record<ModuleId, AnyModuleContract>>;
@@ -34,7 +36,13 @@ export const isKnownModuleId = (id: string): id is KnownModuleId => id in MODULE
 export const selectModuleIds = (profile: AppProfile): ReadonlyArray<KnownModuleId> =>
   profile.modules.filter(isKnownModuleId);
 
-const superset = mergeModuleContracts(HostContract, HomeContract, MailContract, CalendarContract);
+const superset = mergeModuleContracts(
+  HostContract,
+  HomeContract,
+  MailContract,
+  CalendarContract,
+  DriveContract,
+);
 type Superset = typeof superset;
 
 /** Host RPCs plus the active modules' contracts, typed as the superset. */

@@ -1,0 +1,28 @@
+{
+  "name": "@otterware/drive-node",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc-rs --noEmit",
+    "test": "vp test run --config ../../../vite.config.ts --dir ."
+  },
+  "dependencies": {
+    "@otterware/drive-contracts": "workspace:*",
+    "@otterware/drive-engine": "workspace:*",
+    "@otterware/module-kit": "workspace:*",
+    "@t3tools/contracts": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/platform-node": "catalog:",
+    "@effect/vitest": "catalog:",
+    "@types/node": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

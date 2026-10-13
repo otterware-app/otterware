@@ -3,6 +3,8 @@
  * the host wires in at its seams (`apps/server/src/otterware/`). This is the
  * only place that imports module engines.
  */
+import { DriveModule } from "@otterware/drive-engine";
+import { driveNodeModule } from "@otterware/drive-node";
 import { CalendarModule } from "@otterware/calendar-engine";
 import { calendarNodeModule } from "@otterware/calendar-node";
 import { MailModule } from "@otterware/mail-engine/module";
@@ -18,6 +20,7 @@ import { type KnownModuleId, OtterwareRpcGroup, selectModuleIds } from "./contra
 /** Every module engine this repository knows. A new module adds one line. */
 export const SERVER_MODULES = {
   home: HomeModule,
+  drive: DriveModule,
   mail: MailModule,
   calendar: CalendarModule,
 } as const satisfies Record<KnownModuleId, ServerModule>;
@@ -41,7 +44,9 @@ export const layer = (stateDir: string) =>
         ? calendarNodeModule(stateDir)
         : module.contract.id === "mail"
           ? mailNodeModule({ stateDir, profile: activeProfile.id })
-          : module,
+          : module.contract.id === "drive"
+            ? driveNodeModule()
+            : module,
     ),
   });
 

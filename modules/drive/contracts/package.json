@@ -1,0 +1,28 @@
+{
+  "name": "@otterware/drive-contracts",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    },
+    "./api": {
+      "types": "./src/api.ts",
+      "import": "./src/api.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc-rs --noEmit",
+    "test": "vp test run --config ../../../vite.config.ts --dir . --passWithNoTests"
+  },
+  "dependencies": {
+    "@otterware/module-kit": "workspace:*",
+    "@t3tools/contracts": "workspace:*",
+    "effect": "catalog:",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "vite-plus": "catalog:"
+  }
+}
