@@ -123,6 +123,12 @@ describe("Drive Cloud browser transport", () => {
     );
     expect(requests.some((request) => request.init.method === "DELETE")).toBe(false);
   });
+  it("preserves Cloud's account-linking guidance", async () => {
+    const { client } = fakeApi(() =>
+      Response.json({ error: "Sign in to Drive once to create your account." }, { status: 409 }),
+    );
+    await expect(client.folders()).rejects.toThrow("Sign in to Drive once");
+  });
   it("refuses upload URLs outside Cloud and rendered HTML on the app origin", async () => {
     const { client, requests } = fakeApi(() => new Response(null, { status: 204 }));
     await expect(client.request("https://unrelated.example/api/v1/upload")).rejects.toThrow(

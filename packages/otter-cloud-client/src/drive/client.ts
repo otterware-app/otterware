@@ -60,7 +60,17 @@ export class DriveClient {
     fetcher = globalThis.fetch.bind(globalThis),
   ) {
     this.getAccountToken = getAccountToken;
-    this.origin = new URL(origin).origin;
+    const url = new URL(origin);
+    if (
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      url.pathname !== "/" ||
+      (url.protocol !== "https:" && !["localhost", "127.0.0.1"].includes(url.hostname))
+    )
+      throw new Error("Invalid Drive Cloud origin.");
+    this.origin = url.origin;
     this.fetcher = fetcher;
   }
   clearSession() {
@@ -111,7 +121,14 @@ export class DriveClient {
       const error = apiErrorSchema.safeParse(body);
       throw new DriveRequestError(
         response.status,
-        error.success ? error.data.error.message : `Drive request failed (${response.status}).`,
+        error.success
+          ? error.data.error.message
+          : body !== null &&
+              typeof body === "object" &&
+              "error" in body &&
+              typeof body.error === "string"
+            ? body.error
+            : `Drive request failed (${response.status}).`,
       );
     }
     return response;
