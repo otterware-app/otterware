@@ -21,13 +21,15 @@ it.layer(layerConnectedWorker, { timeout: 30_000 })(
     it.effect("serves the host and module RPCs of the profile's browser modules", () =>
       Effect.gen(function* () {
         const client = yield* makeBrowserEnvironmentClient;
-        assert.deepStrictEqual(BROWSER_ENVIRONMENT_MODULE_IDS, ["home", "calendar"]);
+        assert.deepStrictEqual(BROWSER_ENVIRONMENT_MODULE_IDS, ["home", "mail", "calendar"]);
 
         const { modules } = yield* client["modules.list"]({});
         assert.deepStrictEqual(
           modules.map((entry) => [entry.id, entry.state]),
           [
             ["home", "on"],
+            // Mail's engine runs in a nested browser worker, which Node does not have.
+            ["mail", "failed"],
             ["calendar", "on"],
           ],
         );

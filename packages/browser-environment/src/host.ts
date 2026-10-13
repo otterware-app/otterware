@@ -18,6 +18,7 @@ import * as FetchHttpClient from "effect/http/FetchHttpClient";
 import * as BrowserAccount from "./account/BrowserAccount.ts";
 import { layerAccountCredential } from "./account/credential.ts";
 import { layerAccountHandlers } from "./account/handlers.ts";
+import { layerMailFollowsAccount, layerMailHost } from "./account/mailHost.ts";
 import * as AgentStore from "./agent/AgentStore.ts";
 import * as BrowserAgent from "./agent/BrowserAgent.ts";
 import { layerAgentHandlers } from "./agent/handlers.ts";
@@ -64,11 +65,12 @@ export const layerHost =
       layerRpcHandlers(BrowserModulesRpcGroup).pipe(Layer.provide(layerNoAssistantProject)),
       layerAccountHandlers,
       layerAgentHandlers,
+      layerMailFollowsAccount,
     ).pipe(
       Layer.provideMerge(BrowserAgent.layer),
       Layer.provideMerge(AgentStore.layer),
       Layer.provideMerge(layerRuntime<Requirements>(modules)),
-      Layer.provideMerge(layerAccountCredential),
+      Layer.provideMerge(Layer.merge(layerAccountCredential, layerMailHost)),
       Layer.provideMerge(BrowserAccount.layer),
       Layer.provideMerge(BrowserInstallation.layer),
       Layer.provideMerge(layerHttpClient),

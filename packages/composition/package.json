@@ -63,6 +63,7 @@
     "@otterware/home-contracts": "workspace:*",
     "@otterware/home-engine": "workspace:*",
     "@otterware/home-web": "workspace:*",
+    "@otterware/mail-browser": "workspace:*",
     "@otterware/mail-contracts": "workspace:*",
     "@otterware/mail-engine": "workspace:*",
     "@otterware/mail-node": "workspace:*",
