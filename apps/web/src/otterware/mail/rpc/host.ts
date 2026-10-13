@@ -1,3 +1,9 @@
+import { detectLanguage, hasBuiltInTranslator, translate } from "../translation";
+import { MailOperations } from "@otterware/mail-contracts/rpc";
+import * as Schema from "effect/Schema";
+const decodeTranslation = Schema.decodeUnknownSync(
+  MailOperations["translation:translate"].payloadSchema,
+);
 import { createMailBrowser } from "../browser";
 import {
   mailDesktop,
@@ -104,8 +110,18 @@ export function createMailHost(
     if (browser?.methods[channel]) return browser.methods[channel](input);
     const params = record(input);
     const desktop = desktopCapabilities && mailDesktop();
-    if (desktop && (channel === "translation:detect" || channel === "translation:translate"))
+    if (
+      desktop &&
+      desktopCapabilities.translation &&
+      (channel === "translation:detect" || channel === "translation:translate")
+    )
       return desktop.invoke("mail", channel, input);
+    if (hasBuiltInTranslator && channel === "translation:detect")
+      return detectLanguage(text(params.text).slice(0, 4000));
+    if (hasBuiltInTranslator && channel === "translation:translate") {
+      const request = decodeTranslation(input);
+      return translate([...request.segments], request.source, request.target);
+    }
     if (
       desktop &&
       (channel === "gmail:openAttachment" ||
@@ -209,7 +225,7 @@ export function createMailHost(
       launchAtLogin: desktopCapabilities?.launchAtLogin ?? false,
       dockBadge: desktopCapabilities?.dockBadge ?? false,
       defaultMailApp: desktopCapabilities?.defaultMailApp ?? false,
-      translation: desktopCapabilities?.translation ?? false,
+      translation: (desktopCapabilities?.translation ?? false) || hasBuiltInTranslator,
       dragOut: desktopCapabilities?.dragOut ?? false,
       openFiles: desktopCapabilities?.openFiles ?? false,
       externalAgent: false,
