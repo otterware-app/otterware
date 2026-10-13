@@ -17,3 +17,5 @@ export {
 } from "./CalendarAccountSession.ts";
 export type { CalendarAccountCredential, CalendarCloudContext } from "./CalendarAccountSession.ts";
 export * as AccountGoogleAuth from "./google/AccountGoogleAuth.ts";
+/** For hosts without local Google sign-in, such as the in-browser environment. */
+export * as GoogleAuthUnavailable from "./GoogleAuthUnavailable.ts";

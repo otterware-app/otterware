@@ -15,7 +15,6 @@ import { SuiteSqlClient } from "@otterware/module-kit/runtime";
 import { activeProfile } from "@otterware/profiles/active";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as FetchHttpClient from "effect/http/FetchHttpClient";
 import * as Reactivity from "effect/reactivity/Reactivity";
 import * as RpcServer from "effect/rpc/RpcServer";
 
@@ -45,7 +44,6 @@ const layerMain = RpcServer.layer(BrowserEnvironmentRpcGroup).pipe(
   Layer.provide(
     Layer.mergeAll(
       BrowserCrypto.layer,
-      FetchHttpClient.layer,
       Layer.succeed(BrowserPlatform, {
         fetch: globalThis.fetch.bind(globalThis),
         WebSocket: globalThis.WebSocket,
