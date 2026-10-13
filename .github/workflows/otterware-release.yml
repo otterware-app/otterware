@@ -59,7 +59,7 @@ jobs:
       - id: plan
         env:
           RELEASE_PROFILES: ${{ inputs.profiles }}
-          RELEASE_BRANCH: ${{ inputs.channel }}
+          RELEASE_BRANCH: ${{ inputs.channel || (github.ref_type == 'branch' && github.ref_name) || '' }}
         run: RELEASE_DATE=$(date -u +%Y%m%d) node scripts/otterware/release-plan.ts
 
   bundle:
@@ -168,7 +168,7 @@ jobs:
           set -euo pipefail
           test -s assets/latest-linux.yml
           test -s assets/latest-mac.yml
-          test -s assets/t3-${VERSION}-linux-x64.tar.gz
+          test -s "assets/t3-${VERSION}-linux-x64.tar.gz"
           (cd assets && sha256sum -- * > SHA256SUMS)
       - run: bash scripts/otterware/publish-release.sh assets
       - name: Report published URLs

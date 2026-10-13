@@ -24,7 +24,10 @@ export function releaseBranch(input: string) {
 
 if (process.argv[1]?.endsWith("release-plan.ts")) {
   const profiles = releaseProfiles(process.env.RELEASE_PROFILES ?? "");
-  const branch = releaseBranch(process.env.RELEASE_BRANCH ?? "");
+  const tagBranch = /^otterware-build-channel-(.+)--[^-].*$/.exec(
+    process.env.GITHUB_REF_NAME ?? "",
+  )?.[1];
+  const branch = releaseBranch(process.env.RELEASE_BRANCH || tagBranch || "");
   const core = JSON.parse(NodeFS.readFileSync("apps/desktop/package.json", "utf8")).version.split(
     /[-+]/,
   )[0];
