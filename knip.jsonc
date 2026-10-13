@@ -101,6 +101,17 @@
       // React Native codegen discovers component specifications by filename.
       "entry": ["src/*NativeComponent.ts!"],
     },
+    "infra/cloud": {
+      // Bundled by scripts/bundle.ts (the Worker, and the cutover Worker described in
+      // CUTOVER.md) and scripts/build-cli.ts (the otterdrive CLI); the CLI test loads it with tsx.
+      "entry": [
+        "src/worker.ts!",
+        "src/cutover-worker.ts!",
+        "drive-cli/src/index.ts!",
+        "scripts/*.ts",
+      ],
+      "ignoreDependencies": ["tsx"],
+    },
     "infra/relay": {
       "entry": ["alchemy.run.ts!", "src/persistence/schema.ts!"],
     },

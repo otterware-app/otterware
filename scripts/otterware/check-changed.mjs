@@ -12,7 +12,15 @@ export function run(command, args, cwd = process.cwd()) {
 
 /** Runs one heavy command in a shared machine slot (scripts/otterware/heavy.sh). */
 function heavy(command, args, cwd = process.cwd()) {
-  run("bash", [NodePath.resolve("scripts/otterware/heavy.sh"), command, ...args], cwd);
+  const script = NodePath.resolve("scripts/otterware/heavy.sh");
+  console.log(`> ${command} ${args.join(" ")}`);
+  const result = NodeChildProcess.spawnSync("bash", [script, command, ...args], {
+    cwd,
+    stdio: "inherit",
+  });
+  // 75: every slot was busy; the check is left to CI rather than blocking the agent.
+  if (result.status === 75) return;
+  if (result.status !== 0) throw new Error(`${command} failed (${result.status ?? result.signal})`);
 }
 
 /** The workspace packages that directly own the changed files (not their dependents). */
