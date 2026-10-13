@@ -62,12 +62,22 @@ export function cliArchiveFileName(version: string, platformKey: CliArchivePlatf
 
 const CLI_RELEASE_DEFAULT_BASE_URL = `https://github.com/${CLI_RELEASE_REPOSITORY}/releases/download`;
 
+/** Prefix of the active profile's immutable release tags: `<prefix><version>`. */
+export const CLI_RELEASE_TAG_PREFIX = `otterware-${SERVER_RELEASE_PROFILE}-v`;
+
+/** The `releases/download` root, or a mirror of it, without a trailing slash. */
+export function cliReleaseRootUrl(
+  baseUrl: string | undefined = CLI_RELEASE_DEFAULT_BASE_URL,
+): string {
+  return (baseUrl?.trim() || CLI_RELEASE_DEFAULT_BASE_URL).replace(/\/+$/, "");
+}
+
 /** Directory that `releases/download/<tag>/<asset>` lives under. */
 export function cliReleaseDownloadBaseUrl(
   version: string,
   baseUrl: string | undefined = CLI_RELEASE_DEFAULT_BASE_URL,
 ): string {
-  return `${(baseUrl?.trim() || CLI_RELEASE_DEFAULT_BASE_URL).replace(/\/+$/, "")}/otterware-${SERVER_RELEASE_PROFILE}-v${version}`;
+  return `${cliReleaseRootUrl(baseUrl)}/${CLI_RELEASE_TAG_PREFIX}${version}`;
 }
 
 /**
