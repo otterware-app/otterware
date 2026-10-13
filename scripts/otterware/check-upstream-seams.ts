@@ -4,11 +4,11 @@
  * the seams are listed in `upstream-seams.txt`. Compares the working tree and
  * the commits since the merge base with `--base` (default `origin/main`)
  * against `--upstream` (default `upstream-base`, falling back to
- * `origin/upstream-base`).
+ * `origin/upstream-base`). A shallow CI checkout fetches what it lacks.
  *
  *   node scripts/otterware/check-upstream-seams.ts [--base <ref>] [--upstream <ref>]
  */
-// @effect-diagnostics nodeBuiltinImport:off - CI check script; no Effect runtime.
+// @effect-diagnostics nodeBuiltinImport:off globalConsole:off - CI check script; no Effect runtime.
 import * as NodeChildProcess from "node:child_process";
 import * as NodeFS from "node:fs";
 import * as NodePath from "node:path";
@@ -49,29 +49,56 @@ export function findViolations(input: {
   );
 }
 
+const GIT_OPTIONS = { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 } as const;
+
 function git(args: ReadonlyArray<string>, cwd: string): string {
-  const result = NodeChildProcess.spawnSync("git", args, {
-    cwd,
-    encoding: "utf8",
-    maxBuffer: 64 * 1024 * 1024,
-  });
+  const result = NodeChildProcess.spawnSync("git", args, { cwd, ...GIT_OPTIONS });
   if (result.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${result.stderr}`);
   return result.stdout;
 }
 
+const gitQuietly = (args: ReadonlyArray<string>, cwd: string): boolean =>
+  NodeChildProcess.spawnSync("git", args, { cwd, stdio: "ignore" }).status === 0;
+
+const refExists = (ref: string, cwd: string) =>
+  gitQuietly(["rev-parse", "--verify", "--quiet", ref], cwd);
+
+/** Fetches a remote branch with enough history for a merge base; no-op when it exists. */
+function fetchBranch(name: string, cwd: string): void {
+  gitQuietly(
+    [
+      "fetch",
+      "--quiet",
+      "--no-tags",
+      "--deepen=2000",
+      "origin",
+      `+refs/heads/${name}:refs/remotes/origin/${name}`,
+    ],
+    cwd,
+  );
+}
+
+/**
+ * The first candidate that resolves. A CI checkout is shallow and has no
+ * remote branches, so a missing `origin/<name>` is fetched before giving up.
+ */
 function resolveRef(candidates: ReadonlyArray<string>, cwd: string): string {
+  for (const candidate of candidates) if (refExists(candidate, cwd)) return candidate;
   for (const candidate of candidates) {
-    const result = NodeChildProcess.spawnSync(
-      "git",
-      ["rev-parse", "--verify", "--quiet", candidate],
-      {
-        cwd,
-        encoding: "utf8",
-      },
-    );
-    if (result.status === 0) return candidate;
+    const name = candidate.replace(/^origin\//, "");
+    if (name === candidate) continue;
+    fetchBranch(name, cwd);
+    if (refExists(candidate, cwd)) return candidate;
   }
   throw new Error(`None of ${candidates.join(", ")} resolves; fetch the ref first.`);
+}
+
+function mergeBase(base: string, cwd: string): string {
+  if (gitQuietly(["merge-base", base, "HEAD"], cwd))
+    return git(["merge-base", base, "HEAD"], cwd).trim();
+  // A shallow PR checkout: deepen until the branch point is reachable.
+  gitQuietly(["fetch", "--quiet", "--no-tags", "--deepen=2000", "origin"], cwd);
+  return git(["merge-base", base, "HEAD"], cwd).trim();
 }
 
 function readFlag(argv: ReadonlyArray<string>, name: string): string | undefined {
@@ -83,9 +110,8 @@ export function main(argv: ReadonlyArray<string>, cwd = process.cwd()): number {
   const base = readFlag(argv, "--base") ?? resolveRef(["origin/main", "main"], cwd);
   const upstream =
     readFlag(argv, "--upstream") ?? resolveRef(["upstream-base", "origin/upstream-base"], cwd);
-  const mergeBase = git(["merge-base", base, "HEAD"], cwd).trim();
   const changed = new Set<string>();
-  for (const line of git(["diff", "--name-only", mergeBase], cwd).split("\n")) {
+  for (const line of git(["diff", "--name-only", mergeBase(base, cwd)], cwd).split("\n")) {
     if (line.trim().length > 0) changed.add(line.trim());
   }
   const upstreamOwned = new Set(
