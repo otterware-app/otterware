@@ -12,7 +12,6 @@ import { selectBrowserModules } from "@otterware/composition/browser";
 import { PROFILES } from "@otterware/profiles";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as FetchHttpClient from "effect/http/FetchHttpClient";
 import * as RpcServer from "effect/rpc/RpcServer";
 
 import { BrowserPlatform } from "../BrowserPlatform.ts";
@@ -34,11 +33,7 @@ export const layerConnected = (cloud: FakeCloud) =>
         ),
         Layer.provide(layerSuiteMemory),
         Layer.provide(
-          Layer.mergeAll(
-            NodeServices.layer,
-            FetchHttpClient.layer,
-            Layer.succeed(BrowserPlatform, cloud.platform),
-          ),
+          Layer.mergeAll(NodeServices.layer, Layer.succeed(BrowserPlatform, cloud.platform)),
         ),
       );
       return Layer.merge(

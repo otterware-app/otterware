@@ -291,6 +291,27 @@ describe("parallel Cloud Worker", () => {
     });
     socket.close();
   });
+  it("opens Mail's tunnel from a browser with a one-time ticket only", async () => {
+    const ticket = async () =>
+      (
+        (await (
+          await request("/v1/cloud/channel-ticket", {
+            method: "POST",
+            headers: headers(await token()),
+          })
+        ).json()) as { ticket: string }
+      ).ticket;
+    const tunnel = (query: string) =>
+      request(`/v1/cloud/mail/tunnel?host=imap.example.com&port=993${query}`, {
+        headers: { upgrade: "websocket", origin: "https://mail.otterware.app" },
+      });
+    // Without a ticket the request needs the usual headers; a WebSocket from a page has none.
+    expect((await tunnel("")).status).toBe(401);
+    const once = await ticket();
+    // Past Cloud's checks it reaches the Mail relay, unconfigured in this test.
+    expect((await tunnel(`&ticket=${once}`)).status).toBe(503);
+    expect((await tunnel(`&ticket=${once}`)).status).toBe(401);
+  });
   it("keeps the imported OpenRouter connection API account-scoped", async () => {
     const response = await request("/v1/cloud/agent/connection", {
       headers: headers(await token()),

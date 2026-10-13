@@ -13,13 +13,16 @@ import {
 } from "@otterware/module-kit/runtime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as FetchHttpClient from "effect/http/FetchHttpClient";
 
 import * as BrowserAccount from "./account/BrowserAccount.ts";
+import { layerAccountCredential } from "./account/credential.ts";
 import { layerAccountHandlers } from "./account/handlers.ts";
 import * as AgentStore from "./agent/AgentStore.ts";
 import * as BrowserAgent from "./agent/BrowserAgent.ts";
 import { layerAgentHandlers } from "./agent/handlers.ts";
 import * as BrowserInstallation from "./BrowserInstallation.ts";
+import { BrowserPlatform } from "./BrowserPlatform.ts";
 import { BrowserModulesRpcGroup } from "./contracts.ts";
 
 /**
@@ -34,6 +37,19 @@ export const layerNoAssistantProject = Layer.succeed(AssistantProjectHost, {
     }),
   ),
 });
+
+/** Engines' `HttpClient` over the platform's fetch, so every request the worker makes goes one way. */
+const layerHttpClient = FetchHttpClient.layer.pipe(
+  Layer.provide(
+    Layer.effect(
+      FetchHttpClient.Fetch,
+      Effect.gen(function* () {
+        const platform = yield* BrowserPlatform;
+        return platform.fetch;
+      }),
+    ),
+  ),
+);
 
 /**
  * Every handler of `BrowserEnvironmentRpcGroup` over the module runtime, the
@@ -52,6 +68,8 @@ export const layerHost =
       Layer.provideMerge(BrowserAgent.layer),
       Layer.provideMerge(AgentStore.layer),
       Layer.provideMerge(layerRuntime<Requirements>(modules)),
+      Layer.provideMerge(layerAccountCredential),
       Layer.provideMerge(BrowserAccount.layer),
       Layer.provideMerge(BrowserInstallation.layer),
+      Layer.provideMerge(layerHttpClient),
     );

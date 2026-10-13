@@ -1,7 +1,7 @@
 import { gmailPush } from "./push.ts";
 import mail from "../mail/src/worker.ts";
 import { mailEnv } from "./legacy.ts";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { cors } from "hono/cors";
 import { bodyLimit } from "hono/body-limit";
 import { getCookie, setCookie, deleteCookie } from "hono/cookie";
@@ -109,19 +109,22 @@ app.get("/v1/cloud/providers/:provider/callback", async (c) => {
   const destination = await finishConnection(c.env, provider, code, state, cookie);
   return c.redirect(destination, 303);
 });
-app.get("/v1/cloud/channel", async (c) => {
-  requireBrowserOrigin(c.req.raw, c.env);
-  if (c.req.header("upgrade")?.toLowerCase() !== "websocket") throw new HTTPException(426);
-  const ticket = z.uuid().parse(c.req.query("ticket"));
+/** Spends a one-time WebSocket ticket: browsers cannot send headers with a WebSocket. */
+async function spendTicket(c: Context<App>, ticket: string | undefined) {
   const row = await c.env.ACCOUNT_DATA.prepare(
     "DELETE FROM channel_ticket WHERE id=? AND expires_at>? RETURNING credential",
   )
-    .bind(ticket, Date.now())
+    .bind(z.uuid().parse(ticket), Date.now())
     .first<{ credential: string }>();
   if (!row) throw new HTTPException(401);
-  const credential = z
+  return z
     .object({ token: z.string(), audience: audienceSchema })
     .parse(JSON.parse(row.credential));
+}
+app.get("/v1/cloud/channel", async (c) => {
+  requireBrowserOrigin(c.req.raw, c.env);
+  if (c.req.header("upgrade")?.toLowerCase() !== "websocket") throw new HTTPException(426);
+  const credential = await spendTicket(c, c.req.query("ticket"));
   const request = new Request(c.req.raw, {
     headers: {
       upgrade: "websocket",
@@ -133,6 +136,24 @@ app.get("/v1/cloud/channel", async (c) => {
   return c.env.ENVIRONMENT_HUB.get(c.env.ENVIRONMENT_HUB.idFromName(identity.userId)).fetch(
     request,
   );
+});
+/**
+ * Mail's TCP tunnel for the in-browser environment's IMAP and SMTP (ADR 0008):
+ * a WebSocket, so it authenticates with a channel ticket instead of headers.
+ * Requests without a ticket fall through to the authenticated route below.
+ */
+app.get("/v1/cloud/mail/tunnel", async (c, next) => {
+  const ticket = c.req.query("ticket");
+  if (ticket === undefined) return next();
+  requireBrowserOrigin(c.req.raw, c.env);
+  const credential = await spendTicket(c, ticket);
+  const headers = new Headers(c.req.raw.headers);
+  headers.set("authorization", `Bearer ${credential.token}`);
+  headers.set("x-otter-audience", credential.audience);
+  const identity = await authenticate(new Request(c.req.raw, { headers }), c.env);
+  const url = new URL(c.req.url);
+  url.searchParams.delete("ticket");
+  return forwardToMail(c, new Request(url, c.req.raw), identity.sessionToken);
 });
 app.use("/v1/cloud/*", async (c, next) => {
   c.set("identity", await authenticate(c.req.raw, c.env));
@@ -215,22 +236,20 @@ app.all("/v1/cloud/agent/*", async (c) => {
     new Request(c.req.raw, { headers }),
   );
 });
-app.all("/v1/cloud/mail/*", async (c) => {
+/** Hands a request to the Mail relay as the account, once Cloud has authenticated it. */
+function forwardToMail(c: Context<App>, request: Request, sessionToken: string) {
   if (!c.env.MAIL_SECRET)
     throw new HTTPException(503, { message: "Mail compatibility secret is not configured." });
-  const url = new URL(c.req.url);
+  const url = new URL(request.url);
   url.pathname = url.pathname.replace("/v1/cloud/mail/", "/v1/");
   // Authentication is checked at the Cloud boundary, then the existing relay checks the account session.
-  const headers = new Headers(c.req.raw.headers);
-  headers.set("authorization", `Bearer ${c.var.identity.sessionToken}`);
+  const headers = new Headers(request.headers);
+  headers.set("authorization", `Bearer ${sessionToken}`);
   headers.delete("cookie");
   const bindings = { ...mailEnv(c.env), APP_ORIGIN: c.req.header("origin") ?? c.env.CLOUD_ORIGIN };
-  return mail.fetch(
-    new Request(url, new Request(c.req.raw, { headers })),
-    bindings,
-    c.executionCtx,
-  );
-});
+  return mail.fetch(new Request(url, new Request(request, { headers })), bindings, c.executionCtx);
+}
+app.all("/v1/cloud/mail/*", (c) => forwardToMail(c, c.req.raw, c.var.identity.sessionToken));
 app.all("/api/*", (c) => drive(c.req.raw, c.env, true));
 app.notFound((c) => {
   const asset = driveStaticRequest(c.req.raw);
