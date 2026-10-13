@@ -55,7 +55,6 @@ import {
 import { toast } from "../gmail/toast";
 
 export function requestProblemReport(): void {
-  // Let the originating menu close before Radix transfers focus to the sheet.
   void mailBridge.openExternal(
     "https://github.com/otterware-app/otterware/issues/new?title=Mail%3A%20",
   );

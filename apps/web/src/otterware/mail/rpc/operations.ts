@@ -34,6 +34,20 @@ export const mailOperations: Record<
   string,
   (environmentId: EnvironmentId, input: unknown) => Promise<unknown>
 > = {
+  "gmail:addOutlookAccount": operation(
+    createEnvironmentRpcCommand(connectionAtomRuntime, {
+      label: "mail.gmail.addOutlookAccount",
+      tag: "mail.gmail.addOutlookAccount",
+    }),
+    Schema.decodeUnknownSync(MailOperations["gmail:addOutlookAccount"].payloadSchema),
+  ),
+  "gmail:mailProviders": operation(
+    createEnvironmentRpcCommand(connectionAtomRuntime, {
+      label: "mail.gmail.mailProviders",
+      tag: "mail.gmail.mailProviders",
+    }),
+    Schema.decodeUnknownSync(MailOperations["gmail:mailProviders"].payloadSchema),
+  ),
   "gmail:listAccounts": operation(
     createEnvironmentRpcCommand(connectionAtomRuntime, {
       label: "mail.gmail.listAccounts",

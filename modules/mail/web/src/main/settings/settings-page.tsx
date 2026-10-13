@@ -366,7 +366,7 @@ function GeneralPane() {
       <SettingsSection title="Support">
         <SettingsRow
           {...searchableSetting("send-feedback")}
-          description="Report a bug or suggest a feature, with optional agent investigation."
+          description="Report a Mail bug or suggest a feature on GitHub."
           control={
             <Btn size="sm" onClick={requestProblemReport}>
               Send feedback
