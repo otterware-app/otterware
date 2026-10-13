@@ -1,3 +1,4 @@
+import { moduleWorkerPlugin } from "../../scripts/otterware/module-workers.ts";
 import "vite-plus/test/config";
 import { defineConfig, mergeConfig } from "vite-plus";
 
@@ -76,6 +77,8 @@ export default mergeConfig(
       },
     },
     pack: {
+      // Otterware seam: self-contained module workers travel with every host artifact.
+      plugins: [moduleWorkerPlugin()],
       // The executable embeds one entry; the history worker becomes a hidden
       // subcommand there instead of a sibling script.
       entry: packExecutable ? ["src/bin.ts"] : ["src/bin.ts", "src/claude-history-worker.ts"],

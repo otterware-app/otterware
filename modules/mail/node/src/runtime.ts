@@ -1,3 +1,4 @@
+import { bundledMailWorker } from "./workerSource.ts";
 import * as NodeWorkerThreads from "node:worker_threads";
 import type { OtterAccountSession } from "@otterware/mail-engine/account-session";
 import type { Platform } from "@otterware/mail-engine/platform";
@@ -20,10 +21,15 @@ export async function openMailWorker(
   options: MailNodeOptions,
   onEvent: (event: MailEvent) => void,
 ) {
+  const packaged =
+    options.workerUrl ??
+    (bundledMailWorker
+      ? new URL(`data:text/javascript;base64,${Buffer.from(bundledMailWorker).toString("base64")}`)
+      : undefined);
   const worker = new NodeWorkerThreads.Worker(
-    options.workerUrl ?? new URL(import.meta.resolve("@otterware/mail-node/worker")),
+    packaged ?? new URL(import.meta.resolve("@otterware/mail-node/worker")),
     {
-      execArgv: options.workerUrl ? [] : ["--experimental-transform-types"],
+      execArgv: packaged ? [] : ["--experimental-transform-types"],
       workerData: {
         stateDir: options.stateDir,
         profile: options.profile,
