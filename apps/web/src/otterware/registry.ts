@@ -12,15 +12,14 @@ import { HomeWebModule } from "./home/HomeWebModule";
 import { CalendarWebModule } from "./calendar/CalendarWebModule";
 
 /** Every module page this repository knows. A new module adds one line. */
-export const WEB_MODULES = {
+const WEB_MODULES = {
   home: HomeWebModule,
   calendar: CalendarWebModule,
 } as const satisfies Partial<Record<ModuleId, WebModule>>;
 
 export type KnownWebModuleId = keyof typeof WEB_MODULES;
 
-export const isKnownWebModuleId = (id: string): id is KnownWebModuleId =>
-  Object.hasOwn(WEB_MODULES, id);
+const isKnownWebModuleId = (id: string): id is KnownWebModuleId => Object.hasOwn(WEB_MODULES, id);
 
 import { composeWebModules } from "@otterware/composition/web";
 

@@ -15,7 +15,7 @@ import { connectionAtomRuntime } from "../connection/runtime";
 import { usePrimaryEnvironmentId } from "../state/environments";
 import { useEnvironmentQuery } from "../state/query";
 
-export const modulesListQuery = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntime, {
+const modulesListQuery = createEnvironmentRpcQueryAtomFamily(connectionAtomRuntime, {
   label: "environment-data:otterware:modules-list",
   tag: HOST_METHODS.modulesList,
   staleTimeMs: 5_000,

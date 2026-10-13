@@ -27,7 +27,7 @@ const Briefs = Schema.Record(
   Schema.Struct({ environmentId: Schema.String, threadId: Schema.String }),
 );
 
-export function briefPrompt(event: HomeTodayEntry): string {
+function briefPrompt(event: HomeTodayEntry): string {
   return [
     `Prepare a short brief for my meeting “${event.title}” at ${formatClock(event.startsAt)} (calendar event ${event.id}).`,
     "Use the calendar tools to read the event and its attendees, search mail for recent threads with them or about the topic, and find related Drive docs and Code threads.",

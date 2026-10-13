@@ -40,14 +40,14 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import { homeCommands } from "./homeRpc";
 import { HOME_MODULES } from "./homePresentation";
 
-export const EMPTY_PROJECT_RULES: HomeProjectRules = {
+const EMPTY_PROJECT_RULES: HomeProjectRules = {
   code: { projectIds: [] },
   mail: { senders: [], domains: [], labels: [], projectIds: [] },
   calendar: { calendarIds: [], keywords: [] },
   drive: { folderIds: [], folderSlugs: [] },
 };
 
-export const EMPTY_VIEW_FILTER: HomeViewFilter = {
+const EMPTY_VIEW_FILTER: HomeViewFilter = {
   modules: [],
   projectIds: [],
   kinds: [],

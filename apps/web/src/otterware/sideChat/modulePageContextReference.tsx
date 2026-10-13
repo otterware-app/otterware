@@ -10,15 +10,11 @@ import {
   formatComposerContextReference,
   sanitizeComposerContextLabel,
 } from "@t3tools/shared/composerContextReferences";
-import type { ReactNode } from "react";
 
-import { ContextChipShell } from "../../components/contextChipParts";
 import type { ChatViewOutgoingMessageDecoration } from "../../components/ChatView";
 import { randomUUID } from "../../lib/utils";
 import { moduleRegistry } from "../registry";
-import type { ModulePageContext } from "@otterware/module-kit/web";
-
-export const MODULE_PAGE_CONTEXT_KIND = "module-page";
+import { MODULE_PAGE_CONTEXT_KIND, type ModulePageContext } from "@otterware/module-kit/web";
 
 /** The chip label: "Calendar · Tuesday" or "Mail · Re: CORS for desktop". */
 export function modulePageContextLabel(context: ModulePageContext): string {
@@ -55,28 +51,4 @@ export function modulePageContextDecoration(
     prefix: `${formatComposerContextReference({ kind: MODULE_PAGE_CONTEXT_KIND, contextId, label })} `,
     records: [record],
   };
-}
-
-/**
- * The transcript chip for a `module-page` reference; null for other kinds so
- * the timeline's own fallback still handles them.
- */
-export function renderModulePageContextChip(
-  kind: string,
-  label: string,
-  copyMarkdown: string,
-): ReactNode | null {
-  if (kind !== MODULE_PAGE_CONTEXT_KIND) return null;
-  const module = moduleRegistry.modules.find((entry) => label.startsWith(entry.label));
-  const Icon = module?.icon ?? moduleRegistry.modules[0]!.icon;
-  return (
-    <ContextChipShell
-      kind="neutral"
-      icon={<Icon />}
-      label={label}
-      aria-label={`Page context, ${label}`}
-      data-markdown-copy={copyMarkdown}
-      tooltip="What was on screen when this was sent. The agent can open it with the Otterware tools."
-    />
-  );
 }

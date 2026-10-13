@@ -27,7 +27,7 @@ const errorText = (error: unknown) =>
   error instanceof Error && error.message.trim().length > 0 ? error.message : undefined;
 
 /** The context a Home item carries into a thread it starts. */
-export function homeItemContext(item: HomeRankedItem): ModulePageContext {
+function homeItemContext(item: HomeRankedItem): ModulePageContext {
   return {
     module: item.module,
     title: item.title,
