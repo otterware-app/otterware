@@ -32,7 +32,11 @@ export async function workerLifecycle<W extends { close(): Promise<void> }>(
   try {
     await ready;
   } catch (error) {
+    closed = true;
+    ++version;
     stop();
+    await ready.catch(() => {});
+    await worker?.close();
     throw error;
   }
   return {
