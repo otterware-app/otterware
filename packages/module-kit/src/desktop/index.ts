@@ -1,4 +1,5 @@
 import * as Schema from "effect/Schema";
+import type { ModuleDesktopBridge } from "./bridge.ts";
 
 export { MODULE_DESKTOP_REQUEST, MODULE_DESKTOP_EVENT } from "./bridge.ts";
 export type { ModuleDesktopBridge, ModuleDesktopEvent } from "./bridge.ts";
