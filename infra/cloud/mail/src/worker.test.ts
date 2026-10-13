@@ -744,23 +744,10 @@ describe("preferences", () => {
     await call("PUT", "/v1/preferences", token, { hermesKey: "sk-secret" });
     expect((await preferences(token)).hermesKey).toBe("sk-secret");
 
-    // What the database holds is sealed.
-    const stored = execFileSync(
-      "pnpm",
-      [
-        "exec",
-        "wrangler",
-        "d1",
-        "execute",
-        "otter-mail-relay",
-        "--local",
-        "--persist-to",
-        persistDir,
-        "--json",
-        "--command",
-        "SELECT hermes_key FROM preferences WHERE hermes_key IS NOT NULL",
-      ],
-      { cwd: root, encoding: "utf8", env: { ...process.env, CI: "1" } },
+    // What the database holds is sealed. Read the workerd D1 file directly: a second
+    // Wrangler runtime on the same persist directory knocks out the running worker.
+    const stored = JSON.stringify(
+      d1Rows("SELECT hermes_key FROM preferences WHERE hermes_key IS NOT NULL"),
     );
     expect(stored).toContain("hermes_key");
     expect(stored).not.toContain("sk-secret");
@@ -773,8 +760,7 @@ describe("preferences", () => {
 
     const { token: other } = await signIn("someone-else@example.com");
     expect(await preferences(other)).toEqual({ preferences: {}, hermesKey: null });
-    // Inspecting D1 starts a second Wrangler runtime; allow its cold start in CI.
-  }, 30_000);
+  });
 
   it("keeps every section when devices write at the same time", async () => {
     const { token } = await signIn("prefs-race@example.com");
@@ -1569,20 +1555,25 @@ describe("Otter identity provider", () => {
   });
 });
 
-/** Read the actual workerd D1, including foreign-key cleanup after lifecycle hooks. */
-function pushRows(table: "push_devices" | "push_mailboxes", userId?: string) {
+/** Read the actual workerd D1 file, read-only, without starting another runtime. */
+function d1Rows(sql: string, ...params: Array<string>) {
   const file = NodeFS.readdirSync(persistDir, { recursive: true }).find(
     (file) => String(file).includes("d1/") && String(file).endsWith(".sqlite"),
   );
   if (!file) throw new Error("Test D1 not found");
   const db = new DatabaseSync(NodePath.join(persistDir, String(file)), { readOnly: true });
   try {
-    return db
-      .prepare(`SELECT * FROM ${table}${userId ? " WHERE user_id=?" : ""}`)
-      .all(...(userId ? [userId] : []));
+    return db.prepare(sql).all(...params);
   } finally {
     db.close();
   }
+}
+
+/** Push rows, including foreign-key cleanup after lifecycle hooks. */
+function pushRows(table: "push_devices" | "push_mailboxes", userId?: string) {
+  return userId
+    ? d1Rows(`SELECT * FROM ${table} WHERE user_id=?`, userId)
+    : d1Rows(`SELECT * FROM ${table}`);
 }
 
 const pushRegistration = (token: string, mailboxes: string[]) => ({
