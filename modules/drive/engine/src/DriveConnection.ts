@@ -48,7 +48,6 @@ export const makeDriveConnection = (api: DriveApi, baseUrl: string) =>
       accessToken: string;
       at: number;
       token: string;
-      at: number;
       account: { userId: string | null; name: string } | null;
     } | null = null;
     let fallbackAccessToken: string | null = null;
