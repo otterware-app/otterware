@@ -13,6 +13,8 @@ import { HardDriveIcon } from "lucide-react";
 export const createDriveWebModule = (
   page: WebModule["page"],
   settings: WebModuleSettingsSection["component"],
+  /** A thread's linked documents, from the environment's Drive module. */
+  threadAccessory: NonNullable<WebModule["threadAccessory"]>,
 ) =>
   defineWebModule({
     id: "drive",
@@ -49,4 +51,5 @@ export const createDriveWebModule = (
     searchTerms: ["drive", "files", "documents", "folders", "upload"],
     serverModule: null,
     sideChat: true,
+    threadAccessory,
   });

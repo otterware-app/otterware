@@ -58,6 +58,7 @@ import {
   useEnsureAssistantProject,
 } from "../assistantThreads";
 import { moduleRegistry } from "../registry";
+import { ModuleThreadAccessories } from "../ModuleThreadAccessories";
 import { useCurrentModulePageContext } from "@otterware/module-kit/web";
 import { modulePageContextDecoration, modulePageContextLabel } from "./modulePageContextReference";
 
@@ -268,6 +269,15 @@ export function ModuleSideChat({
           <PanelRightCloseIcon />
         </HeaderButton>
       </WorkspacePageHeader>
+      {activeTarget?.kind === "server" ? (
+        <ModuleThreadAccessories
+          className="shrink-0 justify-end border-b border-border px-3 py-1"
+          environmentId={activeTarget.environmentId}
+          threadId={activeTarget.threadId}
+          sideChat
+          pageContext={pageContext}
+        />
+      ) : null}
       {pageContext ? (
         <label className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1.5 text-muted-foreground text-xs">
           <span className="min-w-0 flex-1 truncate">

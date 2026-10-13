@@ -97,6 +97,15 @@ export const OtterwareWsRpcGroup = WsRpcGroup.merge(
 export * from "@otterware/home-contracts";
 export { HomeItemAction, HomeItemTarget, HomeItemModule } from "@otterware/module-kit/contracts";
 export {
+  DRIVE_METHODS,
+  DRIVE_DEFAULT_BASE_URL,
+  driveThreadLinkTitle,
+  parseDriveUrl,
+  type DriveDocumentKind,
+  type DriveDocumentSummary,
+  type DriveThreadLink,
+} from "@otterware/drive-contracts";
+export {
   CalendarError,
   CalendarAccountId,
   CalendarId,

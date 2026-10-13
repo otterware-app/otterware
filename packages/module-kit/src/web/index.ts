@@ -12,6 +12,7 @@ export {
   moduleSettingsPath,
   type ModulePageProps,
   type ModuleRegistry,
+  type ModuleThreadAccessoryProps,
   type RailPosition,
   type WebModule,
   type WebModuleCommand,
