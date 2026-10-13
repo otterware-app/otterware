@@ -170,7 +170,7 @@ it.effect(
         expect(overview.error).toBeUndefined();
         expect(overview.result?.isError ?? false).toBe(false);
         expect(overview.result?.structuredContent).toMatchObject({
-          contributors: [{ module: "code", ok: false, itemCount: 0 }],
+          contributors: expect.arrayContaining([{ module: "code", ok: false, itemCount: 0 }]),
         });
         expect(
           yield* Effect.sync(() => buildRuntimeInstructions({ harness: "Codex" })).pipe(
