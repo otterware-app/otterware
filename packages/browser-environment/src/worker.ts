@@ -19,6 +19,7 @@ import * as Reactivity from "effect/reactivity/Reactivity";
 import * as RpcServer from "effect/rpc/RpcServer";
 
 import { BrowserPlatform } from "./BrowserPlatform.ts";
+import { loadIndexedDbKey } from "./BrowserSecrets.ts";
 import { BrowserEnvironmentRpcGroup } from "./contracts.ts";
 import { layerHost } from "./host.ts";
 import { openOpfsDatabases } from "./sqlite/opfs.ts";
@@ -47,6 +48,7 @@ const layerMain = RpcServer.layer(BrowserEnvironmentRpcGroup).pipe(
       Layer.succeed(BrowserPlatform, {
         fetch: globalThis.fetch.bind(globalThis),
         WebSocket: globalThis.WebSocket,
+        secretKey: loadIndexedDbKey,
       }),
     ),
   ),
