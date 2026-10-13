@@ -54,10 +54,11 @@ jobs:
             test -n "${!name}" || { echo "::error::Missing $name"; exit 1; }
           done
           gh api repos/otterware-app/otterware --jq '.permissions.push' | grep -qx true
-          # W2 owns identity wiring; never publish a Code-branded build under another profile.
-          grep -q '@otterware/profiles' scripts/build-desktop-artifact.ts
+      - name: Verify publishing order and pinned manifests
+        run: node --test scripts/otterware/publish-release.node-test.mjs
       - id: plan
         env:
+          REQUIRE_PROFILE_IDENTITY: "1"
           RELEASE_PROFILES: ${{ inputs.profiles }}
           RELEASE_BRANCH: ${{ inputs.channel || (github.ref_type == 'branch' && github.ref_name) || '' }}
         run: RELEASE_DATE=$(date -u +%Y%m%d) node scripts/otterware/release-plan.ts

@@ -24,6 +24,14 @@ export function releaseBranch(input: string) {
 
 if (process.argv[1]?.endsWith("release-plan.ts")) {
   const profiles = releaseProfiles(process.env.RELEASE_PROFILES ?? "");
+  if (
+    profiles.some((profile) => profile.id !== "code") &&
+    process.env.REQUIRE_PROFILE_IDENTITY === "1"
+  ) {
+    const packager = NodeFS.readFileSync("scripts/build-desktop-artifact.ts", "utf8");
+    if (!packager.includes("activeProfile.brand.appId"))
+      throw new Error("Non-Code builds require W2 profile identity wiring");
+  }
   const tagBranch = /^otterware-build-channel-(.+)--[^-].*$/.exec(
     process.env.GITHUB_REF_NAME ?? "",
   )?.[1];
