@@ -1,0 +1,75 @@
+name: Auto-rebase
+
+# Many agents merge into main at once, so auto-merge PRs keep going stale or conflicting,
+# almost always only in pnpm-lock.yaml. After each push to main, rebase every open auto-merge
+# PR into main that conflicts or is behind, regenerating the lockfile instead of merging it.
+# PRs with real conflicts get one comment and are left to their author.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auto-rebase
+  cancel-in-progress: false
+
+jobs:
+  rebase:
+    if: github.repository == 'otterware-app/otterware'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ secrets.OTTERWARE_RELEASES_TOKEN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.OTTERWARE_RELEASES_TOKEN }}
+          fetch-depth: 0
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+
+      - name: Rebase stale auto-merge PRs
+        run: |
+          git config user.name "otterware-bot"
+          git config user.email "otterware-bot@users.noreply.github.com"
+          prs=$(gh pr list --base main --state open --json number,headRefName,isCrossRepository,autoMergeRequest,mergeStateStatus \
+            --jq '.[] | select(.autoMergeRequest != null and (.isCrossRepository|not) and (.mergeStateStatus == "DIRTY" or .mergeStateStatus == "BEHIND")) | "\(.number) \(.headRefName)"')
+          [ -z "$prs" ] && { echo "Nothing to rebase."; exit 0; }
+          echo "$prs" | while read -r number branch; do
+            echo "::group::#$number ($branch)"
+            git fetch -q origin "$branch" main
+            git checkout -q -B "$branch" "origin/$branch"
+            ok=1
+            if ! git rebase -q origin/main; then
+              while [ -d "$(git rev-parse --git-path rebase-merge)" ]; do
+                conflicts=$(git diff --name-only --diff-filter=U)
+                if [ "$conflicts" = "pnpm-lock.yaml" ]; then
+                  git checkout origin/main -- pnpm-lock.yaml && git add pnpm-lock.yaml
+                  GIT_EDITOR=true git rebase --continue || true
+                else
+                  echo "Real conflicts: $conflicts"; git rebase --abort; ok=0; break
+                fi
+              done
+            fi
+            if [ "$ok" = 1 ]; then
+              git checkout origin/main -- pnpm-lock.yaml
+              vp install --no-frozen-lockfile --ignore-scripts > /dev/null
+              if ! git diff --quiet pnpm-lock.yaml; then
+                git add pnpm-lock.yaml
+                git commit -q -m "chore: regenerate pnpm-lock.yaml from main"
+              fi
+              git push -q --force-with-lease="$branch:origin/$branch" origin "HEAD:$branch" && echo "Rebased #$number"
+            elif ! gh pr view "$number" --json comments --jq '.comments[].body' | grep -q "auto-rebase: needs a manual rebase"; then
+              gh pr comment "$number" --body "auto-rebase: needs a manual rebase onto main (conflicts beyond pnpm-lock.yaml)."
+            fi
+            echo "::endgroup::"
+          done
