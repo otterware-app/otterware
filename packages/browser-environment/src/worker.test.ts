@@ -6,51 +6,43 @@ import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import { selectBrowserModules } from "@otterware/composition/browser";
 import { ModuleOffError } from "@otterware/module-kit/contracts";
-import { SuiteSqlClient } from "@otterware/module-kit/runtime";
 import { PROFILES } from "@otterware/profiles";
-import sqlite3InitModule from "@sqlite.org/sqlite-wasm";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import * as FetchHttpClient from "effect/http/FetchHttpClient";
-import * as Reactivity from "effect/reactivity/Reactivity";
 import * as RpcServer from "effect/rpc/RpcServer";
 
 import { layerProtocol, makeBrowserEnvironmentClient } from "./client.ts";
 import { BROWSER_ENVIRONMENT_MODULE_IDS, BrowserEnvironmentRpcGroup } from "./contracts.ts";
 import { layerHost } from "./host.ts";
-import * as SqliteWasmClient from "./sqlite/SqliteWasmClient.ts";
-
-/** `suite.sqlite` in memory, on the same SQLite build the worker opens on OPFS. */
-const layerSuiteMemory = Layer.effect(
-  SuiteSqlClient,
-  Effect.gen(function* () {
-    const sqlite3 = yield* Effect.promise(() => sqlite3InitModule());
-    const db = yield* Effect.acquireRelease(
-      Effect.sync(() => new sqlite3.oo1.DB(":memory:")),
-      (db) => Effect.sync(() => db.close()),
-    );
-    return yield* SqliteWasmClient.make(db);
-  }),
-).pipe(Layer.provide(Reactivity.layer));
+import { ACCOUNTS_URL, CLOUD_ORIGIN, makeFakeCloud } from "./test/fakeCloud.ts";
+import { layerSuiteMemory } from "./test/suiteMemory.ts";
+import { BrowserPlatform } from "./BrowserPlatform.ts";
 
 /**
  * The worker's server on one end of a channel and the page's client on the
  * other: everything crosses the port as the worker protocol's messages.
  */
+const cloud = makeFakeCloud();
+
 const layerConnected = Layer.unwrap(
   Effect.sync(() => {
     const channel = new NodeWorkerThreads.MessageChannel();
     const server = RpcServer.layer(BrowserEnvironmentRpcGroup).pipe(
-      Layer.provide(
-        layerHost()(BrowserEnvironmentRpcGroup, selectBrowserModules(PROFILES.otterware)),
-      ),
+      Layer.provide(layerHost()(selectBrowserModules(PROFILES.otterware))),
       Layer.provide(RpcServer.layerProtocolWorkerRunner),
       Layer.provide(BrowserWorkerRunner.layerMessagePort(channel.port1 as unknown as MessagePort)),
       Layer.provide(layerSuiteMemory),
-      Layer.provide(Layer.mergeAll(NodeServices.layer, FetchHttpClient.layer)),
+      Layer.provide(
+        Layer.mergeAll(
+          NodeServices.layer,
+          FetchHttpClient.layer,
+          Layer.succeed(BrowserPlatform, cloud.platform),
+        ),
+      ),
     );
     return Layer.merge(
       server,
@@ -110,6 +102,67 @@ it.layer(layerConnected, { timeout: 30_000 })("in-browser environment worker pro
         Stream.runHead,
       );
       assert.isTrue(Option.isSome(directory));
+    }),
+  );
+
+  it.effect("signs the browser in to Otter Cloud as its own device", () =>
+    Effect.gen(function* () {
+      const client = yield* makeBrowserEnvironmentClient;
+      cloud.cloud = (path) =>
+        path === "/v1/cloud/connections"
+          ? Response.json({
+              connections: [
+                {
+                  id: "google-ada",
+                  provider: "google",
+                  email: "ada@example.com",
+                  scopes: ["calendar"],
+                  updatedAt: 1,
+                },
+              ],
+            })
+          : Response.json({ error: "not found" }, { status: 404 });
+
+      const refused = yield* Effect.flip(client["browser.account.connections"]({}));
+      assert.strictEqual(refused.reason, "signed-out");
+
+      const state = yield* client["browser.account.attach"]({
+        accessToken: "oauth-ada",
+        accountsUrl: ACCOUNTS_URL,
+        cloudOrigin: CLOUD_ORIGIN,
+      });
+      assert.deepStrictEqual(state, { status: "connected", userId: "user-ada", message: null });
+
+      const { connections } = yield* client["browser.account.connections"]({});
+      assert.deepStrictEqual(
+        connections.map((connection) => connection.email),
+        ["ada@example.com"],
+      );
+      const listed = cloud.requests.find((request) => request.url.endsWith("/connections"))!;
+      const audience = listed.headers.get("x-otter-audience")!;
+      assert.match(audience, /^browser:[0-9a-f-]{36}$/);
+      assert.strictEqual(listed.headers.get("authorization"), `Bearer cloud-${audience}`);
+
+      const watched = yield* client["browser.account.watch"]({}).pipe(
+        Stream.take(1),
+        Stream.runCollect,
+      );
+      assert.deepStrictEqual(
+        [...watched].map((entry) => entry.status),
+        ["connected"],
+      );
+
+      // An expired sign-in signs the browser out instead of keeping a dead client.
+      const expired = yield* Effect.flip(
+        client["browser.account.attach"]({
+          accessToken: "oauth-revoked",
+          accountsUrl: ACCOUNTS_URL,
+          cloudOrigin: CLOUD_ORIGIN,
+        }),
+      );
+      assert.strictEqual(expired.reason, "signed-out");
+      const after = yield* Effect.flip(client["browser.account.connections"]({}));
+      assert.strictEqual(after.reason, "signed-out");
     }),
   );
 });

@@ -1,3 +1,4 @@
+// @effect-diagnostics globalFetch:off -- The worker hands the browser's own fetch to its host services.
 /**
  * The in-browser environment (ADR 0008): a dedicated Web Worker that runs
  * the profile's module engines over SQLite in WASM on OPFS and serves their
@@ -18,6 +19,7 @@ import * as FetchHttpClient from "effect/http/FetchHttpClient";
 import * as Reactivity from "effect/reactivity/Reactivity";
 import * as RpcServer from "effect/rpc/RpcServer";
 
+import { BrowserPlatform } from "./BrowserPlatform.ts";
 import { BrowserEnvironmentRpcGroup } from "./contracts.ts";
 import { layerHost } from "./host.ts";
 import { openOpfsDatabases } from "./sqlite/opfs.ts";
@@ -36,16 +38,20 @@ const layerSuiteDatabase = Layer.effect(
 ).pipe(Layer.provide(Reactivity.layer));
 
 const layerMain = RpcServer.layer(BrowserEnvironmentRpcGroup).pipe(
-  Layer.provide(
-    layerHost<BrowserModulesRequirements>()(
-      BrowserEnvironmentRpcGroup,
-      selectBrowserModules(activeProfile),
-    ),
-  ),
+  Layer.provide(layerHost<BrowserModulesRequirements>()(selectBrowserModules(activeProfile))),
   Layer.provide(RpcServer.layerProtocolWorkerRunner),
   Layer.provide(BrowserWorkerRunner.layer),
   Layer.provide(layerSuiteDatabase),
-  Layer.provide(Layer.mergeAll(BrowserCrypto.layer, FetchHttpClient.layer)),
+  Layer.provide(
+    Layer.mergeAll(
+      BrowserCrypto.layer,
+      FetchHttpClient.layer,
+      Layer.succeed(BrowserPlatform, {
+        fetch: globalThis.fetch.bind(globalThis),
+        WebSocket: globalThis.WebSocket,
+      }),
+    ),
+  ),
 );
 
 BrowserRuntime.runMain(Layer.launch(layerMain));
