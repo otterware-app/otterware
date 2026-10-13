@@ -1,3 +1,4 @@
+import { AccountRpcGroup, ACCOUNT_RPC_SCOPES } from "./account.ts";
 import {
   AuthOrchestrationOperateScope,
   AuthOrchestrationReadScope,
@@ -60,9 +61,10 @@ export const HostRpcGroup = RpcGroup.make(
   ModulesListRpc,
   ModulesSetEnabledRpc,
   AssistantEnsureProjectRpc,
-);
+).merge(AccountRpcGroup);
 
 export const HOST_RPC_REQUIRED_SCOPES = {
+  ...ACCOUNT_RPC_SCOPES,
   [HOST_METHODS.modulesList]: AuthOrchestrationReadScope,
   [HOST_METHODS.modulesSetEnabled]: AuthSettingsWriteScope,
   [HOST_METHODS.assistantEnsureProject]: AuthOrchestrationOperateScope,

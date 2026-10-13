@@ -26,6 +26,10 @@
     "./agent-instructions": {
       "types": "./src/agent-instructions/index.ts",
       "import": "./src/agent-instructions/index.ts"
+    },
+    "./account": {
+      "types": "./src/account/index.ts",
+      "import": "./src/account/index.ts"
     }
   },
   "scripts": {
@@ -33,6 +37,7 @@
     "test": "vp test run --config ../../vite.config.ts --dir ."
   },
   "dependencies": {
+    "@otterware/otter-cloud-client": "workspace:*",
     "@t3tools/contracts": "workspace:*",
     "@t3tools/shared": "workspace:*",
     "effect": "catalog:",
