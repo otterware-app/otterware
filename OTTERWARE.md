@@ -49,6 +49,10 @@ This machine has 15 GB of RAM and several agents at once.
 - Any other typecheck, test or build goes through a shared slot, one command per call:
   `scripts/otterware/heavy.sh vp run --filter <pkg> typecheck`. Installs, format and lint need no
   slot. Never run a whole package's or the whole repo's test suite locally.
+- Never let a command hold your turn. `heavy.sh` gives up after 90 seconds without a free slot
+  (exit 75: skip it, CI will run it) and stops any command after 10 minutes. Anything else that
+  may run longer than a minute (installs in a fresh worktree, builds) runs in the background.
+  Never run repo-wide checks (knip, full suites) locally.
 - Push early: open the PR as soon as a slice typechecks, in PRs small enough to review, and let
   CI find what the local check skipped.
 - Never start a server against `~/.otter-code` or `~/.otterware`. Use a disposable `--home-dir`.
