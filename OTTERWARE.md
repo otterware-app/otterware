@@ -16,6 +16,7 @@ apps/{server,web,desktop,mobile}   upstream host; the Code product stays here
 packages/*                         upstream foundations
 packages/module-kit                registries modules plug into
 packages/provider-api-agents       OpenRouter, Hermes, OpenClaw drivers; portable protocol (ADR 0009)
+packages/browser-environment       in-browser environment: module engines in a Web Worker (ADR 0008)
 modules/<m>/contracts              Effect Schema RPC group, tool definitions, settings schema
 modules/<m>/engine                 sync, storage, tools; portable: no Node or Electron imports
 modules/<m>/node                   environment-only adapters
@@ -32,7 +33,7 @@ Modules: `home`, `mail`, `calendar`, `drive`. Profiles: `otterware` (all), `code
 ## Rules that keep the daily rebase cheap
 
 - New code goes in Otter-owned folders: `modules/`, `packages/module-kit`,
-  `packages/provider-api-agents`, `profiles/`, `infra/cloud`, `scripts/otterware/`, or files under
+  `packages/provider-api-agents`, `packages/browser-environment`, `profiles/`, `infra/cloud`, `scripts/otterware/`, or files under
   `apps/*/src/otterware/`.
 - An upstream-owned file may change only if it is listed in `scripts/otterware/upstream-seams.txt`,
   and the change there is a call into a registry. CI enforces the list. Extending it is a
