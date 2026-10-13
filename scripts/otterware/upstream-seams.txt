@@ -20,7 +20,6 @@ packages/provider-core/src/server/runtimeInstructions.ts
 
 # Web: shell, rail, palette, landing, settings, side chat, branding
 apps/web/src/components/AppSidebarLayout.tsx
-apps/web/src/components/sidebar/SpaceRail.tsx
 apps/web/src/components/CommandPalette.tsx
 apps/web/src/components/ChatView.tsx
 apps/web/src/components/settings/settingsSearch.ts
@@ -76,8 +75,7 @@ apps/desktop/src/electron/ElectronUpdater.ts
 scripts/lib/cli-external-packages*.ts
 
 # W8: runtime update/archive selection follows the baked profile feed
-packages/shared/src/cliRelease.ts
-packages/shared/src/cliRelease.test.ts
+packages/shared/src/cliRelease*.ts
 apps/server/src/cli/update.ts
 
 apps/server/src/cloud/pinnedRuntime.test.ts
