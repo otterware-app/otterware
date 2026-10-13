@@ -1,0 +1,1 @@
+Renderer imported from `otterware-app/otter-mail` at `e1f8aaa201cc7dfb596083249485590e8eb9602d`. Mail owns these feature components; the host integration replaces standalone bootstrap, navigation, IPC and agent chrome.
