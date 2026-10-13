@@ -2,7 +2,7 @@ import { CalendarNotifications } from "@otterware/composition/web/calendar/notif
 import { CalendarEnvironmentProvider } from "./rpc";
 
 /** Owns the reminder feed independently of page and settings visits. */
-export function CalendarBackgroundRuntime() {
+function CalendarBackgroundRuntime() {
   return (
     <CalendarEnvironmentProvider>
       <CalendarNotifications>{null}</CalendarNotifications>
