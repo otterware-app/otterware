@@ -673,7 +673,6 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
       assert.deepStrictEqual(winWithoutWslRuntime.asarUnpack, win.asarUnpack);
       assert.deepStrictEqual(mac.extraResources, [
         ...DESKTOP_EXTRA_RESOURCES,
-        { from: "apps/desktop/prod-resources/bin/mail-translator", to: "bin/mail-translator" },
         ...TSSERVER_EXTRA_RESOURCES,
       ]);
       assert.deepStrictEqual(linux.extraResources, [
