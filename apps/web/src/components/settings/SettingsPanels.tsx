@@ -1,3 +1,4 @@
+import { ProfileWordmark } from "../../otterware/ProfileLogo";
 import { SettingsGroup } from "./SettingsGroup";
 import { useScopedSettingsWriteAllowed } from "./useScopedSettings";
 import { Spinner } from "~/components/ui/spinner";
@@ -3345,6 +3346,7 @@ export function GeneralSettingsPanel() {
       </SettingsSection>
 
       <SettingsSection id="about" title="About">
+        <ProfileWordmark className="mb-4 flex items-center gap-2 text-lg font-medium" />
         {isElectron || HOSTED_APP_CHANNEL ? (
           <AboutVersionSection />
         ) : (

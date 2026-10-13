@@ -1,4 +1,4 @@
-import { defineProfile, OTTER_CODE_ICONS, OTTERWARE_RELEASE_REPOSITORY } from "./profile.ts";
+import { defineProfile, profileArtwork, OTTERWARE_RELEASE_REPOSITORY } from "./profile.ts";
 
 export const mailProfile = defineProfile({
   id: "mail",
@@ -14,7 +14,7 @@ export const mailProfile = defineProfile({
     slug: "otter-mail",
     devSlug: "otter-mail-dev",
     artifactName: "Otter-Mail-${version}-${arch}.${ext}",
-    icons: OTTER_CODE_ICONS,
+    icons: profileArtwork("mail"),
     npm: null,
   },
   dataHome: ".otter-mail",

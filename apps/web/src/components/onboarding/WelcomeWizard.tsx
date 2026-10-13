@@ -1,3 +1,5 @@
+import { ProfileWordmark } from "../../otterware/ProfileLogo";
+import { APP_BASE_NAME } from "../../branding";
 import { useAuth } from "../../accounts/AccountProvider";
 import { useAtomValue } from "@effect/atom-react";
 import type {
@@ -230,16 +232,9 @@ export function WelcomeWizard({
         initialFocus={() => document.getElementById("onboarding-pairing-url") ?? true}
       >
         <WizardHeader
-          title="Set up Otter Code"
+          title={`Set up ${APP_BASE_NAME}`}
           identity={
-            <div className="flex items-baseline gap-1.5" role="img" aria-label="Otter Code">
-              <span className="shrink-0 text-2xl font-medium tracking-tight" aria-hidden>
-                Otter
-              </span>
-              <span className="text-2xl font-medium tracking-tight text-muted-foreground">
-                Code
-              </span>
-            </div>
+            <ProfileWordmark className="flex items-center gap-2 text-2xl font-medium tracking-tight" />
           }
         >
           <WizardSteps

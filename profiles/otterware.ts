@@ -1,4 +1,4 @@
-import { defineProfile, OTTER_CODE_ICONS, OTTERWARE_RELEASE_REPOSITORY } from "./profile.ts";
+import { defineProfile, profileArtwork, OTTERWARE_RELEASE_REPOSITORY } from "./profile.ts";
 
 /** Every module, Code shown, on the Otter Code data home (ADR 0012). */
 export const otterwareProfile = defineProfile({
@@ -15,7 +15,7 @@ export const otterwareProfile = defineProfile({
     slug: "otterware",
     devSlug: "otterware-dev",
     artifactName: "Otterware-${version}-${arch}.${ext}",
-    icons: OTTER_CODE_ICONS,
+    icons: profileArtwork("otterware"),
     npm: null,
   },
   dataHome: ".otter-code",

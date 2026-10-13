@@ -1,3 +1,4 @@
+import { ProfileLogo } from "../../otterware/ProfileLogo";
 /**
  * The rail of spaces down the window's left edge (Otter Mail's, ChatGPT's):
  * All projects, Chats, then each project group (made in Settings), then Pull
@@ -121,6 +122,13 @@ export const SpaceRail = memo(function SpaceRail({ className }: { className?: st
         className="drag-region hidden h-(--workspace-topbar-height) w-full shrink-0 in-data-[app-frame=window]:block"
       />
       <div className="flex min-h-0 w-full flex-1 flex-col items-center gap-1 overflow-y-auto pt-(--space-rail-top) [scrollbar-width:none]">
+        <div
+          className="flex size-9 shrink-0 items-center justify-center"
+          role="img"
+          aria-label={activeProfile.brand.productName}
+        >
+          <ProfileLogo className="size-7" />
+        </div>
         <ModuleRailButtons position="start" button={RailButton} />
         {!activeProfile.codeVisible || legacySidebarEnabled ? null : (
           <>
