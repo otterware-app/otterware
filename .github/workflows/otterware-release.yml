@@ -162,16 +162,17 @@ jobs:
       - uses: actions/download-artifact@v8
         with:
           pattern: release-${{ matrix.profile }}-*
-          path: assets
+          path: release-assets
           merge-multiple: true
       - name: Require every artifact and checksum the release
         run: |
           set -euo pipefail
-          test -s assets/latest-linux.yml
-          test -s assets/latest-mac.yml
-          test -s "assets/t3-${VERSION}-linux-x64.tar.gz"
-          (cd assets && sha256sum -- * > SHA256SUMS)
-      - run: bash scripts/otterware/publish-release.sh assets
+          # Not assets/: that is the repository's artwork folder in this checkout.
+          test -s release-assets/latest-linux.yml
+          test -s release-assets/latest-mac.yml
+          test -s "release-assets/t3-${VERSION}-linux-x64.tar.gz"
+          (cd release-assets && sha256sum -- * > SHA256SUMS)
+      - run: bash scripts/otterware/publish-release.sh release-assets
       - name: Report published URLs
         run: |
           echo "Release: https://github.com/otterware-app/otterware/releases/tag/otterware-${PROFILE}-v${VERSION}" >> "$GITHUB_STEP_SUMMARY"
