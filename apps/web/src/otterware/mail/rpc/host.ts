@@ -73,11 +73,24 @@ function pickAttachments(existingBytes: number): Promise<unknown> {
     input.click();
   });
 }
+export interface MailTransport {
+  readonly id: string;
+  call(channel: string, input: unknown): Promise<unknown>;
+  subscribe(publish: (channel: string, payload: unknown) => void): () => void;
+}
 export function createMailHost(
-  environmentId: EnvironmentId,
+  environmentId: EnvironmentId | null,
   callbacks: Pick<MailWebHost, "navigate" | "openAssistant" | "publishSelection">,
   desktopCapabilities?: MailDesktopCapabilities | null,
+  transport?: MailTransport,
 ) {
+  const call = (channel: string, input: unknown): Promise<unknown> => {
+    if (transport) return transport.call(channel, input);
+    const operation = mailOperations[channel];
+    if (!environmentId || !operation)
+      return Promise.reject(new Error(`Mail operation is unavailable: ${channel}`));
+    return operation(environmentId, input);
+  };
   const listeners = new Map<string, Set<(payload: unknown) => void>>();
   let stopEvents: (() => void) | undefined;
   let stopBrowser: (() => void) | undefined;
@@ -85,7 +98,8 @@ export function createMailHost(
   const publish = (channel: string, payload: unknown) => {
     for (const listener of listeners.get(channel) ?? []) listener(payload);
   };
-  const browser = desktopCapabilities ? createMailBrowser(environmentId, publish) : null;
+  const browser =
+    desktopCapabilities && environmentId ? createMailBrowser(environmentId, publish) : null;
   const invoke = async (channel: string, input: unknown): Promise<unknown> => {
     if (browser?.methods[channel]) return browser.methods[channel](input);
     const params = record(input);
@@ -101,7 +115,7 @@ export function createMailHost(
       const bytes =
         channel === "gmail:openComposeAttachment"
           ? params
-          : record(await mailOperations["gmail:getAttachmentData"]!(environmentId, params));
+          : record(await call("gmail:getAttachmentData", params));
       return desktop.invoke("mail", "file:open", {
         name: text(params.filename) || text(params.name),
         base64: text(bytes.base64),
@@ -125,13 +139,23 @@ export function createMailHost(
           await desktop.invoke("mail", "app:setLogin", { enabled: launchAtLogin });
         if (typeof badge === "boolean") setDockBadgeEnabled(badge);
       }
-      const result = await mailOperations[channel]!(environmentId, accountSettings);
+      const result = await call(channel, accountSettings);
       return {
         ...record(result),
         ...record(await desktop.invoke("mail", "app:settings")),
         dockBadgeEnabled: dockBadgeEnabled(),
       };
     }
+    if (
+      transport &&
+      [
+        "gmail:pickAttachments",
+        "gmail:openComposeAttachment",
+        "gmail:getAttachment",
+        "gmail:openAttachment",
+      ].includes(channel)
+    )
+      return call(channel, input);
     switch (channel) {
       case "window:getSettingsTarget":
       case "window:takePendingOpenMessage":
@@ -150,7 +174,7 @@ export function createMailHost(
       case "gmail:getAttachment":
       case "gmail:openAttachment": {
         const bytes = record(
-          await mailOperations["gmail:getAttachmentData"]!(environmentId, {
+          await call("gmail:getAttachmentData", {
             accountId: params.accountId,
             messageId: params.messageId,
             attachmentId: params.attachmentId,
@@ -160,19 +184,24 @@ export function createMailHost(
         return { saved: true, ok: true };
       }
       default: {
-        const operation = mailOperations[channel];
-        if (!operation) throw new Error(`Mail operation is unavailable: ${channel}`);
-        return operation(environmentId, input);
+        return call(channel, input);
       }
     }
   };
   const host: MailWebHost = {
-    environmentId,
+    environmentId: transport?.id ?? environmentId ?? "pending",
     ...callbacks,
     platform: desktopCapabilities?.platform ?? "web",
-    canWrite: () => appAtomRegistry.get(mailWriteCommand.permissionAtom(environmentId)),
+    canWrite: () =>
+      transport
+        ? true
+        : environmentId
+          ? appAtomRegistry.get(mailWriteCommand.permissionAtom(environmentId))
+          : false,
     subscribeWritePermission: (listener) =>
-      appAtomRegistry.subscribe(mailWriteCommand.permissionAtom(environmentId), listener),
+      environmentId
+        ? appAtomRegistry.subscribe(mailWriteCommand.permissionAtom(environmentId), listener)
+        : () => {},
     features: {
       windowControls: null,
       vibrancy: false,
@@ -198,7 +227,12 @@ export function createMailHost(
       const stopDesktop = mailDesktop()?.on((event) => {
         if (event.module === "mail" && event.event === channel) listener(event.payload);
       });
-      if (!stopEvents) stopEvents = subscribeMailEvents(environmentId, publish);
+      if (!stopEvents)
+        stopEvents = transport
+          ? transport.subscribe(publish)
+          : environmentId
+            ? subscribeMailEvents(environmentId, publish)
+            : undefined;
       if (!stopBrowser && browser) stopBrowser = browser.subscribe();
       return () => {
         stopDesktop?.();
