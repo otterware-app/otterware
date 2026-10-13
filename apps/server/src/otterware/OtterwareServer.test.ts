@@ -172,7 +172,11 @@ it.effect(
         expect(overview.result?.structuredContent).toMatchObject({
           contributors: [{ module: "code", ok: false, itemCount: 0 }],
         });
-        expect(buildRuntimeInstructions({ harness: "Codex" })).toContain("home_overview");
+        expect(
+          yield* Effect.sync(() => buildRuntimeInstructions({ harness: "Codex" })).pipe(
+            Effect.provideContext(context),
+          ),
+        ).toContain("home_overview");
 
         // Off: withdrawn from the list, refused when called anyway, gone from the prompt.
         yield* runtime.setEnabled("home", false);
@@ -182,7 +186,11 @@ it.effect(
         const refused = yield* callTool("home_overview", {});
         expect(refused.result).toBeUndefined();
         expect(refused.error?.message).toContain("home_overview");
-        expect(buildRuntimeInstructions({ harness: "Codex" })).not.toContain("home_overview");
+        expect(
+          yield* Effect.sync(() => buildRuntimeInstructions({ harness: "Codex" })).pipe(
+            Effect.provideContext(context),
+          ),
+        ).not.toContain("home_overview");
 
         // Back on, without a restart.
         yield* runtime.setEnabled("home", true);

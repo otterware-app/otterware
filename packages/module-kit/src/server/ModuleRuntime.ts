@@ -1,3 +1,4 @@
+import { AgentInstructions } from "../agent-instructions/index.ts";
 // @effect-diagnostics anyUnknownInErrorContext:off unsafeEffectTypeAssertion:off -- Modules arrive type-erased (ServerModule); their layers and handlers run in the context they declared, which the composition typechecks.
 /**
  * Runs the modules of the active profile on this environment (ADR 0010). Each
@@ -6,7 +7,6 @@
  * server. The on/off choice persists in `suite.sqlite`; a module whose layer
  * fails to build is `failed` until the user turns it on again.
  */
-import { publishModuleAgentInstructions } from "../agent-instructions/index.ts";
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -112,13 +112,14 @@ export const make = <R>(modules: ReadonlyArray<ServerModule>) =>
       ]),
     };
 
-    const agentInstructions = Effect.sync(() =>
+    const instructionService = yield* AgentInstructions;
+    const agentInstructionsSnapshot = () =>
       modules
         .filter((module) => slots.get(module.contract.id)?.entry.state === "on")
         .map((module) => module.agentInstructions?.trim() ?? "")
         .filter((text) => text.length > 0)
-        .join("\n\n"),
-    );
+        .join("\n\n");
+    const agentInstructions = Effect.sync(agentInstructionsSnapshot);
 
     // The base context every module builds in: the host's services, the suite
     // database as the plain SqlClient, and the live contributor list for Home.
@@ -131,7 +132,7 @@ export const make = <R>(modules: ReadonlyArray<ServerModule>) =>
     const announce = (entry: ModuleStateEntry) =>
       Effect.gen(function* () {
         slots.get(entry.id)!.entry = entry;
-        publishModuleAgentInstructions(yield* agentInstructions);
+        instructionService.update(agentInstructionsSnapshot());
         yield* PubSub.publish(changes, entry);
       });
 

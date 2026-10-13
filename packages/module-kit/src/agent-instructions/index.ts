@@ -1,16 +1,25 @@
-/**
- * The module agent instructions as provider adapters read them. The
- * `AgentInstructions` service (module-kit server) owns the text and publishes
- * it here whenever a module turns on or off; adapters build their prompts
- * with a synchronous call (`buildRuntimeInstructions`), which is why the
- * published copy is a plain value rather than a service read.
- */
-let published = "";
+import * as Context from "effect/Context";
+import * as Fiber from "effect/Fiber";
+import * as Layer from "effect/Layer";
 
-/** Called by the `AgentInstructions` service only. */
-export const publishModuleAgentInstructions = (text: string): void => {
-  published = text;
-};
+/** Per-environment instructions, also readable at synchronous provider boundaries. */
+export class AgentInstructions extends Context.Reference<{
+  readonly read: () => string;
+  readonly update: (text: string) => void;
+}>("@otterware/module-kit/AgentInstructions", {
+  defaultValue: () => ({ read: () => "", update: () => {} }),
+}) {}
 
-/** Empty before startup, on a server without modules, or while every module is off. */
-export const moduleAgentInstructions = (): string => published;
+/** One cell per application layer build; never shared between server instances. */
+export const layer = Layer.sync(AgentInstructions, () => {
+  let text = "";
+  return {
+    read: () => text,
+    update: (next) => {
+      text = next;
+    },
+  };
+});
+
+export const moduleAgentInstructions = (): string =>
+  Fiber.getCurrent()?.getRef(AgentInstructions).read() ?? "";

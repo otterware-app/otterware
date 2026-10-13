@@ -57,8 +57,8 @@ other modules only through Home contributions and agent tools, never by importin
   and the bridge rechecks the state and the caller's access against the tool's tier before the
   handler runs. Refusals are `ModuleToolRefusedError`, so agents read why.
 - **Agent instructions.** `ModuleRuntime.agentInstructions` joins the instructions of modules that
-  are on. Provider adapters build prompts synchronously, so the runtime publishes that text to
-  `@otterware/module-kit/agent-instructions`, the one copy `runtimeInstructions.ts` reads.
+  are on. Provider adapters build prompts synchronously, so `AgentInstructions` supplies a synchronous read in the current Effect fiber. Each runtime
+  gets its own service; there is no process-global snapshot.
 - **Home.** `HomeContributors.current` is the host's contributors (Code, from the orchestration
   projections) plus those of modules that are on. The Home module reads it per overview.
 - **Data home.** `suite.sqlite` sits beside `statev2.sqlite`; the server refuses to start while

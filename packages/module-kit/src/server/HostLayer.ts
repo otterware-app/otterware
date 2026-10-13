@@ -5,6 +5,7 @@
  * package calls this with the active profile's modules; the server provides
  * the host ports (`HostPorts.ts`) and its own services underneath.
  */
+import * as AgentInstructions from "../agent-instructions/index.ts";
 import * as Layer from "effect/Layer";
 
 import type { ServerModule } from "../engine/ServerModule.ts";
@@ -29,6 +30,7 @@ export const layerMigrations = (modules: ReadonlyArray<ServerModule>) =>
  */
 export const layerRuntime = <R = never>(modules: ReadonlyArray<ServerModule>) =>
   ModuleRuntime.layer<R>(modules).pipe(
+    Layer.provideMerge(AgentInstructions.layer),
     Layer.provide(ModuleStateStore.layer.pipe(Layer.provide(SuiteDatabase.layerSqlClient))),
     Layer.provide(layerMigrations(modules)),
   );
