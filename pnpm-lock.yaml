@@ -238,7 +238,7 @@ importers:
         version: 1.60.0
       react-grab:
         specifier: ^0.1.32
-        version: 0.1.44(react@19.2.6)
+        version: 0.1.44(react@19.3.0)
       tldts:
         specifier: 'catalog:'
         version: 7.4.2
@@ -1238,12 +1238,9 @@ importers:
         specifier: 4.0.2
         version: 4.0.2(patch_hash=ec61ee307eaec3e17f757e0e6a16296ea4b7a8c3188df0c6ec5e66301fd78688)
     devDependencies:
-      '@effect/vitest':
-        specifier: 4.0.2
-        version: 4.0.2(patch_hash=595b7d26fb635caba9c3d39fcb189bb78a000192f8d3b60ead7174b310d1ade9)(@types/node@24.12.4)(@vitest/ui@5.0.1)(bufferutil@4.1.0)(effect@4.0.2(patch_hash=ec61ee307eaec3e17f757e0e6a16296ea4b7a8c3188df0c6ec5e66301fd78688))(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.0(@noble/hashes@1.8.0))(msw@2.12.11(@types/node@24.12.4)(typescript@7.0.2))(terser@5.48.0)(tsx@4.23.0)(typescript@7.0.2)(unrun@0.2.39)(utf-8-validate@6.0.6)(yaml@2.9.0)
       vite-plus:
         specifier: 1.0.0
-        version: 1.0.0(@types/node@24.12.4)(@vitest/ui@5.0.1(vitest@5.0.1))(bufferutil@4.1.0)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.0(@noble/hashes@1.8.0))(msw@2.12.11(@types/node@24.12.4)(typescript@7.0.2))(terser@5.48.0)(tsx@4.23.0)(typescript@7.0.2)(unrun@0.2.39)(utf-8-validate@6.0.6)(yaml@2.9.0)
+        version: 1.0.0(@types/node@24.12.4)(@vitest/ui@5.0.1)(bufferutil@4.1.0)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.0(@noble/hashes@1.8.0))(msw@2.12.11(@types/node@24.12.4)(typescript@7.0.2))(terser@5.48.0)(tsx@4.23.0)(typescript@7.0.2)(unrun@0.2.39)(utf-8-validate@6.0.6)(yaml@2.9.0)
 
   modules/calendar/engine:
     dependencies:
@@ -1256,9 +1253,6 @@ importers:
       '@otterware/otter-cloud-client':
         specifier: workspace:*
         version: link:../../../packages/otter-cloud-client
-      '@t3tools/contracts':
-        specifier: workspace:*
-        version: link:../../../packages/contracts
       effect:
         specifier: 4.0.2
         version: 4.0.2(patch_hash=ec61ee307eaec3e17f757e0e6a16296ea4b7a8c3188df0c6ec5e66301fd78688)
@@ -1287,22 +1281,10 @@ importers:
       '@otterware/calendar-engine':
         specifier: workspace:*
         version: link:../engine
-      '@otterware/module-kit':
-        specifier: workspace:*
-        version: link:../../../packages/module-kit
-      '@t3tools/contracts':
-        specifier: workspace:*
-        version: link:../../../packages/contracts
-      '@t3tools/shared':
-        specifier: workspace:*
-        version: link:../../../packages/shared
       effect:
         specifier: 4.0.2
         version: 4.0.2(patch_hash=ec61ee307eaec3e17f757e0e6a16296ea4b7a8c3188df0c6ec5e66301fd78688)
     devDependencies:
-      '@effect/platform-node':
-        specifier: 4.0.2
-        version: 4.0.2(bufferutil@4.1.0)(effect@4.0.2(patch_hash=ec61ee307eaec3e17f757e0e6a16296ea4b7a8c3188df0c6ec5e66301fd78688))(redis@6.2.1)(utf-8-validate@6.0.6)
       '@effect/vitest':
         specifier: 4.0.2
         version: 4.0.2(patch_hash=595b7d26fb635caba9c3d39fcb189bb78a000192f8d3b60ead7174b310d1ade9)(@types/node@24.12.4)(@vitest/ui@5.0.1)(bufferutil@4.1.0)(effect@4.0.2(patch_hash=ec61ee307eaec3e17f757e0e6a16296ea4b7a8c3188df0c6ec5e66301fd78688))(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.0(@noble/hashes@1.8.0))(msw@2.12.11(@types/node@24.12.4)(typescript@7.0.2))(terser@5.48.0)(tsx@4.23.0)(typescript@7.0.2)(unrun@0.2.39)(utf-8-validate@6.0.6)(yaml@2.9.0)
@@ -1342,9 +1324,6 @@ importers:
       react:
         specifier: 19.2.6
         version: 19.2.6
-      react-dom:
-        specifier: 19.2.6
-        version: 19.2.6(react@19.2.6)
     devDependencies:
       '@effect/vitest':
         specifier: 4.0.2
@@ -1355,9 +1334,6 @@ importers:
       '@types/react':
         specifier: ~19.3.0
         version: 19.3.0
-      '@types/react-dom':
-        specifier: ~19.2.3
-        version: 19.2.3(@types/react@19.3.0)
       vite-plus:
         specifier: 1.0.0
         version: 1.0.0(@types/node@24.12.4)(@vitest/ui@5.0.1(vitest@5.0.1))(bufferutil@4.1.0)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.0(@noble/hashes@1.8.0))(msw@2.12.11(@types/node@24.12.4)(typescript@7.0.2))(terser@5.48.0)(tsx@4.23.0)(typescript@7.0.2)(unrun@0.2.39)(utf-8-validate@6.0.6)(yaml@2.9.0)
@@ -1489,6 +1465,25 @@ importers:
       vite-plus:
         specifier: 1.0.0
         version: 1.0.0(@types/node@24.12.4)(@vitest/ui@5.0.1(vitest@5.0.1))(bufferutil@4.1.0)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.0(@noble/hashes@1.8.0))(msw@2.12.11(@types/node@24.12.4)(typescript@7.0.2))(terser@5.48.0)(tsx@4.23.0)(typescript@7.0.2)(unrun@0.2.39)(utf-8-validate@6.0.6)(yaml@2.9.0)
+
+  modules/home/web:
+    dependencies:
+      '@otterware/module-kit':
+        specifier: workspace:*
+        version: link:../../../packages/module-kit
+      lucide-react:
+        specifier: ^0.564.0
+        version: 0.564.0(react@19.2.6)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.3.0
+        version: 19.3.0
+      react:
+        specifier: 19.2.6
+        version: 19.2.6
+      typescript:
+        specifier: 'catalog:'
+        version: 7.0.2
 
   modules/mail/contracts:
     dependencies:
@@ -1705,6 +1700,9 @@ importers:
       '@otterware/home-engine':
         specifier: workspace:*
         version: link:../../modules/home/engine
+      '@otterware/home-web':
+        specifier: workspace:*
+        version: link:../../modules/home/web
       '@otterware/mail-contracts':
         specifier: workspace:*
         version: link:../../modules/mail/contracts
@@ -20015,9 +20013,9 @@ snapshots:
 
   big-integer@1.6.52: {}
 
-  bippy@0.5.41(react@19.2.6):
+  bippy@0.5.41(react@19.3.0):
     dependencies:
-      react: 19.2.6
+      react: 19.3.0
 
   blake3-wasm@2.1.5: {}
 
@@ -24234,12 +24232,12 @@ snapshots:
     dependencies:
       react: 19.3.0
 
-  react-grab@0.1.44(react@19.2.6):
+  react-grab@0.1.44(react@19.3.0):
     dependencies:
       '@react-grab/cli': 0.1.44
-      bippy: 0.5.41(react@19.2.6)
+      bippy: 0.5.41(react@19.3.0)
     optionalDependencies:
-      react: 19.2.6
+      react: 19.3.0
 
   react-is@17.0.2: {}
 
