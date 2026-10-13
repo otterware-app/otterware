@@ -1,3 +1,4 @@
+import { mailStorage } from "../host/storage";
 /**
  * Panel animation duration (ported from Otter Code's panelAnimations): how
  * long the sidebar, agent panel and floating reader take to open and close. 0 turns the
@@ -23,7 +24,7 @@ function isValidDuration(value: number): boolean {
 }
 
 export function getPanelAnimationDurationMs(): number {
-  const raw = localStorage.getItem(KEY);
+  const raw = mailStorage.getItem(KEY);
   const value = raw === null ? NaN : Number(raw);
   return isValidDuration(value) ? value : DEFAULT_PANEL_ANIMATION_DURATION_MS;
 }

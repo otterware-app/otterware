@@ -1,4 +1,4 @@
-import { mailBridge } from "../../host/bridge";
+import { mailBridge, mailHost, isMailHost } from "../../host/bridge";
 import { createElement, useSyncExternalStore } from "react";
 import {
   DEFAULT_KEYBINDINGS,
@@ -93,7 +93,10 @@ const emit = () => listeners.forEach((l) => l());
 
 async function load(): Promise<void> {
   try {
-    state = stateFor(await ipc<FileResult>("keybindings:read"));
+    const host = mailHost();
+    const file = await host.invoke<FileResult>("keybindings:read");
+    if (!isMailHost(host)) return;
+    state = stateFor(file);
     emit();
   } catch (error) {
     console.log("[Keybindings:load] failed", { error: String(error) });
@@ -104,6 +107,11 @@ let started = false;
 function ensureStarted(): void {
   if (started || typeof window === "undefined") return;
   started = true;
+  mailBridge.on("host:changed", () => {
+    state = stateFor(null);
+    emit();
+    void load();
+  });
   void load();
   mailBridge.on("keybindings:updated", () => void load());
 }

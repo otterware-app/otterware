@@ -93,7 +93,6 @@ describe("desktop Codex callback helper", () => {
   });
   it("allows two accounts to complete independently", async () => {
     const a = request(await freePort(), "a".repeat(43));
-    const b = request(await freePort(), "c".repeat(43));
     const openedA = Promise.withResolvers<void>();
     const openedB = Promise.withResolvers<void>();
     const receiveA = receiveCodexAuthCallback(a, async () => {
@@ -102,6 +101,9 @@ describe("desktop Codex callback helper", () => {
       await fetch(callback(a));
       return true;
     });
+    // Keep the first port bound while selecting the second; ephemeral ports can be reused.
+    await openedA.promise;
+    const b = request(await freePort(), "c".repeat(43));
     const receiveB = receiveCodexAuthCallback(b, async () => {
       openedB.resolve();
       await openedA.promise;

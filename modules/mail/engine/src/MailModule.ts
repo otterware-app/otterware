@@ -1,3 +1,5 @@
+import { mailHomeContributor } from "./MailHome.ts";
+import { MailSettings } from "@otterware/mail-contracts/settings";
 import { MailContract } from "@otterware/mail-contracts/rpc";
 import { defineServerModule } from "@otterware/module-kit/engine";
 import * as Layer from "effect/Layer";
@@ -139,6 +141,8 @@ export const MailModule = defineServerModule({
       }),
     ),
   ),
+  settings: MailSettings,
+  homeContributor: mailHomeContributor,
   rpcHandlers,
   tools: { toolkit: MailToolkit, handlers: toolHandlers },
   agentInstructions:

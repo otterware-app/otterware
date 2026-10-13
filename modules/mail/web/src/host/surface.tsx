@@ -1,7 +1,10 @@
-import { useLayoutEffect, useState, type ReactNode } from "react";
+import { mailStoragePrefix } from "./storage";
+import type { MailSurfaceProps } from "./public";
+import { useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
+import { RootView } from "../main/root-view";
 import { createMailRouter } from "../main/router";
 import { ToastProvider } from "../main/gmail/toast";
 import { installMailDom } from "./dom";
@@ -9,17 +12,7 @@ import { installMailWebHost, type MailWebHost } from "./bridge";
 import { MailSessionContext, type MailSession } from "./session";
 import styles from "../styles.css?inline";
 
-export function MailSurface({
-  host,
-  session,
-  path,
-  children,
-}: {
-  host: MailWebHost;
-  session: MailSession;
-  path?: string;
-  children?: ReactNode;
-}) {
+export function MailSurface({ host, session, path, children }: MailSurfaceProps) {
   const [element, setElement] = useState<HTMLDivElement | null>(null);
   const [content, setContent] = useState<HTMLElement | null>(null);
   useLayoutEffect(() => {
@@ -35,11 +28,23 @@ export function MailSurface({
     shadow.replaceChildren(style, root);
     const clearDom = installMailDom(root, shadow);
     const clearHost = installMailWebHost(host);
+    const storageChanged = (event: StorageEvent) => {
+      const prefix = mailStoragePrefix(host.environmentId);
+      if (event.key?.startsWith(prefix))
+        window.dispatchEvent(
+          new StorageEvent("storage", {
+            key: event.key.slice(prefix.length),
+            newValue: event.newValue,
+          }),
+        );
+    };
+    window.addEventListener("storage", storageChanged);
     setContent(root);
     return () => {
       setContent(null);
       clearDom();
       clearHost();
+      window.removeEventListener("storage", storageChanged);
       shadow.replaceChildren();
     };
   }, [element, host]);
@@ -50,7 +55,11 @@ export function MailSurface({
           <MailSessionContext.Provider value={session}>
             <QueryClientProvider client={session.queryClient}>
               <ToastProvider>
-                {children ?? <MailRoutes host={host} session={session} path={path} />}
+                {children ? (
+                  <RootView>{children}</RootView>
+                ) : (
+                  <MailRoutes host={host} session={session} path={path} />
+                )}
               </ToastProvider>
             </QueryClientProvider>
           </MailSessionContext.Provider>,
@@ -87,4 +96,4 @@ function MailRoutes({
 export { MailSession } from "./session";
 export type { MailWebHost, MailPageSelection } from "./bridge";
 export { SettingsPage } from "../main/settings/settings-page";
-export type { SettingsRoute } from "../main/settings/settings-page";
+export type { SettingsRoute } from "./public";

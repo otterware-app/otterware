@@ -1,11 +1,11 @@
-import { mailBridge } from "../../host/bridge";
+import { mailBridge, useMailCanWrite } from "../../host/bridge";
 import { useLatest } from "../use-latest";
 import { DEFAULT_SETTINGS } from "@otterware/mail-contracts";
 import { TodoistSettingsPane } from "../integrations/todoist";
 import { useCallback, useEffect, useState } from "react";
 import { Switch } from "../../components/ui/switch";
 import { toast } from "../gmail/toast";
-import { gmailApi, type MailApp, type NotificationsMode, type SettingsPane } from "../gmail/api";
+import { gmailApi, type MailApp, type NotificationsMode } from "../gmail/api";
 import {
   getAdvanceDirection,
   setAdvanceDirection as persistAdvanceDirection,
@@ -18,6 +18,7 @@ import { AccountsPane } from "./accounts-pane";
 import { TranslationSection } from "./translation-section";
 
 import {
+  MailSettingScope,
   RowSelect,
   SettingResetButton,
   SettingsPageContainer,
@@ -34,11 +35,8 @@ import { requestProblemReport } from "../support/report-problem";
 import { useRailUnreadDots } from "../gmail/space-rail";
 
 /** Where the settings page is. */
-export type SettingsRoute = {
-  pane: SettingsPane;
-  /** A settings-search result's anchor to scroll to, cleared once it's reached. */
-  target?: string;
-};
+export type { SettingsRoute } from "../../host/public";
+import type { SettingsRoute, MailSettingsProps } from "../../host/public";
 
 const NOTIFICATIONS_OPTIONS: { value: NotificationsMode; label: string }[] = [
   { value: "off", label: "Off" },
@@ -368,7 +366,7 @@ function GeneralPane() {
       <SettingsSection title="Support">
         <SettingsRow
           {...searchableSetting("send-feedback")}
-          description="Report a bug or suggest a feature, with optional agent investigation."
+          description="Report a Mail bug or suggest a feature on GitHub."
           control={
             <Btn size="sm" onClick={requestProblemReport}>
               Send feedback
@@ -385,20 +383,23 @@ function GeneralPane() {
 // ---------------------------------------------------------------------------
 
 /** In-app settings: one pane at a time, chosen from the sidebar nav. */
-export function SettingsPage({
-  route,
-  onNavigate,
-}: {
-  route: SettingsRoute;
-  onNavigate: (route: SettingsRoute) => void;
-}) {
+export function SettingsPage({ route, onNavigate }: MailSettingsProps) {
+  const canWrite = useMailCanWrite();
   const clearTarget = useCallback(
     () => onNavigate({ ...route, target: undefined }),
     [onNavigate, route],
   );
   return (
     <SettingsSearchTargetProvider targetId={route.target ?? null} onTargetHandled={clearTarget}>
-      <SettingsPane route={route} />
+      <fieldset disabled={!canWrite}>
+        <MailSettingScope.Provider
+          value={
+            route.pane === "accounts" || route.pane === "integrations" ? "environment" : "account"
+          }
+        >
+          <SettingsPane route={route} />
+        </MailSettingScope.Provider>
+      </fieldset>
     </SettingsSearchTargetProvider>
   );
 }

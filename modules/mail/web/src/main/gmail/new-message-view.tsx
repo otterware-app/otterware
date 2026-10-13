@@ -1,3 +1,4 @@
+import { useMailCanWrite } from "../../host/bridge";
 import { useMailState, useMailSession } from "../../host/session";
 import { toast } from "./toast";
 import { useEffect, useRef } from "react";
@@ -118,6 +119,7 @@ export function NewMessageView({
   const [formatting, setFormatting] = useMailState("compose:formatting", false);
   const toRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<RichTextRef>(null);
+  const canWrite = useMailCanWrite();
   const sendMessage = useSendMessage();
 
   const fromAccount = accounts.find((a) => a.id === fromId) ?? accounts[0];
@@ -195,6 +197,7 @@ export function NewMessageView({
 
   const hasRecipient = splitAddressList(to).some((e) => parseAddressEntry(e).email.includes("@"));
   const canSend =
+    canWrite &&
     !sendMessage.isPending &&
     !!fromAccount &&
     hasRecipient &&

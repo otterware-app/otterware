@@ -9,6 +9,8 @@ beforeEach(() => {
   vi.resetModules();
   vi.doMock("../host/bridge", () => ({
     mailBridge: { invoke, on, nativeTheme: { setThemeSource } },
+    mailHost: () => ({ environmentId: "test" }),
+    isMailHost: () => true,
   }));
   storage.clear();
   invoke.mockReset();
@@ -18,6 +20,7 @@ beforeEach(() => {
     setItem: (key: string, value: string) => void storage.set(key, value),
   };
   vi.stubGlobal("localStorage", localStorage);
+  vi.doMock("../host/storage", () => ({ mailStorage: localStorage }));
   vi.stubGlobal(
     "StorageEvent",
     class extends Event {

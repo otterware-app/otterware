@@ -1,3 +1,4 @@
+import { mailStorage } from "../../host/storage";
 import { mailDocument } from "../../host/dom";
 /**
  * Contrast, glass opacity and the interface font size (Otter Code's
@@ -112,7 +113,7 @@ export const DEFAULT_MAIL_LAYOUT: MailLayout = "split";
 const MAIL_LAYOUT_KEY = "otter:mail-layout";
 
 export function getMailLayout(): MailLayout {
-  const value = localStorage.getItem(MAIL_LAYOUT_KEY);
+  const value = mailStorage.getItem(MAIL_LAYOUT_KEY);
   if (value === "flow" || value === "popup") return "floating";
   return value !== null && Object.hasOwn(MAIL_LAYOUTS, value)
     ? (value as MailLayout)
@@ -125,7 +126,7 @@ export function setMailLayout(layout: MailLayout): void {
 }
 
 export function getMessageListStyle(): MessageListStyle {
-  const value = localStorage.getItem(MESSAGE_LIST_STYLE_KEY);
+  const value = mailStorage.getItem(MESSAGE_LIST_STYLE_KEY);
   return value !== null && Object.hasOwn(MESSAGE_LIST_STYLES, value)
     ? (value as MessageListStyle)
     : DEFAULT_MESSAGE_LIST_STYLE;
@@ -141,7 +142,7 @@ function isReadingWidth(value: string | null): value is ReadingWidth {
 }
 
 export function getReadingWidth(): ReadingWidth {
-  const value = localStorage.getItem(READING_WIDTH_KEY);
+  const value = mailStorage.getItem(READING_WIDTH_KEY);
   return isReadingWidth(value) ? value : DEFAULT_READING_WIDTH;
 }
 
@@ -155,7 +156,7 @@ function isValid(setting: InterfaceSetting, value: number): boolean {
 }
 
 export function getInterfaceSetting(setting: InterfaceSetting): number {
-  const raw = localStorage.getItem(setting.key);
+  const raw = mailStorage.getItem(setting.key);
   const value = raw === null ? NaN : Number(raw);
   return isValid(setting, value) ? value : setting.defaultValue;
 }
@@ -167,7 +168,7 @@ export function setInterfaceSetting(setting: InterfaceSetting, value: number): v
 }
 
 function getInterfaceToggle(setting: InterfaceToggle): boolean {
-  const value = localStorage.getItem(setting.key);
+  const value = mailStorage.getItem(setting.key);
   return value === "true" ? true : value === "false" ? false : setting.defaultValue;
 }
 

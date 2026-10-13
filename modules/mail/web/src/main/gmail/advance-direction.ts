@@ -1,3 +1,4 @@
+import { mailStorage } from "../../host/storage";
 /** After archiving, deleting, or moving the selected message, which row (if
     any) the list should select next. */
 
@@ -7,7 +8,7 @@ export type AdvanceDirection = "next" | "previous" | "none";
 const KEY = "gmail:advance-direction" as const;
 
 export function getAdvanceDirection(): AdvanceDirection {
-  const value = localStorage.getItem(KEY);
+  const value = mailStorage.getItem(KEY);
   return value === "previous" || value === "none" ? value : "next";
 }
 

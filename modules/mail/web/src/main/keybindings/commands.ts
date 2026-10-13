@@ -143,7 +143,7 @@ export const IN_MAIL = "!editableFocus && !dialogOpen && !settingsOpen && !panel
 const ON_MESSAGE = `${IN_MAIL} && messageOpen`;
 
 export const DEFAULT_KEYBINDINGS: ReadonlyArray<KeybindingRule> = [
-  { key: "mod+k", command: "commandPalette.toggle" },
+  { key: "mod+shift+k", command: "commandPalette.toggle" },
   // ⌘B means bold while typing.
   { key: "mod+b", command: "sidebar.toggle", when: OUTSIDE_FIELDS },
   { key: "mod+shift+b", command: "agent.toggle", when: "!dialogOpen" },

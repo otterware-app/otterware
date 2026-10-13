@@ -13,6 +13,7 @@ import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as UsageRouteImport } from './routes/usage'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as PairRouteImport } from './routes/pair'
+import { Route as MailRouteImport } from './routes/mail'
 import { Route as HomeRouteImport } from './routes/home'
 import { Route as ConnectAgentRouteImport } from './routes/connect-agent'
 import { Route as ConnectRouteImport } from './routes/connect'
@@ -41,6 +42,7 @@ import { Route as SettingsArchivedRouteImport } from './routes/settings.archived
 import { Route as SettingsAppearanceRouteImport } from './routes/settings.appearance'
 import { Route as SettingsModuleIdRouteImport } from './routes/settings.$moduleId'
 import { Route as ProjectsProjectKeyRouteImport } from './routes/projects.$projectKey'
+import { Route as MailSplatRouteImport } from './routes/mail.$'
 import { Route as HomeSplatRouteImport } from './routes/home.$'
 import { Route as CalendarSplatRouteImport } from './routes/calendar.$'
 import { Route as AccountSignOutRouteImport } from './routes/account.sign-out'
@@ -68,6 +70,11 @@ const SettingsRoute = SettingsRouteImport.update({
 const PairRoute = PairRouteImport.update({
   id: '/pair',
   path: '/pair',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MailRoute = MailRouteImport.update({
+  id: '/mail',
+  path: '/mail',
   getParentRoute: () => rootRouteImport,
 } as any)
 const HomeRoute = HomeRouteImport.update({
@@ -211,6 +218,11 @@ const ProjectsProjectKeyRoute = ProjectsProjectKeyRouteImport.update({
   path: '/projects/$projectKey',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MailSplatRoute = MailSplatRouteImport.update({
+  id: '/$',
+  path: '/$',
+  getParentRoute: () => MailRoute,
+} as any)
 const HomeSplatRoute = HomeSplatRouteImport.update({
   id: '/$',
   path: '/$',
@@ -259,6 +271,7 @@ export interface FileRoutesByFullPath {
   '/connect': typeof ConnectRoute
   '/connect-agent': typeof ConnectAgentRoute
   '/home': typeof HomeRouteWithChildren
+  '/mail': typeof MailRouteWithChildren
   '/pair': typeof PairRoute
   '/settings': typeof SettingsRouteWithChildren
   '/usage': typeof UsageRoute
@@ -269,6 +282,7 @@ export interface FileRoutesByFullPath {
   '/account/sign-out': typeof AccountSignOutRoute
   '/calendar/$': typeof CalendarSplatRoute
   '/home/$': typeof HomeSplatRoute
+  '/mail/$': typeof MailSplatRoute
   '/projects/$projectKey': typeof ProjectsProjectKeyRoute
   '/settings/$moduleId': typeof SettingsModuleIdRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
@@ -297,6 +311,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/connect': typeof ConnectRoute
   '/connect-agent': typeof ConnectAgentRoute
+  '/mail': typeof MailRouteWithChildren
   '/pair': typeof PairRoute
   '/settings': typeof SettingsRouteWithChildren
   '/usage': typeof UsageRoute
@@ -307,6 +322,7 @@ export interface FileRoutesByTo {
   '/account/sign-out': typeof AccountSignOutRoute
   '/calendar/$': typeof CalendarSplatRoute
   '/home/$': typeof HomeSplatRoute
+  '/mail/$': typeof MailSplatRoute
   '/projects/$projectKey': typeof ProjectsProjectKeyRoute
   '/settings/$moduleId': typeof SettingsModuleIdRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
@@ -340,6 +356,7 @@ export interface FileRoutesById {
   '/connect': typeof ConnectRoute
   '/connect-agent': typeof ConnectAgentRoute
   '/home': typeof HomeRouteWithChildren
+  '/mail': typeof MailRouteWithChildren
   '/pair': typeof PairRoute
   '/settings': typeof SettingsRouteWithChildren
   '/usage': typeof UsageRoute
@@ -350,6 +367,7 @@ export interface FileRoutesById {
   '/account/sign-out': typeof AccountSignOutRoute
   '/calendar/$': typeof CalendarSplatRoute
   '/home/$': typeof HomeSplatRoute
+  '/mail/$': typeof MailSplatRoute
   '/projects/$projectKey': typeof ProjectsProjectKeyRoute
   '/settings/$moduleId': typeof SettingsModuleIdRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
@@ -384,6 +402,7 @@ export interface FileRouteTypes {
     | '/connect'
     | '/connect-agent'
     | '/home'
+    | '/mail'
     | '/pair'
     | '/settings'
     | '/usage'
@@ -394,6 +413,7 @@ export interface FileRouteTypes {
     | '/account/sign-out'
     | '/calendar/$'
     | '/home/$'
+    | '/mail/$'
     | '/projects/$projectKey'
     | '/settings/$moduleId'
     | '/settings/appearance'
@@ -422,6 +442,7 @@ export interface FileRouteTypes {
   to:
     | '/connect'
     | '/connect-agent'
+    | '/mail'
     | '/pair'
     | '/settings'
     | '/usage'
@@ -432,6 +453,7 @@ export interface FileRouteTypes {
     | '/account/sign-out'
     | '/calendar/$'
     | '/home/$'
+    | '/mail/$'
     | '/projects/$projectKey'
     | '/settings/$moduleId'
     | '/settings/appearance'
@@ -464,6 +486,7 @@ export interface FileRouteTypes {
     | '/connect'
     | '/connect-agent'
     | '/home'
+    | '/mail'
     | '/pair'
     | '/settings'
     | '/usage'
@@ -474,6 +497,7 @@ export interface FileRouteTypes {
     | '/account/sign-out'
     | '/calendar/$'
     | '/home/$'
+    | '/mail/$'
     | '/projects/$projectKey'
     | '/settings/$moduleId'
     | '/settings/appearance'
@@ -507,6 +531,7 @@ export interface RootRouteChildren {
   ConnectRoute: typeof ConnectRoute
   ConnectAgentRoute: typeof ConnectAgentRoute
   HomeRoute: typeof HomeRouteWithChildren
+  MailRoute: typeof MailRouteWithChildren
   PairRoute: typeof PairRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   UsageRoute: typeof UsageRoute
@@ -544,6 +569,13 @@ declare module '@tanstack/react-router' {
       path: '/pair'
       fullPath: '/pair'
       preLoaderRoute: typeof PairRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mail': {
+      id: '/mail'
+      path: '/mail'
+      fullPath: '/mail'
+      preLoaderRoute: typeof MailRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/home': {
@@ -742,6 +774,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectsProjectKeyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/mail/$': {
+      id: '/mail/$'
+      path: '/$'
+      fullPath: '/mail/$'
+      preLoaderRoute: typeof MailSplatRouteImport
+      parentRoute: typeof MailRoute
+    }
     '/home/$': {
       id: '/home/$'
       path: '/$'
@@ -845,6 +884,16 @@ const HomeRouteChildren: HomeRouteChildren = {
 
 const HomeRouteWithChildren = HomeRoute._addFileChildren(HomeRouteChildren)
 
+interface MailRouteChildren {
+  MailSplatRoute: typeof MailSplatRoute
+}
+
+const MailRouteChildren: MailRouteChildren = {
+  MailSplatRoute: MailSplatRoute,
+}
+
+const MailRouteWithChildren = MailRoute._addFileChildren(MailRouteChildren)
+
 interface SettingsRouteChildren {
   SettingsModuleIdRoute: typeof SettingsModuleIdRoute
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
@@ -899,6 +948,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConnectRoute: ConnectRoute,
   ConnectAgentRoute: ConnectAgentRoute,
   HomeRoute: HomeRouteWithChildren,
+  MailRoute: MailRouteWithChildren,
   PairRoute: PairRoute,
   SettingsRoute: SettingsRouteWithChildren,
   UsageRoute: UsageRoute,

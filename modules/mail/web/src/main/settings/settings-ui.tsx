@@ -206,6 +206,8 @@ export function SettingsSection({
  * One setting: title + description on the left, the control on the right.
  * Children render below the row (expanded editors, lists).
  */
+export const MailSettingScope = createContext<"account" | "environment" | "client">("account");
+
 export function SettingsRow({
   title,
   description,
@@ -224,6 +226,7 @@ export function SettingsRow({
   resetAction?: ReactNode;
   children?: ReactNode;
 }) {
+  const scope = useContext(MailSettingScope);
   const targetRef = useSettingsSearchTarget<HTMLDivElement>(props.id);
   return (
     <div
@@ -237,6 +240,13 @@ export function SettingsRow({
         <div className="min-w-0 flex-1">
           <div className="flex min-h-5 items-center gap-1.5">
             <h3 className="text-sm font-normal text-foreground">{title}</h3>
+            <span className="text-[11px] text-muted-foreground" aria-label={`Scope: ${scope}`}>
+              {scope === "account"
+                ? "Account"
+                : scope === "environment"
+                  ? "Environment"
+                  : "This device"}
+            </span>
             {resetAction ? (
               <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center">
                 {resetAction}

@@ -11,7 +11,7 @@ import { ThemeEditorHost } from "./settings/theme/ThemeEditorHost";
 
 // Contrast, glass and the font size, also before first paint.
 
-export function RootView() {
+export function RootView({ children }: { children?: React.ReactNode } = {}) {
   React.useLayoutEffect(() => {
     applyAppTheme();
     applyInterfaceSettings();
@@ -23,19 +23,8 @@ export function RootView() {
   React.useEffect(() => startSyncedPreferences(), []);
 
   return (
-    <div className="h-full relative [&:not(:has([data-toolbar]))_.drag-region]:z-50 [&:has([data-toolbar])>.drag-region]:[-webkit-app-region:none]">
-      {/* Draggable top bar - fallback for when no toolbar is present (with
-          one, it stops dragging: Electron ignores z-order for drag regions,
-          so it would otherwise swallow clicks in the views' own top bars). */}
-      <div className="drag-region fixed top-0 left-0 right-0 h-(--workspace-topbar-height)" />
-      {/* relative: paints above the fixed fallback strip, which otherwise
-          swallows clicks on the app's own top bar (the strip still wins via
-          z-50 when no [data-toolbar] is mounted). */}
-      <div className="relative h-full">
-        <Outlet />
-      </div>
-
-      {/* Above the views, so the theme editor stays open while you browse the app in its colors. */}
+    <div className="h-full relative">
+      {children ?? <Outlet />}
       <ThemeEditorHost />
     </div>
   );

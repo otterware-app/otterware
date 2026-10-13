@@ -1,3 +1,4 @@
+import { mailStorage } from "../../host/storage";
 import { mailBridge } from "../../host/bridge";
 /**
  * The agent panel's browser (the Mac app's): its tabs, which sit after the
@@ -45,7 +46,7 @@ const EXTENSIONS_BUTTON_KEY = "gmail:browser-extensions-button";
 
 function savedPinned(): string[] {
   try {
-    const pinned: unknown = JSON.parse(localStorage.getItem(PINNED_KEY) ?? "[]");
+    const pinned: unknown = JSON.parse(mailStorage.getItem(PINNED_KEY) ?? "[]");
     return Array.isArray(pinned) ? pinned.filter((id) => typeof id === "string") : [];
   } catch {
     return [];
@@ -57,7 +58,7 @@ export const CHROME_WEB_STORE_URL = "https://chromewebstore.google.com/";
 /** Tabs come back after a restart, their pages loading once they're shown. */
 function savedTabs(): Pick<BrowserState, "tabs" | "activeId"> {
   try {
-    const saved = JSON.parse(localStorage.getItem(TABS_KEY) ?? "") as {
+    const saved = JSON.parse(mailStorage.getItem(TABS_KEY) ?? "") as {
       tabs?: { id?: unknown; url?: unknown; title?: unknown; favicon?: unknown }[];
       activeId?: unknown;
     };
@@ -85,15 +86,15 @@ export const useBrowser = create<BrowserState>(() => ({
   ...savedTabs(),
   revealed: 0,
   addressFocus: null,
-  openLinksIn: localStorage.getItem(LINKS_KEY) === "browser" ? "browser" : "app",
+  openLinksIn: mailStorage.getItem(LINKS_KEY) === "browser" ? "browser" : "app",
   pinned: savedPinned(),
-  extensionsButton: localStorage.getItem(EXTENSIONS_BUTTON_KEY) !== "0",
+  extensionsButton: mailStorage.getItem(EXTENSIONS_BUTTON_KEY) !== "0",
 }));
 
 useBrowser.subscribe((state, prev) => {
   if (state.tabs === prev.tabs && state.activeId === prev.activeId) return;
   const tabs = state.tabs.map(({ id, url, title, favicon }) => ({ id, url, title, favicon }));
-  localStorage.setItem(TABS_KEY, JSON.stringify({ tabs, activeId: state.activeId }));
+  mailStorage.setItem(TABS_KEY, JSON.stringify({ tabs, activeId: state.activeId }));
 });
 
 const { getState: get, setState: set } = useBrowser;
@@ -189,18 +190,18 @@ export function setPinned(id: string, pinned: boolean): void {
     const next = pinned
       ? [...s.pinned.filter((each) => each !== id), id]
       : s.pinned.filter((each) => each !== id);
-    localStorage.setItem(PINNED_KEY, JSON.stringify(next));
+    mailStorage.setItem(PINNED_KEY, JSON.stringify(next));
     return { pinned: next };
   });
 }
 
 export function setExtensionsButton(shown: boolean): void {
-  localStorage.setItem(EXTENSIONS_BUTTON_KEY, shown ? "1" : "0");
+  mailStorage.setItem(EXTENSIONS_BUTTON_KEY, shown ? "1" : "0");
   set({ extensionsButton: shown });
 }
 
 export function setOpenLinksIn(value: OpenLinksIn): void {
-  localStorage.setItem(LINKS_KEY, value);
+  mailStorage.setItem(LINKS_KEY, value);
   set({ openLinksIn: value });
 }
 

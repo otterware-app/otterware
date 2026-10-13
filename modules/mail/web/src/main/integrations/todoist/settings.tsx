@@ -57,21 +57,13 @@ export function TodoistSettingsPane() {
         />
         <SettingsRow
           title="Connect with Todoist"
-          description={
-            __DEMO__
-              ? "Connect a pretend Todoist account to try every task feature."
-              : "Sign in securely in your browser. Your connection stays on this device."
-          }
+          description="Sign in securely in your browser. Your connection stays on this environment."
           control={
             <Btn
               size="sm"
               variant="primary"
               disabled={pending}
-              onClick={() =>
-                void change(
-                  __DEMO__ ? () => todoistApi.connectTodoist("demo") : todoistApi.signInTodoist,
-                )
-              }
+              onClick={() => void change(todoistApi.signInTodoist)}
             >
               {pending
                 ? "Connecting…"
@@ -99,7 +91,6 @@ export function TodoistSettingsPane() {
                   Todoist’s developer settings
                 </a>
                 . Kept on this device only.{" "}
-                {__DEMO__ ? "In this demo, use the token demo for a pretend Todoist account." : ""}
               </span>
             }
             control={

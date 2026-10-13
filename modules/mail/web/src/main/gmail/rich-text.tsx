@@ -183,7 +183,7 @@ export const RichTextArea = forwardRef<
       seededRef.current = true;
       // Content that arrives late must not clobber what the user already typed.
       if (!el.textContent?.trim()) el.innerHTML = initialHTML ?? "";
-      if (signatureHTML && !block) {
+      if (signatureHTML && !el.querySelector(`[${SIGNATURE_ATTR}]`)) {
         el.insertAdjacentHTML("beforeend", signatureBlock(signatureHTML));
         // Caret at the very start so typing lands above the signature.
         const range = mailDocument.createRange();

@@ -2,7 +2,7 @@ import {
   createContext,
   useContext,
   useCallback,
-  useState,
+  useSyncExternalStore,
   type Dispatch,
   type SetStateAction,
 } from "react";
@@ -13,6 +13,16 @@ export class MailSession {
   readonly queryClient = new QueryClient();
   readonly values = new Map<string, unknown>();
   path = "/";
+  readonly listeners = new Set<() => void>();
+  readonly subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+  emit() {
+    for (const listener of this.listeners) listener();
+  }
   clear(prefix: string) {
     for (const key of this.values.keys()) if (key.startsWith(prefix)) this.values.delete(key);
   }
@@ -32,17 +42,15 @@ export function useMailState<T>(
   initial: T | (() => T),
 ): [T, Dispatch<SetStateAction<T>>] {
   const session = useMailSession();
-  const [value, setValue] = useState<T>(() => {
-    if (!session.values.has(key))
-      session.values.set(key, typeof initial === "function" ? (initial as () => T)() : initial);
-    return session.values.get(key) as T;
-  });
+  if (!session.values.has(key))
+    session.values.set(key, typeof initial === "function" ? (initial as () => T)() : initial);
+  const value = useSyncExternalStore(session.subscribe, () => session.values.get(key) as T);
   const update = useCallback<Dispatch<SetStateAction<T>>>(
     (next) => {
       const previous = session.values.get(key) as T;
       const result = typeof next === "function" ? (next as (value: T) => T)(previous) : next;
       session.values.set(key, result);
-      setValue(result);
+      session.emit();
     },
     [key, session],
   );

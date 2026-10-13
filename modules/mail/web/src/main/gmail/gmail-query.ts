@@ -1,3 +1,4 @@
+import { mailStorage } from "../../host/storage";
 /**
  * Gmail search queries as text, the way Gmail treats them: the search chips
  * and the advanced-search form only edit operators in the query string
@@ -289,7 +290,7 @@ const RECENT_MAX = 8;
 
 export function recentSearches(): string[] {
   try {
-    const parsed = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]") as unknown;
+    const parsed = JSON.parse(mailStorage.getItem(RECENT_KEY) ?? "[]") as unknown;
     return Array.isArray(parsed) ? parsed.filter((s): s is string => typeof s === "string") : [];
   } catch {
     return [];
@@ -298,9 +299,9 @@ export function recentSearches(): string[] {
 
 export function rememberSearch(q: string): void {
   const next = [q, ...recentSearches().filter((s) => s !== q)].slice(0, RECENT_MAX);
-  localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+  mailStorage.setItem(RECENT_KEY, JSON.stringify(next));
 }
 
 export function forgetSearch(q: string): void {
-  localStorage.setItem(RECENT_KEY, JSON.stringify(recentSearches().filter((s) => s !== q)));
+  mailStorage.setItem(RECENT_KEY, JSON.stringify(recentSearches().filter((s) => s !== q)));
 }
