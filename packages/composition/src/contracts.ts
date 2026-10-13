@@ -93,3 +93,6 @@ export const OTTERWARE_RPC_SUPERSET_SCOPES: Readonly<
 export const OtterwareWsRpcGroup = WsRpcGroup.merge(
   OtterwareRpcGroup.middleware(RpcScopeAuthorization),
 );
+
+export * from "@otterware/home-contracts";
+export { HomeItemAction, HomeItemTarget, HomeItemModule } from "@otterware/module-kit/contracts";

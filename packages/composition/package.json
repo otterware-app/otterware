@@ -18,6 +18,10 @@
     "./browser": {
       "types": "./src/browser.ts",
       "import": "./src/browser.ts"
+    },
+    "./web": {
+      "types": "./src/web.ts",
+      "import": "./src/web.ts"
     }
   },
   "scripts": {

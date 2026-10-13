@@ -12,7 +12,7 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import { Check, Copy } from "lucide";
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { Activity, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 
 import { APP_BASE_NAME, APP_DISPLAY_NAME, APP_STAGE_LABEL, APP_VERSION } from "../branding";
 import { resolveServerBackedAppDisplayName } from "../branding.logic";
@@ -166,71 +166,28 @@ function RootRouteView() {
     };
   }, [pathname]);
 
-  // Account callbacks must finish before onboarding or workspace navigation
-  // can replace their route, including in a browser with no saved computers.
-  if (
+  // Otterware seam: retain the shell through pairing and auth transitions.
+  const canShowShell =
+    authGateState.status === "authenticated" || authGateState.status === "hosted-static";
+  const standalone =
     pathname === "/pair" ||
     pathname === "/connect" ||
     pathname === "/connect-agent" ||
-    pathname.startsWith("/account/")
-  ) {
-    return (
-      <>
-        <DocumentTitleSync />
-        <Outlet />
-      </>
-    );
-  }
-
-  // Ahead of first-run onboarding, which would otherwise send a new visitor to the welcome
-  // wizard and lose the link.
-  if (hostedPromptLinkLanding !== null) {
-    return (
-      <>
-        <DocumentTitleSync />
-        {hostedPromptLinkLanding}
-      </>
-    );
-  }
-
-  // Show onboarding over the workspace, keeping automatic thread navigation
-  // and other startup dialogs suspended until setup finishes.
-  if (pathname === "/welcome") {
-    return (
-      <ToastProvider>
-        <AnchoredToastProvider>
-          <DocumentTitleSync />
-          <ContrastAppearanceSync />
-          <EnvironmentThemeSync />
-          <GlassAppearanceSync />
-          <FontAppearanceSync />
-          <ProviderAuthCallbackCoordinator />
-          <CustomSnoozeDialogHost />
-          <CommandPalette>
-            <AppSidebarLayout>
-              <Outlet />
-            </AppSidebarLayout>
-          </CommandPalette>
-        </AnchoredToastProvider>
-      </ToastProvider>
-    );
-  }
-
-  if (authGateState.status !== "authenticated" && authGateState.status !== "hosted-static") {
-    return (
-      <>
-        <DocumentTitleSync />
-        <Outlet />
-      </>
-    );
-  }
-
+    pathname.startsWith("/account/") ||
+    hostedPromptLinkLanding !== null;
+  const [shellReady, setShellReady] = useState(false);
   const appShell = (
-    <CommandPalette>
-      <AppSidebarLayout>
-        <Outlet />
-      </AppSidebarLayout>
-    </CommandPalette>
+    <Activity
+      mode={
+        canShowShell && !standalone && (shellReady || pathname === "/welcome")
+          ? "visible"
+          : "hidden"
+      }
+    >
+      <CommandPalette>
+        <AppSidebarLayout>{standalone ? null : <Outlet />}</AppSidebarLayout>
+      </CommandPalette>
+    </Activity>
   );
 
   // FirstRunGate holds back everything below it — including EventRouter,
@@ -247,43 +204,55 @@ function RootRouteView() {
         <FontAppearanceSync />
         <ProviderAuthCallbackCoordinator />
         <ChatGptWelcomeCoordinator />
-        <FirstRunGate
-          enabled={primaryEnvironmentAuthenticated}
-          hostedStatic={authGateState.status === "hosted-static"}
-        >
-          {primaryEnvironmentAuthenticated ? <AuthenticatedTracingBootstrap /> : null}
-          {primaryEnvironmentAuthenticated ? <DesktopAppActivationCoordinator /> : null}
-          {primaryEnvironmentAuthenticated ? <DesktopWebLinkCoordinator /> : null}
-          {isElectron ? <RunningThreadKeepAlive /> : null}
-          <ThreadDeepLinkCoordinator />
-          <RelayClientInstallDialog />
-          <ConnectOnboardingDialog />
-          <SshPasswordPromptDialog />
-          <SnapShotCoordinator />
-          <ThreadNotificationCoordinator />
-          <ReopenClosedViewShortcut />
-          <ConfirmDialogHost />
-          <CustomSnoozeDialogHost />
-          <SlowRpcRequestToastCoordinator />
-          <PermissionUpdateNotice />
-          {primaryEnvironmentAuthenticated ? <LegacyThreadMigrationToast /> : null}
-          <ProjectCloneToastCoordinator />
-          <PullRequestGuideRunCoordinator />
-          <HostedStaticEnvironmentBootstrap />
-          {primaryEnvironmentAuthenticated ? (
-            <EventRouter skipInitialBootstrapNavigation={returningFromWelcomeRef.current} />
-          ) : null}
-          {primaryEnvironmentAuthenticated ? <ProviderUpdateLaunchNotification /> : null}
-          {/* Hosted Nightly is "hosted-static", not authenticated, and needs it too. */}
-          <NightlyMobileBetaNotice />
-          {appShell}
-          {/* Above the router: a theme draft is judged by walking the app, so the
+        {canShowShell && !standalone && pathname !== "/welcome" ? (
+          <FirstRunGate
+            enabled={primaryEnvironmentAuthenticated}
+            hostedStatic={authGateState.status === "hosted-static"}
+          >
+            {primaryEnvironmentAuthenticated ? <AuthenticatedTracingBootstrap /> : null}
+            {primaryEnvironmentAuthenticated ? <DesktopAppActivationCoordinator /> : null}
+            {primaryEnvironmentAuthenticated ? <DesktopWebLinkCoordinator /> : null}
+            {isElectron ? <RunningThreadKeepAlive /> : null}
+            <ThreadDeepLinkCoordinator />
+            <RelayClientInstallDialog />
+            <ConnectOnboardingDialog />
+            <SshPasswordPromptDialog />
+            <SnapShotCoordinator />
+            <ThreadNotificationCoordinator />
+            <ReopenClosedViewShortcut />
+            <ConfirmDialogHost />
+            <CustomSnoozeDialogHost />
+            <SlowRpcRequestToastCoordinator />
+            <PermissionUpdateNotice />
+            {primaryEnvironmentAuthenticated ? <LegacyThreadMigrationToast /> : null}
+            <ProjectCloneToastCoordinator />
+            <PullRequestGuideRunCoordinator />
+            <HostedStaticEnvironmentBootstrap />
+            {primaryEnvironmentAuthenticated ? (
+              <EventRouter skipInitialBootstrapNavigation={returningFromWelcomeRef.current} />
+            ) : null}
+            {primaryEnvironmentAuthenticated ? <ProviderUpdateLaunchNotification /> : null}
+            {/* Hosted Nightly is "hosted-static", not authenticated, and needs it too. */}
+            <NightlyMobileBetaNotice />
+            <AppShellReadiness onChange={setShellReady} />
+            {/* Above the router: a theme draft is judged by walking the app, so the
               editor has to survive navigation away from settings. */}
-          <ThemeEditorHost />
-        </FirstRunGate>
+            <ThemeEditorHost />
+          </FirstRunGate>
+        ) : null}
+        {appShell}
+        {standalone ? (hostedPromptLinkLanding ?? <Outlet />) : null}
       </AnchoredToastProvider>
     </ToastProvider>
   );
+}
+
+function AppShellReadiness({ onChange }: { readonly onChange: (ready: boolean) => void }) {
+  useEffect(() => {
+    onChange(true);
+    return () => onChange(false);
+  }, [onChange]);
+  return null;
 }
 
 /** Follows the palette the primary environment's machine publishes, if any. */

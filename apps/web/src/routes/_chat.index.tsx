@@ -1,5 +1,7 @@
 import { RefreshIcon } from "~/components/ui/refresh-icon";
 import { scopeProjectRef } from "@t3tools/client-runtime/environment";
+import { consumeProfileLanding } from "../otterware/landing";
+import { redirect } from "@tanstack/react-router";
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { LinkIcon, PlusIcon } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
@@ -116,6 +118,11 @@ function DraftStartError({ onRetry }: { readonly onRetry: () => void }) {
 }
 
 export const Route = createFileRoute("/_chat/")({
+  // Otterware seam: first landing follows the build profile.
+  beforeLoad: () => {
+    const href = consumeProfileLanding();
+    if (href) throw redirect({ href, replace: true });
+  },
   component: ChatIndexRouteView,
 });
 

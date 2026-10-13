@@ -36,10 +36,7 @@
     "@t3tools/contracts": "workspace:*",
     "@t3tools/shared": "workspace:*",
     "effect": "catalog:",
-    "lucide-react": "^0.564.0",
-    "proper-lockfile": "4.1.2",
-    "react": "^19.3.0",
-    "zustand": "^5.0.11"
+    "proper-lockfile": "4.1.2"
   },
   "devDependencies": {
     "@effect/platform-node": "catalog:",
@@ -47,6 +44,14 @@
     "@types/node": "catalog:",
     "@types/proper-lockfile": "^4.1.4",
     "@types/react": "^19.3.0",
-    "vite-plus": "catalog:"
+    "lucide-react": "^0.564.0",
+    "react": "19.2.6",
+    "vite-plus": "catalog:",
+    "zustand": "^5.0.11"
+  },
+  "peerDependencies": {
+    "lucide-react": "*",
+    "react": ">=19",
+    "zustand": "*"
   }
 }

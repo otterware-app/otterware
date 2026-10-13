@@ -53,7 +53,10 @@ export default defineConfig({
       dts: false,
       sourcemap: true,
       outExtensions: () => ({ js: ".cjs" }),
-      define: publicConfigDefine,
+      define: {
+        ...publicConfigDefine,
+        __OTTERWARE_PROFILE__: JSON.stringify(process.env.OTTERWARE_PROFILE?.trim() ?? ""),
+      },
       outputOptions: { codeSplitting: false },
       entry: ["src/main.ts"],
       clean: true,
@@ -70,7 +73,10 @@ export default defineConfig({
       dts: false,
       sourcemap: true,
       outExtensions: () => ({ js: ".cjs" }),
-      define: publicConfigDefine,
+      define: {
+        ...publicConfigDefine,
+        __OTTERWARE_PROFILE__: JSON.stringify(process.env.OTTERWARE_PROFILE?.trim() ?? ""),
+      },
       entry: [
         "src/electron/WindowsForegroundFocusWorker.ts",
         "src/snapShot/GlobalShiftShortcutWorker.ts",
@@ -103,7 +109,10 @@ export default defineConfig({
       dts: false,
       sourcemap: true,
       outExtensions: () => ({ js: ".cjs" }),
-      define: publicConfigDefine,
+      define: {
+        ...publicConfigDefine,
+        __OTTERWARE_PROFILE__: JSON.stringify(process.env.OTTERWARE_PROFILE?.trim() ?? ""),
+      },
       entry: ["src/preload.ts"],
     },
     {
