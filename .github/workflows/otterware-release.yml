@@ -95,7 +95,7 @@ jobs:
       - uses: ./.github/actions/setup-apt-mirrors
       - run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev pkg-config
       - run: vp run build:desktop
-      - run: vp exec --filter t3 -- node dist/bin.mjs serve --help > /dev/null
+      - run: node scripts/release-smoke.ts --server-bundle
       - uses: actions/upload-artifact@v7
         with:
           name: js-bundle-${{ matrix.profile }}

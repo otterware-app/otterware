@@ -247,6 +247,17 @@ var x = 1;
     assert.deepStrictEqual(result.inlined, ["@ff-labs/fff-node"]);
   });
 
+  it("does not mistake embedded worker source for host bundle regions", () => {
+    const worker = region("../../node_modules/zod/v4/core/index.js");
+    const source =
+      `const worker = ${JSON.stringify(worker)};\n` +
+      region("../../node_modules/effect/dist/index.js");
+    const result = findInlinedExternalPackages(source);
+    assert.deepStrictEqual(result.inlined, []);
+    assert.deepStrictEqual(result.inlinedPackages, ["effect"]);
+    assert.strictEqual(result.regionCount, 1);
+  });
+
   it("ignores packages that are meant to be bundled", () => {
     const source =
       region("../../node_modules/.pnpm/effect@4.0.0/node_modules/effect/dist/index.js") +

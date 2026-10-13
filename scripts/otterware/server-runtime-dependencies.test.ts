@@ -4,11 +4,26 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import { describe, expect, it } from "vite-plus/test";
 import {
+  assertServerBundleRegions,
   assertServerRuntimeDependencies,
   missingServerBundleDependencies,
 } from "./server-runtime-dependencies.ts";
 
 describe("server runtime dependencies", () => {
+  it("rejects unsafe host inlining but permits self-contained embedded workers", () => {
+    const region = (name: string) => `//#region ../../node_modules/${name}/index.js\n`;
+    expect(() => assertServerBundleRegions([region("effect") + region("zod")])).toThrow(/zod/);
+    expect(() => assertServerBundleRegions([region("effect") + region("node-pty")])).toThrow(
+      /node-pty/,
+    );
+    expect(() => assertServerBundleRegions(["const x = 1;"])).toThrow(/no module regions/);
+    expect(() => assertServerBundleRegions([region("yaml")])).toThrow(/externalized effect/);
+    expect(() =>
+      assertServerBundleRegions([
+        region("effect") + `const worker = ${JSON.stringify(region("zod"))};`,
+      ]),
+    ).not.toThrow();
+  });
   it("catches an external introduced by workspace contracts before building", () => {
     const root = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "server-externals-"));
     const write = (path: string, value: unknown) => {

@@ -75,4 +75,4 @@ apps/server/vite.config.ts
 apps/desktop/src/electron/ElectronUpdater.ts
 
 # W8: verify the production runtime root added for module contracts
-scripts/lib/cli-external-packages.test.ts
+scripts/lib/cli-external-packages*.ts
