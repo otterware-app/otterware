@@ -30,6 +30,7 @@ import {
   WS_METHODS,
   WsRpcGroup,
 } from "@t3tools/contracts";
+import { OTTERWARE_RPC_SUPERSET_SCOPES } from "@otterware/composition/contracts";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import * as Layer from "effect/Layer";
@@ -222,6 +223,10 @@ export const RPC_REQUIRED_SCOPES = {
 
 export function requiredScopeForRpcMethod(method: string): AuthEnvironmentScope {
   if (!Object.hasOwn(RPC_REQUIRED_SCOPES, method)) {
+    // Otterware seam: host and module methods declare their scopes in their contracts.
+    if (Object.hasOwn(OTTERWARE_RPC_SUPERSET_SCOPES, method)) {
+      return OTTERWARE_RPC_SUPERSET_SCOPES[method as keyof typeof OTTERWARE_RPC_SUPERSET_SCOPES];
+    }
     throw new Error(`RPC method ${method} has no declared authorization scope.`);
   }
   const requiredScope = RPC_REQUIRED_SCOPES[method as WsRpcMethod];
