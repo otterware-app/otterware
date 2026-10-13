@@ -13,6 +13,7 @@ import * as GoogleAuthUnavailable from "./GoogleAuthUnavailable.ts";
 import { GoogleAuth } from "./google/GoogleAuth.ts";
 import { calendarToolHandlers } from "./CalendarTools.ts";
 import migration from "./migration.ts";
+import environmentMigration from "./environmentMigration.ts";
 import { calendarHomeContributor } from "./CalendarHome.ts";
 
 const rpcHandlers = Effect.gen(function* () {
@@ -29,6 +30,8 @@ const rpcHandlers = Effect.gen(function* () {
     [WS_METHODS.calendarRestoreEvent]: (input) => calendar.restoreEvent(input),
     [WS_METHODS.calendarApplyChanges]: (input) => calendar.applyChanges(input),
     [WS_METHODS.calendarUpdateCalendar]: (input) => calendar.updateCalendar(input),
+    [WS_METHODS.calendarUpdateEnvironmentPreferences]: (input) =>
+      calendar.updateEnvironmentPreferences(input),
     [WS_METHODS.calendarUpdatePreferences]: (input) => calendar.updatePreferences(input),
     [WS_METHODS.calendarSync]: (input) => calendar.sync(input),
     [WS_METHODS.calendarRemoveAccount]: ({ accountId }) => calendar.removeAccount(accountId),
@@ -44,7 +47,10 @@ const rpcHandlers = Effect.gen(function* () {
 export const makeCalendarModule = <E, R>(auth: Layer.Layer<GoogleAuth, E, R>) =>
   defineServerModule({
     contract: CalendarContract,
-    migrations: [{ module: "calendar", id: 1, name: "accounts_events_instances", run: migration }],
+    migrations: [
+      { module: "calendar", id: 1, name: "accounts_events_instances", run: migration },
+      { module: "calendar", id: 2, name: "environment_preferences", run: environmentMigration },
+    ],
     layer: CalendarServiceLive.layer.pipe(Layer.provide(auth)),
     rpcHandlers,
     tools: { toolkit: CalendarToolkit, handlers: calendarToolHandlers },

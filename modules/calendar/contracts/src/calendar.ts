@@ -102,8 +102,26 @@ export type Calendar = typeof Calendar.Type;
 
 export const CalendarWeekday = Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 6 }));
 
+export const CalendarNotificationRules = Schema.Array(
+  Schema.Struct({
+    minutesBefore: Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 10080 })),
+    enabled: Schema.Boolean,
+  }),
+);
+export const CalendarEnvironmentPreferences = Schema.Struct({
+  syncWindow: Schema.Struct({
+    pastWeeks: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 104 })),
+    futureWeeks: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 156 })),
+  }),
+});
+export type CalendarEnvironmentPreferences = typeof CalendarEnvironmentPreferences.Type;
+export const DEFAULT_CALENDAR_ENVIRONMENT_PREFERENCES: CalendarEnvironmentPreferences = {
+  syncWindow: { pastWeeks: 52, futureWeeks: 104 },
+};
+
 export const CalendarPreferences = Schema.Struct({
   /** 0 = Sunday, 1 = Monday, 6 = Saturday. */
+  notificationRules: CalendarNotificationRules,
   weekStartsOn: CalendarWeekday,
   /** The zone the calendar is shown in; null follows each device's zone. */
   timeZone: Schema.NullOr(TimeZoneName),
@@ -125,6 +143,7 @@ export const CalendarPreferences = Schema.Struct({
 export type CalendarPreferences = typeof CalendarPreferences.Type;
 
 export const DEFAULT_CALENDAR_PREFERENCES: CalendarPreferences = {
+  notificationRules: [],
   weekStartsOn: 1,
   timeZone: null,
   workingHours: { start: 9 * 60, end: 17 * 60, days: [1, 2, 3, 4, 5] },
@@ -137,6 +156,7 @@ export const DEFAULT_CALENDAR_PREFERENCES: CalendarPreferences = {
 };
 
 export const CalendarPreferencesPatch = Schema.Struct({
+  notificationRules: Schema.optional(CalendarNotificationRules),
   weekStartsOn: Schema.optional(CalendarWeekday),
   timeZone: Schema.optional(Schema.NullOr(TimeZoneName)),
   workingHours: Schema.optional(CalendarPreferences.fields.workingHours),
@@ -157,6 +177,7 @@ export const CalendarDirectory = Schema.Struct({
   accounts: Schema.Array(CalendarAccount),
   calendars: Schema.Array(Calendar),
   preferences: CalendarPreferences,
+  environmentPreferences: CalendarEnvironmentPreferences,
   google: Schema.Struct({
     /** Whether Google accounts can be connected (an OAuth client is configured). */
     configured: Schema.Boolean,

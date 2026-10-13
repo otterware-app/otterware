@@ -29,6 +29,8 @@
 import {
   CalendarError,
   DEFAULT_CALENDAR_PREFERENCES,
+  DEFAULT_CALENDAR_ENVIRONMENT_PREFERENCES,
+  CalendarEnvironmentPreferences,
   type Calendar,
   type CalendarAccount,
   type CalendarChangeStep,
@@ -68,6 +70,7 @@ import * as Option from "effect/Option";
 import * as PubSub from "effect/PubSub";
 import * as Queue from "effect/Queue";
 import * as Random from "effect/Random";
+import * as Schema from "effect/Schema";
 import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
 import * as SqlClient from "effect/sql/SqlClient";
@@ -273,17 +276,37 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
   const changes = yield* PubSub.unbounded<CalendarChange>();
   const directoryChanges = yield* PubSub.unbounded<number>();
   const wakeups = yield* Queue.sliding<number>(1);
+  yield* Effect.addFinalizer(() =>
+    Effect.all(
+      [PubSub.shutdown(changes), PubSub.shutdown(directoryChanges), Queue.shutdown(wakeups)],
+      { discard: true },
+    ),
+  );
   const serverZone = systemTimeZone();
   const demoClients = new Map<string, CalendarProviderClient>();
   const timers = new Map<string, SyncTimer>();
   const running = new Map<string, Deferred.Deferred<void>>();
   let subscribers = 0;
   let directoryRevision = 0;
+  let environmentRevision = 0;
 
   let preferences: CalendarPreferences = {
     ...DEFAULT_CALENDAR_PREFERENCES,
     ...(yield* store.readPreferences.pipe(Effect.orDie)),
   };
+
+  const decodeEnvironment = Schema.decodeUnknownEffect(
+    Schema.fromJsonString(CalendarEnvironmentPreferences),
+  );
+  const encodeEnvironment = Schema.encodeEffect(
+    Schema.fromJsonString(CalendarEnvironmentPreferences),
+  );
+  const environmentRows = yield* sql<{
+    readonly value_json: string;
+  }>`SELECT value_json FROM calendar_environment_preferences WHERE id = 1`.pipe(Effect.orDie);
+  let environmentPreferences = environmentRows[0]
+    ? yield* decodeEnvironment(environmentRows[0].value_json).pipe(Effect.orDie)
+    : DEFAULT_CALENDAR_ENVIRONMENT_PREFERENCES;
 
   const wake = Queue.offer(wakeups, 0).pipe(Effect.asVoid);
   const publishDirectory = Effect.suspend(() =>
@@ -383,6 +406,7 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
       accounts: accounts.map(toAccount),
       calendars: calendars.map(toCalendar),
       preferences,
+      environmentPreferences,
       google,
     };
     return directory;
@@ -1471,6 +1495,42 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
       )
       .pipe(failedTo("save the preferences"));
 
+  const updateEnvironmentPreferences: CalendarServiceShape["updateEnvironmentPreferences"] = (
+    input,
+  ) =>
+    writes
+      .withPermits(1)(
+        Effect.gen(function* () {
+          const value = yield* encodeEnvironment(input).pipe(
+            Effect.mapError(() => invalid("Invalid sync window.")),
+          );
+          yield* sql.withTransaction(
+            Effect.gen(function* () {
+              yield* sql`INSERT INTO calendar_environment_preferences (id, value_json) VALUES (1, ${value}) ON CONFLICT(id) DO UPDATE SET value_json = excluded.value_json`;
+              yield* sql`UPDATE calendar_calendars SET sync_token = NULL, synced_at = NULL`;
+            }),
+          );
+          environmentPreferences = input;
+          environmentRevision += 1;
+          timers.clear();
+          yield* publishDirectory;
+          yield* wake;
+        }),
+      )
+      .pipe(
+        Effect.andThen(
+          Clock.currentTimeMillis.pipe(
+            Effect.flatMap((now) =>
+              ensureHorizon(
+                mondayOf(now) - input.syncWindow.pastWeeks * WEEK_MS,
+                mondayOf(now) + input.syncWindow.futureWeeks * WEEK_MS,
+              ),
+            ),
+          ),
+        ),
+        failedTo("save the environment preferences"),
+      );
+
   const insertAccount = (
     fields: Omit<
       AccountRecord,
@@ -1651,11 +1711,11 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
           const seen = new Set<string>();
           const removed: Array<string> = [];
           const horizonStart = Math.min(
-            mondayOf(now) - YEAR_MS,
+            mondayOf(now) - environmentPreferences.syncWindow.pastWeeks * WEEK_MS,
             ...all.map((entry) => entry.horizonStart),
           );
           const horizonEnd = Math.max(
-            mondayOf(now) + 2 * YEAR_MS,
+            mondayOf(now) + environmentPreferences.syncWindow.futureWeeks * WEEK_MS,
             ...all.map((entry) => entry.horizonEnd),
           );
           let position = existing.length;
@@ -1723,7 +1783,8 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
     now: number,
   ) =>
     Effect.gen(function* () {
-      const timeMin = iso(now - YEAR_MS);
+      const revision = environmentRevision;
+      const timeMin = iso(now - environmentPreferences.syncWindow.pastWeeks * WEEK_MS);
       const list = (syncToken: string | null) =>
         pagesOf((pageToken) =>
           client.listEvents(calendar.remoteId, {
@@ -1747,6 +1808,11 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
         Effect.gen(function* () {
           const fresh = yield* store.getCalendar(calendar.calendarId);
           if (fresh === undefined) return;
+          if (revision !== environmentRevision)
+            return yield* new CalendarProviderError({
+              reason: "unavailable",
+              detail: "The sync window changed; sync again.",
+            });
           if (full) {
             yield* sql.withTransaction(
               replaceEvents(fresh, events).pipe(
@@ -2070,6 +2136,7 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
     applyChanges,
     updateCalendar,
     updatePreferences,
+    updateEnvironmentPreferences,
     sync,
     ensureFresh,
     removeAccount: (accountId) => removeAccount(accountId),

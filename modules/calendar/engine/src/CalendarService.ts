@@ -9,6 +9,7 @@
  * @module CalendarService
  */
 import type {
+  CalendarEnvironmentPreferences,
   CalendarAccountId,
   CalendarAddDemoInput,
   CalendarApplyChangesInput,
@@ -103,6 +104,9 @@ export interface CalendarServiceShape {
   ) => Effect.Effect<CalendarMutationResult, CalendarError>;
   readonly updateCalendar: (
     input: CalendarUpdateCalendarInput,
+  ) => Effect.Effect<void, CalendarError>;
+  readonly updateEnvironmentPreferences: (
+    input: CalendarEnvironmentPreferences,
   ) => Effect.Effect<void, CalendarError>;
   readonly updatePreferences: (
     input: CalendarPreferencesPatch,
