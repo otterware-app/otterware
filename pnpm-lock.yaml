@@ -841,12 +841,6 @@ importers:
       '@noble/hashes':
         specifier: 'catalog:'
         version: 1.8.0
-      '@otterware/calendar-contracts':
-        specifier: workspace:*
-        version: link:../../modules/calendar/contracts
-      '@otterware/calendar-web':
-        specifier: workspace:*
-        version: link:../../modules/calendar/web
       '@otterware/composition':
         specifier: workspace:*
         version: link:../../packages/composition
@@ -1685,6 +1679,9 @@ importers:
       '@otterware/calendar-node':
         specifier: workspace:*
         version: link:../../modules/calendar/node
+      '@otterware/calendar-web':
+        specifier: workspace:*
+        version: link:../../modules/calendar/web
       '@otterware/drive-contracts':
         specifier: workspace:*
         version: link:../../modules/drive/contracts
