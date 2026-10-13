@@ -20,7 +20,7 @@ import { appAtomRegistry } from "../../rpc/atomRegistry";
 export const browserAtomRuntime = Atom.runtime(layerBrowserEnvironment()).pipe(Atom.keepAlive);
 
 /** A paired environment when there is one, otherwise this browser. */
-export const moduleTargetAtom = Atom.make((get): ModuleTarget =>
+const moduleTargetAtom = Atom.make((get): ModuleTarget =>
   selectModuleTarget(get(environmentCatalog.catalogValueAtom)),
 ).pipe(Atom.withLabel("otterware-module-target"));
 
