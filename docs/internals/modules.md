@@ -10,9 +10,10 @@ Settings screen, scoped settings), 0012 (data homes), 0013 (package per layer).
 | ----------------------------- | -------------------------------------------------------------------------------------------------- |
 | `profiles/`                   | One file per app profile: modules, brand, data home, update feed, landing route, Code visibility   |
 | `packages/module-kit`         | What modules plug into: `./contracts`, `./engine` (portable), `./server` (Node), `./web`           |
-| `packages/composition`        | The only importer of module engines; merges contracts and modules for the active profile           |
+| `packages/composition`        | The only importer of module contracts, engines and web registrations; selects the profile          |
 | `modules/<m>/contracts`       | The module's RPC group (`defineModuleContract`), settings schema, tool and Home schemas            |
 | `modules/<m>/engine`          | `defineServerModule`: layer, migrations, RPC handlers, tools, agent instructions, Home contributor |
+| `modules/<m>/web`             | Registry declaration; receives host UI adapters while the UI kit is app-local                      |
 | `apps/server/src/otterware/`  | Host adapters: the writer lock, Code's Home contributor, the assistant project, the seams' glue    |
 | `apps/web/src/otterware/`     | The web shell: registry, pages host, rail buttons, palette items, Settings › Modules, side chat    |
 | `apps/web/src/otterware/<m>/` | The module's pages (`defineWebModule`), until `components/ui` becomes a package (see below)        |
@@ -36,9 +37,11 @@ agentInstructions, homeContributor, settings })`. The layer is opened when the m
 3. Register it: one line in `MODULE_CONTRACTS` and `SERVER_MODULES` (`packages/composition`), one
    line in `WEB_MODULES` (`apps/web/src/otterware/registry.ts`), and the id in the profiles that
    ship it.
-4. `apps/web/src/otterware/<m>/`: `defineWebModule({ id, label, icon, rail, page, settings,
+4. `modules/<m>/web`: `defineWebModule({ id, label, icon, rail, page, settings,
 commands, searchTerms, serverModule, sideChat })`. The page renders `ModulePageLayout` and
-   publishes what the user looks at with `useModulePageContext`.
+   publishes what the user looks at with `useModulePageContext(context, active)`. Host UI pages
+   currently live in `apps/web/src/otterware/<m>/`; composition is the only importer of the
+   registration package. Sections contribute to the existing Settings screen and search tables.
 
 A module must work with any other subset of modules present, including none (ADR 0006): read
 other modules only through Home contributions and agent tools, never by importing them.
@@ -57,8 +60,8 @@ other modules only through Home contributions and agent tools, never by importin
   and the bridge rechecks the state and the caller's access against the tool's tier before the
   handler runs. Refusals are `ModuleToolRefusedError`, so agents read why.
 - **Agent instructions.** `ModuleRuntime.agentInstructions` joins the instructions of modules that
-  are on. Provider adapters build prompts synchronously, so `AgentInstructions` supplies a synchronous read in the current Effect fiber. Each runtime
-  gets its own service; there is no process-global snapshot.
+  are on. Provider adapters build prompts synchronously, so `AgentInstructions` supplies
+  a synchronous read in the current Effect fiber. Each runtime gets its own service; there is no process-global snapshot.
 - **Home.** `HomeContributors.current` is the host's contributors (Code, from the orchestration
   projections) plus those of modules that are on. The Home module reads it per overview.
 - **In the browser.** The in-browser environment (ADR 0008, `packages/browser-environment`) runs
@@ -80,6 +83,9 @@ Two constraints behind the current layout, to revisit rather than work around:
 - The merged RPC group lives in `packages/composition`, not `packages/contracts`: module contracts
   import `@t3tools/contracts`, so the reverse import would be an evaluation cycle. The server
   (`ws.ts`) and `client-runtime` (`rpc/protocol.ts`) build from `OtterwareWsRpcGroup`.
+- The retained pages host keys pages only by module id. Environment changes update hooks; auth
+  transitions hide the shell with React Activity. Hidden pages pause effects without discarding
+  form state. Never key this host or a page by an environment id or an auth token.
 - Module pages live under `apps/web/src/otterware/<m>/` and reach the host's UI kit and client
   state through the `~` alias, because `components/ui` and the web state are not packages. Moving
   them to `modules/<m>/web` (ADR 0013) needs that extraction first; `@otterware/module-kit/web`

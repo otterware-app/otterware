@@ -82,7 +82,10 @@ if (part === "lint" || part === "local") {
   const lintable = existing.filter((f) => /\.(?:[cm]?[jt]sx?|vue|svelte|astro)$/.test(f));
   if (lintable.length) run("vp", ["lint", "--report-unused-disable-directives", ...lintable]);
   // Repo-wide dependency/export analysis belongs on main, not a docs or feature PR.
-  if (process.env.GITHUB_EVENT_NAME === "push") run("vp", ["run", "knip:check"]);
+  // Repo-wide dependency analysis runs on main, and on PRs that change a manifest.
+  const manifestChanged = plan.files.some((file) => file.endsWith("package.json"));
+  if (process.env.GITHUB_EVENT_NAME === "push" || (part === "lint" && manifestChanged))
+    run("vp", ["run", "knip:check"]);
 }
 if (part === "typecheck" || part === "local") {
   if (part === "local") {

@@ -13,9 +13,13 @@ import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as UsageRouteImport } from './routes/usage'
 import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as PairRouteImport } from './routes/pair'
+import { Route as HomeRouteImport } from './routes/home'
 import { Route as ConnectAgentRouteImport } from './routes/connect-agent'
 import { Route as ConnectRouteImport } from './routes/connect'
+import { Route as CalendarRouteImport } from './routes/calendar'
 import { Route as ChatRouteImport } from './routes/_chat'
+import { Route as HomeIndexRouteImport } from './routes/home.index'
+import { Route as CalendarIndexRouteImport } from './routes/calendar.index'
 import { Route as ChatIndexRouteImport } from './routes/_chat.index'
 import { Route as SettingsStorageRouteImport } from './routes/settings.storage'
 import { Route as SettingsSourceControlRouteImport } from './routes/settings.source-control'
@@ -25,6 +29,7 @@ import { Route as SettingsProvidersRouteImport } from './routes/settings.provide
 import { Route as SettingsProjectsRouteImport } from './routes/settings.projects'
 import { Route as SettingsProjectGroupsRouteImport } from './routes/settings.project-groups'
 import { Route as SettingsOpenSourceLicensesRouteImport } from './routes/settings.open-source-licenses'
+import { Route as SettingsModulesRouteImport } from './routes/settings.modules'
 import { Route as SettingsKeybindingsRouteImport } from './routes/settings.keybindings'
 import { Route as SettingsIntegrationsRouteImport } from './routes/settings.integrations'
 import { Route as SettingsGeneralRouteImport } from './routes/settings.general'
@@ -34,7 +39,10 @@ import { Route as SettingsConnectionsRouteImport } from './routes/settings.conne
 import { Route as SettingsCodeIntelligenceRouteImport } from './routes/settings.code-intelligence'
 import { Route as SettingsArchivedRouteImport } from './routes/settings.archived'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings.appearance'
+import { Route as SettingsModuleIdRouteImport } from './routes/settings.$moduleId'
 import { Route as ProjectsProjectKeyRouteImport } from './routes/projects.$projectKey'
+import { Route as HomeSplatRouteImport } from './routes/home.$'
+import { Route as CalendarSplatRouteImport } from './routes/calendar.$'
 import { Route as AccountSignOutRouteImport } from './routes/account.sign-out'
 import { Route as AccountCallbackRouteImport } from './routes/account.callback'
 import { Route as ChatPullRequestsRouteImport } from './routes/_chat.pull-requests'
@@ -62,6 +70,11 @@ const PairRoute = PairRouteImport.update({
   path: '/pair',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HomeRoute = HomeRouteImport.update({
+  id: '/home',
+  path: '/home',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ConnectAgentRoute = ConnectAgentRouteImport.update({
   id: '/connect-agent',
   path: '/connect-agent',
@@ -72,9 +85,24 @@ const ConnectRoute = ConnectRouteImport.update({
   path: '/connect',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CalendarRoute = CalendarRouteImport.update({
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChatRoute = ChatRouteImport.update({
   id: '/_chat',
   getParentRoute: () => rootRouteImport,
+} as any)
+const HomeIndexRoute = HomeIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => HomeRoute,
+} as any)
+const CalendarIndexRoute = CalendarIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CalendarRoute,
 } as any)
 const ChatIndexRoute = ChatIndexRouteImport.update({
   id: '/',
@@ -122,6 +150,11 @@ const SettingsOpenSourceLicensesRoute =
     path: '/open-source-licenses',
     getParentRoute: () => SettingsRoute,
   } as any)
+const SettingsModulesRoute = SettingsModulesRouteImport.update({
+  id: '/modules',
+  path: '/modules',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsKeybindingsRoute = SettingsKeybindingsRouteImport.update({
   id: '/keybindings',
   path: '/keybindings',
@@ -168,10 +201,25 @@ const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
   path: '/appearance',
   getParentRoute: () => SettingsRoute,
 } as any)
+const SettingsModuleIdRoute = SettingsModuleIdRouteImport.update({
+  id: '/$moduleId',
+  path: '/$moduleId',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const ProjectsProjectKeyRoute = ProjectsProjectKeyRouteImport.update({
   id: '/projects/$projectKey',
   path: '/projects/$projectKey',
   getParentRoute: () => rootRouteImport,
+} as any)
+const HomeSplatRoute = HomeSplatRouteImport.update({
+  id: '/$',
+  path: '/$',
+  getParentRoute: () => HomeRoute,
+} as any)
+const CalendarSplatRoute = CalendarSplatRouteImport.update({
+  id: '/$',
+  path: '/$',
+  getParentRoute: () => CalendarRoute,
 } as any)
 const AccountSignOutRoute = AccountSignOutRouteImport.update({
   id: '/account/sign-out',
@@ -207,8 +255,10 @@ const ChatEnvironmentIdThreadIdRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof ChatIndexRoute
+  '/calendar': typeof CalendarRouteWithChildren
   '/connect': typeof ConnectRoute
   '/connect-agent': typeof ConnectAgentRoute
+  '/home': typeof HomeRouteWithChildren
   '/pair': typeof PairRoute
   '/settings': typeof SettingsRouteWithChildren
   '/usage': typeof UsageRoute
@@ -217,7 +267,10 @@ export interface FileRoutesByFullPath {
   '/pull-requests': typeof ChatPullRequestsRoute
   '/account/callback': typeof AccountCallbackRoute
   '/account/sign-out': typeof AccountSignOutRoute
+  '/calendar/$': typeof CalendarSplatRoute
+  '/home/$': typeof HomeSplatRoute
   '/projects/$projectKey': typeof ProjectsProjectKeyRoute
+  '/settings/$moduleId': typeof SettingsModuleIdRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/archived': typeof SettingsArchivedRoute
   '/settings/code-intelligence': typeof SettingsCodeIntelligenceRoute
@@ -227,6 +280,7 @@ export interface FileRoutesByFullPath {
   '/settings/general': typeof SettingsGeneralRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/keybindings': typeof SettingsKeybindingsRoute
+  '/settings/modules': typeof SettingsModulesRoute
   '/settings/open-source-licenses': typeof SettingsOpenSourceLicensesRoute
   '/settings/project-groups': typeof SettingsProjectGroupsRoute
   '/settings/projects': typeof SettingsProjectsRoute
@@ -235,6 +289,8 @@ export interface FileRoutesByFullPath {
   '/settings/snap-shot': typeof SettingsSnapShotRoute
   '/settings/source-control': typeof SettingsSourceControlRoute
   '/settings/storage': typeof SettingsStorageRoute
+  '/calendar/': typeof CalendarIndexRoute
+  '/home/': typeof HomeIndexRoute
   '/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
   '/draft/$draftId': typeof ChatDraftDraftIdRoute
 }
@@ -249,7 +305,10 @@ export interface FileRoutesByTo {
   '/pull-requests': typeof ChatPullRequestsRoute
   '/account/callback': typeof AccountCallbackRoute
   '/account/sign-out': typeof AccountSignOutRoute
+  '/calendar/$': typeof CalendarSplatRoute
+  '/home/$': typeof HomeSplatRoute
   '/projects/$projectKey': typeof ProjectsProjectKeyRoute
+  '/settings/$moduleId': typeof SettingsModuleIdRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/archived': typeof SettingsArchivedRoute
   '/settings/code-intelligence': typeof SettingsCodeIntelligenceRoute
@@ -259,6 +318,7 @@ export interface FileRoutesByTo {
   '/settings/general': typeof SettingsGeneralRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/keybindings': typeof SettingsKeybindingsRoute
+  '/settings/modules': typeof SettingsModulesRoute
   '/settings/open-source-licenses': typeof SettingsOpenSourceLicensesRoute
   '/settings/project-groups': typeof SettingsProjectGroupsRoute
   '/settings/projects': typeof SettingsProjectsRoute
@@ -268,14 +328,18 @@ export interface FileRoutesByTo {
   '/settings/source-control': typeof SettingsSourceControlRoute
   '/settings/storage': typeof SettingsStorageRoute
   '/': typeof ChatIndexRoute
+  '/calendar': typeof CalendarIndexRoute
+  '/home': typeof HomeIndexRoute
   '/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
   '/draft/$draftId': typeof ChatDraftDraftIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_chat': typeof ChatRouteWithChildren
+  '/calendar': typeof CalendarRouteWithChildren
   '/connect': typeof ConnectRoute
   '/connect-agent': typeof ConnectAgentRoute
+  '/home': typeof HomeRouteWithChildren
   '/pair': typeof PairRoute
   '/settings': typeof SettingsRouteWithChildren
   '/usage': typeof UsageRoute
@@ -284,7 +348,10 @@ export interface FileRoutesById {
   '/_chat/pull-requests': typeof ChatPullRequestsRoute
   '/account/callback': typeof AccountCallbackRoute
   '/account/sign-out': typeof AccountSignOutRoute
+  '/calendar/$': typeof CalendarSplatRoute
+  '/home/$': typeof HomeSplatRoute
   '/projects/$projectKey': typeof ProjectsProjectKeyRoute
+  '/settings/$moduleId': typeof SettingsModuleIdRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/archived': typeof SettingsArchivedRoute
   '/settings/code-intelligence': typeof SettingsCodeIntelligenceRoute
@@ -294,6 +361,7 @@ export interface FileRoutesById {
   '/settings/general': typeof SettingsGeneralRoute
   '/settings/integrations': typeof SettingsIntegrationsRoute
   '/settings/keybindings': typeof SettingsKeybindingsRoute
+  '/settings/modules': typeof SettingsModulesRoute
   '/settings/open-source-licenses': typeof SettingsOpenSourceLicensesRoute
   '/settings/project-groups': typeof SettingsProjectGroupsRoute
   '/settings/projects': typeof SettingsProjectsRoute
@@ -303,6 +371,8 @@ export interface FileRoutesById {
   '/settings/source-control': typeof SettingsSourceControlRoute
   '/settings/storage': typeof SettingsStorageRoute
   '/_chat/': typeof ChatIndexRoute
+  '/calendar/': typeof CalendarIndexRoute
+  '/home/': typeof HomeIndexRoute
   '/_chat/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
   '/_chat/draft/$draftId': typeof ChatDraftDraftIdRoute
 }
@@ -310,8 +380,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/calendar'
     | '/connect'
     | '/connect-agent'
+    | '/home'
     | '/pair'
     | '/settings'
     | '/usage'
@@ -320,7 +392,10 @@ export interface FileRouteTypes {
     | '/pull-requests'
     | '/account/callback'
     | '/account/sign-out'
+    | '/calendar/$'
+    | '/home/$'
     | '/projects/$projectKey'
+    | '/settings/$moduleId'
     | '/settings/appearance'
     | '/settings/archived'
     | '/settings/code-intelligence'
@@ -330,6 +405,7 @@ export interface FileRouteTypes {
     | '/settings/general'
     | '/settings/integrations'
     | '/settings/keybindings'
+    | '/settings/modules'
     | '/settings/open-source-licenses'
     | '/settings/project-groups'
     | '/settings/projects'
@@ -338,6 +414,8 @@ export interface FileRouteTypes {
     | '/settings/snap-shot'
     | '/settings/source-control'
     | '/settings/storage'
+    | '/calendar/'
+    | '/home/'
     | '/$environmentId/$threadId'
     | '/draft/$draftId'
   fileRoutesByTo: FileRoutesByTo
@@ -352,7 +430,10 @@ export interface FileRouteTypes {
     | '/pull-requests'
     | '/account/callback'
     | '/account/sign-out'
+    | '/calendar/$'
+    | '/home/$'
     | '/projects/$projectKey'
+    | '/settings/$moduleId'
     | '/settings/appearance'
     | '/settings/archived'
     | '/settings/code-intelligence'
@@ -362,6 +443,7 @@ export interface FileRouteTypes {
     | '/settings/general'
     | '/settings/integrations'
     | '/settings/keybindings'
+    | '/settings/modules'
     | '/settings/open-source-licenses'
     | '/settings/project-groups'
     | '/settings/projects'
@@ -371,13 +453,17 @@ export interface FileRouteTypes {
     | '/settings/source-control'
     | '/settings/storage'
     | '/'
+    | '/calendar'
+    | '/home'
     | '/$environmentId/$threadId'
     | '/draft/$draftId'
   id:
     | '__root__'
     | '/_chat'
+    | '/calendar'
     | '/connect'
     | '/connect-agent'
+    | '/home'
     | '/pair'
     | '/settings'
     | '/usage'
@@ -386,7 +472,10 @@ export interface FileRouteTypes {
     | '/_chat/pull-requests'
     | '/account/callback'
     | '/account/sign-out'
+    | '/calendar/$'
+    | '/home/$'
     | '/projects/$projectKey'
+    | '/settings/$moduleId'
     | '/settings/appearance'
     | '/settings/archived'
     | '/settings/code-intelligence'
@@ -396,6 +485,7 @@ export interface FileRouteTypes {
     | '/settings/general'
     | '/settings/integrations'
     | '/settings/keybindings'
+    | '/settings/modules'
     | '/settings/open-source-licenses'
     | '/settings/project-groups'
     | '/settings/projects'
@@ -405,14 +495,18 @@ export interface FileRouteTypes {
     | '/settings/source-control'
     | '/settings/storage'
     | '/_chat/'
+    | '/calendar/'
+    | '/home/'
     | '/_chat/$environmentId/$threadId'
     | '/_chat/draft/$draftId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   ChatRoute: typeof ChatRouteWithChildren
+  CalendarRoute: typeof CalendarRouteWithChildren
   ConnectRoute: typeof ConnectRoute
   ConnectAgentRoute: typeof ConnectAgentRoute
+  HomeRoute: typeof HomeRouteWithChildren
   PairRoute: typeof PairRoute
   SettingsRoute: typeof SettingsRouteWithChildren
   UsageRoute: typeof UsageRoute
@@ -452,6 +546,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PairRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/home': {
+      id: '/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof HomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/connect-agent': {
       id: '/connect-agent'
       path: '/connect-agent'
@@ -466,12 +567,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ConnectRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/calendar': {
+      id: '/calendar'
+      path: '/calendar'
+      fullPath: '/calendar'
+      preLoaderRoute: typeof CalendarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_chat': {
       id: '/_chat'
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/home/': {
+      id: '/home/'
+      path: '/'
+      fullPath: '/home/'
+      preLoaderRoute: typeof HomeIndexRouteImport
+      parentRoute: typeof HomeRoute
+    }
+    '/calendar/': {
+      id: '/calendar/'
+      path: '/'
+      fullPath: '/calendar/'
+      preLoaderRoute: typeof CalendarIndexRouteImport
+      parentRoute: typeof CalendarRoute
     }
     '/_chat/': {
       id: '/_chat/'
@@ -534,6 +656,13 @@ declare module '@tanstack/react-router' {
       path: '/open-source-licenses'
       fullPath: '/settings/open-source-licenses'
       preLoaderRoute: typeof SettingsOpenSourceLicensesRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/modules': {
+      id: '/settings/modules'
+      path: '/modules'
+      fullPath: '/settings/modules'
+      preLoaderRoute: typeof SettingsModulesRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/settings/keybindings': {
@@ -599,12 +728,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAppearanceRouteImport
       parentRoute: typeof SettingsRoute
     }
+    '/settings/$moduleId': {
+      id: '/settings/$moduleId'
+      path: '/$moduleId'
+      fullPath: '/settings/$moduleId'
+      preLoaderRoute: typeof SettingsModuleIdRouteImport
+      parentRoute: typeof SettingsRoute
+    }
     '/projects/$projectKey': {
       id: '/projects/$projectKey'
       path: '/projects/$projectKey'
       fullPath: '/projects/$projectKey'
       preLoaderRoute: typeof ProjectsProjectKeyRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/home/$': {
+      id: '/home/$'
+      path: '/$'
+      fullPath: '/home/$'
+      preLoaderRoute: typeof HomeSplatRouteImport
+      parentRoute: typeof HomeRoute
+    }
+    '/calendar/$': {
+      id: '/calendar/$'
+      path: '/$'
+      fullPath: '/calendar/$'
+      preLoaderRoute: typeof CalendarSplatRouteImport
+      parentRoute: typeof CalendarRoute
     }
     '/account/sign-out': {
       id: '/account/sign-out'
@@ -669,7 +819,34 @@ const ChatRouteChildren: ChatRouteChildren = {
 
 const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
 
+interface CalendarRouteChildren {
+  CalendarSplatRoute: typeof CalendarSplatRoute
+  CalendarIndexRoute: typeof CalendarIndexRoute
+}
+
+const CalendarRouteChildren: CalendarRouteChildren = {
+  CalendarSplatRoute: CalendarSplatRoute,
+  CalendarIndexRoute: CalendarIndexRoute,
+}
+
+const CalendarRouteWithChildren = CalendarRoute._addFileChildren(
+  CalendarRouteChildren,
+)
+
+interface HomeRouteChildren {
+  HomeSplatRoute: typeof HomeSplatRoute
+  HomeIndexRoute: typeof HomeIndexRoute
+}
+
+const HomeRouteChildren: HomeRouteChildren = {
+  HomeSplatRoute: HomeSplatRoute,
+  HomeIndexRoute: HomeIndexRoute,
+}
+
+const HomeRouteWithChildren = HomeRoute._addFileChildren(HomeRouteChildren)
+
 interface SettingsRouteChildren {
+  SettingsModuleIdRoute: typeof SettingsModuleIdRoute
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
   SettingsArchivedRoute: typeof SettingsArchivedRoute
   SettingsCodeIntelligenceRoute: typeof SettingsCodeIntelligenceRoute
@@ -679,6 +856,7 @@ interface SettingsRouteChildren {
   SettingsGeneralRoute: typeof SettingsGeneralRoute
   SettingsIntegrationsRoute: typeof SettingsIntegrationsRoute
   SettingsKeybindingsRoute: typeof SettingsKeybindingsRoute
+  SettingsModulesRoute: typeof SettingsModulesRoute
   SettingsOpenSourceLicensesRoute: typeof SettingsOpenSourceLicensesRoute
   SettingsProjectGroupsRoute: typeof SettingsProjectGroupsRoute
   SettingsProjectsRoute: typeof SettingsProjectsRoute
@@ -690,6 +868,7 @@ interface SettingsRouteChildren {
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
+  SettingsModuleIdRoute: SettingsModuleIdRoute,
   SettingsAppearanceRoute: SettingsAppearanceRoute,
   SettingsArchivedRoute: SettingsArchivedRoute,
   SettingsCodeIntelligenceRoute: SettingsCodeIntelligenceRoute,
@@ -699,6 +878,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsGeneralRoute: SettingsGeneralRoute,
   SettingsIntegrationsRoute: SettingsIntegrationsRoute,
   SettingsKeybindingsRoute: SettingsKeybindingsRoute,
+  SettingsModulesRoute: SettingsModulesRoute,
   SettingsOpenSourceLicensesRoute: SettingsOpenSourceLicensesRoute,
   SettingsProjectGroupsRoute: SettingsProjectGroupsRoute,
   SettingsProjectsRoute: SettingsProjectsRoute,
@@ -715,8 +895,10 @@ const SettingsRouteWithChildren = SettingsRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   ChatRoute: ChatRouteWithChildren,
+  CalendarRoute: CalendarRouteWithChildren,
   ConnectRoute: ConnectRoute,
   ConnectAgentRoute: ConnectAgentRoute,
+  HomeRoute: HomeRouteWithChildren,
   PairRoute: PairRoute,
   SettingsRoute: SettingsRouteWithChildren,
   UsageRoute: UsageRoute,

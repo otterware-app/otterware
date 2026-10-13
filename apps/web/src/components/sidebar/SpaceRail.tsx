@@ -30,9 +30,15 @@ const RAIL_BUTTON =
   "relative flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-sidebar-muted-foreground outline-hidden ring-ring hover:bg-sidebar-row-hover hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-inset [-webkit-app-region:no-drag]";
 const RAIL_BUTTON_SELECTED = "bg-sidebar-row-selected text-sidebar-foreground";
 
-type RailPlace = "settings" | "usage" | "pull-requests" | "threads";
+// Otterware seam: registry rail entries surround the hide-only Code surfaces.
+import { ModuleRailButtons } from "../../otterware/ModuleRailButtons";
+import { moduleRegistry } from "../../otterware/registry";
+import { activeProfile } from "@otterware/profiles/active";
+
+type RailPlace = "settings" | "usage" | "pull-requests" | "threads" | "module";
 
 function railPlace(pathname: string): RailPlace {
+  if (moduleRegistry.isModulePath(pathname)) return "module";
   if (pathname === "/usage") return "usage";
   if (pathname === "/pull-requests") return "pull-requests";
   return isSidebarUtilityPage(pathname) ? "settings" : "threads";
@@ -115,7 +121,8 @@ export const SpaceRail = memo(function SpaceRail({ className }: { className?: st
         className="drag-region hidden h-(--workspace-topbar-height) w-full shrink-0 in-data-[app-frame=window]:block"
       />
       <div className="flex min-h-0 w-full flex-1 flex-col items-center gap-1 overflow-y-auto pt-(--space-rail-top) [scrollbar-width:none]">
-        {legacySidebarEnabled ? null : (
+        <ModuleRailButtons position="start" button={RailButton} />
+        {!activeProfile.codeVisible || legacySidebarEnabled ? null : (
           <>
             <RailButton
               label="All projects"
@@ -150,7 +157,7 @@ export const SpaceRail = memo(function SpaceRail({ className }: { className?: st
             })}
           </>
         )}
-        {pullRequestsSupported ? (
+        {activeProfile.codeVisible && pullRequestsSupported ? (
           <>
             <RailDivider />
             <RailButton
@@ -165,6 +172,7 @@ export const SpaceRail = memo(function SpaceRail({ className }: { className?: st
             </RailButton>
           </>
         ) : null}
+        <ModuleRailButtons position="end" button={RailButton} divider={<RailDivider />} />
       </div>
       <div className="flex shrink-0 flex-col items-center gap-1 pt-1">
         <SidebarUpdatePill />

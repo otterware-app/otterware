@@ -213,6 +213,8 @@ import { openLinkPullRequestDialog } from "./pullRequest/LinkPullRequestDialog";
 import { openLinkLinearIssueDialog } from "./linear/LinkLinearIssueDialog";
 import { ProjectContentSearchDialog } from "./search/ProjectContentSearchDialog";
 import { toggleThemeEditorForTheme } from "./settings/themeEditorStore";
+// Otterware seam: module navigation and commands come from the registry.
+import { moduleCommandPaletteItems } from "../otterware/modulePaletteItems";
 import { searchSettings, SETTINGS_SECTION_LABELS } from "./settings/settingsSearch";
 import {
   COMMAND_PALETTE_META_ICON_CLASS,
@@ -2285,6 +2287,8 @@ function OpenCommandPaletteDialog(props: {
     },
   });
 
+  actionItems.push(...moduleCommandPaletteItems(navigate));
+
   // Target the active thread or draft's project, falling back to the first sidebar group.
   const contextualProjectGroup =
     (contextualProjectRef
@@ -2337,7 +2341,7 @@ function OpenCommandPaletteDialog(props: {
     icon: <SettingsIcon className={ITEM_ICON_CLASS} />,
     run: async () => {
       await navigate({
-        to: item.to,
+        href: item.to,
         hash: item.targetId ?? item.id,
         replace: pathname === item.to,
         hashScrollIntoView: false,

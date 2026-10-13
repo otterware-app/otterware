@@ -196,6 +196,7 @@ export default defineConfig(() => {
       ],
     },
     define: {
+      __OTTERWARE_PROFILE__: JSON.stringify(process.env.OTTERWARE_PROFILE?.trim() ?? ""),
       // In dev mode, tell the web app where the WebSocket server lives
       "import.meta.env.VITE_WS_URL": JSON.stringify(configuredWsUrl ?? ""),
       // Pinned explicitly rather than left to Vite's automatic VITE_ exposure:

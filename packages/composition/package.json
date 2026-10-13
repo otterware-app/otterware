@@ -18,6 +18,14 @@
     "./browser": {
       "types": "./src/browser.ts",
       "import": "./src/browser.ts"
+    },
+    "./web": {
+      "types": "./src/web.ts",
+      "import": "./src/web.ts"
+    },
+    "./web/calendar": {
+      "types": "./src/calendar-web.ts",
+      "import": "./src/calendar-web.ts"
     }
   },
   "scripts": {
@@ -28,11 +36,13 @@
     "@otterware/calendar-contracts": "workspace:*",
     "@otterware/calendar-engine": "workspace:*",
     "@otterware/calendar-node": "workspace:*",
+    "@otterware/calendar-web": "workspace:*",
     "@otterware/drive-contracts": "workspace:*",
     "@otterware/drive-engine": "workspace:*",
     "@otterware/drive-node": "workspace:*",
     "@otterware/home-contracts": "workspace:*",
     "@otterware/home-engine": "workspace:*",
+    "@otterware/home-web": "workspace:*",
     "@otterware/mail-contracts": "workspace:*",
     "@otterware/mail-engine": "workspace:*",
     "@otterware/mail-node": "workspace:*",

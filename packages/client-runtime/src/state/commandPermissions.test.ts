@@ -59,6 +59,51 @@ const setup = Effect.gen(function* () {
 });
 
 describe("command permissions", () => {
+  it.effect("allows module queries without a write command boundary", () =>
+    Effect.gen(function* () {
+      const response = { modules: [{ id: "home", state: "on" as const }] };
+      const session = {
+        client: { "modules.list": () => Effect.succeed(response) },
+      } as unknown as RpcSession;
+      const supervisor = {
+        target: { environmentId: env, label: "target" },
+        session: yield* SubscriptionRef.make(Option.some(session)),
+      } as unknown as EnvironmentSupervisor["Service"];
+      const result = yield* requestGuarded("modules.list", {}).pipe(
+        Effect.provideService(EnvironmentSupervisor, supervisor),
+      );
+      expect(result).toEqual(response);
+    }),
+  );
+
+  it.effect("checks live module writes against the destination grant", () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const registry = yield* setup;
+        const toggle = createCommandPermissions(runtime, "modules.setEnabled");
+        registry.set(sessions(env), AsyncResult.success(grant(true)));
+        expect(registry.get(toggle.permissionAtom(env))).toBe(false);
+        expect((yield* toggle.authorize(registry, env).pipe(Effect.flip))._tag).toBe(
+          "EnvironmentAuthorizationError",
+        );
+        registry.set(
+          sessions(env),
+          AsyncResult.success({
+            ...grant(false),
+            scopes: [AuthSettingsWriteScope],
+            permissions: [AuthSettingsWriteScope],
+          }),
+        );
+        expect(registry.get(toggle.permissionAtom(env))).toBe(true);
+        yield* toggle.authorize(registry, env);
+        registry.set(sessions(other), AsyncResult.success(grant(true)));
+        expect((yield* toggle.authorize(registry, other).pipe(Effect.flip))._tag).toBe(
+          "EnvironmentAuthorizationError",
+        );
+      }),
+    ),
+  );
+
   it.effect("requires the destination settings grant to run storage cleanup", () =>
     Effect.scoped(
       Effect.gen(function* () {

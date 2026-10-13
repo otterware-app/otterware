@@ -77,9 +77,16 @@ const T3ConnectSidebarAvatar = lazy(() =>
   })),
 );
 
+import {
+  OTTERWARE_SETTINGS_SECTION_ICONS,
+  isProfileSettingsPathVisible,
+} from "../../otterware/settingsRegistry";
+
+// Otterware seam: icons and profile visibility follow the registry.
 const SETTINGS_SECTION_ICONS: Readonly<
   Record<SettingsPath, ComponentType<{ className?: string }>>
 > = {
+  ...OTTERWARE_SETTINGS_SECTION_ICONS,
   "/settings/general": Settings2Icon,
   "/settings/diagnostics": Settings2Icon,
   "/settings/appearance": PaletteIcon,
@@ -103,7 +110,7 @@ const SETTINGS_NAV_ITEMS: ReadonlyArray<{
   to: SettingsPath;
   icon: ComponentType<{ className?: string }>;
 }> = (Object.keys(SETTINGS_SECTION_LABELS) as SettingsPath[])
-  .filter((to) => to !== "/settings/diagnostics")
+  .filter((to) => to !== "/settings/diagnostics" && isProfileSettingsPathVisible(to))
   .map((to) => ({
     to,
     label: SETTINGS_SECTION_LABELS[to],
@@ -196,7 +203,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
         setOpenMobile(false);
       }
       void navigate({
-        to,
+        href: to,
         hash: "",
         replace: true,
         hashScrollIntoView: false,
@@ -220,7 +227,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
         return;
       }
       void navigate({
-        to: item.to,
+        href: item.to,
         hash: targetId,
         replace: true,
         hashScrollIntoView: false,

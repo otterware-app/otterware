@@ -15,8 +15,6 @@
   "dependencies": {
     "@otterware/drive-contracts": "workspace:*",
     "@otterware/drive-engine": "workspace:*",
-    "@otterware/module-kit": "workspace:*",
-    "@t3tools/contracts": "workspace:*",
     "effect": "catalog:"
   },
   "devDependencies": {

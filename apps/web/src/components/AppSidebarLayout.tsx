@@ -265,6 +265,11 @@ function AppFramePanelEdge() {
   );
 }
 
+// Otterware seam: persistent pages and profile visibility live outside the host.
+import { ModulePagesHost } from "../otterware/ModulePagesHost";
+import { moduleRegistry } from "../otterware/registry";
+import { activeProfile } from "@otterware/profiles/active";
+
 export function AppSidebarLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const legacySidebarEnabled = useLegacySidebarEnabled();
@@ -284,7 +289,11 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
   const frame = useAppFrame();
   const railWidth = frame ? SPACE_RAIL_WIDTH : 0;
   // Full-width pages: the rail is their way out, so phones (rail in the sheet) keep the sidebar.
-  const sidebarHidden = frame !== null && (pathname === "/usage" || pathname === "/pull-requests");
+  const sidebarHidden =
+    !isOnSettings &&
+    (!activeProfile.codeVisible ||
+      moduleRegistry.isModulePath(pathname) ||
+      (frame !== null && (pathname === "/usage" || pathname === "/pull-requests")));
   const [sidebarWidth, setSidebarWidth] = useState(readInitialThreadSidebarWidth);
   // Subscribed rather than read once: the clamp must track live window size,
   // and a clamped drag ends with an unchanged width, which skips the re-render
@@ -424,7 +433,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
             <MobileSpaceRailLayout enabled={frame === null}>{sidebarContent}</MobileSpaceRailLayout>
             <SidebarRail onDoubleClick={resetSidebarWidth} />
           </Sidebar>
-          {children}
+          <ModulePagesHost>{children}</ModulePagesHost>
           {frame ? <AppFramePanelEdge /> : null}
         </div>
         {sidebarHidden ? null : <SidebarControl />}

@@ -13,7 +13,17 @@ import {
   type SettingsScopeSearch,
 } from "./settingsScope";
 
+// Otterware seam: contributed sections join the host settings tables.
+import {
+  OTTERWARE_SETTINGS_SECTION_LABELS,
+  OTTERWARE_SETTINGS_CATEGORY_SCOPES,
+  OTTERWARE_SETTINGS_SEARCH_ITEMS,
+  isProfileSettingsPathVisible,
+  type OtterwareSettingsPath,
+} from "../../otterware/settingsRegistry";
+
 export type SettingsPath =
+  | OtterwareSettingsPath
   | "/settings/projects"
   | "/settings/project-groups"
   | "/settings/general"
@@ -96,6 +106,7 @@ export interface SettingsSearchAvailability {
  * subtitles both render from this record, so each label exists once.
  */
 export const SETTINGS_SECTION_LABELS: Readonly<Record<SettingsPath, string>> = {
+  ...OTTERWARE_SETTINGS_SECTION_LABELS,
   "/settings/diagnostics": "Diagnostics",
   "/settings/projects": "Project",
   "/settings/general": "General",
@@ -170,6 +181,7 @@ const SOURCE_CONTROL_HOST_SEARCH_ITEMS = sourceControlClients.definitions.flatMa
  * that may not be mounted point at their nearest stable section instead.
  */
 export const SETTINGS_SEARCH_ITEMS = [
+  ...OTTERWARE_SETTINGS_SEARCH_ITEMS,
   {
     id: "storage-worktree-keep-when",
     targetId: "storage-worktrees",
@@ -1073,6 +1085,7 @@ export type SettingsSearchItemId = (typeof SETTINGS_SEARCH_ITEMS)[number]["id"];
 const SEARCH_ITEMS_BY_ID = new Map(SETTINGS_SEARCH_ITEMS.map((item) => [item.id, item] as const));
 
 const SETTINGS_CATEGORY_SCOPES: Readonly<Record<SettingsPath, SettingsSearchScope | null>> = {
+  ...OTTERWARE_SETTINGS_CATEGORY_SCOPES,
   "/settings/diagnostics": "environment",
   "/settings/projects": "project",
   "/settings/project-groups": null,
@@ -1202,6 +1215,7 @@ export function filterAvailableSettingsSearchItems(
   const items: ReadonlyArray<SettingsSearchItem> = SETTINGS_SEARCH_ITEMS;
   return items.filter(
     (item) =>
+      isProfileSettingsPathVisible(item.to) &&
       (!item.cloudOnly || availability.hasCloudPublicConfig) &&
       (!item.environmentOnly || availability.hasEnvironment) &&
       (!item.providerSettingsOnly || availability.hasProviderSettingsEnvironment) &&

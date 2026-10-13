@@ -96,12 +96,17 @@ jobs:
               - --filter=@t3tools/monorepo
               - --filter=@t3tools/oxlint-plugin-t3code
 
-      - name: Install all workspaces for main dependency analysis
-        if: ${{ github.event_name == 'push' }}
+      # Dependency analysis (knip) runs on main and on PRs that change a manifest.
+      - name: Detect manifest changes
+        id: manifests
+        run: node -e 'const p = JSON.parse(require("fs").readFileSync(".otterware-ci-plan.json", "utf8")); console.log(`changed=${p.files.some((f) => f.endsWith("package.json"))}`)' >> "$GITHUB_OUTPUT"
+
+      - name: Install all workspaces for dependency analysis
+        if: ${{ github.event_name == 'push' || steps.manifests.outputs.changed == 'true' }}
         run: vp install --frozen-lockfile
 
-      - name: Ensure Electron for main dependency analysis
-        if: ${{ github.event_name == 'push' }}
+      - name: Ensure Electron for dependency analysis
+        if: ${{ github.event_name == 'push' || steps.manifests.outputs.changed == 'true' }}
         run: vp run --filter @t3tools/desktop ensure:electron
 
       - name: Check changed files

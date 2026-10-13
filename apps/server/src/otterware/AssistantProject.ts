@@ -22,9 +22,9 @@ import * as NodeOS from "node:os";
 import * as ServerConfig from "../config.ts";
 import * as ProjectService from "../project/ProjectService.ts";
 
-export const ASSISTANT_PROJECT_TITLE = "Otterware Assistant";
+const ASSISTANT_PROJECT_TITLE = "Otterware Assistant";
 
-export function assistantWorkspaceRoot(input: {
+function assistantWorkspaceRoot(input: {
   readonly baseDir: string;
   readonly devServer: boolean;
   readonly homeDir: string;

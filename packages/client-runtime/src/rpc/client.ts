@@ -1,6 +1,7 @@
+// Otterware seam: module commands use the same destination grant checks as host commands.
+import { clientRpcRequiredScopes } from "../otterware/modulePermissions.ts";
 import {
   EnvironmentAuthorizationError,
-  clientRpcRequiredScopes,
   authScopeRequiredResponse,
   type EnvironmentId,
   type ClientGuardedRpcTag,
