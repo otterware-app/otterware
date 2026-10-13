@@ -37,7 +37,6 @@ apps/desktop/src/app/DesktopEnvironment.ts
 apps/desktop/src/app/DesktopStatePaths.ts
 apps/desktop/src/app/DesktopUserData.ts
 apps/desktop/src/electron/ElectronProtocol.ts
-apps/desktop/src/electron/ElectronUpdater.ts
 apps/desktop/scripts/electron-launcher.mjs
 
 # Packaging from the app profile
@@ -74,8 +73,6 @@ knip.jsonc
 
 # Dependency notice registry: preserve notices omitted from Mail dependency tarballs
 third-party-licenses.config.json
-# Server packaging: embedded module worker artifacts
-apps/server/vite.config.ts
 
 # W8: baked profile channel stays authoritative over the legacy latest/nightly selector
 apps/desktop/src/electron/ElectronUpdater.ts
