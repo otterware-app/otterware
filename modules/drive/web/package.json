@@ -1,0 +1,55 @@
+{
+  "name": "@otterware/drive-web",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    },
+    "./registration": {
+      "types": "./src/DriveWebModule.ts",
+      "import": "./src/DriveWebModule.ts"
+    }
+  },
+  "scripts": {
+    "dev": "vp dev",
+    "build": "vp build",
+    "typecheck": "tsc-rs --noEmit",
+    "test": "vp test run --config ../../../vite.config.ts --dir . --passWithNoTests"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.4.1",
+    "@e965/xlsx": "0.20.3",
+    "@otterware/drive-contracts": "workspace:*",
+    "@otterware/module-kit": "workspace:*",
+    "@otterware/otter-cloud-client": "workspace:*",
+    "@t3tools/client-runtime": "workspace:*",
+    "@t3tools/shared": "workspace:*",
+    "@tanstack/react-query": "^5.87.4",
+    "@univerjs/core": "0.25.1",
+    "@univerjs/preset-docs-core": "0.25.1",
+    "@univerjs/preset-sheets-core": "0.25.1",
+    "@univerjs/themes": "0.25.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "2.1.1",
+    "lucide-react": "^0.564.0",
+    "papaparse": "5.5.4",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "react-markdown": "^10.1.0",
+    "remark-gfm": "catalog:",
+    "tailwind-merge": "^3.4.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "catalog:",
+    "@types/node": "catalog:",
+    "@types/papaparse": "5.5.2",
+    "@types/react": "~19.3.0",
+    "@types/react-dom": "~19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "tailwindcss": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

@@ -22,6 +22,8 @@ allowBuilds:
   node-pty: true
   # Ships N-API prebuilds; its install script only rebuilds from source.
   objc-js: false
+  # Univer's dependency; its install script only checks the Node version.
+  protobufjs: false
   "react-native-enriched-markdown@file:apps/mobile/deps/react-native-enriched-markdown-1.2.0-t3.11.tgz": true
   sharp: true
   tsc-rs: true
