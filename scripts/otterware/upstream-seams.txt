@@ -78,6 +78,7 @@ scripts/lib/cli-external-packages*.ts
 # W8: runtime update/archive selection follows the baked profile feed
 packages/shared/src/cliRelease*.ts
 packages/ssh/src/tunnel*.ts
+apps/mobile/src/features/settings/environment-maintenance*.ts
 apps/server/src/cli/update.ts
 
 apps/server/src/cloud/pinnedRuntime.test.ts
