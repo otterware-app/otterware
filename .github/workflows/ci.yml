@@ -192,6 +192,9 @@ jobs:
       - name: Build desktop pipeline
         run: vp run build:desktop
 
+      - name: Smoke-test emitted server runtime dependencies
+        run: node scripts/release-smoke.ts --server-bundle
+
       - name: Verify preload bundle output
         run: node apps/desktop/scripts/verify-preload-bundle.mjs
 

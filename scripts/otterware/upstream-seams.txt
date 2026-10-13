@@ -73,3 +73,6 @@ apps/server/vite.config.ts
 
 # W8: baked profile channel stays authoritative over the legacy latest/nightly selector
 apps/desktop/src/electron/ElectronUpdater.ts
+
+# W8: verify the production runtime root added for module contracts
+scripts/lib/cli-external-packages.test.ts
