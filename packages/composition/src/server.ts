@@ -5,6 +5,8 @@
  */
 import { CalendarModule } from "@otterware/calendar-engine";
 import { calendarNodeModule } from "@otterware/calendar-node";
+import { MailModule } from "@otterware/mail-engine/module";
+import { mailNodeModule } from "@otterware/mail-node";
 import { HomeModule } from "@otterware/home-engine";
 import type { ServerModule, ServerModuleRequirements } from "@otterware/module-kit/engine";
 import { HostLayer, layerRpcHandlers as moduleKitRpcHandlers } from "@otterware/module-kit/server";
@@ -16,6 +18,7 @@ import { type KnownModuleId, OtterwareRpcGroup, selectModuleIds } from "./contra
 /** Every module engine this repository knows. A new module adds one line. */
 export const SERVER_MODULES = {
   home: HomeModule,
+  mail: MailModule,
   calendar: CalendarModule,
 } as const satisfies Record<KnownModuleId, ServerModule>;
 
@@ -34,7 +37,11 @@ export const layer = (stateDir: string) =>
   HostLayer.layer<ServerModulesRequirements>({
     stateDir,
     modules: activeServerModules.map((module) =>
-      module.contract.id === "calendar" ? calendarNodeModule(stateDir) : module,
+      module.contract.id === "calendar"
+        ? calendarNodeModule(stateDir)
+        : module.contract.id === "mail"
+          ? mailNodeModule({ stateDir, profile: activeProfile.id })
+          : module,
     ),
   });
 

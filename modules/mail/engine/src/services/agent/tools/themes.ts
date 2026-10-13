@@ -1,3 +1,4 @@
+import { mailToolDefinition } from "@otterware/mail-contracts/tools";
 /**
  * The app's color themes, for the agent: which are worn, what a theme's
  * colors are, and making or changing one (Settings › Appearance's library,
@@ -143,24 +144,9 @@ function stored(
   };
 }
 
-const ROLES_HELP = Object.entries(PAINTED_ROLES)
-  .map(([role, what]) => `${role} (${what})`)
-  .join(", ");
-
-const paletteArg = (mode: ThemeAppearance) => ({
-  type: "object",
-  additionalProperties: { type: "string" },
-  description: `Colors to set in the ${mode} palette, role → "#rrggbb" or "oklch(L C H)". Only these change.`,
-});
-
 export const themeTools: AgentTool[] = [
   {
-    name: "list_themes",
-    title: "List themes",
-    description:
-      "The app's color themes (built-in, and the user's own), and which one each appearance (light, dark) wears now, plus the color scheme (system, light or dark).",
-    input: { type: "object", properties: {} },
-    readOnly: true,
+    ...mailToolDefinition("list_themes"),
     async run() {
       const own = await library();
       const ui = await getUiPreferences();
@@ -185,15 +171,7 @@ export const themeTools: AgentTool[] = [
     },
   },
   {
-    name: "get_theme",
-    title: "Get theme",
-    description: `A theme's colors for each appearance it has, by role (the roles the app paints). Roles: ${ROLES_HELP}.`,
-    input: {
-      type: "object",
-      properties: { theme: { type: "string", description: "Its id (from list_themes)." } },
-      required: ["theme"],
-    },
-    readOnly: true,
+    ...mailToolDefinition("get_theme"),
     async run(args) {
       const id = str(args, "theme");
       const modes = await paletteOf(id);
@@ -205,27 +183,7 @@ export const themeTools: AgentTool[] = [
     },
   },
   {
-    name: "save_theme",
-    title: "Save theme",
-    description:
-      "Makes a theme of the user's own, or changes one, setting the colors given (every other color stays). " +
-      'Changing a built-in (like the one worn now) makes a copy ("<name> copy" unless `name` is given) and wears it in its place, as built-ins never change. ' +
-      "A new theme starts from `from` (default: the theme the dark appearance wears) and is worn at once unless `wear` is false. " +
-      `Roles: ${ROLES_HELP}. Contrast matters: keep text readable on its background.`,
-    input: {
-      type: "object",
-      properties: {
-        theme: {
-          type: "string",
-          description: "The theme to change, by id. Leave out to make a new one.",
-        },
-        name: { type: "string", description: "A new theme's name, or a new name for `theme`." },
-        from: { type: "string", description: "The theme a new one starts from, by id." },
-        light: paletteArg("light"),
-        dark: paletteArg("dark"),
-        wear: { type: "boolean", description: "Wear a new theme now (default true)." },
-      },
-    },
+    ...mailToolDefinition("save_theme"),
     async run(args, ctx) {
       const own = await library();
       const wearing = await worn();
@@ -299,18 +257,7 @@ export const themeTools: AgentTool[] = [
     },
   },
   {
-    name: "use_theme",
-    title: "Use theme",
-    description:
-      "Wears a theme: for the appearances it has, or only the one given (light or dark).",
-    input: {
-      type: "object",
-      properties: {
-        theme: { type: "string", description: "Its id (from list_themes)." },
-        appearance: { type: "string", enum: ["light", "dark"], description: "Default: both." },
-      },
-      required: ["theme"],
-    },
+    ...mailToolDefinition("use_theme"),
     async run(args, ctx) {
       const id = str(args, "theme");
       const has = await paletteOf(id);

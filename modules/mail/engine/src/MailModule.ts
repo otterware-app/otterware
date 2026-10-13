@@ -1,5 +1,7 @@
 import { MailContract } from "@otterware/mail-contracts/rpc";
 import { defineServerModule } from "@otterware/module-kit/engine";
+import * as Layer from "effect/Layer";
+import { MailError } from "@otterware/mail-contracts/rpc";
 import * as Effect from "effect/Effect";
 
 import { MailRuntime } from "./MailRuntime.ts";
@@ -123,6 +125,15 @@ const rpcHandlers = Effect.gen(function* () {
 export const MailModule = defineServerModule({
   contract: MailContract,
   migrations: [],
+  layer: Layer.effect(
+    MailRuntime,
+    Effect.fail(
+      new MailError({
+        operation: "start",
+        message: "Mail requires a node or browser worker adapter.",
+      }),
+    ),
+  ),
   rpcHandlers,
   tools: { toolkit: MailToolkit, handlers: toolHandlers },
   agentInstructions:

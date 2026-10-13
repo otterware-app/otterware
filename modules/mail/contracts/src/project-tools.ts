@@ -14,7 +14,7 @@ import {
   type ProjectDocument,
   type ProjectLink,
   type ProjectStatus,
-} from "./projects.js";
+} from "./projects.ts";
 
 /** A store of projects, the relay's or a device's. */
 export interface ProjectBackend {
@@ -145,7 +145,7 @@ export function defineTool<S extends z.ZodRawShape>(
   const describe = spec.describe;
   return {
     ...spec,
-    describe: describe && ((args) => describe(parse(args))),
+    ...(describe ? { describe: (args: Record<string, unknown>) => describe(parse(args)) } : {}),
     run: (args) => spec.run(parse(args)),
   };
 }
@@ -250,7 +250,12 @@ export function projectTools(backend: ProjectBackend): ProjectTool[] {
           .filter(Boolean)
           .join("\n"),
       run: async ({ projectId, name, notes }) =>
-        summary(await backend.update(projectId, { name, notes })),
+        summary(
+          await backend.update(projectId, {
+            ...(name === undefined ? {} : { name }),
+            ...(notes === undefined ? {} : { notes }),
+          }),
+        ),
     }),
     tool({
       name: "set_project_status",
@@ -307,4 +312,27 @@ export function projectTools(backend: ProjectBackend): ProjectTool[] {
       },
     }),
   ];
+}
+
+/** Builds metadata without acquiring a store; implementations use the same factory with a real backend. */
+export function projectToolDefinitions() {
+  const unavailable = (): never => {
+    throw new Error("Project metadata has no backend.");
+  };
+  return projectTools({
+    list: unavailable,
+    create: unavailable,
+    update: unavailable,
+    addThread: unavailable,
+    removeThread: unavailable,
+    addLink: unavailable,
+    removeLink: unavailable,
+    documents: unavailable,
+  }).map((tool) => ({
+    name: tool.name,
+    title: tool.title,
+    description: tool.description,
+    input: inputJsonSchema(tool),
+    readOnly: tool.readOnly,
+  }));
 }

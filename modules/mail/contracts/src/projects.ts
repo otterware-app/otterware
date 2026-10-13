@@ -91,9 +91,9 @@ export function groupDocuments(versions: ProjectDocumentVersion[]): ProjectDocum
   return [...byKey.values()]
     .map((group) => {
       const sorted = group.sort((a, b) => b.date - a.date);
-      return { name: sorted[0].filename, versions: sorted };
+      return { name: sorted[0]!.filename, versions: sorted };
     })
-    .sort((a, b) => b.versions[0].date - a.versions[0].date);
+    .sort((a, b) => b.versions[0]!.date - a.versions[0]!.date);
 }
 
 /** What the relay keeps of a project itself; threads and links are written on their own. */

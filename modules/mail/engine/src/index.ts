@@ -31,18 +31,21 @@ import { startMailSchedule } from "./services/mail-schedule.js";
 import { refreshSignatures } from "./services/signatures.js";
 
 /** Starts the backend: restores sign-ins, registers every handler, and syncs. */
-export async function startCore(platform: Platform): Promise<void> {
+export async function startCore(
+  platform: Platform,
+  options: { hostAccount?: boolean } = {},
+): Promise<void> {
   setPlatform(platform);
   await platform.google.load();
   await loadImapPasswords();
-  await loadOtterAccount();
+  if (!options.hostAccount) await loadOtterAccount();
 
   registerGmailHandlers();
   startMailSchedule();
   registerImapAccountHandlers();
   registerSearchHandlers();
   registerCalendarHandlers();
-  registerOtterAccountHandlers();
+  if (!options.hostAccount) registerOtterAccountHandlers();
   registerTranslationHandlers();
   registerSupportHandlers();
   registerProjectHandlers();
@@ -105,3 +108,10 @@ export {
   type AppSettings,
 } from "./services/settings-store.js";
 export type * from "./types.js";
+export { setPlatform } from "./platform.ts";
+export { accountGoogleAuth, microsoftToken } from "./cloudAuth.ts";
+export { createCloudSync } from "./cloudSync.ts";
+export { syncAccount } from "./services/mail-sync.ts";
+export { invalidateProjectCache } from "./services/projects.ts";
+
+export { renewWatch } from "./providers/gmail/watch.ts";

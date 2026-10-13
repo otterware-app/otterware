@@ -19,7 +19,8 @@
     "./shared/demo-mailboxes": "./shared/src/demo-mailboxes.ts",
     "./shared/support": "./shared/src/support.ts",
     "./shared/view-marks": "./shared/src/view-marks.ts",
-    "./rpc": "./src/rpc.ts"
+    "./rpc": "./src/rpc.ts",
+    "./tools": "./src/tool-definitions.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

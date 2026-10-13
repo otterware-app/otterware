@@ -72,9 +72,9 @@ client is registered for the former. The project signs with team 838JVGY7W4; to 
 iPhone, pick it in Xcode, or from the command line:
 
 ```sh
-xcodebuild -project apps/ios/OtterMail.xcodeproj -scheme OtterMail -destination 'platform=iOS,id=<udid>' \
-  -derivedDataPath apps/ios/.build -allowProvisioningUpdates -allowProvisioningDeviceRegistration build
-xcrun devicectl device install app --device <udid> "apps/ios/.build/Build/Products/Debug-iphoneos/Otter Mail.app"
+xcodebuild -project native/mail-ios/OtterMail.xcodeproj -scheme OtterMail -destination 'platform=iOS,id=<udid>' \
+  -derivedDataPath native/mail-ios/.build -allowProvisioningUpdates -allowProvisioningDeviceRegistration build
+xcrun devicectl device install app --device <udid> "native/mail-ios/.build/Build/Products/Debug-iphoneos/Otter Mail.app"
 ```
 
 (`xcrun devicectl list devices` gives the UDID. Without an Apple account signed in to Xcode, add
@@ -84,7 +84,7 @@ API key.)
 Unit tests (`OtterMailTests`, Swift Testing) run in the simulator:
 
 ```sh
-xcodebuild -project apps/ios/OtterMail.xcodeproj -scheme OtterMail -destination 'platform=iOS Simulator,name=iPhone 17' test
+xcodebuild -project native/mail-ios/OtterMail.xcodeproj -scheme OtterMail -destination 'platform=iOS Simulator,name=iPhone 17' test
 ```
 
 Shipping: the Release iPhone workflow builds and uploads to TestFlight (`pnpm release:ios` does

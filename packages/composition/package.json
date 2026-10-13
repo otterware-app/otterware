@@ -22,6 +22,9 @@
     "@otterware/calendar-node": "workspace:*",
     "@otterware/home-contracts": "workspace:*",
     "@otterware/home-engine": "workspace:*",
+    "@otterware/mail-contracts": "workspace:*",
+    "@otterware/mail-engine": "workspace:*",
+    "@otterware/mail-node": "workspace:*",
     "@otterware/module-kit": "workspace:*",
     "@otterware/profiles": "workspace:*",
     "@t3tools/contracts": "workspace:*"
