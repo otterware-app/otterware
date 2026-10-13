@@ -131,7 +131,9 @@ export function findInlinedExternalPackages(source: string): {
   readonly inlinedPackages: ReadonlyArray<string>;
 } {
   // Rolldown marks each inlined module with a `//#region <path>` comment.
-  const regionPattern = /\/\/#region\s+(\S+)/g;
+  // Embedded module workers contain escaped region comments inside JS strings.
+  // Only real comment lines describe modules in this host bundle.
+  const regionPattern = /^\/\/#region[^\S\r\n]+(\S+)/gm;
   const packagePattern = /node_modules\/((?:@[^/\s]+\/)?[^/\s]+)\//g;
 
   let regionCount = 0;

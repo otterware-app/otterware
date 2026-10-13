@@ -7,6 +7,7 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import { findEsmImportsOfExternalPackages } from "../lib/cli-executable-imports.ts";
 import {
+  findInlinedExternalPackages,
   isRuntimeExternalCliDependency,
   selectCliRuntimeExternalDependencies,
 } from "../lib/cli-external-packages.ts";
@@ -110,6 +111,7 @@ export function assertServerRuntimeBundle(root: string) {
   const sources = [...NodeFS.globSync("**/*.mjs", { cwd: dist })].map((path) =>
     NodeFS.readFileSync(NodePath.join(dist, path), "utf8"),
   );
+  assertServerBundleRegions(sources);
   const dependencies = readManifest(root, "apps/server/package.json").dependencies ?? {};
   const missing = missingServerBundleDependencies(
     sources,
@@ -130,4 +132,16 @@ export function assertServerRuntimeBundle(root: string) {
   } finally {
     NodeFS.rmSync(home, { recursive: true, force: true });
   }
+}
+
+/** Use the packaging guard on PRs, before allocating platform packaging jobs. */
+export function assertServerBundleRegions(sources: ReadonlyArray<string>) {
+  const scans = sources.map(findInlinedExternalPackages);
+  const inlined = [...new Set(scans.flatMap((scan) => scan.inlined))].sort();
+  if (inlined.length)
+    throw new Error(`Server bundle inlined runtime externals: ${inlined.join(", ")}`);
+  if (!scans.some((scan) => scan.regionCount > 0))
+    throw new Error("Server bundle has no module regions; update the artifact scanner");
+  if (!scans.some((scan) => scan.inlinedPackages.includes("effect")))
+    throw new Error("Server bundle externalized effect; the staged runtime cannot load it");
 }
