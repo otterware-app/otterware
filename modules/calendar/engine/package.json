@@ -15,6 +15,7 @@
   "dependencies": {
     "@otterware/calendar-contracts": "workspace:*",
     "@otterware/module-kit": "workspace:*",
+    "@otterware/otter-cloud-client": "workspace:*",
     "@t3tools/contracts": "workspace:*",
     "effect": "catalog:"
   },

@@ -55,6 +55,9 @@ export interface GoogleClientStatus {
 }
 
 export interface GoogleAuthShape {
+  /** Disconnects an account-held grant before deleting its local cache. */
+  readonly disconnect?: (sub: string) => Effect.Effect<void, CalendarError>;
+  readonly accounts?: Effect.Effect<ReadonlyArray<GoogleIdentity>, CalendarError>;
   readonly clientStatus: Effect.Effect<GoogleClientStatus>;
   /** Stores a client from the settings (secret in the secret store). */
   readonly setClient: (input: GoogleClientInput) => Effect.Effect<void, CalendarError>;

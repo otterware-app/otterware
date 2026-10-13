@@ -170,7 +170,7 @@ export const CalendarPreferencesPatch = Schema.Struct({
 export type CalendarPreferencesPatch = typeof CalendarPreferencesPatch.Type;
 
 /** Where the environment's Google OAuth client comes from; null when none is configured. */
-export const GoogleClientSource = Schema.Literals(["settings", "environment", "build"]);
+export const GoogleClientSource = Schema.Literals(["settings", "environment", "build", "account"]);
 export type GoogleClientSource = typeof GoogleClientSource.Type;
 
 export const CalendarDirectory = Schema.Struct({
@@ -478,6 +478,8 @@ export type CalendarUpdateCalendarInput = typeof CalendarUpdateCalendarInput.Typ
  * app catches it on its own loopback port, other clients ask the user to paste it.
  */
 export const GoogleConnectInput = Schema.Struct({
+  source: Schema.optional(Schema.Literals(["account", "local"])),
+  returnTo: Schema.optional(Schema.String),
   /** Preselects the Google account, e.g. when signing an account back in. */
   loginHint: Schema.optional(Schema.String.check(Schema.isMaxLength(320))),
 });

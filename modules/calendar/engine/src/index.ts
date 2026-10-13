@@ -9,3 +9,11 @@ export type {
 } from "./google/GoogleAuth.ts";
 export { makeGoogleCalendarClient } from "./google/GoogleCalendarClient.ts";
 export { CalendarProviderError } from "./providers/CalendarProvider.ts";
+
+export {
+  CalendarAccountSession,
+  accountSessionLayer,
+  cloudCall,
+} from "./CalendarAccountSession.ts";
+export type { CalendarAccountCredential, CalendarCloudContext } from "./CalendarAccountSession.ts";
+export * as AccountGoogleAuth from "./google/AccountGoogleAuth.ts";

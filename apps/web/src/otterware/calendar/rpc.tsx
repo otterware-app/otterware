@@ -138,7 +138,7 @@ function makeClient(environmentId: EnvironmentId | null): CalendarWebClient {
     clearClient: () => command(atoms.commands.clearClient, {}),
     completeConnect: (flowId, callbackUrl) =>
       command(atoms.commands.completeConnect, { flowId, callbackUrl }),
-    connect: (onState, onError) => {
+    connect: (input, onState, onError) => {
       const controller = new AbortController();
       const task = Effect.scoped(
         Effect.gen(function* () {
@@ -156,7 +156,7 @@ function makeClient(environmentId: EnvironmentId | null): CalendarWebClient {
           const registry = yield* EnvironmentRegistry.EnvironmentRegistry.pipe(
             Effect.provide(context),
           );
-          yield* registry.runStream(env, calendarConnectStream).pipe(
+          yield* registry.runStream(env, calendarConnectStream(input)).pipe(
             Stream.runForEach((state) => Effect.sync(() => onState(state))),
             Effect.provide(context),
           );
