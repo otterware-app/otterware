@@ -129,7 +129,12 @@ jobs:
           test -n "$app"
           codesign --verify --deep --strict "$app"
           codesign -dvv "$app" 2>&1 | grep -q 'Authority=Developer ID Application:'
-          xcrun stapler validate "$app"
+          # Apple's ticket lookup can drop the connection; retry before failing the build.
+          for attempt in 1 2 3 4 5; do
+            xcrun stapler validate "$app" && break
+            [ "$attempt" = 5 ] && exit 1
+            sleep $((attempt * 15))
+          done
       - name: Build Linux server single-executable
         if: inputs.cli_archive
         env:
