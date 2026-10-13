@@ -17,8 +17,13 @@ describe("composeContracts", () => {
       "assistant.ensureProject",
     ]);
 
+    const calendar = composeContracts(PROFILES.calendar);
+    expect(calendar.moduleIds).toEqual(["calendar"]);
+    expect([...calendar.group.requests.keys()]).toContain("calendar.subscribeWeek");
+    expect([...calendar.group.requests.keys()]).not.toContain("home.overview");
+
     const otterware = composeContracts(PROFILES.otterware);
-    expect(otterware.moduleIds).toEqual(["home"]);
+    expect(otterware.moduleIds).toEqual(["home", "calendar"]);
     expect([...otterware.group.requests.keys()]).toContain("home.overview");
     expect(otterware.scopes["home.overview"]).toBe("orchestration:read");
   });
@@ -26,7 +31,11 @@ describe("composeContracts", () => {
   it("labels every known method for instrumentation and authorization", () => {
     for (const tag of Object.keys(OTTERWARE_RPC_SUPERSET_SCOPES)) {
       expect(OTTERWARE_RPC_AGGREGATES[tag as keyof typeof OTTERWARE_RPC_AGGREGATES]).toBe(
-        tag.startsWith("home.") ? "module.home" : "host",
+        tag.startsWith("home.")
+          ? "module.home"
+          : tag.startsWith("calendar.")
+            ? "module.calendar"
+            : "host",
       );
     }
   });

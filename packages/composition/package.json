@@ -17,6 +17,9 @@
     "test": "vp test run --config ../../vite.config.ts --dir ."
   },
   "dependencies": {
+    "@otterware/calendar-contracts": "workspace:*",
+    "@otterware/calendar-engine": "workspace:*",
+    "@otterware/calendar-node": "workspace:*",
     "@otterware/home-contracts": "workspace:*",
     "@otterware/home-engine": "workspace:*",
     "@otterware/module-kit": "workspace:*",
