@@ -40,6 +40,8 @@ export function isAllowedHostPath(request: Request, env: Env): boolean {
     return (
       /^\/raw\/session\/[^/]+$/.test(url.pathname) ||
       /^\/raw\/thumbnail\/[^/]+$/.test(url.pathname) ||
+      // A signed version's files; the empty path is its entry file.
+      /^\/raw\/t\/[^/]+\/.*/.test(url.pathname) ||
       /^\/raw\/a\/[^/]+\/[^/]+\/.+/.test(url.pathname)
     );
   }

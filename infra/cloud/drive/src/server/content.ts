@@ -32,6 +32,12 @@ const GRANT_SECONDS = 5 * 60;
  * requesting ranges while it plays and seeks, so this outlives the URL grant.
  */
 const SESSION_SECONDS = 4 * 60 * 60;
+/**
+ * How long a signed preview URL lasts. Pages that cannot keep a cookie on the
+ * content origin (the desktop app, a local server, any origin outside
+ * otterware.app) load a version's files through it instead of a session.
+ */
+const SIGNED_SECONDS = 60 * 60;
 
 function base64Url(bytes: Uint8Array): string {
   let binary = "";
@@ -244,6 +250,44 @@ export async function serveRawContent(
   if (grant.artifactId !== artifactId || grant.versionId !== versionId) {
     throw new HttpError(403, "grant_scope_mismatch", "Content grant scope mismatch.");
   }
+  return serveVersionFile(request, env, versionId, path, "same-site");
+}
+
+/**
+ * The base URL of a version's files for one reader, signed into the path, so
+ * relative links inside the document resolve under it and no cookie is
+ * needed. It grants that version's files, like a content session, and is
+ * rechecked against the reader's access on every request.
+ */
+export async function signedContentBase(
+  env: Env,
+  input: Omit<GrantPayload, "expiresAt" | "nonce">,
+): Promise<string> {
+  const token = await signContentGrant(env, input, SIGNED_SECONDS);
+  return new URL(`/raw/t/${token}/`, env.CONTENT_URL).toString();
+}
+
+/** A signed URL's file: `/raw/t/<grant>/<path>`, the entry file when the path is empty. */
+export async function serveSignedContent(
+  request: Request,
+  env: Env,
+  token: string,
+  path: string,
+): Promise<Response> {
+  assertContentOrigin(request, env);
+  const grant = await verifyContentGrant(env, token);
+  await assertGrantAccess(env, grant);
+  // The URL is the capability, so any page may embed it; the content origin stays isolated.
+  return serveVersionFile(request, env, grant.versionId, path || grant.entryPath, "cross-origin");
+}
+
+async function serveVersionFile(
+  request: Request,
+  env: Env,
+  versionId: string,
+  path: string,
+  resourcePolicy: "same-site" | "cross-origin",
+): Promise<Response> {
   const file = await env.DB.prepare(
     `SELECT path, content_type, size, r2_key FROM artifact_file
      WHERE version_id = ? AND path = ?`,
@@ -271,7 +315,7 @@ export async function serveRawContent(
     "cache-control": "private, no-store",
     "x-content-type-options": "nosniff",
     "referrer-policy": "no-referrer",
-    "cross-origin-resource-policy": "same-site",
+    "cross-origin-resource-policy": resourcePolicy,
   });
   if (file.content_type.includes("text/html")) {
     headers.set(
@@ -301,7 +345,8 @@ export async function serveThumbnail(request: Request, env: Env, token: string):
       "content-length": String(object.size),
       "cache-control": "private, max-age=300",
       "x-content-type-options": "nosniff",
-      "cross-origin-resource-policy": "same-site",
+      // A signed URL: lists show it from any app origin, the desktop app's included.
+      "cross-origin-resource-policy": "cross-origin",
       "referrer-policy": "no-referrer",
     },
   });
