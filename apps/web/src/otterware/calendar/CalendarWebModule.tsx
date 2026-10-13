@@ -38,7 +38,3 @@ export const CalendarWebModule = {
     }),
   },
 };
-
-export function CalendarBackgroundRuntime() {
-  return <CalendarEnvironmentProvider>{null}</CalendarEnvironmentProvider>;
-}
