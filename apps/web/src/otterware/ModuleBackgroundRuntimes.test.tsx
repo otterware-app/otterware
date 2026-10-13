@@ -3,7 +3,7 @@ import { act, createContext, lazy, useContext, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { createModuleRegistry, defineWebModule } from "@otterware/module-kit/web";
 import { CalendarIcon } from "lucide-react";
-import { describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { ModulePagesHost } from "./ModulePagesHost";
 
 let pathname = "/settings/modules";
@@ -55,8 +55,11 @@ const module = defineWebModule({
 });
 let registry = createModuleRegistry([module]);
 
+beforeEach(() => vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true));
+afterEach(() => vi.unstubAllGlobals());
+
 describe("module background runtimes", () => {
-  it("subscribes before a page visit, follows the environment and closes when disabled or absent", async () => {
+  it("subscribes before a page visit, follows the environment and closes when disabled", async () => {
     pageLoads = 0;
     pathname = "/settings/modules";
     registry = createModuleRegistry([module]);
@@ -98,12 +101,20 @@ describe("module background runtimes", () => {
       await show("no-modules", "two");
       expect([...subscriptions.keys()]).toEqual([]);
       await show("on", "two");
-      registry = createModuleRegistry([]);
-      await show("on", "two");
-      expect([...subscriptions.keys()]).toEqual([]);
     } finally {
       await act(async () => root.unmount());
     }
     expect([...subscriptions.keys()]).toEqual([]);
+  });
+
+  it("does not start a runtime excluded from the build profile", async () => {
+    registry = createModuleRegistry([]);
+    const root = createRoot(document.createElement("div"));
+    try {
+      await act(async () => root.render(<ModulePagesHost>{null}</ModulePagesHost>));
+      expect([...subscriptions.keys()]).toEqual([]);
+    } finally {
+      await act(async () => root.unmount());
+    }
   });
 });

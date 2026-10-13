@@ -107,7 +107,7 @@ function makeClient(environmentId: EnvironmentId | null): CalendarWebClient {
           const registry = yield* EnvironmentRegistry.EnvironmentRegistry.pipe(
             Effect.provide(context),
           );
-          yield* registry.runStream(environmentId, calendarNotificationsStream).pipe(
+          yield* registry.followStream(environmentId, calendarNotificationsStream).pipe(
             Stream.runForEach((notification) => Effect.sync(() => onNotification(notification))),
             Effect.provide(context),
           );

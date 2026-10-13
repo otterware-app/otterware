@@ -170,9 +170,17 @@ export const calendarConnectStream = (
 export const calendarNotificationsStream = Stream.unwrap(
   Effect.gen(function* () {
     const supervisor = yield* EnvironmentSupervisor.EnvironmentSupervisor;
-    const session = yield* SubscriptionRef.get(supervisor.session);
-    return Option.isNone(session)
-      ? Stream.empty
-      : session.value.client[CALENDAR_METHODS.calendarSubscribeNotifications]({});
+    return SubscriptionRef.changes(supervisor.session).pipe(
+      Stream.switchMap((session) =>
+        Option.isNone(session)
+          ? Stream.empty
+          : session.value.client[CALENDAR_METHODS.calendarSubscribeNotifications]({}).pipe(
+              // A lost transport waits for the next session; module failures reach the UI.
+              Stream.catch((error) =>
+                error._tag === "RpcClientError" ? Stream.empty : Stream.fail(error),
+              ),
+            ),
+      ),
+    );
   }),
 );
