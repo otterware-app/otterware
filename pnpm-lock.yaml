@@ -1560,9 +1560,6 @@ importers:
       '@otterware/mail-contracts':
         specifier: workspace:*
         version: link:../contracts
-      '@shadcn/react':
-        specifier: ^0.2.0
-        version: 0.2.1(@types/react@19.3.0)(react@19.2.6)
       '@tanstack/react-query':
         specifier: ^5.87.4
         version: 5.104.2(react@19.2.6)
@@ -7596,17 +7593,6 @@ packages:
       '@typescript-eslint/parser':
         optional: true
       eslint:
-        optional: true
-
-  '@shadcn/react@0.2.1':
-    resolution: {integrity: sha512-5krgi3dRMKb5jH6a+qPzVJUy/54s0kKE4Rw4LjDfLqOdVQTWKUgxWf1kW8r912I0jX/Lzxqc+pgjkjWxUIK5BQ==}
-    peerDependencies:
-      '@types/react': '>=19'
-      react: '>=19'
-    peerDependenciesMeta:
-      '@types/react':
-        optional: true
-      react:
         optional: true
 
   '@shikijs/core@4.2.0':
@@ -19716,11 +19702,6 @@ snapshots:
       cn: 0.3.2
     optionalDependencies:
       oxc-parser: 0.148.0
-
-  '@shadcn/react@0.2.1(@types/react@19.3.0)(react@19.2.6)':
-    optionalDependencies:
-      '@types/react': 19.3.0
-      react: 19.2.6
 
   '@shikijs/core@4.2.0':
     dependencies:
