@@ -17,9 +17,16 @@ export const spawnBrowserEnvironmentWorker = (): Worker =>
     name: "otterware-browser-environment",
   });
 
-/** The client protocol over `spawn`'s worker or port. */
+/**
+ * The client protocol over `spawn`'s worker or port. One worker serves every
+ * request at once: a request holds its worker until it ends, and
+ * subscriptions never end, so the per-worker limit must not be the pool's
+ * default of one.
+ */
 export const layerProtocol = (spawn: () => Worker | MessagePort = spawnBrowserEnvironmentWorker) =>
-  RpcClient.layerProtocolWorker({ size: 1 }).pipe(Layer.provide(BrowserWorker.layer(spawn)));
+  RpcClient.layerProtocolWorker({ size: 1, concurrency: 1_000_000 }).pipe(
+    Layer.provide(BrowserWorker.layer(spawn)),
+  );
 
 export const makeBrowserEnvironmentClient = RpcClient.make(BrowserEnvironmentRpcGroup);
 
