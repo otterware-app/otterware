@@ -16,6 +16,9 @@ import * as Layer from "effect/Layer";
 
 import * as BrowserAccount from "./account/BrowserAccount.ts";
 import { layerAccountHandlers } from "./account/handlers.ts";
+import * as AgentStore from "./agent/AgentStore.ts";
+import * as BrowserAgent from "./agent/BrowserAgent.ts";
+import { layerAgentHandlers } from "./agent/handlers.ts";
 import * as BrowserInstallation from "./BrowserInstallation.ts";
 import { BrowserModulesRpcGroup } from "./contracts.ts";
 
@@ -33,8 +36,8 @@ export const layerNoAssistantProject = Layer.succeed(AssistantProjectHost, {
 });
 
 /**
- * Every handler of `BrowserEnvironmentRpcGroup` over the module runtime and
- * the browser's account. `Requirements` names what the modules need from the
+ * Every handler of `BrowserEnvironmentRpcGroup` over the module runtime, the
+ * browser's account and its agent loop. `Requirements` names what the modules need from the
  * browser, as the composition derives it, so a missing platform service fails
  * the typecheck.
  */
@@ -44,7 +47,10 @@ export const layerHost =
     Layer.mergeAll(
       layerRpcHandlers(BrowserModulesRpcGroup).pipe(Layer.provide(layerNoAssistantProject)),
       layerAccountHandlers,
+      layerAgentHandlers,
     ).pipe(
+      Layer.provideMerge(BrowserAgent.layer),
+      Layer.provideMerge(AgentStore.layer),
       Layer.provideMerge(layerRuntime<Requirements>(modules)),
       Layer.provideMerge(BrowserAccount.layer),
       Layer.provideMerge(BrowserInstallation.layer),

@@ -1581,9 +1581,15 @@ importers:
       '@otterware/profiles':
         specifier: workspace:*
         version: link:../../profiles
+      '@otterware/provider-api-agents':
+        specifier: workspace:*
+        version: link:../provider-api-agents
       '@sqlite.org/sqlite-wasm':
         specifier: 3.53.4-build1
         version: 3.53.4-build1
+      '@t3tools/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       effect:
         specifier: 4.0.2
         version: 4.0.2(patch_hash=ec61ee307eaec3e17f757e0e6a16296ea4b7a8c3188df0c6ec5e66301fd78688)

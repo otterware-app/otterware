@@ -18,6 +18,8 @@ export interface FakeCloud {
   readonly users: Map<string, string>;
   /** Answers `/v1/cloud/*` requests beyond the token and channel ticket. */
   cloud: (path: string, init: RequestInit) => Response;
+  /** Answers requests to any other origin (an agent's own server). */
+  external: (url: string, init: RequestInit) => Response;
   readonly platform: BrowserPlatform["Service"];
 }
 
@@ -66,6 +68,7 @@ export const makeFakeCloud = (): FakeCloud => {
       }),
     users: new Map([["oauth-ada", "user-ada"]]),
     cloud: () => Response.json({ error: "not found" }, { status: 404 }),
+    external: () => Response.json({ error: "not found" }, { status: 404 }),
     platform: {
       fetch: async (input, init = {}) => {
         const url = String(input);
@@ -81,6 +84,7 @@ export const makeFakeCloud = (): FakeCloud => {
             user: { id: user },
           });
         }
+        if (!url.startsWith(`${CLOUD_ORIGIN}/`)) return fake.external(url, init);
         const path = url.slice(CLOUD_ORIGIN.length);
         if (path === "/v1/cloud/token") {
           const { audience } = JSON.parse(String(init.body)) as { audience: string };
@@ -105,3 +109,10 @@ export const makeFakeCloud = (): FakeCloud => {
   };
   return fake;
 };
+
+/** A server-sent event stream of JSON frames, as Cloud and chat completions send them. */
+export const sse = (frames: ReadonlyArray<unknown>, done = false) =>
+  new Response(
+    `${frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join("")}${done ? "data: [DONE]\n\n" : ""}`,
+    { headers: { "content-type": "text/event-stream" } },
+  );
