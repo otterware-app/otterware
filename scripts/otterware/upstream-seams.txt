@@ -68,8 +68,6 @@ knip.jsonc
 
 # Dependency notice registry: preserve notices omitted from Mail dependency tarballs
 third-party-licenses.config.json
-# Server packaging: embedded module worker artifacts
-apps/server/vite.config.ts
 
 # W8: baked profile channel stays authoritative over the legacy latest/nightly selector
 apps/desktop/src/electron/ElectronUpdater.ts
