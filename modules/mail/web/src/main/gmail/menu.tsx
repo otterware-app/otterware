@@ -1,3 +1,4 @@
+import { mailRoot } from "../../host/dom";
 import type { ComponentProps, ReactNode } from "react";
 import { ContextMenu as ContextPrimitive, DropdownMenu as Menu } from "radix-ui";
 import { CheckIcon, ChevronRightIcon } from "lucide-react";
@@ -35,7 +36,7 @@ export function DropdownMenuContent({
   ...props
 }: ComponentProps<typeof Menu.Content>) {
   return (
-    <Menu.Portal>
+    <Menu.Portal container={mailRoot()}>
       <Menu.Content
         sideOffset={sideOffset}
         align={align}
@@ -142,7 +143,7 @@ export function DropdownMenuSub({
           <ChevronRightIcon className="ms-auto size-3.5 text-muted-foreground" />
         </Menu.SubTrigger>
       )}
-      <Menu.Portal>
+      <Menu.Portal container={mailRoot()}>
         <Menu.SubContent sideOffset={4} alignOffset={-4} collisionPadding={8} className={POPUP}>
           {children}
         </Menu.SubContent>
@@ -182,7 +183,7 @@ export function ContextMenuContent({
   ...props
 }: ComponentProps<typeof ContextPrimitive.Content>) {
   return (
-    <ContextPrimitive.Portal>
+    <ContextPrimitive.Portal container={mailRoot()}>
       <ContextPrimitive.Content
         collisionPadding={8}
         onCloseAutoFocus={restoreFocusForKeyboardOnly}
@@ -266,7 +267,7 @@ export function ContextMenuSub({
         <span className="min-w-0 flex-1 truncate">{label}</span>
         <ChevronRightIcon className="ms-auto size-3.5 text-muted-foreground" />
       </ContextPrimitive.SubTrigger>
-      <ContextPrimitive.Portal>
+      <ContextPrimitive.Portal container={mailRoot()}>
         <ContextPrimitive.SubContent
           sideOffset={4}
           alignOffset={-4}

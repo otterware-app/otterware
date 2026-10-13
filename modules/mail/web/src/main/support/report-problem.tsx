@@ -1,3 +1,4 @@
+import { mailBridge } from "../../host/bridge";
 import { useEffect, useRef, useState } from "react";
 import {
   ChevronDownIcon,
@@ -61,11 +62,7 @@ export function requestProblemReport(): void {
 const TEXTAREA =
   "w-full resize-y rounded-lg border border-border/70 bg-surface-raised/60 px-3 py-2 text-sm leading-5 outline-none placeholder:text-placeholder focus-visible:border-focus-ring/60 focus-visible:ring-[3px] focus-visible:ring-focus-ring/16";
 const currentPlatform: keyof typeof SUPPORT_PLATFORMS =
-  window.desktopBridge.platform === "web"
-    ? "web"
-    : window.desktopBridge.platform === "linux"
-      ? "linux"
-      : "mac";
+  mailBridge.platform === "web" ? "web" : mailBridge.platform === "linux" ? "linux" : "mac";
 const emptyReport: SupportReport = {
   kind: "bug",
   platform: currentPlatform,
@@ -115,18 +112,18 @@ export function ReportProblemDialog() {
     };
     window.addEventListener("otter:report-problem", show);
     const pullRequest = () => {
-      void window.desktopBridge
+      void mailBridge
         .invoke<boolean>("support:takeRequested")
         .then((requested) => {
           if (requested) show();
         })
         .catch(() => {});
     };
-    const off = window.desktopBridge.on("support:open", pullRequest);
+    const off = mailBridge.on("support:open", pullRequest);
     let active = true;
     if (features.externalAgent) {
       pullRequest();
-      void window.desktopBridge
+      void mailBridge
         .invoke<SupportSession | null>("support:resumeSession")
         .then((saved) => {
           if (!active || !saved || edited.current) return;
@@ -170,7 +167,7 @@ export function ReportProblemDialog() {
   useEffect(() => {
     if (!open) return;
     let active = true;
-    void window.desktopBridge
+    void mailBridge
       .invoke<SupportDiagnostics>("support:diagnostics")
       .then(
         (snapshot) => {
@@ -189,13 +186,13 @@ export function ReportProblemDialog() {
         if (active) setLoading(false);
       });
     if (features.externalAgent) {
-      void window.desktopBridge
+      void mailBridge
         .invoke<SupportTerminals>("support:terminals")
         .then((available) => {
           if (active) setTerminals(available);
         })
         .catch(() => {});
-      void window.desktopBridge
+      void mailBridge
         .invoke<SupportAgent[]>("support:agents")
         .then((available) => {
           if (!active) return;
@@ -219,7 +216,7 @@ export function ReportProblemDialog() {
     let timer: ReturnType<typeof setTimeout>;
     const poll = async () => {
       try {
-        const draft = await window.desktopBridge.invoke<SupportDraft | null>("support:readDraft", {
+        const draft = await mailBridge.invoke<SupportDraft | null>("support:readDraft", {
           id: session.id,
         });
         if (!active) return;
@@ -314,7 +311,7 @@ export function ReportProblemDialog() {
           feedbackKind,
         )!;
       }
-      await window.desktopBridge.openExternal(url);
+      await mailBridge.openExternal(url);
       if (reportDiagnostics || screenshot || session?.hasScreenshot)
         toast.success(
           "Attach your diagnostics file and any screenshot on GitHub before submitting.",
@@ -348,7 +345,7 @@ export function ReportProblemDialog() {
   };
   const leaveSession = (newReport: boolean) =>
     run("launch", async () => {
-      if (session) await window.desktopBridge.invoke("support:forgetSession", { id: session.id });
+      if (session) await mailBridge.invoke("support:forgetSession", { id: session.id });
       setSession(null);
       setPendingDraft(null);
       setDraftStatus(null);
@@ -370,7 +367,7 @@ export function ReportProblemDialog() {
       const image = screenshot
         ? { mime: screenshot.file.type, bytes: new Uint8Array(await screenshot.file.arrayBuffer()) }
         : undefined;
-      const launched = await window.desktopBridge.invoke<SupportSession>("support:launchAgent", {
+      const launched = await mailBridge.invoke<SupportSession>("support:launchAgent", {
         agent,
         report: sendingReport,
         body: sendingBody,
@@ -393,9 +390,7 @@ export function ReportProblemDialog() {
   const terminalName = terminals?.apps.find((item) => item.id === terminals.selectedId)?.name;
   const chooseTerminal = (id: string | null) =>
     run("save", async () => {
-      setTerminals(
-        await window.desktopBridge.invoke<SupportTerminals>("support:setTerminal", { id }),
-      );
+      setTerminals(await mailBridge.invoke<SupportTerminals>("support:setTerminal", { id }));
     });
 
   const hasDescription =
@@ -565,7 +560,7 @@ export function ReportProblemDialog() {
                     <DropdownMenuItem
                       onSelect={() =>
                         void run("save", async () => {
-                          await window.desktopBridge.invoke("support:showFiles", {
+                          await mailBridge.invoke("support:showFiles", {
                             id: session.id,
                           });
                         })

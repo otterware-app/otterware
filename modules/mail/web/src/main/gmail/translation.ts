@@ -1,3 +1,4 @@
+import { mailBridge } from "../../host/bridge";
 /**
  * In-place email translation through Apple's on-device translator: which
  * language a message is in, whether the user reads it, and swapping a body's
@@ -89,7 +90,7 @@ export function useTranslationSettings(): ResolvedTranslationSettings {
   // Settings may change in another window; the backend tells every one.
   useEffect(
     () =>
-      window.desktopBridge.on("translation:settingsChanged", () => {
+      mailBridge.on("translation:settingsChanged", () => {
         void queryClient.invalidateQueries({ queryKey: SETTINGS_KEY });
       }),
     [queryClient],

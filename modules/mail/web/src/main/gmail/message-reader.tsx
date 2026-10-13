@@ -1,3 +1,5 @@
+import { mailRoot } from "../../host/dom";
+import { mailBridge } from "../../host/bridge";
 import { HintTooltip as ImportedMailTooltip } from "./ui";
 import { withOccurrenceKeys } from "./list-keys";
 import { useLatest } from "../use-latest";
@@ -762,7 +764,7 @@ function HtmlBody({
         if (/^(https?|mailto):/i.test(url)) {
           console.log("[MessageBody:linkClick]", { href: raw.slice(0, 60) });
           e.preventDefault();
-          if (/^mailto:/i.test(url)) void window.desktopBridge.openExternal(url).catch(() => {});
+          if (/^mailto:/i.test(url)) void mailBridge.openExternal(url).catch(() => {});
           else openLink(url, { flip: isModClick(e) });
         }
       });
@@ -2843,7 +2845,7 @@ export function MessageReader({
                   </IconBtn>
                 </Popover.Trigger>
               </HintTooltip>
-              <Popover.Portal>
+              <Popover.Portal container={mailRoot()}>
                 <Popover.Content
                   side="bottom"
                   align="end"

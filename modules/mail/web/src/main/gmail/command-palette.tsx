@@ -1,3 +1,5 @@
+import { mailDocument } from "../../host/dom";
+import { mailBridge } from "../../host/bridge";
 import { browseTodoist } from "../integrations/todoist";
 import {
   useEffect,
@@ -224,7 +226,7 @@ export function CommandPalette({
 
   useEffect(() => {
     if (!open) return;
-    void window.desktopBridge.nativeTheme
+    void mailBridge.nativeTheme
       .getInfo()
       .then((info) => setScheme(info.themeSource))
       .catch(() => {});
@@ -276,7 +278,7 @@ export function CommandPalette({
             icon: o.icon,
             title: o.title,
             checked: scheme === o.id,
-            run: () => void window.desktopBridge.nativeTheme.setThemeSource(o.id),
+            run: () => void mailBridge.nativeTheme.setThemeSource(o.id),
           })),
         },
       ]);
@@ -774,6 +776,6 @@ export function CommandPalette({
         </div>
       </div>
     </div>,
-    document.body,
+    mailDocument.body,
   );
 }

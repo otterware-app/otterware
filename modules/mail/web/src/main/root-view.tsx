@@ -3,20 +3,22 @@ import * as React from "react";
 import { startSyncedPreferences } from "./synced-preferences";
 import { applyAppTheme, startAppTheme } from "./theme/apply-theme";
 import { applyInterfaceSettings, startInterfaceSettings } from "./theme/interface-settings";
-import { UpdateNotifier } from "./updates";
+
 import { ThemeEditorHost } from "./settings/theme/ThemeEditorHost";
-import { startAppIcon } from "./theme/app-icon";
 
 // Color theme (Settings → Appearance) for the current appearance, applied
 // before first paint. It also owns the `dark` class on <html>.
-applyAppTheme();
+
 // Contrast, glass and the font size, also before first paint.
-applyInterfaceSettings();
 
 export function RootView() {
+  React.useLayoutEffect(() => {
+    applyAppTheme();
+    applyInterfaceSettings();
+  }, []);
   // Re-theme live on appearance switches and theme picks from any window.
   React.useEffect(() => startAppTheme(), []);
-  React.useEffect(() => startAppIcon(), []);
+
   React.useEffect(() => startInterfaceSettings(), []);
   React.useEffect(() => startSyncedPreferences(), []);
 
@@ -32,7 +34,7 @@ export function RootView() {
       <div className="relative h-full">
         <Outlet />
       </div>
-      <UpdateNotifier />
+
       {/* Above the views, so the theme editor stays open while you browse the app in its colors. */}
       <ThemeEditorHost />
     </div>

@@ -1,3 +1,4 @@
+import { mailDocument } from "../../../host/dom";
 import { useLatest } from "../../use-latest";
 /**
  * Ported from Otter Code (github.com/otterware-app/otter-code) at a944cac52:
@@ -584,7 +585,7 @@ export function ThemeEditorPanel({
       }
       scheduleRefresh();
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(mailDocument.body, { childList: true, subtree: true });
     let spotlightFrame: number | null = null;
     const scheduleSpotlightRefresh = () => {
       spotlightFrame ??= requestAnimationFrame(() => {

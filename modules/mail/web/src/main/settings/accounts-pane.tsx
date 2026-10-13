@@ -1,3 +1,4 @@
+import { mailRoot } from "../../host/dom";
 import { HintTooltip as ImportedMailTooltip } from "../gmail/ui";
 import { useEffect, useRef, useState } from "react";
 import { Popover } from "radix-ui";
@@ -116,7 +117,7 @@ function ColorPicker({
           </button>
         </Popover.Trigger>
       </HintTooltip>
-      <Popover.Portal>
+      <Popover.Portal container={mailRoot()}>
         <Popover.Content
           align="end"
           sideOffset={6}

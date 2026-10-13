@@ -1,3 +1,4 @@
+import { mailBridge } from "../../host/bridge";
 /**
  * The agent panel's browser (the Mac app's): its tabs, which sit after the
  * chats' in the panel's strip, and where links from mail and chat open. The
@@ -213,7 +214,7 @@ export function openLink(url: string, { flip = false } = {}): void {
     openTab(url);
     return;
   }
-  void window.desktopBridge.openExternal(url).catch(() => {});
+  void mailBridge.openExternal(url).catch(() => {});
 }
 
 /**
@@ -233,12 +234,12 @@ export function useBrowserEvents(): void {
     if (!features.browser) return;
     window.addEventListener("error", quietDetachError, true);
     const offs = [
-      window.desktopBridge.on("browser:openTab", (params) => {
+      mailBridge.on("browser:openTab", (params) => {
         const { url, background } = params as { url: string; background?: boolean };
         openTab(url, { background });
       }),
-      window.desktopBridge.on("browser:newTab", newTab),
-      window.desktopBridge.on("browser:focusAddress", focusAddress),
+      mailBridge.on("browser:newTab", newTab),
+      mailBridge.on("browser:focusAddress", focusAddress),
     ];
     return () => {
       window.removeEventListener("error", quietDetachError, true);

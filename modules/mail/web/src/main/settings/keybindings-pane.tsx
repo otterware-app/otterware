@@ -1,3 +1,4 @@
+import { mailRoot } from "../../host/dom";
 import { Fragment, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Popover } from "radix-ui";
 import {
@@ -253,7 +254,7 @@ function WhenControl({ value, onChange }: { value: string; onChange: (when: stri
             <ChevronDownIcon className="size-3.5 shrink-0 opacity-60" />
           </button>
         </Popover.Trigger>
-        <Popover.Portal>
+        <Popover.Portal container={mailRoot()}>
           <Popover.Content
             align="start"
             sideOffset={6}

@@ -1,3 +1,4 @@
+import { mailBridge } from "../../host/bridge";
 import { createElement, useSyncExternalStore } from "react";
 import {
   DEFAULT_KEYBINDINGS,
@@ -42,8 +43,7 @@ type State = {
   loaded: boolean;
 };
 
-const ipc = <T>(channel: string, params?: unknown) =>
-  window.desktopBridge.invoke<T>(channel, params);
+const ipc = <T>(channel: string, params?: unknown) => mailBridge.invoke<T>(channel, params);
 
 function resolve(rules: KeybindingRule[]): ResolvedKeybinding[] {
   const out: ResolvedKeybinding[] = [];
@@ -105,7 +105,7 @@ function ensureStarted(): void {
   if (started || typeof window === "undefined") return;
   started = true;
   void load();
-  window.desktopBridge.on("keybindings:updated", () => void load());
+  mailBridge.on("keybindings:updated", () => void load());
 }
 
 export function getKeybindings(): State {

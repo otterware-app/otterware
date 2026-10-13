@@ -1,3 +1,4 @@
+import { mailBridge } from "../../host/bridge";
 /**
  * Renderer side of the agent providers: the live provider state, icons,
  * and the status wording shared by Settings and the chat composer (ported
@@ -17,7 +18,7 @@ export function useAgentProviders() {
   const qc = useQueryClient();
   useEffect(
     () =>
-      window.desktopBridge.on("agent:providersChanged", (state: unknown) =>
+      mailBridge.on("agent:providersChanged", (state: unknown) =>
         qc.setQueryData(PROVIDERS_KEY, state as ProvidersState),
       ),
     [qc],

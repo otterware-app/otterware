@@ -1,5 +1,6 @@
+import { useMailState, useMailSession } from "../../host/session";
 import { toast } from "./toast";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import { sendWithUndo } from "./undo-send";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "./menu";
 import { ChevronDownIcon, XIcon } from "lucide-react";
@@ -87,7 +88,7 @@ function FromPicker({
 export function NewMessageView({
   accounts,
   defaultAccountId,
-  onClose,
+  onClose: onCloseProp,
   prefill,
 }: {
   accounts: GmailAccount[];
@@ -96,16 +97,25 @@ export function NewMessageView({
   /** Seeds the composer once at mount (mailto: links); remount to re-seed. */
   prefill?: { to?: string; cc?: string; subject?: string; body?: string };
 }) {
-  const [fromId, setFromId] = useState(defaultAccountId);
-  const [to, setTo] = useState(prefill?.to ?? "");
-  const [cc, setCc] = useState(prefill?.cc ?? "");
-  const [ccVisible, setCcVisible] = useState(Boolean(prefill?.cc));
-  const [bcc, setBcc] = useState("");
-  const [bccVisible, setBccVisible] = useState(false);
-  const [subject, setSubject] = useState(prefill?.subject ?? "");
-  const [text, setText] = useState(prefill?.body ?? "");
-  const [attachments, setAttachments] = useState<ComposeAttachment[]>([]);
-  const [formatting, setFormatting] = useState(false);
+  const session = useMailSession();
+  const onClose = () => {
+    session.clear("compose:");
+    onCloseProp();
+  };
+  const [savedHtml, setHtml] = useMailState<string | undefined>("compose:html", undefined);
+  const [fromId, setFromId] = useMailState("compose:fromId", defaultAccountId);
+  const [to, setTo] = useMailState("compose:to", prefill?.to ?? "");
+  const [cc, setCc] = useMailState("compose:cc", prefill?.cc ?? "");
+  const [ccVisible, setCcVisible] = useMailState("compose:ccVisible", Boolean(prefill?.cc));
+  const [bcc, setBcc] = useMailState("compose:bcc", "");
+  const [bccVisible, setBccVisible] = useMailState("compose:bccVisible", false);
+  const [subject, setSubject] = useMailState("compose:subject", prefill?.subject ?? "");
+  const [text, setText] = useMailState("compose:text", prefill?.body ?? "");
+  const [attachments, setAttachments] = useMailState<ComposeAttachment[]>(
+    "compose:attachments",
+    [],
+  );
+  const [formatting, setFormatting] = useMailState("compose:formatting", false);
   const toRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<RichTextRef>(null);
   const sendMessage = useSendMessage();
@@ -119,6 +129,7 @@ export function NewMessageView({
   });
 
   const draft = useDraftAutosave({
+    retainKey: "compose:draft",
     accountId: fromAccount?.id ?? null,
     delayMs: autosaveDelayMs(attachments),
     // Edited elsewhere (an agent, Gmail web): load that version in place.
@@ -148,7 +159,7 @@ export function NewMessageView({
     getPayload: () => {
       if (!to.trim() && !subject.trim() && !text.trim() && attachments.length === 0) return null;
       const plain = editorRef.current?.getText() ?? text;
-      const html = editorRef.current?.getHTML() ?? textToHtml(plain);
+      const html = editorRef.current?.getHTML() ?? savedHtml ?? textToHtml(plain);
       return {
         to: normalizeAddressList(to),
         cc: normalizeAddressList(cc) || undefined,
@@ -288,11 +299,14 @@ export function NewMessageView({
               ref={editorRef}
               placeholder="Write your message…"
               ariaLabel="Message"
-              onTextChange={setText}
+              onTextChange={(value) => {
+                setText(value);
+                setHtml(editorRef.current?.getHTML());
+              }}
               showToolbar={formatting}
               minHeightClass="min-h-[40vh]"
               maxHeightClass="max-h-none"
-              initialHTML={prefill?.body ? textToHtml(prefill.body) : undefined}
+              initialHTML={savedHtml ?? (prefill?.body ? textToHtml(prefill.body) : undefined)}
               signatureHTML={fromAccount?.signature}
             />
           }

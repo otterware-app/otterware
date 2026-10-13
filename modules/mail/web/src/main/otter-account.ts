@@ -1,3 +1,4 @@
+import { mailBridge } from "../host/bridge";
 import { useEffect, useState } from "react";
 import {
   OTTER_ACCOUNT_STATE_CHANNEL,
@@ -11,8 +12,7 @@ import type { AgentTokens } from "@otterware/mail-contracts/agent-tokens";
  * push). The main process owns the state and pushes changes on `otter:state`.
  */
 
-const invoke = <T>(channel: string, params?: unknown) =>
-  window.desktopBridge.invoke<T>(channel, params);
+const invoke = <T>(channel: string, params?: unknown) => mailBridge.invoke<T>(channel, params);
 
 export const otterApi = {
   getState: () => invoke<OtterAccountState>("otter:getState"),
@@ -39,7 +39,7 @@ export function useOtterAccount(): OtterAccountState | null {
     void otterApi.getState().then((next) => {
       if (alive) setState(next);
     });
-    const off = window.desktopBridge.on(OTTER_ACCOUNT_STATE_CHANNEL, (next) =>
+    const off = mailBridge.on(OTTER_ACCOUNT_STATE_CHANNEL, (next) =>
       setState(next as OtterAccountState),
     );
     return () => {

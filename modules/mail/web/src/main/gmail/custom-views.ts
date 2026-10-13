@@ -1,3 +1,4 @@
+import { mailBridge } from "../../host/bridge";
 /**
  * custom-views.ts
  *
@@ -148,7 +149,7 @@ export function useMailViews() {
   // View edits happen in the Settings window, which has its own QueryClient —
   // listen for the backend broadcast so every window refreshes.
   useEffect(() => {
-    const unsubscribe = window.desktopBridge.on("gmail:views-changed", () => {
+    const unsubscribe = mailBridge.on("gmail:views-changed", () => {
       void qc.invalidateQueries({ queryKey: VIEWS_QUERY_KEY });
     });
     return unsubscribe;

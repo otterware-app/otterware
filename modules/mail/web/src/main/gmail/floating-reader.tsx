@@ -1,3 +1,4 @@
+import { mailDocument } from "../../host/dom";
 import { HintTooltip as ImportedMailTooltip } from "./ui";
 import {
   useEffect,
@@ -204,11 +205,11 @@ export function FloatingReader({
     let latest = { width: start.width, height: start.height };
     let frame = 0;
     // Keep the pointer in this document when it crosses a message's iframe.
-    const cover = document.createElement("div");
+    const cover = mailDocument.createElement("div");
     cover.className = "no-drag fixed inset-0 z-[200] touch-none select-none";
     cover.style.cursor =
       axis === "both" ? "nwse-resize" : axis === "width" ? "ew-resize" : "ns-resize";
-    document.body.append(cover);
+    mailDocument.body.append(cover);
     const apply = () => {
       frame = 0;
       panel.style.width = `${latest.width}px`;
@@ -291,10 +292,10 @@ export function FloatingReader({
       const dy = next.clientY - startY;
       if (!cover && Math.hypot(dx, dy) < 4) return;
       if (!cover) {
-        cover = document.createElement("div");
+        cover = mailDocument.createElement("div");
         cover.className = "no-drag fixed inset-0 z-[200] touch-none select-none";
         cover.style.cursor = "grabbing";
-        document.body.append(cover);
+        mailDocument.body.append(cover);
       }
       desired = { left: origin.left + dx, top: origin.top + dy };
       latest = resistPosition(desired, start, movementArea);
@@ -391,7 +392,7 @@ export function FloatingReader({
 
   useEffect(() => {
     if (!container) return;
-    const returnFocus = document.activeElement;
+    const returnFocus = mailDocument.activeElement;
     if (!panelRef.current?.contains(returnFocus)) panelRef.current?.focus({ preventScroll: true });
     return () => {
       resizeCleanup.current?.();

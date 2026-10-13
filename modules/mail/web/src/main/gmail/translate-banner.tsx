@@ -1,3 +1,4 @@
+import { mailBridge } from "../../host/bridge";
 import { createContext, useContext, useState } from "react";
 import { ChevronDownIcon, LanguagesIcon, LoaderCircleIcon } from "lucide-react";
 import type { GmailMessageDetail } from "./types";
@@ -144,7 +145,7 @@ function TranslateBanner({
       {notInstalled ? (
         <button
           type="button"
-          onClick={() => void window.desktopBridge.openExternal(TRANSLATION_SETTINGS_URL)}
+          onClick={() => void mailBridge.openExternal(TRANSLATION_SETTINGS_URL)}
           className={PILL}
         >
           Open Settings

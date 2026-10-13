@@ -1,3 +1,5 @@
+import { mailDocument } from "../../host/dom";
+import { mailBridge } from "../../host/bridge";
 import { useSyncExternalStore } from "react";
 import { DEFAULT_APP_ICON, isAppIcon } from "@otterware/mail-contracts/shared/app-icons";
 
@@ -20,11 +22,11 @@ function applyIcon(value: unknown): void {
   revision++;
   chosen = value;
   for (const rel of ["icon", "apple-touch-icon"]) {
-    let link = document.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`);
+    let link = mailDocument.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`);
     if (!link) {
-      link = document.createElement("link");
+      link = mailDocument.createElement("link");
       link.rel = rel;
-      document.head.appendChild(link);
+      mailDocument.head.appendChild(link);
     }
     link.type = "image/png";
     link.href = appIconUrl(value);
@@ -33,15 +35,15 @@ function applyIcon(value: unknown): void {
 }
 
 export async function setAppIcon(id: string): Promise<void> {
-  applyIcon(await window.desktopBridge.invoke("appIcon:set", id));
+  applyIcon(await mailBridge.invoke("appIcon:set", id));
 }
 
 /** The shell owns persistence and changes from other windows. */
 export function startAppIcon(): () => void {
   let active = true;
   const initialRevision = revision;
-  const unsubscribe = window.desktopBridge.on("appIcon:changed", applyIcon);
-  void window.desktopBridge
+  const unsubscribe = mailBridge.on("appIcon:changed", applyIcon);
+  void mailBridge
     .invoke("appIcon:get")
     .then((id) => {
       if (active && revision === initialRevision) applyIcon(id);

@@ -1,3 +1,4 @@
+import { mailBridge } from "../../host/bridge";
 import { HintTooltip as ImportedMailTooltip } from "../gmail/ui";
 /**
  * Settings → Agents, after T3 Code's provider settings: "Checked … ago"
@@ -438,7 +439,7 @@ function EditorHeader({
 
 /** Where Hermes' URL comes from, for the field's description. */
 export const HERMES_URL_HINT =
-  window.desktopBridge.platform === "web"
+  mailBridge.platform === "web"
     ? `Hermes' built-in API server (port 8642), over HTTPS. Allow ${location.origin} in its API_SERVER_CORS_ORIGINS.`
     : "Hermes' built-in API server (port 8642), reached over Tailscale.";
 

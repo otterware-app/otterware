@@ -1,3 +1,4 @@
+import { mailDocument } from "../../host/dom";
 import { HintTooltip as ImportedMailTooltip } from "./ui";
 /**
  * An agent asking before it acts, ChatGPT's way: in place of the composer, a
@@ -83,8 +84,8 @@ export function ApprovalCard({
   // Allow once takes the focus the composer had, so ↩ allows; focus elsewhere
   // (a draft being written) is left alone. The chat keys the card by approval.
   useEffect(() => {
-    const active = document.activeElement;
-    if (!active || active === document.body) allow.current?.focus();
+    const active = mailDocument.activeElement;
+    if (!active || active === mailDocument.body) allow.current?.focus();
   }, []);
 
   const more = [

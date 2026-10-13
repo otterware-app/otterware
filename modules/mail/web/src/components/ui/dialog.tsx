@@ -1,3 +1,4 @@
+import { mailRoot } from "../../host/dom";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { XIcon } from "lucide-react";
 import * as React from "react";
@@ -306,7 +307,7 @@ function DialogContent({
   overlayClassName?: string;
 }) {
   return (
-    <DialogPrimitive.Portal>
+    <DialogPrimitive.Portal container={mailRoot()}>
       <DialogOverlay className={overlayClassName} />
       <DialogPrimitive.Content
         data-slot="dialog-content"

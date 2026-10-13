@@ -1,3 +1,4 @@
+import { mailDocument } from "../../host/dom";
 import { HintTooltip as ImportedMailTooltip } from "./ui";
 import { useLatest } from "../use-latest";
 import {
@@ -185,10 +186,10 @@ export const RichTextArea = forwardRef<
       if (signatureHTML && !block) {
         el.insertAdjacentHTML("beforeend", signatureBlock(signatureHTML));
         // Caret at the very start so typing lands above the signature.
-        const range = document.createRange();
+        const range = mailDocument.createRange();
         range.setStart(el, 0);
         range.collapse(true);
-        const selection = document.getSelection();
+        const selection = mailDocument.getSelection();
         selection?.removeAllRanges();
         selection?.addRange(range);
       }
@@ -204,12 +205,12 @@ export const RichTextArea = forwardRef<
 
   const refreshToolbar = () => {
     const el = editorRef.current;
-    if (!el || !el.contains(document.getSelection()?.anchorNode ?? null)) return;
+    if (!el || !el.contains(mailDocument.getSelection()?.anchorNode ?? null)) return;
     setToolbar({
-      bold: document.queryCommandState("bold"),
-      italic: document.queryCommandState("italic"),
-      underline: document.queryCommandState("underline"),
-      strike: document.queryCommandState("strikeThrough"),
+      bold: mailDocument.queryCommandState("bold"),
+      italic: mailDocument.queryCommandState("italic"),
+      underline: mailDocument.queryCommandState("underline"),
+      strike: mailDocument.queryCommandState("strikeThrough"),
     });
   };
 
@@ -217,13 +218,13 @@ export const RichTextArea = forwardRef<
   const refreshToolbarForEffect = useLatest(refreshToolbar);
   useEffect(() => {
     const refresh = () => refreshToolbarForEffect.current();
-    document.addEventListener("selectionchange", refresh);
-    return () => document.removeEventListener("selectionchange", refresh);
+    mailDocument.addEventListener("selectionchange", refresh);
+    return () => mailDocument.removeEventListener("selectionchange", refresh);
   }, [refreshToolbarForEffect]);
 
   const exec = (command: string, value?: string) => {
     editorRef.current?.focus();
-    document.execCommand(command, false, value);
+    mailDocument.execCommand(command, false, value);
     emitChange();
     // Toggling with a still caret fires no selectionchange — sync immediately
     // so the button reflects the new typing style.
@@ -255,7 +256,7 @@ export const RichTextArea = forwardRef<
   };
 
   const openLinkInput = () => {
-    const selection = document.getSelection();
+    const selection = mailDocument.getSelection();
     savedRange.current =
       selection && selection.rangeCount > 0 ? selection.getRangeAt(0).cloneRange() : null;
     setLinkUrl("");
@@ -270,15 +271,15 @@ export const RichTextArea = forwardRef<
     const editor = editorRef.current;
     if (!editor) return;
     editor.focus();
-    const selection = document.getSelection();
+    const selection = mailDocument.getSelection();
     if (savedRange.current && selection) {
       selection.removeAllRanges();
       selection.addRange(savedRange.current);
     }
     if (selection && !selection.isCollapsed) {
-      document.execCommand("createLink", false, url);
+      mailDocument.execCommand("createLink", false, url);
     } else {
-      document.execCommand(
+      mailDocument.execCommand(
         "insertHTML",
         false,
         `<a href="${escapeHtml(url)}">${escapeHtml(raw)}</a>`,

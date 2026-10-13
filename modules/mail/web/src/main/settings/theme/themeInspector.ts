@@ -1,3 +1,4 @@
+import { mailDocument } from "../../../host/dom";
 /**
  * Ported from Otter Code (github.com/otterware-app/otter-code) at a944cac52:
  * apps/web/src/components/settings/themeInspector.ts. Mail uses its spotlight
@@ -89,24 +90,24 @@ const THEME_UTILITY_PREFIXES: Readonly<Record<ThemePaintKind, ReadonlyArray<stri
 };
 
 function clearThemeInspectorAttribute(attribute: string): void {
-  document
+  mailDocument
     .querySelectorAll(`[${attribute}]`)
     .forEach((element) => element.removeAttribute(attribute));
 }
 
 export function clearThemeInspectorHighlights(): void {
   clearThemeInspectorAttribute(THEME_INSPECTOR_MATCH_ATTRIBUTE);
-  document.getElementById(THEME_SPOTLIGHT_ID)?.remove();
+  mailDocument.getElementById(THEME_SPOTLIGHT_ID)?.remove();
 }
 
 export function clearThemeInspectorHover(): void {
-  document.getElementById(THEME_HOVER_ID)?.remove();
+  mailDocument.getElementById(THEME_HOVER_ID)?.remove();
 }
 
 function svgElement<Name extends keyof SVGElementTagNameMap>(
   name: Name,
 ): SVGElementTagNameMap[Name] {
-  return document.createElementNS(SVG_NAMESPACE, name);
+  return mailDocument.createElementNS(SVG_NAMESPACE, name);
 }
 
 function spotlightRect(element: Element): {
@@ -151,15 +152,15 @@ export function showThemeInspectorHover(inspection: ThemeElementInspection, labe
     return;
   }
 
-  let hover = document.getElementById(THEME_HOVER_ID);
+  let hover = mailDocument.getElementById(THEME_HOVER_ID);
   if (!hover) {
-    hover = document.createElement("div");
+    hover = mailDocument.createElement("div");
     hover.id = THEME_HOVER_ID;
     hover.setAttribute("aria-hidden", "true");
-    const tokenLabel = document.createElement("span");
+    const tokenLabel = mailDocument.createElement("span");
     tokenLabel.dataset.themeInspectorHoverLabel = "";
     hover.append(tokenLabel);
-    document.body.append(hover);
+    mailDocument.body.append(hover);
   }
 
   hover.style.left = `${rectangle.x}px`;
@@ -184,17 +185,17 @@ function renderThemeInspectorSpotlight(elements: ReadonlyArray<Element>): void {
   }
 
   if (rectangles.size === 0) {
-    document.getElementById(THEME_SPOTLIGHT_ID)?.remove();
+    mailDocument.getElementById(THEME_SPOTLIGHT_ID)?.remove();
     return;
   }
 
-  let spotlight = document.getElementById(THEME_SPOTLIGHT_ID) as SVGSVGElement | null;
+  let spotlight = mailDocument.getElementById(THEME_SPOTLIGHT_ID) as SVGSVGElement | null;
   if (!spotlight) {
     spotlight = svgElement("svg");
     spotlight.id = THEME_SPOTLIGHT_ID;
     spotlight.setAttribute("aria-hidden", "true");
     spotlight.setAttribute("focusable", "false");
-    document.body.append(spotlight);
+    mailDocument.body.append(spotlight);
   }
   spotlight.setAttribute("viewBox", `0 0 ${window.innerWidth} ${window.innerHeight}`);
 
@@ -254,7 +255,7 @@ function renderThemeInspectorSpotlight(elements: ReadonlyArray<Element>): void {
 
 export function refreshThemeInspectorSpotlight(): void {
   renderThemeInspectorSpotlight([
-    ...document.querySelectorAll(`[${THEME_INSPECTOR_MATCH_ATTRIBUTE}]`),
+    ...mailDocument.querySelectorAll(`[${THEME_INSPECTOR_MATCH_ATTRIBUTE}]`),
   ]);
 }
 
@@ -311,7 +312,7 @@ export function changedThemePaintKinds(
 }
 
 function withThemeTokenProbeSession<Result>(run: () => Result): Result {
-  const root = document.documentElement;
+  const root = mailDocument.documentElement;
   const wasAlreadyProbing = root.hasAttribute(THEME_TOKEN_PROBE_ATTRIBUTE);
   if (!wasAlreadyProbing) root.setAttribute(THEME_TOKEN_PROBE_ATTRIBUTE, "");
   try {
@@ -327,8 +328,8 @@ function withThemeTokenProbeSession<Result>(run: () => Result): Result {
 function applyThemeTokenProbe(role: ThemeColorRole): () => void {
   // Mail: every variable the role paints, wherever the theme sets it.
   const scopes = [
-    document.documentElement,
-    ...document.querySelectorAll<HTMLElement>("[data-app-sidebar]"),
+    mailDocument.documentElement,
+    ...mailDocument.querySelectorAll<HTMLElement>("[data-app-sidebar]"),
   ];
   const restores = themeRoleVariables(role).flatMap((variable) =>
     scopes.map((scope) => applyThemeVariableProbe(scope, variable)),
@@ -365,7 +366,7 @@ function applyThemeTokenProbes(roles: ReadonlyArray<ThemeColorRole>): () => void
 }
 
 function themeInspectorCandidates(): ReadonlyArray<Element> {
-  return [document.body, ...document.body.querySelectorAll("*")].filter(
+  return [mailDocument.body, ...mailDocument.body.querySelectorAll("*")].filter(
     (element) =>
       !element.closest("[data-theme-editor-panel]") &&
       !element.closest(`#${THEME_SPOTLIGHT_ID}, #${THEME_HOVER_ID}`),
@@ -400,7 +401,7 @@ function themeRoleFromUtilities(element: Element): ThemeColorRole | null {
 function themeInspectionCandidates(initialElement: Element): ReadonlyArray<Element> {
   const candidates: Array<Element> = [];
   let element: Element | null = initialElement;
-  while (element && element !== document.documentElement) {
+  while (element && element !== mailDocument.documentElement) {
     if (!element.closest("[data-theme-editor-panel]")) candidates.push(element);
     element = element.parentElement;
   }
@@ -460,7 +461,7 @@ export function highlightThemeRoleUsage(roles: ReadonlyArray<ThemeColorRole>): n
   }
   renderThemeInspectorSpotlight([...highlightedElements]);
   if (import.meta.env.DEV) {
-    const spotlight = document.getElementById(THEME_SPOTLIGHT_ID);
+    const spotlight = mailDocument.getElementById(THEME_SPOTLIGHT_ID);
     if (spotlight) {
       spotlight.dataset.themeInspectorCandidates = String(candidates.length);
       spotlight.dataset.themeInspectorProbeMs = probeDuration.toFixed(2);

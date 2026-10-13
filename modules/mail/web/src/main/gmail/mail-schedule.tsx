@@ -1,3 +1,4 @@
+import { mailBridge } from "../../host/bridge";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ClockIcon } from "lucide-react";
@@ -190,7 +191,7 @@ export function ScheduledMailButton() {
   });
   useEffect(
     () =>
-      window.desktopBridge.on("gmail:schedule-changed", () => {
+      mailBridge.on("gmail:schedule-changed", () => {
         void qc.invalidateQueries({ queryKey: ["gmail:schedules"] });
       }),
     [qc],

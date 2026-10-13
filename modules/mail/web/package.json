@@ -6,7 +6,8 @@
     "./home": "./src/main/home-view.tsx",
     "./settings": "./src/main/settings/settings-page.tsx",
     "./styles.css": "./src/styles.css",
-    "./router": "./src/main/router.tsx"
+    "./router": "./src/main/router.tsx",
+    ".": "./src/host/surface.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

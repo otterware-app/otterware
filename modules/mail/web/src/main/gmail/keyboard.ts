@@ -1,10 +1,11 @@
+import { mailDocument } from "../../host/dom";
 /**
  * Guard for single-key Gmail-style shortcuts: ignore keystrokes aimed at
  * inputs, editors, or any open dialog/popover so typing never triggers mail
  * actions.
  */
 export function isTypingTarget(e: KeyboardEvent): boolean {
-  const el = e.target;
+  const el = e.composedPath()[0] ?? e.target;
   if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return true;
   if (el instanceof HTMLElement && el.isContentEditable) return true;
   return isOverlayOpen();
@@ -17,6 +18,6 @@ export function isTypingTarget(e: KeyboardEvent): boolean {
  */
 export function isOverlayOpen(): boolean {
   return Array.from(
-    document.querySelectorAll('[role="dialog"], [data-radix-popper-content-wrapper]'),
+    mailDocument.querySelectorAll('[role="dialog"], [data-radix-popper-content-wrapper]'),
   ).some((el) => !el.closest('[data-slot="toast-viewport"]'));
 }

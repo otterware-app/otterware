@@ -1,3 +1,4 @@
+import { mailBridge } from "../../host/bridge";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUpRightIcon, PuzzleIcon, SearchIcon } from "lucide-react";
@@ -42,7 +43,7 @@ function useExtensions() {
   });
   useEffect(
     () =>
-      window.desktopBridge.on("browser:extensionsChanged", () => {
+      mailBridge.on("browser:extensionsChanged", () => {
         void queryClient.invalidateQueries({ queryKey: EXTENSIONS_KEY });
       }),
     [queryClient],

@@ -1,3 +1,4 @@
+import { mailBridge } from "../../host/bridge";
 import { HintTooltip as ImportedMailTooltip } from "./ui";
 import { useLatest } from "../use-latest";
 import { useEffect, useRef, useState, type MutableRefObject, type ReactNode } from "react";
@@ -1064,7 +1065,7 @@ export function AgentChatPanel({
     });
   const endRunForEffect = useLatest(endRun);
   useEffect(() => {
-    const unsub = window.desktopBridge.on("agent:chatEvent", (raw: unknown) => {
+    const unsub = mailBridge.on("agent:chatEvent", (raw: unknown) => {
       const event = raw as ChatEvent;
       const s = event
         ? Object.values(runsRef.current).find((r) => r.requestId === event.requestId)
@@ -1710,7 +1711,7 @@ export function AgentChatPanel({
   });
   useEffect(() => {
     if (!features.browser) return;
-    return window.desktopBridge.on("browser:previousTab", previousTab);
+    return mailBridge.on("browser:previousTab", previousTab);
   });
 
   const closeActiveTab = () => {
@@ -2356,7 +2357,7 @@ export function AgentChatPanel({
                         type="button"
                         className="cursor-pointer hover:text-foreground"
                         onClick={() =>
-                          void window.desktopBridge.openExternal("https://openrouter.ai/activity")
+                          void mailBridge.openExternal("https://openrouter.ai/activity")
                         }
                       >
                         Manage usage

@@ -1,3 +1,4 @@
+import { mailBridge } from "../../host/bridge";
 import { useEffect, useState } from "react";
 import {
   useQuery,
@@ -81,14 +82,14 @@ function invalidateMailCaches(qc: ReturnType<typeof useQueryClient>): void {
 export function useGmailWriteFailureToasts(): void {
   const qc = useQueryClient();
   useEffect(() => {
-    const offWrite = window.desktopBridge.on("gmail:write-failed", (params: unknown) => {
+    const offWrite = mailBridge.on("gmail:write-failed", (params: unknown) => {
       const p = params as { message?: string } | undefined;
       toast.error(describeGmailWriteError(new Error(p?.message ?? "Unknown error")));
       invalidateMailCaches(qc);
     });
     // A send that outlasted the IPC budget and then failed: the backend put
     // the message back in Drafts (the composer had already closed).
-    const offSend = window.desktopBridge.on("gmail:send-failed", (params: unknown) => {
+    const offSend = mailBridge.on("gmail:send-failed", (params: unknown) => {
       const p = params as { subject?: string; savedToDrafts?: boolean } | undefined;
       const what = p?.subject ? `“${p.subject}”` : "your message";
       toast.error(
@@ -96,7 +97,7 @@ export function useGmailWriteFailureToasts(): void {
       );
       invalidateMailCaches(qc);
     });
-    const offSchedule = window.desktopBridge.on("gmail:schedule-failed", () => {
+    const offSchedule = mailBridge.on("gmail:schedule-failed", () => {
       toast.error("Scheduled mail needs attention", {
         description: "Open Scheduled & snoozed to review or recover it.",
       });
@@ -113,10 +114,7 @@ export function useGmailWriteFailureToasts(): void {
 /** Refreshes mail caches when the backend changed mail on its own (a scheduled send going out). */
 export function useExternalMailChanges(): void {
   const qc = useQueryClient();
-  useEffect(
-    () => window.desktopBridge.on("gmail:mail-changed", () => invalidateMailCaches(qc)),
-    [qc],
-  );
+  useEffect(() => mailBridge.on("gmail:mail-changed", () => invalidateMailCaches(qc)), [qc]);
 }
 
 // ---- Query Keys ----
@@ -143,7 +141,7 @@ export function useAccounts() {
   // Account edits (name/color) can happen in the Settings window, which has its
   // own QueryClient — listen for the backend broadcast so every window refreshes.
   useEffect(() => {
-    const unsubscribe = window.desktopBridge.on("gmail:accounts-changed", () => {
+    const unsubscribe = mailBridge.on("gmail:accounts-changed", () => {
       void qc.invalidateQueries({ queryKey: queryKeys.accounts() });
     });
     return unsubscribe;
@@ -1540,7 +1538,7 @@ export function useGlobalSyncStatus(accountIds: string[]): { syncing: boolean; l
   // The backend broadcasts when any sync starts so idle 10s polls don't miss
   // short syncs (menu-triggered "Synchronize All Mailboxes", the auto timer).
   useEffect(() => {
-    const unsubscribe = window.desktopBridge.on("gmail:sync-started", () => {
+    const unsubscribe = mailBridge.on("gmail:sync-started", () => {
       void qc.invalidateQueries({ queryKey: ["gmail:syncStatus"] });
     });
     return unsubscribe;

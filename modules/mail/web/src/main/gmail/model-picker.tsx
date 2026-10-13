@@ -1,3 +1,4 @@
+import { mailRoot } from "../../host/dom";
 import { HintTooltip as ImportedMailTooltip } from "./ui";
 /**
  * The chat composer's model controls, ported from T3 Code:
@@ -575,7 +576,7 @@ export function ProviderModelPicker({
           </button>
         </Popover.Trigger>
       </HintTooltip>
-      <Popover.Portal>
+      <Popover.Portal container={mailRoot()}>
         <Popover.Content
           side="bottom"
           align="start"

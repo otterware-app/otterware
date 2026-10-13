@@ -1,3 +1,4 @@
+import { mailDocument } from "../../host/dom";
 /**
  * Contrast, glass opacity and the interface font size (Otter Code's
  * appearance settings, ported from it at a944cac52), and the reading width
@@ -217,7 +218,7 @@ export function useMailLayout(): MailLayout {
 
 /** Paints them onto this window. */
 export function applyInterfaceSettings(): void {
-  const style = document.documentElement.style;
+  const style = mailDocument.documentElement.style;
 
   // Otter Code's appearanceContrast.ts: below 100 text fades toward its
   // surface and borders thin out; above it text goes toward black (white in

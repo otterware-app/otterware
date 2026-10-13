@@ -1,3 +1,4 @@
+import { mailDocument } from "../../host/dom";
 import { useLatest } from "../use-latest";
 import {
   forwardRef,
@@ -272,7 +273,7 @@ export function HintTooltip({
               <span>{label}</span>
               {hint ? <span className="text-muted-foreground">{hint}</span> : null}
             </div>,
-            document.body,
+            mailDocument.body,
           )
         : null}
     </>

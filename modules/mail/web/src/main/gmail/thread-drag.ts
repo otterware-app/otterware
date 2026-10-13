@@ -1,3 +1,4 @@
+import { mailDocument } from "../../host/dom";
 /**
  * Dragging conversations from the message list onto a sidebar label. The
  * payload names each conversation and the label the list was showing, so a
@@ -53,20 +54,20 @@ export function setThreadDragImage(
   dataTransfer: DataTransfer,
   preview: { title: string; subtitle?: string },
 ): void {
-  const el = document.createElement("div");
+  const el = mailDocument.createElement("div");
   el.className =
     "dropdown-glass fixed -top-96 left-0 flex max-w-56 flex-col rounded-lg px-2.5 py-1 text-xs text-foreground";
-  const title = document.createElement("span");
+  const title = mailDocument.createElement("span");
   title.className = "truncate font-medium";
   title.textContent = preview.title;
   el.appendChild(title);
   if (preview.subtitle) {
-    const subtitle = document.createElement("span");
+    const subtitle = mailDocument.createElement("span");
     subtitle.className = "truncate text-muted-foreground";
     subtitle.textContent = preview.subtitle;
     el.appendChild(subtitle);
   }
-  document.body.appendChild(el);
+  mailDocument.body.appendChild(el);
   dataTransfer.setDragImage(el, -8, -8);
   // The image is snapshotted synchronously; the element can go right away.
   setTimeout(() => el.remove(), 0);

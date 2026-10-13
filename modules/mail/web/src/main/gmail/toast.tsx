@@ -1,3 +1,4 @@
+import { mailRoot } from "../../host/dom";
 import { Toast } from "@base-ui/react/toast";
 import { useState, type CSSProperties, type ReactNode } from "react";
 import {
@@ -174,7 +175,7 @@ function Toasts({ position }: { position: ToastPosition }) {
   const layout = buildVisibleToastLayout(toasts);
 
   return (
-    <Toast.Portal data-slot="toast-portal">
+    <Toast.Portal container={mailRoot()} data-slot="toast-portal">
       <Toast.Viewport
         className={cn(
           "fixed z-100 mx-auto flex w-[calc(100%-var(--toast-inset)*2)] max-w-90 [--toast-header-offset:var(--workspace-topbar-height)] [--toast-inset:--spacing(4)] sm:[--toast-inset:--spacing(8)]",

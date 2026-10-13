@@ -1,3 +1,4 @@
+import { mailBridge } from "../../host/bridge";
 import { useState } from "react";
 import { gmailApi, type ProviderSnapshot } from "../gmail/api";
 import { useSetProvidersState } from "../gmail/agent-providers";
@@ -83,17 +84,13 @@ export function OpenRouterConnection({ provider }: { provider: ProviderSnapshot 
           <div className="flex gap-2">
             <Btn
               size="sm"
-              onClick={() =>
-                void window.desktopBridge.openExternal("https://openrouter.ai/settings/keys")
-              }
+              onClick={() => void mailBridge.openExternal("https://openrouter.ai/settings/keys")}
             >
               Get API key
             </Btn>
             <Btn
               size="sm"
-              onClick={() =>
-                void window.desktopBridge.openExternal("https://openrouter.ai/activity")
-              }
+              onClick={() => void mailBridge.openExternal("https://openrouter.ai/activity")}
             >
               Usage
             </Btn>
