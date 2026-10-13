@@ -95,3 +95,5 @@ apps/server/src/cloud/pinnedRuntime.test.ts
 # Desktop: module-owned IPC and preload bridges (Calendar OAuth callbacks/reminders)
 apps/desktop/src/ipc/DesktopIpcHandlers.ts
 apps/desktop/src/preload.ts
+# CI: hold the first callback listener open before selecting a second test port
+apps/desktop/src/app/CodexAuthCallback.test.ts
