@@ -1,0 +1,25 @@
+{
+  "model": "claude-sonnet-4.5",
+  "provider": "anthropic",
+  "providers": [
+    {
+      "slug": "anthropic",
+      "name": "Anthropic",
+      "is_current": true,
+      "authenticated": true,
+      "models": ["claude-sonnet-4.5", { "id": "claude-opus-4.5", "name": "Claude Opus 4.5" }]
+    },
+    {
+      "slug": "openrouter",
+      "name": "OpenRouter",
+      "authenticated": false,
+      "models": ["openai/gpt-5.1"]
+    },
+    {
+      "slug": "nous",
+      "name": "Nous Portal",
+      "authenticated": true,
+      "models": [{ "id": "default" }]
+    }
+  ]
+}

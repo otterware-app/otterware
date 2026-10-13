@@ -1,0 +1,8 @@
+{
+  "object": "list",
+  "data": [
+    { "id": "openclaw", "object": "model", "owned_by": "openclaw" },
+    { "id": "openclaw/default", "object": "model", "owned_by": "openclaw" },
+    { "id": "openclaw/research", "object": "model", "owned_by": "openclaw" }
+  ]
+}

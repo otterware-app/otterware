@@ -1,0 +1,12 @@
+: OPENROUTER PROCESSING
+
+data: {"id":"gen-1760000001-b2","provider":"Anthropic","model":"anthropic/claude-sonnet-4.5","object":"chat.completion.chunk","created":1760000001,"choices":[{"index":0,"delta":{"role":"assistant","content":"You have "},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1760000001-b2","provider":"Anthropic","model":"anthropic/claude-sonnet-4.5","object":"chat.completion.chunk","created":1760000001,"choices":[{"index":0,"delta":{"role":"assistant","content":"two open threads."},"finish_reason":null,"native_finish_reason":null,"logprobs":null}]}
+
+data: {"id":"gen-1760000001-b2","provider":"Anthropic","model":"anthropic/claude-sonnet-4.5","object":"chat.completion.chunk","created":1760000001,"choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":"stop","native_finish_reason":"end_turn","logprobs":null}]}
+
+data: {"id":"gen-1760000001-b2","provider":"Anthropic","model":"anthropic/claude-sonnet-4.5","object":"chat.completion.chunk","created":1760000001,"choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null,"native_finish_reason":null,"logprobs":null}],"usage":{"prompt_tokens":1530,"completion_tokens":12,"total_tokens":1542}}
+
+data: [DONE]
+

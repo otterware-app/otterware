@@ -1,0 +1,12 @@
+data: {"id":"chatcmpl_run-7f3a","object":"chat.completion.chunk","created":1760000100,"model":"openclaw/default","choices":[{"index":0,"delta":{"role":"assistant"}}]}
+
+data: {"id":"chatcmpl_run-7f3a","object":"chat.completion.chunk","created":1760000100,"model":"openclaw/default","choices":[{"index":0,"delta":{"content":"Checking the thread list."}}]}
+
+data: {"id":"chatcmpl_run-7f3a","object":"chat.completion.chunk","created":1760000100,"model":"openclaw/default","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_q1","type":"function","function":{"name":"t3_thread_list","arguments":""}}]}}]}
+
+data: {"id":"chatcmpl_run-7f3a","object":"chat.completion.chunk","created":1760000100,"model":"openclaw/default","choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"function":{"arguments":"{\"limit\":5}"}}]}}]}
+
+data: {"id":"chatcmpl_run-7f3a","object":"chat.completion.chunk","created":1760000100,"model":"openclaw/default","choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}]}
+
+data: [DONE]
+
