@@ -1173,7 +1173,7 @@ importers:
         version: 4.0.2(patch_hash=595b7d26fb635caba9c3d39fcb189bb78a000192f8d3b60ead7174b310d1ade9)(@types/node@24.12.4)(@vitest/ui@5.0.1)(bufferutil@4.1.0)(effect@4.0.2(patch_hash=ec61ee307eaec3e17f757e0e6a16296ea4b7a8c3188df0c6ec5e66301fd78688))(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.0(@noble/hashes@1.8.0))(msw@2.12.11(@types/node@24.12.4)(typescript@7.0.2))(terser@5.48.0)(tsx@4.23.0)(typescript@7.0.2)(unrun@0.2.39)(utf-8-validate@6.0.6)(yaml@2.9.0)
       vite-plus:
         specifier: 1.0.0
-        version: 1.0.0(@types/node@24.12.4)(@vitest/ui@5.0.1)(bufferutil@4.1.0)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.0(@noble/hashes@1.8.0))(msw@2.12.11(@types/node@24.12.4)(typescript@7.0.2))(terser@5.48.0)(tsx@4.23.0)(typescript@7.0.2)(unrun@0.2.39)(utf-8-validate@6.0.6)(yaml@2.9.0)
+        version: 1.0.0(@types/node@24.12.4)(@vitest/ui@5.0.1(vitest@5.0.1))(bufferutil@4.1.0)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.0(@noble/hashes@1.8.0))(msw@2.12.11(@types/node@24.12.4)(typescript@7.0.2))(terser@5.48.0)(tsx@4.23.0)(typescript@7.0.2)(unrun@0.2.39)(utf-8-validate@6.0.6)(yaml@2.9.0)
 
   modules/calendar/engine:
     dependencies:
@@ -1286,6 +1286,15 @@ importers:
 
   modules/mail/contracts:
     dependencies:
+      '@otterware/module-kit':
+        specifier: workspace:*
+        version: link:../../../packages/module-kit
+      '@t3tools/contracts':
+        specifier: workspace:*
+        version: link:../../../packages/contracts
+      effect:
+        specifier: 4.0.2
+        version: 4.0.2(patch_hash=ec61ee307eaec3e17f757e0e6a16296ea4b7a8c3188df0c6ec5e66301fd78688)
       zod:
         specifier: ^4.6.5
         version: 4.6.5
@@ -1305,9 +1314,15 @@ importers:
       '@otterware/mail-contracts':
         specifier: workspace:*
         version: link:../contracts
+      '@otterware/module-kit':
+        specifier: workspace:*
+        version: link:../../../packages/module-kit
       better-auth:
         specifier: ^1.7.6
         version: 1.7.6(drizzle-kit@1.0.0-rc.5-ab785fc)(drizzle-orm@1.0.0-rc.5-ab785fc(c67751dc6ba3e68b2caa82937f7630a2))(mongodb@6.21.0(@aws-sdk/credential-providers@3.1062.0)(socks@2.8.9))(pg@8.23.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(vitest@5.0.1)
+      effect:
+        specifier: 4.0.2
+        version: 4.0.2(patch_hash=ec61ee307eaec3e17f757e0e6a16296ea4b7a8c3188df0c6ec5e66301fd78688)
       postal-mime:
         specifier: 4.0.0
         version: 4.0.0
