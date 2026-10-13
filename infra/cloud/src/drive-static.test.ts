@@ -6,9 +6,13 @@ describe("Drive static profile", () => {
       "/drive",
       "/drive/d/document",
       "/account/callback",
+      "/folder/a/document",
       "/folder/a/document/v2",
       "/s/share",
       "/home",
+      "/settings",
+      "/settings/account",
+      "/settings/drive/sharing",
     ])
       expect(
         new URL(driveStaticRequest(new Request(`https://cloud.otterware.app${path}`))!.url)

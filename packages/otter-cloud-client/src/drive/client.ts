@@ -5,7 +5,7 @@ import {
   DRIVE_CLOUD_AUDIENCE,
   DRIVE_CLOUD_ORIGIN,
   DRIVE_CONTENT_HOST,
-} from "@otterware/drive-contracts";
+} from "@otterware/drive-contracts/constants";
 import {
   acceptLinkResponseSchema,
   apiErrorSchema,

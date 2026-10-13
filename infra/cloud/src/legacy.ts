@@ -57,13 +57,13 @@ export function mailEnv(env: Env): MailEnv {
     TUNNEL_UNLINKED_LIMIT: env.TUNNEL_UNLINKED_LIMIT,
   };
 }
-export function driveEnv(env: Env, parallel = false): DriveEnv {
+export function driveEnv(env: Env): DriveEnv {
   return {
     DB: env.DRIVE_DB,
     ARTIFACTS: env.ARTIFACTS,
     ASSETS: env.ASSETS,
     BROWSER: env.BROWSER,
-    APP_URL: parallel ? env.CLOUD_ORIGIN : "https://drive.otterware.app",
+    APP_URL: "https://drive.otterware.app",
     CONTENT_URL: "https://usercontent.otterware.app",
     OTTER_AUTH_URL: "https://accounts.otterware.app/v1/auth",
     MAIL_AUTH_URL: "https://relay.mail.otterware.app",
@@ -81,11 +81,13 @@ export function driveEnv(env: Env, parallel = false): DriveEnv {
 export async function drive(request: Request, env: Env, parallel: boolean) {
   if (!env.DRIVE_SECRET || !env.CONTENT_SIGNING_KEY)
     return new Response("Drive signing secrets are not configured", { status: 503 });
-  const bindings = driveEnv(env, parallel);
+  const bindings = driveEnv(env);
   const migrated = migrateLegacyRequest(request, bindings);
   if (migrated instanceof Response) return migrated;
   request = migrated;
-  if (!isAllowedHostPath(request, bindings)) return hostNotFound();
+  // The Cloud transport serves the API; document links retain the canonical Drive origin.
+  const hostBindings = parallel ? { ...bindings, APP_URL: env.CLOUD_ORIGIN } : bindings;
+  if (!isAllowedHostPath(request, hostBindings)) return hostNotFound();
   const url = new URL(request.url);
   try {
     if (url.pathname.startsWith("/api/v1/")) {

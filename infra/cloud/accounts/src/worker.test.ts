@@ -792,6 +792,13 @@ async function codeTokens(
   };
 }
 
+it("completes PKCE sign-in for the standalone Drive and Cloud callbacks", async () => {
+  for (const origin of ["https://drive.otterware.app", "https://cloud.otterware.app"]) {
+    const tokens = await codeTokens("otter-code-web", `${origin}/account/callback`, origin);
+    expect(tokens.access_token).toBeTruthy();
+  }
+});
+
 it("signs Code in with the canonical identity, rotates refresh credentials and checks revocation", async () => {
   const tokens = await codeTokens();
   const session = await request("/v1/auth/code/session", {

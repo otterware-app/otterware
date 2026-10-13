@@ -40,7 +40,7 @@ export const homeContributor = Effect.gen(function* () {
               { id: "mark-seen", label: "Mark as seen" },
             ],
             target: {
-              route: "/drive",
+              route: `/drive${new URL(entry.url).pathname}`,
               params: {
                 url: entry.url,
                 artifactId: entry.artifactId,
