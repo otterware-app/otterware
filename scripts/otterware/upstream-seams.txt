@@ -76,3 +76,8 @@ apps/desktop/src/electron/ElectronUpdater.ts
 
 # W8: verify the production runtime root added for module contracts
 scripts/lib/cli-external-packages*.ts
+
+# W8: runtime update/archive selection follows the baked profile feed
+packages/shared/src/cliRelease.ts
+packages/shared/src/cliRelease.test.ts
+apps/server/src/cli/update.ts

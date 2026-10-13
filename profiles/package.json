@@ -10,6 +10,10 @@
     "./active": {
       "types": "./active.ts",
       "import": "./active.ts"
+    },
+    "./server-release": {
+      "types": "./server-release.ts",
+      "import": "./server-release.ts"
     }
   },
   "scripts": {

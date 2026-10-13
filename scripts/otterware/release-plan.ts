@@ -12,6 +12,12 @@ export function releaseProfiles(input: string) {
   });
 }
 
+/** Code and Otterware share a home: their runtime cache keys must still differ. */
+export function profileReleaseVersion(version: string, profile: string) {
+  if (!isProfileId(profile)) throw new Error("Unknown release profile");
+  return version.replace("-otterware.", `-otterware.${profile}.`);
+}
+
 export function releaseBranch(input: string) {
   if (!input.trim() || input === "main") return "";
   const branch = input
@@ -51,7 +57,8 @@ if (process.argv[1]?.endsWith("release-plan.ts")) {
     profile: profile.id,
     productName: profile.brand.productName,
     channel: `${profile.id}${branch ? `-${branch}` : ""}`,
-    tag: `otterware-${profile.id}-v${version}`,
+    version: profileReleaseVersion(version, profile.id),
+    tag: `otterware-${profile.id}-v${profileReleaseVersion(version, profile.id)}`,
   }));
   const output = `matrix=${JSON.stringify({ include: matrix })}\nversion=${version}\n`;
   NodeFS.appendFileSync(process.env.GITHUB_OUTPUT ?? "/dev/stdout", output);

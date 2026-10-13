@@ -91,7 +91,7 @@ jobs:
           run-install: false
       - run: vp install --filter=t3... --filter=@t3tools/web... --filter=@t3tools/desktop... --filter=@t3tools/scripts...
       - run: node scripts/otterware/prepare-release.ts
-      - run: node scripts/update-release-package-versions.ts "${{ needs.preflight.outputs.version }}"
+      - run: node scripts/update-release-package-versions.ts "${{ matrix.version }}"
       - uses: ./.github/actions/setup-apt-mirrors
       - run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev pkg-config
       - run: vp run build:desktop
@@ -115,7 +115,7 @@ jobs:
     with:
       profile: ${{ matrix.profile }}
       channel: ${{ matrix.channel }}
-      version: ${{ needs.preflight.outputs.version }}
+      version: ${{ matrix.version }}
       platform: linux
       runner: ubuntu-24.04
       target: AppImage
@@ -132,7 +132,7 @@ jobs:
     with:
       profile: ${{ matrix.profile }}
       channel: ${{ matrix.channel }}
-      version: ${{ needs.preflight.outputs.version }}
+      version: ${{ matrix.version }}
       platform: mac
       runner: macos-15
       target: dmg
@@ -148,7 +148,7 @@ jobs:
     timeout-minutes: 15
     env:
       GH_TOKEN: ${{ secrets.OTTERWARE_RELEASES_TOKEN }}
-      VERSION: ${{ needs.preflight.outputs.version }}
+      VERSION: ${{ matrix.version }}
       CHANNEL: ${{ matrix.channel }}
       PROFILE: ${{ matrix.profile }}
       SOURCE_SHA: ${{ github.sha }}
