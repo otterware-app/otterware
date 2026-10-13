@@ -34,6 +34,13 @@ export const artifactPreviewSchema = z.object({
   version: artifactVersionSchema,
   contentType: z.string(),
   resourceBaseUrl: z.string().url(),
+  /**
+   * The entry file and the base of the version's files with a signed grant in
+   * the path (`usercontent.otterware.app/raw/t/<grant>/`): they load without a
+   * content cookie, so in pages outside otterware.app too. They expire in an hour.
+   */
+  signedUrl: z.string().url().optional(),
+  signedBaseUrl: z.string().url().optional(),
 });
 export const artifactPreviewResponseSchema = z.object({
   data: artifactPreviewSchema,
