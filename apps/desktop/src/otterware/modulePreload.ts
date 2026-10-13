@@ -4,7 +4,7 @@ import {
   MODULE_DESKTOP_REQUEST,
   type ModuleDesktopBridge,
   type ModuleDesktopEvent,
-} from "@otterware/module-kit/desktop";
+} from "@otterware/module-kit/desktop/bridge";
 
 export function exposeModuleDesktopBridge() {
   contextBridge.exposeInMainWorld("otterwareDesktop", {

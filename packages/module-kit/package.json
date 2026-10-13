@@ -34,7 +34,8 @@
     "./desktop": {
       "types": "./src/desktop/index.ts",
       "import": "./src/desktop/index.ts"
-    }
+    },
+    "./desktop/bridge": "./src/desktop/bridge.ts"
   },
   "scripts": {
     "typecheck": "tsc-rs --noEmit",
