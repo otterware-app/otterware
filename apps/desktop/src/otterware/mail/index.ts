@@ -1,5 +1,8 @@
 // @effect-diagnostics nodeBuiltinImport:off -- Client OS integration, never an environment operation.
-import { app, BrowserWindow, webContents } from "electron";
+import * as NodeFS from "node:fs";
+import { writeAttachment } from "./files.ts";
+import { appleTranslator } from "./translation.ts";
+import { app, BrowserWindow, webContents, shell, nativeImage } from "electron";
 import * as NodePath from "node:path";
 import {
   desktopMethod,
@@ -33,10 +36,24 @@ export function installMailDesktop(
     configHome: string;
     executable: string;
     isPackaged: boolean;
+    translatorPath: string;
   },
 ) {
   if (!profileHasMail) return () => {};
   const { platform } = options;
+  const translation =
+    platform === "darwin" && NodeFS.existsSync(options.translatorPath)
+      ? appleTranslator(options.translatorPath)
+      : null;
+  const temporaryFiles = new Set<() => Promise<void>>();
+  const attachment = Schema.Struct({
+    name: Schema.String.check(Schema.isMaxLength(1024)),
+    base64: Schema.String.check(
+      Schema.isMaxLength(140 * 1024 * 1024),
+      Schema.isPattern(/^[a-zA-Z0-9+/_-]*={0,2}$/),
+    ),
+    drag: Schema.Boolean,
+  });
   const loginFile = NodePath.join(
     options.configHome,
     "autostart",
@@ -53,11 +70,57 @@ export function installMailDesktop(
         ? { listMailApps: linux.listMailApps, setDefaultMailApp: linux.setDefaultMailApp }
         : null;
   const stop = registry.register("mail", {
+    "file:open": desktopMethod(attachment, async (input, context) => {
+      const saved = await writeAttachment(app.getPath("temp"), input);
+      temporaryFiles.add(saved.remove);
+      if (input.drag) {
+        const contents = webContents.fromId(context.senderId);
+        if (!contents || contents.isDestroyed()) throw new Error("The Mail window closed.");
+        let icon = await app.getFileIcon(saved.file, { size: "normal" });
+        if (icon.isEmpty())
+          icon = nativeImage.createFromBuffer(
+            Buffer.from(
+              "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+j5RkAAAAASUVORK5CYII=",
+              "base64",
+            ),
+          );
+        contents.startDrag({ file: saved.file, icon });
+      } else {
+        const error = await shell.openPath(saved.file);
+        if (error) throw new Error(error);
+      }
+      return { ok: true };
+    }),
+    "translation:detect": desktopMethod(
+      Schema.Struct({ text: Schema.String.check(Schema.isMaxLength(4000)) }),
+      ({ text }) => {
+        if (!translation) throw new Error("On-device translation is unavailable.");
+        return translation.detect(text);
+      },
+    ),
+    "translation:translate": desktopMethod(
+      Schema.Struct({
+        segments: Schema.Array(Schema.String.check(Schema.isMaxLength(100000))).check(
+          Schema.isMaxLength(2000),
+        ),
+        source: Schema.String.check(Schema.isPattern(/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/)),
+        target: Schema.String.check(Schema.isPattern(/^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$/)),
+      }),
+      ({ segments, source, target }) => {
+        if (!translation) throw new Error("On-device translation is unavailable.");
+        if (segments.reduce((sum, text) => sum + text.length, 0) > 1000000)
+          throw new Error("This message is too large to translate.");
+        return translation.translate(segments, source, target);
+      },
+    ),
     "app:capabilities": desktopMethod(empty, () => ({
       platform,
       launchAtLogin: options.isPackaged,
       defaultMailApp: options.isPackaged && activeProfile.id === "mail",
       dockBadge: true,
+      translation: translation !== null,
+      dragOut: true,
+      openFiles: true,
     })),
     "app:hasPendingMailto": desktopMethod(empty, (_input, context) => {
       send = () => {
@@ -139,6 +202,7 @@ export function installMailDesktop(
   return () => {
     send = undefined;
     stop();
+    for (const remove of temporaryFiles) void remove().catch(() => {});
     setModuleNotificationBadge(platform, "mail", { count: 0, image: null });
   };
 }

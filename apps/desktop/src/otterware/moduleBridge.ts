@@ -18,6 +18,16 @@ export const installModuleDesktopBridge = Effect.gen(function* () {
       installMailDesktop(moduleDesktopRegistry, {
         platform: environment.platform,
         isPackaged: environment.isPackaged,
+        translatorPath: environment.isPackaged
+          ? environment.path.join(environment.resourcesPath, "bin", "mail-translator")
+          : environment.path.join(
+              environment.rootDir,
+              "native",
+              "mail-translator",
+              ".build",
+              "release",
+              "translator",
+            ),
         configHome:
           env.XDG_CONFIG_HOME || environment.path.join(environment.homeDirectory, ".config"),
         executable: Option.getOrUndefined(environment.appImagePath) ?? app.getPath("exe"),
