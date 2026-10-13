@@ -1,3 +1,8 @@
+import { vi } from "vite-plus/test";
+// These fixtures cover Otter Code's existing artifact and npm identities.
+vi.mock("@otterware/profiles/active", async () => ({
+  activeProfile: (await import("@otterware/profiles")).PROFILES.code,
+}));
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";

@@ -1,3 +1,4 @@
+import { resolveProfile } from "@otterware/profiles";
 import "vite-plus/test/config";
 import { defineConfig } from "vite-plus";
 
@@ -55,7 +56,7 @@ export default defineConfig({
       outExtensions: () => ({ js: ".cjs" }),
       define: {
         ...publicConfigDefine,
-        __OTTERWARE_PROFILE__: JSON.stringify(process.env.OTTERWARE_PROFILE?.trim() ?? ""),
+        __OTTERWARE_PROFILE__: JSON.stringify(resolveProfile(process.env.OTTERWARE_PROFILE).id),
       },
       outputOptions: { codeSplitting: false },
       entry: ["src/main.ts"],
@@ -75,7 +76,7 @@ export default defineConfig({
       outExtensions: () => ({ js: ".cjs" }),
       define: {
         ...publicConfigDefine,
-        __OTTERWARE_PROFILE__: JSON.stringify(process.env.OTTERWARE_PROFILE?.trim() ?? ""),
+        __OTTERWARE_PROFILE__: JSON.stringify(resolveProfile(process.env.OTTERWARE_PROFILE).id),
       },
       entry: [
         "src/electron/WindowsForegroundFocusWorker.ts",
@@ -111,7 +112,7 @@ export default defineConfig({
       outExtensions: () => ({ js: ".cjs" }),
       define: {
         ...publicConfigDefine,
-        __OTTERWARE_PROFILE__: JSON.stringify(process.env.OTTERWARE_PROFILE?.trim() ?? ""),
+        __OTTERWARE_PROFILE__: JSON.stringify(resolveProfile(process.env.OTTERWARE_PROFILE).id),
       },
       entry: ["src/preload.ts"],
     },
@@ -157,6 +158,8 @@ export default defineConfig({
     },
   ],
   test: {
+    // Existing host fixtures exercise the shipped Code identity; the profile matrix tests the others.
+    env: { OTTERWARE_PROFILE: "code" },
     // The Windows lane runs workspace suites concurrently; filesystem-heavy
     // desktop integration tests can exceed Vitest's 5 second default there.
     testTimeout: 15_000,

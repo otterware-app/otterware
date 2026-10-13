@@ -1,3 +1,5 @@
+import { activeProfile } from "../../../profiles/active.ts";
+import { profileAppIdentity, profileIconPath } from "../../../profiles/index.ts";
 // This file mostly exists because we want dev mode to say "T3 Code (Dev)" instead of "electron"
 
 import * as NodeChildProcess from "node:child_process";
@@ -15,19 +17,21 @@ const repoRoot = NodePath.resolve(desktopDir, "..", "..");
 const devBundleIdSuffix = NodePath.basename(repoRoot)
   .toLowerCase()
   .replaceAll(/[^a-z0-9]+/g, "");
-const APP_DISPLAY_NAME = isDevelopment ? "Otter Code (Dev)" : "Otter Code";
+const identity = profileAppIdentity(activeProfile, isDevelopment);
+const APP_DISPLAY_NAME = identity.displayName;
 const APP_BUNDLE_ID = isDevelopment
-  ? `dev.otterware.code.dev.${devBundleIdSuffix || "local"}`
-  : "dev.otterware.code";
-const APP_PROTOCOL_SCHEMES = isDevelopment ? ["ottercode-dev"] : ["ottercode"];
-const LAUNCHER_VERSION = 19;
+  ? `${identity.appId}.${devBundleIdSuffix || "local"}`
+  : identity.appId;
+const APP_PROTOCOL_SCHEMES = [identity.urlScheme];
+const LAUNCHER_VERSION = 20;
 const developmentMacIconPngPath = NodePath.join(
   repoRoot,
-  "assets",
-  "otter-dev",
-  "otter-dev-macos-1024.png",
+  profileIconPath(activeProfile, "development", "macos-1024.png"),
 );
-const productionMacIconPngPath = NodePath.join(repoRoot, "assets", "otter", "otter-macos-1024.png");
+const productionMacIconPngPath = NodePath.join(
+  repoRoot,
+  profileIconPath(activeProfile, "production", "macos-1024.png"),
+);
 // oxlint-disable-next-line t3code/no-global-process-runtime -- Standalone launcher script has no Effect runtime.
 const hostPlatform = NodeOS.platform();
 
@@ -269,10 +273,8 @@ export function resolveMacBundleInfoPlistStrings(executableName) {
     CFBundleIdentifier: APP_BUNDLE_ID,
     CFBundleExecutable: executableName,
     CFBundleIconFile: "icon.icns",
-    NSScreenCaptureUsageDescription:
-      "Otter Code captures the active window when you use the snapshot shortcut.",
-    NSDocumentsFolderUsageDescription:
-      "Otter Code reads project files you open in the desktop app.",
+    NSScreenCaptureUsageDescription: `${activeProfile.brand.productName} captures the active window when you use the snapshot shortcut.`,
+    NSDocumentsFolderUsageDescription: `${activeProfile.brand.productName} reads project files you open in the desktop app.`,
   };
 }
 

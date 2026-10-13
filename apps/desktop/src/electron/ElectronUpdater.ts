@@ -1,5 +1,7 @@
 import { RELEASE_CHANNEL } from "../../../../profiles/release-channel.ts";
 import { releaseUpdaterChannel } from "../../../../profiles/release-feed.ts";
+import { activeProfile } from "@otterware/profiles/active";
+import { profileUpdateChannel } from "@otterware/profiles";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -99,9 +101,14 @@ export const make = ElectronUpdater.of({
       autoUpdater.autoInstallOnAppQuit = value;
       return Effect.void;
     }),
+  // Otterware seam: build identity comes from the active app profile.
   setChannel: (channel) =>
     Effect.suspend(() => {
-      autoUpdater.channel = releaseUpdaterChannel(channel);
+      autoUpdater.channel = releaseUpdaterChannel(
+        channel === "latest" || channel === "nightly"
+          ? profileUpdateChannel(activeProfile, channel)
+          : channel,
+      );
       return Effect.void;
     }),
   setAllowPrerelease: (value) =>

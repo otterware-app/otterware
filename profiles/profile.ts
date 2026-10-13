@@ -71,6 +71,8 @@ export interface AppProfile {
    * Code share `.otter-code`; standalone apps get their own.
    */
   readonly dataHome: string;
+  /** Desktop client preferences; Otterware separates these from the shared Code server home. */
+  readonly clientDataHome: string;
   readonly updateFeed: ProfileUpdateFeed;
   /** Where the web app lands on its first open. */
   readonly landingRoute: string;

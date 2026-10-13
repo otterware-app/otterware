@@ -27,6 +27,7 @@ apps/web/src/components/settings/settingsSearch.ts
 apps/web/src/components/settings/SettingsSidebarNav.tsx
 apps/web/src/routes/_chat.index.tsx
 apps/web/src/branding.ts
+apps/web/src/branding.test.ts
 apps/web/src/routes/__root.tsx
 
 # Desktop identity from the app profile
@@ -36,12 +37,17 @@ apps/desktop/src/app/DesktopEnvironment.ts
 apps/desktop/src/app/DesktopStatePaths.ts
 apps/desktop/src/app/DesktopUserData.ts
 apps/desktop/src/electron/ElectronProtocol.ts
+apps/desktop/src/electron/ElectronUpdater.ts
 apps/desktop/scripts/electron-launcher.mjs
 
 # Packaging from the app profile
 scripts/build-desktop-artifact.ts
 scripts/build-npm-platform-packages.ts
 scripts/lib/brand-assets.ts
+
+# Focused compatibility fixtures for profile packaging
+scripts/build-desktop-artifact.test.ts
+scripts/build-npm-platform-packages.test.ts
 
 # Provider drivers, secrets and release checks touched by other workstreams (PRs #14, #16)
 apps/server/src/provider/builtInDrivers.ts

@@ -18,6 +18,7 @@ export const driveProfile = defineProfile({
     npm: null,
   },
   dataHome: ".otter-drive",
+  clientDataHome: ".otter-drive",
   updateFeed: { repository: OTTERWARE_RELEASE_REPOSITORY, channelPrefix: "drive" },
   landingRoute: "/drive",
 });

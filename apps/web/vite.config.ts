@@ -1,3 +1,5 @@
+import { profileWebAssetsPlugin } from "../../scripts/otterware/profile-web-assets.ts";
+import { resolveProfile } from "@otterware/profiles";
 import * as NodeZlib from "node:zlib";
 
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
@@ -159,6 +161,7 @@ export default defineConfig(() => {
   return {
     assetsInclude: ["**/*.wasm"],
     plugins: [
+      profileWebAssetsPlugin(),
       devCompressionPlugin(),
       thirdPartyLicensesPlugin({
         bundleName: "web",
@@ -196,7 +199,7 @@ export default defineConfig(() => {
       ],
     },
     define: {
-      __OTTERWARE_PROFILE__: JSON.stringify(process.env.OTTERWARE_PROFILE?.trim() ?? ""),
+      __OTTERWARE_PROFILE__: JSON.stringify(resolveProfile(process.env.OTTERWARE_PROFILE).id),
       // In dev mode, tell the web app where the WebSocket server lives
       "import.meta.env.VITE_WS_URL": JSON.stringify(configuredWsUrl ?? ""),
       // Pinned explicitly rather than left to Vite's automatic VITE_ exposure:

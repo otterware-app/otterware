@@ -20,7 +20,11 @@ Settings screen, scoped settings), 0012 (data homes), 0013 (package per layer).
 
 The profile is chosen at build time with `OTTERWARE_PROFILE` (`otterware` by default) and baked
 into the server, web and desktop bundles as `__OTTERWARE_PROFILE__`; unbundled code reads the
-variable. `profiles/active.ts` is the one place that resolves it.
+variable. `profiles/active.ts` is the one place that resolves it. Builds reject unknown ids
+while loading Vite config. `OTTERWARE_PROFILE=code` keeps the Code app ID, URL scheme,
+server home, icon paths, npm identity and bare update channels. Other desktop feeds use
+profile-prefixed channels. Explicit homes keep client preferences in that sandbox; otherwise
+Otterware separates its client files in `~/.otterware/userdata` from the shared server home.
 
 ## Adding a module
 
@@ -62,6 +66,10 @@ other modules only through Home contributions and agent tools, never by importin
 - **Agent instructions.** `ModuleRuntime.agentInstructions` joins the instructions of modules that
   are on. Provider adapters build prompts synchronously, so `AgentInstructions` supplies
   a synchronous read in the current Effect fiber. Each runtime gets its own service; there is no process-global snapshot.
+- **Account session.** W3 implements `OtterAccountSession` (`module-kit/engine`, also exported
+  from `/server`): audience-bound `accessToken` and connection-bound `providerToken`. Credentials
+  are redacted values; the host owns refresh and storage. Portable engines never import the Cloud
+  client or the server to get credentials.
 - **Home.** `HomeContributors.current` is the host's contributors (Code, from the orchestration
   projections) plus those of modules that are on. The Home module reads it per overview.
 - **In the browser.** The in-browser environment (ADR 0008, `packages/browser-environment`) runs

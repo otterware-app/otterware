@@ -18,6 +18,7 @@ export const calendarProfile = defineProfile({
     npm: null,
   },
   dataHome: ".otter-calendar",
+  clientDataHome: ".otter-calendar",
   updateFeed: { repository: OTTERWARE_RELEASE_REPOSITORY, channelPrefix: "calendar" },
   landingRoute: "/calendar",
 });

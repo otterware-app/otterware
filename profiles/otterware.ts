@@ -19,6 +19,7 @@ export const otterwareProfile = defineProfile({
     npm: null,
   },
   dataHome: ".otter-code",
+  clientDataHome: ".otterware",
   updateFeed: { repository: OTTERWARE_RELEASE_REPOSITORY, channelPrefix: "otterware" },
   landingRoute: "/home",
 });

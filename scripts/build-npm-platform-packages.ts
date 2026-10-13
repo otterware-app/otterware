@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { activeProfile } from "@otterware/profiles/active";
+import { PROFILES } from "@otterware/profiles";
 /**
  * Turns the per-platform CLI archives of one release into the npm packages
  * behind `npx t3` / `npm i -g t3`: one `@t3code/t3-<platformKey>` package per
@@ -43,9 +45,20 @@ import serverPackageJson from "../apps/server/package.json" with { type: "json" 
 
 import { windowsSystemTar } from "./build-cli-archive.ts";
 
-export const NPM_PLATFORM_PACKAGE_SCOPE = "@otterware";
-export const NPM_PLATFORM_PACKAGE_PREFIX = "otter-code-";
-export const NPM_LAUNCHER_PACKAGE_NAME = "otter-code";
+// Otterware seam: build identity comes from the active app profile.
+const npmIdentity = activeProfile.brand.npm ?? PROFILES.code.brand.npm!;
+export const NPM_PLATFORM_PACKAGE_SCOPE = npmIdentity.platformPackageScope;
+export const NPM_PLATFORM_PACKAGE_PREFIX = npmIdentity.platformPackagePrefix;
+export const NPM_LAUNCHER_PACKAGE_NAME = npmIdentity.launcherPackage;
+
+export class ProfileHasNoCliError extends Schema.TaggedError<ProfileHasNoCliError>()(
+  "ProfileHasNoCliError",
+  { profile: Schema.String },
+) {
+  override get message(): string {
+    return `The ${this.profile} profile does not ship an npm CLI. Use OTTERWARE_PROFILE=code.`;
+  }
+}
 
 const encodePackageJson = Schema.encodeEffect(fromJsonStringPretty(Schema.Unknown));
 
@@ -193,8 +206,7 @@ export function npmLauncherPackageManifest(
  * loads on any Node that npm itself runs on; the real work happens in the
  * single-executable it execs.
  */
-export const NPM_LAUNCHER_SCRIPT = `#!/usr/bin/env node
-"use strict";
+export const NPM_LAUNCHER_SCRIPT = `"use strict";
 const { spawnSync } = require("node:child_process");
 const { constants } = require("node:os");
 const { dirname, join } = require("node:path");
@@ -410,6 +422,8 @@ export const buildNpmPlatformPackages = Effect.fn("buildNpmPlatformPackages")(fu
   readonly outputDir: string;
   readonly allowMissing: boolean;
 }) {
+  if (activeProfile.brand.npm === null)
+    return yield* new ProfileHasNoCliError({ profile: activeProfile.id });
   const fs = yield* FileSystem.FileSystem;
   const path = yield* Path.Path;
 

@@ -7,3 +7,18 @@ export { registerModuleTools, type RegisterModuleToolsInput } from "./ModuleTool
 export * as StateDirGuard from "./StateDirGuard.ts";
 export * as SuiteDatabase from "./SuiteDatabase.ts";
 export { runSuiteMigrations, SuiteMigrationRegistryError } from "./SuiteMigrations.ts";
+
+export {
+  defineServerModule,
+  HomeContributors,
+  ModuleToolCaller,
+  type HomeContributor,
+  type SuiteMigration,
+  type ServerModule,
+  type ModuleRpcHandlers,
+} from "../engine/ServerModule.ts";
+export {
+  OtterAccountSession,
+  OtterAccountSessionError,
+  type ProviderAccessToken,
+} from "../engine/OtterAccountSession.ts";

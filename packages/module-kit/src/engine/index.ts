@@ -11,3 +11,9 @@ export {
   type ServerModuleServices,
   type SuiteMigration,
 } from "./ServerModule.ts";
+
+export {
+  OtterAccountSession,
+  OtterAccountSessionError,
+  type ProviderAccessToken,
+} from "./OtterAccountSession.ts";
