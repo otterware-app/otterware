@@ -4,7 +4,7 @@ const { setTimeout: delay } = NodeTimersPromises;
 import {
   deviceCodeResponseSchema,
   deviceTokenResponseSchema,
-} from "../../drive/contracts/index.ts";
+} from "@otterware/drive-contracts/api";
 import type { Command } from "commander";
 import open from "open";
 import pc from "picocolors";

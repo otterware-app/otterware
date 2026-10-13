@@ -4,7 +4,7 @@ import {
   type ShareRole,
   type Sharing,
   type SharingResponse,
-} from "../../drive/contracts/index.ts";
+} from "@otterware/drive-contracts/api";
 import type { Command } from "commander";
 import pc from "picocolors";
 import { ApiClient } from "./client";

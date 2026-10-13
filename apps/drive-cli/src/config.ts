@@ -7,7 +7,7 @@ const { homedir } = NodeOS;
 import * as NodePath from "node:path";
 const { dirname, join } = NodePath;
 
-import { DEFAULT_API_URL } from "../../drive/contracts/index.ts";
+import { DEFAULT_API_URL } from "@otterware/drive-contracts/api";
 
 export interface Profile {
   apiUrl: string;

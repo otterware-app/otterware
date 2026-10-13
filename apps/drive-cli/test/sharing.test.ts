@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import type { Sharing } from "../../drive/contracts/index.ts";
+import type { Sharing } from "@otterware/drive-contracts/api";
 import { accessRows, parseRole } from "../src/sharing";
 
 describe("sharing", () => {

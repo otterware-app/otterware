@@ -23,4 +23,4 @@ otterdrive artifacts link quarterly-report
 otterdrive shared
 ```
 
-See the repository README for authentication, drives, artifact commands, and self-hosting instructions.
+Use `otterdrive --help` or `otterdrive <command> --help` for authentication, folders, document commands, and version options.
