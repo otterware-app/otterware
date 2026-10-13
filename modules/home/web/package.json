@@ -1,0 +1,23 @@
+{
+  "name": "@otterware/home-web",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc-rs --noEmit"
+  },
+  "dependencies": {
+    "@otterware/module-kit": "workspace:*",
+    "lucide-react": "^0.564.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "react": "19.2.6",
+    "typescript": "catalog:"
+  }
+}

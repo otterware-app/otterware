@@ -12,7 +12,7 @@
  */
 import type { WebModule } from "@otterware/module-kit/web";
 import { useLocation } from "@tanstack/react-router";
-import { Suspense, useState, type ReactNode } from "react";
+import { Activity, Suspense, useState, type ReactNode } from "react";
 
 import { moduleRegistry } from "./registry";
 
@@ -32,9 +32,11 @@ function ModulePageFrame({
       className={active ? "flex min-h-0 min-w-0 flex-1" : "hidden"}
       data-module-page={module.id}
     >
-      <Suspense fallback={null}>
-        <Page subpath={subpath} active={active} />
-      </Suspense>
+      <Activity mode={active ? "visible" : "hidden"}>
+        <Suspense fallback={null}>
+          <Page subpath={subpath} active={active} />
+        </Suspense>
+      </Activity>
     </div>
   );
 }

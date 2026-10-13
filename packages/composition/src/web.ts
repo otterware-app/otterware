@@ -1,3 +1,4 @@
+export { createHomeWebModule } from "@otterware/home-web";
 import { createModuleRegistry, type WebModule } from "@otterware/module-kit/web";
 import { activeProfile } from "@otterware/profiles/active";
 import type { AppProfile } from "@otterware/profiles";
