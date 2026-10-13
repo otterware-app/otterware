@@ -1,0 +1,25 @@
+{
+  "name": "@otterware/mail-engine",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The mail backend shared by the desktop app (Electron main process) and the web app (a Web Worker).",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./platform": "./src/platform.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vp test run --passWithNoTests"
+  },
+  "dependencies": {
+    "@otterware/mail-contracts": "workspace:*",
+    "better-auth": "^1.7.6",
+    "postal-mime": "4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}
