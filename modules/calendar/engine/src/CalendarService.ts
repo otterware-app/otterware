@@ -10,6 +10,7 @@
  */
 import type {
   CalendarEnvironmentPreferences,
+  CalendarReminderNotification,
   CalendarAccountId,
   CalendarAddDemoInput,
   CalendarApplyChangesInput,
@@ -69,6 +70,7 @@ export interface FreeSlot {
 
 export interface CalendarServiceShape {
   /** Accounts, calendars, preferences and the Google client state: a snapshot on every change. */
+  readonly notifications: Stream.Stream<CalendarReminderNotification, CalendarError>;
   readonly directory: Stream.Stream<CalendarDirectory, CalendarError>;
   readonly getDirectory: Effect.Effect<CalendarDirectory, CalendarError>;
   /** One week chunk of visible instances: a snapshot, then diffs. */

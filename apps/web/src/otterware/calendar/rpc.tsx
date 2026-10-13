@@ -8,6 +8,8 @@ import {
 } from "@otterware/composition/contracts";
 import {
   calendarConnectStream,
+  calendarNotificationsStream,
+  CalendarNotifications,
   CalendarClientProvider,
   createCalendarAtoms,
   type CalendarWebClient,
@@ -93,6 +95,28 @@ function makeClient(environmentId: EnvironmentId | null): CalendarWebClient {
       ),
     );
   return {
+    environmentId,
+    watchNotifications: (onNotification, onError) => {
+      if (!environmentId) return () => {};
+      const controller = new AbortController();
+      const task = Effect.scoped(
+        Effect.gen(function* () {
+          yield* AtomRegistry.mount(appAtomRegistry, connectionAtomRuntime);
+          const context = yield* AtomRegistry.getResult(appAtomRegistry, connectionAtomRuntime);
+          const registry = yield* EnvironmentRegistry.EnvironmentRegistry.pipe(
+            Effect.provide(context),
+          );
+          yield* registry.runStream(environmentId, calendarNotificationsStream).pipe(
+            Stream.runForEach((notification) => Effect.sync(() => onNotification(notification))),
+            Effect.provide(context),
+          );
+        }),
+      );
+      void Effect.runPromise(task, { signal: controller.signal }).catch((cause) => {
+        if (!controller.signal.aborted) onError(String(cause));
+      });
+      return () => controller.abort();
+    },
     useDirectory: () => {
       const result = useAtomValue(
         environmentId ? atoms.directory({ environmentId, input: {} }) : emptyDirectory,
@@ -176,7 +200,7 @@ export function CalendarEnvironmentProvider({ children }: { children: ReactNode 
   const client = useMemo(() => makeClient(environmentId), [environmentId]);
   return (
     <CalendarClientProvider client={client} key={environmentId ?? "disconnected"}>
-      {children}
+      <CalendarNotifications>{children}</CalendarNotifications>
     </CalendarClientProvider>
   );
 }

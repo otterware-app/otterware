@@ -123,7 +123,7 @@ export const accountSessionLayer = <E, R>(
                 HttpClientRequest.bearerToken(key.oauthToken),
               ),
             )
-            .pipe(Effect.mapError(failed));
+            .pipe(Effect.timeout("15 seconds"), Effect.mapError(failed));
           if (response.status !== 200) return yield* failed();
           const session = yield* HttpClientResponse.schemaBodyJson(SuiteSession)(response).pipe(
             Effect.mapError(failed),

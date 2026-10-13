@@ -6,6 +6,10 @@
     ".": {
       "types": "./src/index.ts",
       "import": "./src/index.ts"
+    },
+    "./desktop": {
+      "types": "./src/desktopGoogleAuth.ts",
+      "import": "./src/desktopGoogleAuth.ts"
     }
   },
   "scripts": {

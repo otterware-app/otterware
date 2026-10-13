@@ -89,6 +89,7 @@ export interface RemoteEvent {
   readonly recurringEventId?: string;
   /** On instances and exceptions: when the series scheduled this occurrence. */
   readonly originalStartTime?: RemoteEventDateTime;
+  readonly reminders?: import("@otterware/calendar-contracts").CalendarEventReminders;
   readonly transparency?: "opaque" | "transparent";
   readonly visibility?: "default" | "public" | "private" | "confidential";
   readonly attendees?: ReadonlyArray<RemoteAttendee>;

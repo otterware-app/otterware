@@ -134,6 +134,7 @@ function detailOf(details: CalendarEventDetails, names: Map<string, string>, zon
     })),
     ...(details.conference !== undefined ? { videoCall: details.conference.url } : {}),
     canRespond: details.canRespond,
+    ...(details.reminders ? { reminders: details.reminders } : {}),
     ...(details.htmlLink !== undefined ? { link: details.htmlLink } : {}),
   };
 }

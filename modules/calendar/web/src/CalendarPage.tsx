@@ -30,7 +30,11 @@ import { formatLongDate } from "./runtime/format.ts";
 import { useMinuteClock } from "./grid/useMinuteClock.ts";
 import "./calendar.css";
 
-export default function CalendarPage({ active, subpath }: ModulePageProps) {
+export default function CalendarPage({
+  active,
+  subpath,
+  search = window.location.search,
+}: ModulePageProps & { readonly search?: string }) {
   const client = useCalendarClient();
   const { directory, error: directoryError, canWrite } = useCalendarDirectory();
   const preferences = directory?.preferences ?? DEFAULT_CALENDAR_PREFERENCES;
@@ -38,7 +42,7 @@ export default function CalendarPage({ active, subpath }: ModulePageProps) {
   const now = useMinuteClock();
   const today = zonedDay(now, zone);
   const [date, setDate] = useState(
-    () => parseDayNumber(new URLSearchParams(window.location.search).get("date") ?? "") ?? today,
+    () => parseDayNumber(new URLSearchParams(search).get("date") ?? "") ?? today,
   );
   const [view, setView] = useState<CalendarViewKind>("week");
   const [selected, setSelected] = useState<CalendarEventInstance | null>(null);
@@ -92,7 +96,9 @@ export default function CalendarPage({ active, subpath }: ModulePageProps) {
     directory?.calendars.filter(
       (calendar) => calendar.accessRole === "owner" || calendar.accessRole === "writer",
     ) ?? [];
-  const defaultCalendar = preferences.defaultCalendarId ?? writable[0]?.calendarId;
+  const defaultCalendar =
+    writable.find((calendar) => calendar.calendarId === preferences.defaultCalendarId)
+      ?.calendarId ?? writable[0]?.calendarId;
 
   const run = async (work: () => Promise<void>) => {
     setBusy(true);
@@ -196,7 +202,7 @@ export default function CalendarPage({ active, subpath }: ModulePageProps) {
   const lastDeepLink = useRef<string | null>(null);
   useEffect(() => {
     if (!active) return;
-    const query = new URLSearchParams(window.location.search);
+    const query = new URLSearchParams(search);
     const calendarId = query.get("calendar");
     const eventId = query.get("event");
     if (!calendarId || !eventId) return;
@@ -217,7 +223,7 @@ export default function CalendarPage({ active, subpath }: ModulePageProps) {
     return () => {
       cancelled = true;
     };
-  }, [active, client, zone]);
+  }, [active, client, zone, search]);
   const onKeyboard = useEffectEvent((event: KeyboardEvent) => {
     const target = event.target;
     if (
@@ -265,7 +271,7 @@ export default function CalendarPage({ active, subpath }: ModulePageProps) {
   useModulePageContext(
     {
       module: "calendar",
-      title: `Calendar, ${formatLongDate(days[0]!)} to ${formatLongDate(days[days.length - 1]!)}, time zone ${zone}`,
+      title: `Calendar, ${formatLongDate(view === "agenda" ? range.from : days[0]!)} to ${formatLongDate(view === "agenda" ? range.to : days[days.length - 1]!)}, time zone ${zone}`,
       refs: selected
         ? [{ kind: "calendar.event", id: selectedKey!, label: selected.title }]
         : (directory?.calendars
@@ -533,14 +539,14 @@ export default function CalendarPage({ active, subpath }: ModulePageProps) {
           )}
         </main>
       </div>
-      {((!selected && draft) || (selected && details)) && (
+      {active && ((!selected && draft) || (selected && details)) && (
         <EventEditor
           key={selectedKey ?? `${draft?.start}`}
           event={details}
           duplicate={draft?.duplicate === true}
           draft={draft}
           timeZone={zone}
-          calendars={writable}
+          calendars={directory?.calendars ?? []}
           defaultCalendar={defaultCalendar}
           canWrite={canWrite}
           busy={busy}

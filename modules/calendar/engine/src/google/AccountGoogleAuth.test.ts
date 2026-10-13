@@ -1,4 +1,6 @@
 // @effect-diagnostics globalDate:off -- Cloud's Promise client uses wall-clock expiry; these are fake tokens.
+import { CalendarError } from "@otterware/calendar-contracts";
+import * as Stream from "effect/Stream";
 import { expect, it } from "@effect/vitest";
 import { OtterCloudClient } from "@otterware/otter-cloud-client";
 import * as Context from "effect/Context";
@@ -17,7 +19,7 @@ const scopes = AccountGoogleAuth.GOOGLE_CALENDAR_SCOPES;
 const setup = Effect.gen(function* () {
   const calls: string[] = [];
   const seen: string[] = [];
-  const cloud = (accountId: string): CalendarCloudContext => ({
+  const cloud = (accountId: string, grantedScopes = scopes): CalendarCloudContext => ({
     accountId,
     cloudOrigin: "https://cloud.test",
     client: new OtterCloudClient({
@@ -40,7 +42,7 @@ const setup = Effect.gen(function* () {
                 id: "connection",
                 provider: "google",
                 email: `${accountId}@example.test`,
-                scopes,
+                scopes: grantedScopes,
                 updatedAt: 1,
               },
             ],
@@ -50,7 +52,7 @@ const setup = Effect.gen(function* () {
           accessToken: `google-${accountId}`,
           expiresAt: Date.now() + 3600000,
           audience: "env",
-          scopes,
+          scopes: grantedScopes,
         });
       },
     }),
@@ -84,10 +86,44 @@ it.effect("uses account-held tokens, caches them and isolates account switches",
       yield* Ref.set(test.current, Option.some(test.cloud("bob")));
       yield* auth.client("cloud:connection").listCalendars({});
       expect(test.seen.at(-1)).toBe("Bearer google-bob");
+      yield* Ref.set(
+        test.current,
+        Option.some(test.cloud("broad", ["https://www.googleapis.com/auth/calendar"])),
+      );
+      expect(yield* auth.accounts!).toHaveLength(1);
+      yield* auth.client("cloud:connection").listCalendars({});
+      expect(test.seen.at(-1)).toBe("Bearer google-broad");
       yield* Ref.set(test.current, Option.none());
       const error = yield* Effect.flip(auth.client("cloud:connection").listCalendars({}));
       expect(error.reason).toBe("signed_out");
       expect(yield* auth.hasTokens("local-account")).toBe(false);
+    }),
+  ),
+);
+
+it.effect("local PKCE does not depend on an available Cloud session", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const layer = AccountGoogleAuth.layer.pipe(
+        Layer.provide(GoogleAuthUnavailable.layer),
+        Layer.provide(
+          Layer.succeed(CalendarAccountSession, {
+            current: Effect.fail(
+              new CalendarError({ code: "unavailable", detail: "Cloud offline" }),
+            ),
+          }),
+        ),
+        Layer.provide(
+          Layer.succeed(
+            HttpClient.HttpClient,
+            HttpClient.make(() => Effect.die("Unexpected HTTP request")),
+          ),
+        ),
+      );
+      const context = yield* Layer.build(layer);
+      const auth = Context.get(context, GoogleAuth);
+      const error = yield* Effect.flip(Stream.runCollect(auth.connect({ source: "local" })));
+      expect(error.code).toBe("not_configured");
     }),
   ),
 );

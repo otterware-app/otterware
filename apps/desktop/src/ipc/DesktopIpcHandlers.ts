@@ -1,3 +1,4 @@
+import { installOtterwareDesktop } from "../otterware/registry.ts";
 import {
   getAccountSession,
   setAccountSession,
@@ -95,6 +96,7 @@ import {
 export const installDesktopIpcHandlers = Effect.fn("desktop.ipc.installHandlers")(function* () {
   const ipc = yield* DesktopIpc.DesktopIpc;
   yield* installNotificationBadge();
+  yield* installOtterwareDesktop;
   yield* PreviewIpc.installPreviewEventForwarding();
   const platform = yield* HostProcess.Platform;
   const environment = yield* HostProcess.Environment;

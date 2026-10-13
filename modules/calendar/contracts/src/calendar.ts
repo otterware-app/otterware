@@ -102,12 +102,38 @@ export type Calendar = typeof Calendar.Type;
 
 export const CalendarWeekday = Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 6 }));
 
+/** Google supports at most five email/popup overrides, up to four weeks before an event. */
+export const CalendarEventReminders = Schema.Struct({
+  useDefault: Schema.Boolean,
+  overrides: Schema.optional(
+    Schema.Array(
+      Schema.Struct({
+        method: Schema.Literals(["popup", "email"]),
+        minutes: Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 40320 })),
+      }),
+    ).check(Schema.isMaxLength(5)),
+  ),
+});
+export type CalendarEventReminders = typeof CalendarEventReminders.Type;
+export const CalendarReminderNotification = Schema.Struct({
+  key: Schema.String,
+  calendarId: CalendarId,
+  eventId: CalendarEventId,
+  title: Schema.String,
+  start: EpochMillis,
+  allDay: Schema.Boolean,
+  timeZone: TimeZoneName,
+  minutesBefore: Schema.Int,
+  deliveredAt: EpochMillis,
+});
+export type CalendarReminderNotification = typeof CalendarReminderNotification.Type;
+
 export const CalendarNotificationRules = Schema.Array(
   Schema.Struct({
-    minutesBefore: Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 10080 })),
+    minutesBefore: Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 40320 })),
     enabled: Schema.Boolean,
   }),
-);
+).check(Schema.isMaxLength(5));
 export const CalendarEnvironmentPreferences = Schema.Struct({
   syncWindow: Schema.Struct({
     pastWeeks: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 104 })),
@@ -316,6 +342,7 @@ export const CalendarConference = Schema.Struct({
 export type CalendarConference = typeof CalendarConference.Type;
 
 export const CalendarEventDetails = Schema.Struct({
+  reminders: Schema.optional(CalendarEventReminders),
   ...CalendarEventInstance.fields,
   description: Schema.String,
   /** The whole location (instances carry a shortened one). */
@@ -372,6 +399,7 @@ export const CalendarEventTimeInput = Schema.Struct({
 export type CalendarEventTimeInput = typeof CalendarEventTimeInput.Type;
 
 const EventFields = {
+  reminders: Schema.optional(CalendarEventReminders),
   title: Schema.optional(Schema.String.check(Schema.isMaxLength(1024))),
   description: Schema.optional(Schema.String.check(Schema.isMaxLength(8192))),
   location: Schema.optional(Schema.String.check(Schema.isMaxLength(1024))),

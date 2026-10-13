@@ -52,6 +52,7 @@ const EVENT_FIELDS = Object.values({
   recurrence: "recurrence",
   recurringEventId: "recurringEventId",
   originalStartTime: "originalStartTime",
+  reminders: "reminders(useDefault,overrides(method,minutes))",
   transparency: "transparency",
   visibility: "visibility",
   attendees: "attendees(email,displayName,responseStatus,optional,organizer,self,resource,comment)",

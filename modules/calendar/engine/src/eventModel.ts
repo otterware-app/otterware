@@ -408,6 +408,7 @@ export function eventDetails(event: RemoteEvent, context: DetailsContext): Calen
     ...(conference ? { conference } : {}),
     ...(context.google && event.htmlLink ? { htmlLink: event.htmlLink } : {}),
     canRespond: canRespond(event),
+    ...(event.reminders ? { reminders: event.reminders } : {}),
     ...(event.visibility ? { visibility: event.visibility } : {}),
     ...(createdAt !== undefined ? { createdAt } : {}),
     ...(updatedAt !== undefined ? { updatedAt } : {}),

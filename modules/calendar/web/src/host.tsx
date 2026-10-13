@@ -1,5 +1,6 @@
 import type {
   CalendarEnvironmentPreferences,
+  CalendarReminderNotification,
   CalendarDirectory,
   CalendarSearchInput,
   CalendarSearchResult,
@@ -20,6 +21,11 @@ import { createContext, useContext, type ReactNode } from "react";
 
 /** Environment-specific transport and scope grants stay in the host adapter. */
 export interface CalendarWebClient {
+  environmentId: string | null;
+  watchNotifications: (
+    onNotification: (notification: CalendarReminderNotification) => void,
+    onError: (message: string) => void,
+  ) => () => void;
   useDirectory: () => {
     directory: CalendarDirectory | null;
     error: string | null;

@@ -26,8 +26,10 @@
  *
  * @module CalendarServiceLive
  */
+import { makeCalendarReminders } from "./CalendarReminders.ts";
 import {
   CalendarError,
+  CalendarId,
   DEFAULT_CALENDAR_PREFERENCES,
   DEFAULT_CALENDAR_ENVIRONMENT_PREFERENCES,
   CalendarEnvironmentPreferences,
@@ -39,6 +41,7 @@ import {
   type CalendarEventInstance,
   type CalendarMutationResult,
   CalendarPreferences,
+  CalendarEventReminders,
   type CalendarWeekEvent,
   type GoogleConnectState,
 } from "@otterware/calendar-contracts";
@@ -239,6 +242,9 @@ function sameDirectory(a: CalendarDirectory, b: CalendarDirectory): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
+const decodeReminderFields = Schema.decodeUnknownEffect(
+  Schema.fromJsonString(Schema.Struct({ reminders: Schema.optional(CalendarEventReminders) })),
+);
 const samePreferences = Schema.toEquivalence(CalendarPreferences);
 
 const iso = (ms: number) => new Date(ms).toISOString();
@@ -901,6 +907,17 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
       if (!time.ok) return yield* invalid(time.detail);
       const write: RemoteEventWrite = {
         ...createWrite(input, nextRequestId),
+        ...(input.reminders === undefined &&
+        preferences.notificationRules.some((rule) => rule.enabled)
+          ? {
+              reminders: {
+                useDefault: false,
+                overrides: preferences.notificationRules
+                  .filter((rule) => rule.enabled)
+                  .map((rule) => ({ method: "popup" as const, minutes: rule.minutesBefore })),
+              },
+            }
+          : {}),
         start: toRemoteDateTime(time.start, time.allDay, time.zone),
         end: toRemoteDateTime(time.end, time.allDay, time.zone),
       };
@@ -2210,7 +2227,49 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
     yield* schedule.pipe(Effect.ignoreCause({ log: true }), Effect.forkIn(layerScope));
   }
 
+  const reminders = yield* makeCalendarReminders({
+    preferences: () => preferences,
+    autoStart: options.autoSync !== false,
+    changes: Stream.merge(Stream.fromPubSub(changes), Stream.fromPubSub(directoryChanges)),
+    candidates: (now) =>
+      Effect.gen(function* () {
+        const rows = yield* sql<{
+          calendar_id: string;
+          instance_id: string;
+          title: string;
+          start_ms: number;
+          flags: number;
+          time_zone: string | null;
+          json: string | null;
+        }>`
+        SELECT i.calendar_id, i.instance_id, i.title, i.start_ms, i.flags, c.time_zone, COALESCE(exception.json, master.json) AS json
+        FROM calendar_instances i JOIN calendar_calendars c ON c.calendar_id = i.calendar_id
+        JOIN calendar_accounts a ON a.account_id = c.account_id
+        LEFT JOIN calendar_events exception ON exception.calendar_id = i.calendar_id AND exception.event_id = i.instance_id
+        LEFT JOIN calendar_events master ON master.calendar_id = i.calendar_id AND master.event_id = i.source_key
+        WHERE c.visible = 1 AND a.status != 'signed_out' AND (i.response IS NULL OR i.response != 'declined')
+          AND i.start_ms >= ${now - DAY_MS} AND i.start_ms <= ${now + 29 * DAY_MS}
+        ORDER BY i.start_ms`;
+        return yield* Effect.forEach(rows, (row) =>
+          Effect.gen(function* () {
+            const fields = row.json
+              ? yield* decodeReminderFields(row.json).pipe(Effect.orElseSucceed(() => ({})))
+              : {};
+            return {
+              calendarId: CalendarId.make(row.calendar_id),
+              eventId: row.instance_id,
+              title: row.title,
+              start: row.start_ms,
+              allDay: (row.flags & 1) !== 0,
+              timeZone: preferences.timeZone ?? row.time_zone ?? serverZone,
+              ...fields,
+            };
+          }),
+        );
+      }).pipe(failedTo("load reminder events")),
+  });
   return CalendarService.of({
+    notifications: reminders.stream,
     directory,
     getDirectory,
     week,
