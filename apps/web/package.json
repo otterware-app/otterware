@@ -22,6 +22,7 @@
     "@formkit/auto-animate": "^0.9.0",
     "@legendapp/list": "catalog:",
     "@noble/hashes": "catalog:",
+    "@otterware/browser-environment": "workspace:*",
     "@otterware/composition": "workspace:*",
     "@otterware/mail-contracts": "workspace:*",
     "@otterware/mail-web": "workspace:*",
