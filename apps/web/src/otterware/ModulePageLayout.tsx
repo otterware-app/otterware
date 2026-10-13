@@ -10,7 +10,7 @@
 import { CloudOffIcon, PowerOffIcon, TriangleAlertIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { lazy, Suspense, useState } from "react";
+import { Activity, lazy, Suspense, useState } from "react";
 import { MessagesSquareIcon } from "lucide-react";
 const ModuleSideChat = lazy(() =>
   import("./sideChat/ModuleSideChat").then((m) => ({ default: m.ModuleSideChat })),
@@ -123,14 +123,16 @@ export function ModulePageLayout({
   return (
     <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none isolate">
       <div className="flex min-h-0 min-w-0 flex-1" data-module-layout={moduleId}>
-        {available && sidebar ? (
-          <nav
-            aria-label={label}
-            className="flex w-60 shrink-0 flex-col border-r border-border bg-background"
-          >
-            <div className="h-(--workspace-topbar-height) shrink-0" />
-            <div className="min-h-0 flex-1 overflow-y-auto">{sidebar}</div>
-          </nav>
+        {sidebar ? (
+          <Activity mode={available ? "visible" : "hidden"}>
+            <nav
+              aria-label={label}
+              className="flex w-60 shrink-0 flex-col border-r border-border bg-background"
+            >
+              <div className="h-(--workspace-topbar-height) shrink-0" />
+              <div className="min-h-0 flex-1 overflow-y-auto">{sidebar}</div>
+            </nav>
+          </Activity>
         ) : null}
         <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background text-foreground">
           <WorkspacePageHeader electron={isElectron}>
@@ -148,11 +150,12 @@ export function ModulePageLayout({
             ) : null}
           </WorkspacePageHeader>
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
-            {available || availability === "loading" ? (
-              children
-            ) : (
+            <Activity mode={available || availability === "loading" ? "visible" : "hidden"}>
+              <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+            </Activity>
+            {!available && availability !== "loading" ? (
               <ModuleUnavailable label={label} availability={availability} />
-            )}
+            ) : null}
           </div>
         </div>
         {available && chatOpen && module?.sideChat ? (

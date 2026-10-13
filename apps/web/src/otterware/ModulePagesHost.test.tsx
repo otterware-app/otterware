@@ -5,12 +5,26 @@ import { createModuleRegistry, defineWebModule } from "@otterware/module-kit/web
 import { HouseIcon } from "lucide-react";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 import { ModulePagesHost } from "./ModulePagesHost";
+import { ModulePageLayout } from "./ModulePageLayout";
 
 let pathname = "/home";
+type AvailabilityState = "on" | "no-modules";
 vi.mock("@tanstack/react-router", () => ({
   useLocation: ({ select }: { select: (location: { pathname: string }) => unknown }) =>
     select({ pathname }),
+  Link: ({ children }: { children: React.ReactNode }) => <a>{children}</a>,
 }));
+vi.mock("./moduleState", () => ({
+  useServerModuleAvailability: () => useContext(Availability),
+}));
+vi.mock("./settingsRegistry", () => ({ MODULES_SETTINGS_PATH: "/settings/modules" }));
+vi.mock("../components/ui/sidebar", () => ({
+  SidebarInset: ({ children }: { children: React.ReactNode }) => <main>{children}</main>,
+}));
+vi.mock("../components/WorkspacePageHeader", () => ({
+  WorkspacePageHeader: ({ children }: { children: React.ReactNode }) => <header>{children}</header>,
+}));
+vi.mock("../env", () => ({ isElectron: false }));
 vi.mock("./registry", () => ({
   get moduleRegistry() {
     return registry;
@@ -18,8 +32,9 @@ vi.mock("./registry", () => ({
 }));
 
 const Environment = createContext("one");
+const Availability = createContext<AvailabilityState>("on");
 let creations = 0;
-function Page() {
+function DraftField() {
   const [value, setValue] = useState(() => {
     creations++;
     return "draft";
@@ -30,6 +45,13 @@ function Page() {
       value={value}
       onChange={(event) => setValue(event.currentTarget.value)}
     />
+  );
+}
+function Page() {
+  return (
+    <ModulePageLayout moduleId="home">
+      <DraftField />
+    </ModulePageLayout>
   );
 }
 const registry = createModuleRegistry([
@@ -56,14 +78,16 @@ describe("persistent module pages", () => {
     const container = document.createElement("div");
     document.body.append(container);
     const root = createRoot(container);
-    const show = async (path: string, environment: string) => {
+    const show = async (path: string, environment: string, state: AvailabilityState = "on") => {
       pathname = path;
       await act(async () => {
         root.render(
           <Environment value={environment}>
-            <ModulePagesHost>
-              <span>Host route</span>
-            </ModulePagesHost>
+            <Availability value={state}>
+              <ModulePagesHost>
+                <span>Host route</span>
+              </ModulePagesHost>
+            </Availability>
           </Environment>,
         );
       });
@@ -79,6 +103,8 @@ describe("persistent module pages", () => {
         input.dispatchEvent(new Event("input", { bubbles: true }));
       });
       await show("/settings/modules", "one");
+      await show("/home", "two", "no-modules");
+      expect(container.textContent).toContain("Home isn’t available here");
       await show("/home/projects/p1", "two");
       expect(container.querySelector('input[aria-label="two"]')?.getAttribute("value")).toBe(
         "unsent message",
