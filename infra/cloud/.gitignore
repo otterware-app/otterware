@@ -1,0 +1,4 @@
+dist/
+.wrangler/
+.wrangler.deploy.json
+.dev.vars
