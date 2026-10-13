@@ -682,6 +682,9 @@ importers:
       '@otterware/module-kit':
         specifier: workspace:*
         version: link:../../packages/module-kit
+      '@otterware/otter-cloud-client':
+        specifier: workspace:*
+        version: link:../../packages/otter-cloud-client
       '@otterware/profiles':
         specifier: workspace:*
         version: link:../../profiles
@@ -1544,6 +1547,9 @@ importers:
       '@otterware/module-kit':
         specifier: workspace:*
         version: link:../../../packages/module-kit
+      '@otterware/otter-cloud-client':
+        specifier: workspace:*
+        version: link:../../../packages/otter-cloud-client
       '@t3tools/contracts':
         specifier: workspace:*
         version: link:../../../packages/contracts

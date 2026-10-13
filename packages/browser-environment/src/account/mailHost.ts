@@ -1,10 +1,14 @@
 /**
- * What Mail's browser worker needs from this browser's Otter Account (#27's
- * session port): the account's Cloud client and channel. Mail reads it when
+ * What module engines need from this browser's Otter Account: Mail's
+ * browser worker (#27's session port) and Home's account data sync: the account's Cloud client and channel. Mail reads it when
  * it starts, so a sign-in, sign-out or account switch restarts a Mail module
  * that is on.
  */
-import { type MailBrowserAccount, MailBrowserHost } from "@otterware/composition/browser";
+import {
+  HomeAccount,
+  type MailBrowserAccount,
+  MailBrowserHost,
+} from "@otterware/composition/browser";
 import { ModuleRuntime } from "@otterware/module-kit/runtime";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
@@ -58,5 +62,30 @@ export const layerMailFollowsAccount = Layer.effectDiscard(
       ),
       Effect.forkScoped,
     );
+  }),
+);
+
+/** Home's account data sync (ADR 0019): push and pull through this browser's Cloud client. */
+export const layerHomeAccount = Layer.effect(
+  HomeAccount,
+  Effect.gen(function* () {
+    const account = yield* BrowserAccount;
+    return HomeAccount.of({
+      current: Effect.map(Effect.option(account.cloud), (cloud) =>
+        Option.map(cloud, ({ accountId, client }) => ({
+          accountId,
+          push: (records) => client.push(records),
+          pull: (cursor) => client.pull(cursor),
+        })),
+      ),
+      changes: Stream.merge(
+        account.changes.pipe(
+          Stream.map((state) => (state.status === "connected" ? state.userId : null)),
+          Stream.changes,
+          Stream.drop(1),
+        ),
+        account.events.pipe(Stream.filter((event) => event.type === "sync.changed")),
+      ).pipe(Stream.as(undefined)),
+    });
   }),
 );

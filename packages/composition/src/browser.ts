@@ -65,3 +65,4 @@ export const selectBrowserModules = (profile: AppProfile): ReadonlyArray<ServerM
 
 export { MailBrowserHost, type MailBrowserAccount } from "@otterware/mail-browser";
 export { composeBrowserContracts, type BrowserModuleId } from "./browserContracts.ts";
+export { HomeAccount, type HomeSyncAccount } from "@otterware/home-engine";

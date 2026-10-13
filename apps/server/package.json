@@ -41,6 +41,7 @@
     "@otterware/calendar-node": "workspace:*",
     "@otterware/composition": "workspace:*",
     "@otterware/module-kit": "workspace:*",
+    "@otterware/otter-cloud-client": "workspace:*",
     "@otterware/profiles": "workspace:*",
     "@otterware/provider-api-agents": "workspace:*",
     "@t3tools/provider-acp": "workspace:*",
