@@ -59,6 +59,23 @@ const setup = Effect.gen(function* () {
 });
 
 describe("command permissions", () => {
+  it.effect("allows module queries without a write command boundary", () =>
+    Effect.gen(function* () {
+      const response = { modules: [{ id: "home", state: "on" as const }] };
+      const session = {
+        client: { "modules.list": () => Effect.succeed(response) },
+      } as unknown as RpcSession;
+      const supervisor = {
+        target: { environmentId: env, label: "target" },
+        session: yield* SubscriptionRef.make(Option.some(session)),
+      } as unknown as EnvironmentSupervisor["Service"];
+      const result = yield* requestGuarded("modules.list", {}).pipe(
+        Effect.provideService(EnvironmentSupervisor, supervisor),
+      );
+      expect(result).toEqual(response);
+    }),
+  );
+
   it.effect("checks live module writes against the destination grant", () =>
     Effect.scoped(
       Effect.gen(function* () {

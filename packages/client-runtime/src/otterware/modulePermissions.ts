@@ -10,7 +10,11 @@ export function clientRpcRequiredScopes(
   input: unknown,
 ): readonly AuthEnvironmentScope[] {
   if (Object.hasOwn(OTTERWARE_RPC_SUPERSET_SCOPES, method)) {
-    return [OTTERWARE_RPC_SUPERSET_SCOPES[method as keyof typeof OTTERWARE_RPC_SUPERSET_SCOPES]];
+    const scope =
+      OTTERWARE_RPC_SUPERSET_SCOPES[method as keyof typeof OTTERWARE_RPC_SUPERSET_SCOPES];
+    // Queries have no command boundary. The server checks read grants; the client
+    // guard protects mutations, just as it does for upstream host methods.
+    return scope.endsWith(":read") ? [] : [scope];
   }
   return hostScopes(method, input);
 }
