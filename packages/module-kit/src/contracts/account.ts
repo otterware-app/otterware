@@ -3,7 +3,7 @@ import {
   AuthOrchestrationReadScope,
   EnvironmentAuthorizationError,
 } from "@t3tools/contracts";
-import { Connection, Provider } from "@otterware/otter-cloud-client";
+import { Connection, Provider } from "@otterware/otter-cloud-client/contracts";
 import * as Schema from "effect/Schema";
 import * as Rpc from "effect/rpc/Rpc";
 import * as RpcGroup from "effect/rpc/RpcGroup";

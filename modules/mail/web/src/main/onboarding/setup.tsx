@@ -1,3 +1,4 @@
+import { mailHost } from "../../host/bridge";
 import { AddMailboxMenu } from "../gmail/add-mailbox";
 import { useAddAccount } from "../gmail/hooks";
 import { Btn } from "../gmail/ui";
@@ -17,6 +18,9 @@ export function SetupFlow() {
       >
         <Btn disabled={add.isPending}>Add mailbox</Btn>
       </AddMailboxMenu>
+      <Btn onClick={() => mailHost().navigate("/settings/mail?pane=accounts")}>
+        Manage account connections
+      </Btn>
     </div>
   );
 }

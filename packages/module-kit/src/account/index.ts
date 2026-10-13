@@ -8,14 +8,16 @@ import * as Context from "effect/Context";
 import * as Schema from "effect/Schema";
 
 /** A module's view of the host account. Provider refresh grants never leave Cloud. */
-export interface ConnectedAccount {
+export interface ProviderAccount {
   readonly accountId: string;
+  connections: OtterCloudClient["connections"];
+  providerToken: OtterCloudClient["providerToken"];
+  push: OtterCloudClient["push"];
+  pull: OtterCloudClient["pull"];
+  subscribe: (listener: (event: ChannelEvent) => void) => () => void;
+}
+export interface ConnectedAccount extends ProviderAccount {
   readonly client: OtterCloudClient;
-  readonly connections: OtterCloudClient["connections"];
-  readonly providerToken: OtterCloudClient["providerToken"];
-  readonly push: OtterCloudClient["push"];
-  readonly pull: OtterCloudClient["pull"];
-  readonly subscribe: (listener: (event: ChannelEvent) => void) => () => void;
 }
 export class OtterAccountSession extends Context.Service<
   OtterAccountSession,

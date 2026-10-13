@@ -1,3 +1,7 @@
+import {
+  squashAtomCommandFailure,
+  type AtomCommandResult,
+} from "@t3tools/client-runtime/state/runtime";
 import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { useEffect, useState } from "react";
@@ -14,6 +18,11 @@ import {
   connectProvider,
   disconnectProvider,
 } from "./rpc";
+
+function checked<A, E>(result: AtomCommandResult<A, E>): A {
+  if (result._tag === "Failure") throw squashAtomCommandFailure(result);
+  return result.value;
+}
 
 /** The account is attached explicitly to the selected environment, including remote ones. */
 export function AccountConnections({ environmentId }: { environmentId: EnvironmentId }) {
@@ -49,7 +58,9 @@ export function AccountConnections({ environmentId }: { environmentId: Environme
     const refresh = async () => {
       const accessToken = await auth.getToken().catch(() => null);
       if (active && accessToken)
-        await attach({ environmentId, input: { accessToken } }).catch(() => {});
+        await attach({ environmentId, input: { accessToken } })
+          .then(checked)
+          .catch(() => {});
     };
     const timer = window.setInterval(() => void refresh(), 20 * 60_000);
     return () => {
@@ -80,7 +91,7 @@ export function AccountConnections({ environmentId }: { environmentId: Environme
                 ],
           returnTo: "https://mail.otterware.app/settings/mail?pane=accounts",
         },
-      });
+      }).then(checked);
       await ensureLocalApi().shell.openExternal(result.url);
     });
   return (
@@ -100,7 +111,7 @@ export function AccountConnections({ environmentId }: { environmentId: Environme
             void run(async () => {
               const accessToken = await auth.getToken();
               if (!accessToken) throw new Error("Sign in to your Otter Account again.");
-              await attach({ environmentId, input: { accessToken } });
+              await attach({ environmentId, input: { accessToken } }).then(checked);
             })
           }
         >
@@ -118,7 +129,7 @@ export function AccountConnections({ environmentId }: { environmentId: Environme
             <Button
               variant="outline"
               disabled={!canWrite || busy}
-              onClick={() => void run(() => detach({ environmentId, input: {} }))}
+              onClick={() => void run(() => detach({ environmentId, input: {} }).then(checked))}
             >
               Disconnect environment
             </Button>
@@ -133,7 +144,9 @@ export function AccountConnections({ environmentId }: { environmentId: Environme
                 disabled={!canWrite || busy}
                 onClick={() =>
                   void run(() =>
-                    disconnect({ environmentId, input: { connectionId: connection.id } }),
+                    disconnect({ environmentId, input: { connectionId: connection.id } }).then(
+                      checked,
+                    ),
                   )
                 }
               >
