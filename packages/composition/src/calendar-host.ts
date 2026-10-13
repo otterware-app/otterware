@@ -1,1 +1,5 @@
-export { CalendarClientProvider, useCalendarClient, type CalendarWebClient } from "@otterware/calendar-web/host";
+export {
+  CalendarClientProvider,
+  useCalendarClient,
+  type CalendarWebClient,
+} from "@otterware/calendar-web/host";
