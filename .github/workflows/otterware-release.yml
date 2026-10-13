@@ -1,0 +1,177 @@
+name: Release Otterware profiles
+
+on:
+  push:
+    tags: ["otterware-build-*"]
+  workflow_dispatch:
+    inputs:
+      profiles:
+        description: "Comma-separated profiles (empty builds every profile)"
+        type: string
+        default: ""
+      channel:
+        description: "Branch suffix (empty/main uses channel-<profile>; test uses channel-<profile>-test)"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: otterware-profile-releases
+  cancel-in-progress: false
+
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      version: ${{ steps.plan.outputs.version }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+          package-manager-cache: false
+      - name: Check publisher and signing configuration before building
+        env:
+          GH_TOKEN: ${{ secrets.OTTERWARE_RELEASES_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          for name in GH_TOKEN CSC_LINK CSC_KEY_PASSWORD APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER APPLE_TEAM_ID; do
+            test -n "${!name}" || { echo "::error::Missing $name"; exit 1; }
+          done
+          gh api repos/otterware-app/otterware --jq '.permissions.push' | grep -qx true
+          # W2 owns identity wiring; never publish a Code-branded build under another profile.
+          grep -q '@otterware/profiles' scripts/build-desktop-artifact.ts
+      - id: plan
+        env:
+          RELEASE_PROFILES: ${{ inputs.profiles }}
+          RELEASE_BRANCH: ${{ inputs.channel }}
+        run: RELEASE_DATE=$(date -u +%Y%m%d) node scripts/otterware/release-plan.ts
+
+  bundle:
+    name: Bundle ${{ matrix.profile }}
+    needs: preflight
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.preflight.outputs.matrix) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      OTTERWARE_PROFILE: ${{ matrix.profile }}
+      OTTERWARE_RELEASE_CHANNEL: ${{ matrix.channel }}
+      T3CODE_ACCOUNTS_URL: ${{ vars.ACCOUNTS_URL || 'https://accounts.otterware.app/v1/auth' }}
+      T3CODE_ACCOUNTS_CLI_CLIENT_ID: ${{ vars.ACCOUNTS_CLI_CLIENT_ID || 'otter-code-cli' }}
+      T3CODE_RELAY_URL: https://relay.code.otterware.app
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - run: vp install --filter=t3... --filter=@t3tools/web... --filter=@t3tools/desktop... --filter=@t3tools/scripts...
+      - run: node scripts/otterware/prepare-release.ts
+      - run: node scripts/update-release-package-versions.ts "${{ needs.preflight.outputs.version }}"
+      - uses: ./.github/actions/setup-apt-mirrors
+      - run: sudo apt-get update && sudo apt-get install -y libsecret-1-dev pkg-config
+      - run: vp run build:desktop
+      - run: vp exec --filter t3 -- node dist/bin.mjs serve --help > /dev/null
+      - uses: actions/upload-artifact@v7
+        with:
+          name: js-bundle-${{ matrix.profile }}
+          path: |
+            apps/server/dist
+            apps/desktop/dist-electron
+          if-no-files-found: error
+          retention-days: 7
+
+  linux:
+    needs: [preflight, bundle]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.preflight.outputs.matrix) }}
+    uses: ./.github/workflows/otterware-desktop.yml
+    secrets: inherit
+    with:
+      profile: ${{ matrix.profile }}
+      channel: ${{ matrix.channel }}
+      version: ${{ needs.preflight.outputs.version }}
+      platform: linux
+      runner: ubuntu-24.04
+      target: AppImage
+      rust_target: x86_64-unknown-linux-gnu
+      cli_archive: true
+
+  mac:
+    needs: [preflight, bundle]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.preflight.outputs.matrix) }}
+    uses: ./.github/workflows/otterware-desktop.yml
+    secrets: inherit
+    with:
+      profile: ${{ matrix.profile }}
+      channel: ${{ matrix.channel }}
+      version: ${{ needs.preflight.outputs.version }}
+      platform: mac
+      runner: macos-15
+      target: dmg
+      rust_target: aarch64-apple-darwin
+      cli_archive: false
+
+  publish:
+    needs: [preflight, linux, mac]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.preflight.outputs.matrix) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.OTTERWARE_RELEASES_TOKEN }}
+      VERSION: ${{ needs.preflight.outputs.version }}
+      CHANNEL: ${{ matrix.channel }}
+      PROFILE: ${{ matrix.profile }}
+      SOURCE_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: release-${{ matrix.profile }}-*
+          path: assets
+          merge-multiple: true
+      - name: Require every artifact and checksum the release
+        run: |
+          set -euo pipefail
+          test -s assets/latest-linux.yml
+          test -s assets/latest-mac.yml
+          test -s assets/t3-${VERSION}-linux-x64.tar.gz
+          (cd assets && sha256sum -- * > SHA256SUMS)
+      - run: bash scripts/otterware/publish-release.sh assets
+      - name: Report published URLs
+        run: |
+          echo "Release: https://github.com/otterware-app/otterware/releases/tag/otterware-${PROFILE}-v${VERSION}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Feed: https://github.com/otterware-app/otterware/releases/download/channel-${CHANNEL}/" >> "$GITHUB_STEP_SUMMARY"
