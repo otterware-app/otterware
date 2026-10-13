@@ -1,0 +1,35 @@
+{
+  "name": "@otterware/mail-contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./relay": "./src/relay.ts",
+    "./agent-tokens": "./src/agent-tokens.ts",
+    "./demo": "./src/demo.ts",
+    "./mail": "./src/mail.ts",
+    "./projects": "./src/projects.ts",
+    "./project-tools": "./src/project-tools.ts",
+    "./todoist": "./src/todoist.ts",
+    "./openrouter": "./src/openrouter.ts",
+    "./shared/app-icons": "./shared/src/app-icons.ts",
+    "./shared/themes": "./shared/src/theme-palettes.ts",
+    "./shared/theme-display": "./shared/src/theme-display.ts",
+    "./shared/demo-mailboxes": "./shared/src/demo-mailboxes.ts",
+    "./shared/support": "./shared/src/support.ts",
+    "./shared/view-marks": "./shared/src/view-marks.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vp test run --passWithNoTests"
+  },
+  "dependencies": {
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}
