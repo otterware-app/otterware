@@ -6,7 +6,10 @@ import ts from "typescript-legacy";
 import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import { findEsmImportsOfExternalPackages } from "../lib/cli-executable-imports.ts";
-import { isRuntimeExternalCliDependency } from "../lib/cli-external-packages.ts";
+import {
+  isRuntimeExternalCliDependency,
+  selectCliRuntimeExternalDependencies,
+} from "../lib/cli-external-packages.ts";
 import { collectWorkspaceManifestPaths } from "./release-workspace-manifests.ts";
 
 const readManifest = (root: string, path: string) =>
@@ -108,10 +111,13 @@ export function assertServerRuntimeBundle(root: string) {
     NodeFS.readFileSync(NodePath.join(dist, path), "utf8"),
   );
   const dependencies = readManifest(root, "apps/server/package.json").dependencies ?? {};
-  const missing = missingServerBundleDependencies(sources, dependencies);
+  const missing = missingServerBundleDependencies(
+    sources,
+    selectCliRuntimeExternalDependencies(dependencies),
+  );
   if (missing.length)
     throw new Error(
-      `Emitted server bundle imports undeclared production dependencies: ${missing.join(", ")}`,
+      `Emitted server bundle imports packages missing from the staged production runtime: ${missing.join(", ")}`,
     );
   const home = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "otterware-bundle-smoke-"));
   try {
