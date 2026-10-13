@@ -1,4 +1,5 @@
 import { exposeOtterwareBridges } from "./otterware/preload.ts";
+import { exposeModuleDesktopBridge } from "./otterware/modulePreload.ts";
 import type {
   DesktopBridge,
   DesktopPreviewOpenLinkEvent,
@@ -74,6 +75,8 @@ function unwrapEnsureSshEnvironmentResult(result: unknown) {
   }
   return result as Awaited<ReturnType<DesktopBridge["ensureSshEnvironment"]>>;
 }
+
+exposeModuleDesktopBridge();
 
 contextBridge.exposeInMainWorld("desktopBridge", {
   getAppBranding: () => {

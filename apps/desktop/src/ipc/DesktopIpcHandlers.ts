@@ -1,4 +1,5 @@
 import { installOtterwareDesktop } from "../otterware/registry.ts";
+import { installModuleDesktopBridge } from "../otterware/moduleBridge.ts";
 import {
   getAccountSession,
   setAccountSession,
@@ -97,6 +98,7 @@ export const installDesktopIpcHandlers = Effect.fn("desktop.ipc.installHandlers"
   const ipc = yield* DesktopIpc.DesktopIpc;
   yield* installNotificationBadge();
   yield* installOtterwareDesktop;
+  yield* installModuleDesktopBridge;
   yield* PreviewIpc.installPreviewEventForwarding();
   const platform = yield* HostProcess.Platform;
   const environment = yield* HostProcess.Environment;
