@@ -86,3 +86,13 @@ it.effect(
       }),
     ),
 );
+
+it.effect("cancels in-flight SDK fetches when their module/account scope closes", () =>
+  Effect.gen(function* () {
+    const abort = new AbortController();
+    const http = HttpClient.make(() => Effect.never);
+    const pending = makeCloudFetch(http, abort.signal)("https://cloud.test/v1/cloud/connections");
+    abort.abort();
+    yield* Effect.promise(() => expect(pending).rejects.toBeDefined());
+  }),
+);
