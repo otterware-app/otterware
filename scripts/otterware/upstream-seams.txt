@@ -45,6 +45,7 @@ apps/desktop/scripts/electron-launcher.mjs
 scripts/build-desktop-artifact.ts
 scripts/build-npm-platform-packages.ts
 scripts/lib/brand-assets.ts
+scripts/lib/brand-assets.test.ts
 
 # Focused compatibility fixtures for profile packaging
 scripts/build-desktop-artifact.test.ts
