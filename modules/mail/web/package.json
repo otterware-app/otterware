@@ -7,7 +7,9 @@
     "./settings": "./src/main/settings/settings-page.tsx",
     "./styles.css": "./src/styles.css",
     "./router": "./src/main/router.tsx",
-    ".": "./src/host/surface.tsx"
+    ".": "./src/host/surface.tsx",
+    "./browser": "./src/main/browser/browser-view.tsx",
+    "./browser-settings": "./src/main/browser/browser-settings.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
@@ -16,7 +18,6 @@
   "dependencies": {
     "@base-ui/react": "^1.8.0",
     "@otterware/mail-contracts": "workspace:*",
-    "@shadcn/react": "^0.2.0",
     "@tanstack/react-query": "^5.87.4",
     "@tanstack/react-router": "^1.131.36",
     "class-variance-authority": "^0.7.1",
