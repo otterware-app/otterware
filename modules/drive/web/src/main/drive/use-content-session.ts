@@ -3,9 +3,9 @@ import { artifactPreviewResponseSchema } from "@otterware/drive-contracts/api";
 import { isolatedContentUrl } from "@otterware/otter-cloud-client/drive";
 import { api } from "../../lib/api";
 
-// Content cookies last four hours. Refresh before that, and on returning to a
-// stale reader, so late images and links use the session rather than URL grants.
-const REFRESH_MS = 3 * 60 * 60 * 1_000;
+// Signed URLs last an hour (content cookies four). Refresh well before that,
+// and on returning to a stale reader, so late images and links still load.
+const REFRESH_MS = 45 * 60 * 1_000;
 
 export function useContentSession({
   folderId,
@@ -29,9 +29,13 @@ export function useContentSession({
           { folderId, signal },
         ),
       ).data;
-      // Fetching follows the redirect and establishes the isolated origin's
-      // HttpOnly cookie. Uploaded content is never executed in the app, and
-      // only ever loaded from usercontent.otterware.app.
+      // Uploaded content is never executed in the app, and only ever loaded
+      // from usercontent.otterware.app. A signed base carries its grant in the
+      // path, so it needs no cookie: the desktop app and servers outside
+      // otterware.app cannot keep one on the content origin.
+      if (preview.signedBaseUrl) return isolatedContentUrl(preview.signedBaseUrl);
+      // Before Cloud signed URLs: fetching follows the redirect and sets the
+      // content origin's HttpOnly cookie.
       isolatedContentUrl(preview.resourceBaseUrl);
       await fetch(isolatedContentUrl(preview.url), {
         mode: "no-cors",
@@ -42,7 +46,7 @@ export function useContentSession({
     },
     enabled,
     staleTime: REFRESH_MS,
-    gcTime: 4 * 60 * 60 * 1_000,
+    gcTime: 60 * 60 * 1_000,
     refetchInterval: REFRESH_MS,
     refetchOnWindowFocus: true,
     retry: false,

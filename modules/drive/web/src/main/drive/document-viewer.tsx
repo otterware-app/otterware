@@ -93,7 +93,11 @@ export function DocumentViewer({
   const preview = useMemo(() => {
     if (!bootstrapPreview) return null;
     try {
-      return { ...bootstrapPreview, url: isolatedContentUrl(bootstrapPreview.url) };
+      // The signed URL needs no content cookie, so it loads outside otterware.app too.
+      return {
+        ...bootstrapPreview,
+        url: isolatedContentUrl(bootstrapPreview.signedUrl ?? bootstrapPreview.url),
+      };
     } catch {
       return null;
     }
