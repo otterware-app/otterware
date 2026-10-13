@@ -1,8 +1,10 @@
 packages:
   - apps/*
   - infra/*
+  - modules/*/*
   - oxlint-plugin-t3code
   - packages/*
+  - profiles
   - scripts
 
 # Successor to onlyBuiltDependencies/ignoredBuiltDependencies (pnpm 11).
