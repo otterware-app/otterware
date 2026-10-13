@@ -151,14 +151,17 @@ export function createCalendarAtoms<R, E>(
 }
 
 /** The caller mounts the current session grant before starting an OAuth command. */
-export const calendarConnectStream = Stream.unwrap(
-  Effect.gen(function* () {
-    const supervisor = yield* EnvironmentSupervisor.EnvironmentSupervisor;
-    const current = yield* SubscriptionRef.get(supervisor.session);
-    return Option.isNone(current)
-      ? Stream.fail(
-          new CalendarError({ code: "unavailable", detail: "The environment is disconnected." }),
-        )
-      : current.value.client[CALENDAR_METHODS.calendarGoogleConnect]({});
-  }),
-);
+export const calendarConnectStream = (
+  input: import("@otterware/calendar-contracts").GoogleConnectInput,
+) =>
+  Stream.unwrap(
+    Effect.gen(function* () {
+      const supervisor = yield* EnvironmentSupervisor.EnvironmentSupervisor;
+      const current = yield* SubscriptionRef.get(supervisor.session);
+      return Option.isNone(current)
+        ? Stream.fail(
+            new CalendarError({ code: "unavailable", detail: "The environment is disconnected." }),
+          )
+        : current.value.client[CALENDAR_METHODS.calendarGoogleConnect](input);
+    }),
+  );

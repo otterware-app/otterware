@@ -38,7 +38,7 @@ import {
   type CalendarEventDetails,
   type CalendarEventInstance,
   type CalendarMutationResult,
-  type CalendarPreferences,
+  CalendarPreferences,
   type CalendarWeekEvent,
   type GoogleConnectState,
 } from "@otterware/calendar-contracts";
@@ -76,6 +76,7 @@ import * as Stream from "effect/Stream";
 import * as SqlClient from "effect/sql/SqlClient";
 import type { SqlError } from "effect/sql/SqlError";
 
+import { makePreferenceSync } from "./CalendarPreferenceSync.ts";
 import { CalendarService, type CalendarServiceShape } from "./CalendarService.ts";
 import {
   makeCalendarStore,
@@ -238,6 +239,8 @@ function sameDirectory(a: CalendarDirectory, b: CalendarDirectory): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
 
+const samePreferences = Schema.toEquivalence(CalendarPreferences);
+
 const iso = (ms: number) => new Date(ms).toISOString();
 
 function syncErrorMessage(error: CalendarProviderError, retryInMs: number): string {
@@ -294,6 +297,8 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
     ...DEFAULT_CALENDAR_PREFERENCES,
     ...(yield* store.readPreferences.pipe(Effect.orDie)),
   };
+
+  const preferenceSync = yield* makePreferenceSync(preferences);
 
   const decodeEnvironment = Schema.decodeUnknownEffect(
     Schema.fromJsonString(CalendarEnvironmentPreferences),
@@ -1453,13 +1458,17 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
         Effect.gen(function* () {
           const calendar = yield* store.getCalendar(input.calendarId);
           if (calendar === undefined) return yield* notFound("That calendar does not exist.");
-          if (input.visible !== undefined && input.visible !== calendar.visible) {
-            yield* store.setCalendarVisible(input.calendarId, input.visible);
+          yield* sql.withTransaction(
+            Effect.gen(function* () {
+              if (input.visible !== undefined && input.visible !== calendar.visible)
+                yield* store.setCalendarVisible(input.calendarId, input.visible);
+              if (input.color !== undefined && input.color !== calendar.color)
+                yield* store.setCalendarColor(input.calendarId, input.color.toLowerCase());
+              yield* preferenceSync.queueCalendars;
+            }),
+          );
+          if (input.visible !== undefined && input.visible !== calendar.visible)
             yield* publishReplace(input.calendarId);
-          }
-          if (input.color !== undefined && input.color !== calendar.color) {
-            yield* store.setCalendarColor(input.calendarId, input.color.toLowerCase());
-          }
           yield* publishDirectory;
         }),
       )
@@ -1485,7 +1494,12 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
             return yield* notFound("That calendar does not exist.");
           }
           const entries = Object.entries(patch).filter(([, value]) => value !== undefined);
-          yield* store.writePreferences(entries);
+          yield* sql.withTransaction(
+            Effect.gen(function* () {
+              yield* store.writePreferences(entries);
+              yield* preferenceSync.queuePatch(patch);
+            }),
+          );
           preferences = {
             ...preferences,
             ...(Object.fromEntries(entries) as Partial<CalendarPreferences>),
@@ -1588,6 +1602,8 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
     Effect.gen(function* () {
       const account = yield* store.getAccount(accountId);
       if (account === undefined) return yield* notFound("That account does not exist.");
+      if (account.provider === "google" && googleAuth.disconnect)
+        yield* googleAuth.disconnect(account.externalId);
       yield* writes.withPermits(1)(
         Effect.gen(function* () {
           const calendars = yield* store.calendarsOf(accountId);
@@ -1636,6 +1652,72 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
         return accountId;
       }),
     );
+
+  const applyAccountPreferences = (data: {
+    preferences: CalendarPreferences;
+    appearances: readonly { account: string; calendar: string; visible: boolean; color: string }[];
+  }) =>
+    writes
+      .withPermits(1)(
+        Effect.gen(function* () {
+          const accounts = yield* store.listAccounts;
+          const calendars = yield* store.listCalendars;
+          const changed = new Set<string>();
+          yield* sql.withTransaction(
+            Effect.gen(function* () {
+              yield* store.writePreferences(Object.entries(data.preferences));
+              for (const appearance of data.appearances) {
+                const target = calendars.find(
+                  (calendar) =>
+                    calendar.remoteId === appearance.calendar &&
+                    accounts.find((account) => account.accountId === calendar.accountId)
+                      ?.externalId === appearance.account,
+                );
+                if (!target) continue;
+                if (target.visible !== appearance.visible) {
+                  yield* store.setCalendarVisible(target.calendarId, appearance.visible);
+                  changed.add(target.calendarId);
+                }
+                if (target.color !== appearance.color) {
+                  yield* store.setCalendarColor(target.calendarId, appearance.color);
+                  changed.add(target.calendarId);
+                }
+              }
+            }),
+          );
+          for (const id of changed) yield* publishReplace(id);
+          if (!samePreferences(preferences, data.preferences) || changed.size > 0) {
+            preferences = data.preferences;
+            yield* publishDirectory;
+          }
+        }),
+      )
+      .pipe(failedTo("apply account preferences"));
+  const syncAccountPreferences = preferenceSync.sync.pipe(
+    Effect.flatMap(Option.match({ onNone: () => Effect.void, onSome: applyAccountPreferences })),
+    Effect.ignoreCause({ log: true }),
+  );
+
+  const reconcileProviderAccounts = Effect.gen(function* () {
+    yield* syncAccountPreferences;
+    if (!googleAuth.accounts) return;
+    const identities = yield* googleAuth.accounts;
+    const existing = yield* store.listAccounts;
+    for (const identity of identities) {
+      const row = existing.find(
+        (account) => account.provider === "google" && account.externalId === identity.sub,
+      );
+      if (!row || row.status === "signed_out" || row.email !== identity.email)
+        yield* upsertGoogleAccount(identity);
+    }
+    for (const row of existing) {
+      if (
+        row.externalId.startsWith("cloud:") &&
+        !identities.some((identity) => identity.sub === row.externalId)
+      )
+        yield* markSignedOut(row.accountId);
+    }
+  }).pipe(Effect.ignoreCause({ log: true }));
 
   const connect: CalendarServiceShape["connect"] = (input) =>
     googleAuth.connect(input).pipe(
@@ -1844,6 +1926,11 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
       ) {
         yield* syncCalendarList(account, client, now);
         timer.listFetchedAt = now;
+        if (googleAuth.accounts)
+          yield* preferenceSync.cached.pipe(
+            Effect.flatMap(applyAccountPreferences),
+            Effect.ignoreCause({ log: true }),
+          );
       }
       for (const calendar of yield* store.calendarsOf(account.accountId)) {
         const watched = subscribers > 0 && calendar.visible;
@@ -1945,6 +2032,7 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
 
   const sync: CalendarServiceShape["sync"] = (input) =>
     Effect.gen(function* () {
+      yield* reconcileProviderAccounts;
       const accounts =
         input.accountId !== undefined
           ? [yield* store.getAccount(input.accountId)]
@@ -1977,6 +2065,7 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
   /** Starts every sync that is due, then sleeps until the next one or a wake-up. */
   const schedule = Effect.gen(function* () {
     while (true) {
+      yield* reconcileProviderAccounts;
       const now = yield* Clock.currentTimeMillis;
       const accounts = yield* store.listAccounts.pipe(Effect.orElseSucceed(() => []));
       let next = now + IDLE_SYNC_INTERVAL;

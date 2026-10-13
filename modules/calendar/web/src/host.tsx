@@ -12,6 +12,7 @@ import type {
   CalendarUpdateCalendarInput,
   GoogleConnectState,
   GoogleClientInput,
+  GoogleConnectInput,
 } from "@otterware/calendar-contracts";
 import { createContext, useContext, type ReactNode } from "react";
 
@@ -46,6 +47,7 @@ export interface CalendarWebClient {
   setClient: (input: GoogleClientInput) => Promise<void>;
   clearClient: () => Promise<void>;
   connect: (
+    input: GoogleConnectInput,
     onState: (state: GoogleConnectState) => void,
     onError: (message: string) => void,
   ) => () => void;

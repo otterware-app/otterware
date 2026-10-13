@@ -25,11 +25,12 @@ export default function CalendarSettings() {
       setBusy(false);
     }
   };
-  const connect = () => {
+  const connect = (source?: "account" | "local") => {
     cancelFlow.current?.();
     setError(null);
     setFlow(null);
     cancelFlow.current = client.connect(
+      { ...(source ? { source } : {}), returnTo: window.location.href },
       (state) => setFlow(state),
       (message) => setError(message),
     );
@@ -62,37 +63,40 @@ export default function CalendarSettings() {
           <button
             type="button"
             disabled={!canWrite || busy || !directory?.google.configured}
-            onClick={connect}
+            onClick={() => connect()}
           >
             Connect Google account
           </button>
           {flow?._tag === "waiting" && (
             <div>
               <p>
-                Open Google sign-in. If the browser is on another machine, paste its final loopback
-                address here.
+                {flow.flowId.startsWith("cloud:")
+                  ? "Google will connect through your Otter Account. Return here after signing in."
+                  : "Open Google sign-in. If the browser is on another machine, paste its final loopback address here."}
               </p>
               <a href={flow.authorizationUrl} target="_blank" rel="noreferrer">
                 Open Google sign-in
               </a>
-              <form
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void run(() => client.completeConnect(flow.flowId, callback));
-                }}
-              >
-                <label>
-                  Callback address
-                  <input
-                    value={callback}
-                    onChange={(event) => setCallback(event.target.value)}
-                    required
-                  />
-                </label>
-                <button type="submit" disabled={!canWrite || busy}>
-                  Finish connection
-                </button>
-              </form>
+              {!flow.flowId.startsWith("cloud:") && (
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    void run(() => client.completeConnect(flow.flowId, callback));
+                  }}
+                >
+                  <label>
+                    Callback address
+                    <input
+                      value={callback}
+                      onChange={(event) => setCallback(event.target.value)}
+                      required
+                    />
+                  </label>
+                  <button type="submit" disabled={!canWrite || busy}>
+                    Finish connection
+                  </button>
+                </form>
+              )}
             </div>
           )}
           {flow?._tag === "succeeded" && <p role="status">Connected {flow.email}.</p>}
@@ -112,6 +116,9 @@ export default function CalendarSettings() {
         </section>
         <section>
           <h2>Local Google connection</h2>
+          <button type="button" disabled={!canWrite || busy} onClick={() => connect("local")}>
+            Connect with local PKCE
+          </button>
           <p>Use a Google Desktop app OAuth client for accounts connected to this environment.</p>
           <form
             onSubmit={(event) => {
