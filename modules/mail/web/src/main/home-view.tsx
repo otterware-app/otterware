@@ -477,26 +477,6 @@ function MailHome() {
       leaveSettingsRef.current();
     };
     window.addEventListener("keydown", down, true);
-    useEffect(() => {
-      mailHost().publishSelection({
-        title: selectedProject?.name ?? "Mail",
-        accountId: readerAccount,
-        messageId: selectedMessageId,
-        projectId: selectedProject?.id,
-        selected: chatSelection.flatMap((row) => {
-          const accountId = row.accountId ?? selectedAccountId;
-          return accountId ? [{ accountId, id: row.id, subject: row.subject }] : [];
-        }),
-        quote: pendingQuote?.text,
-      });
-    }, [
-      readerAccount,
-      selectedMessageId,
-      selectedProject,
-      chatSelection,
-      selectedAccountId,
-      pendingQuote,
-    ]);
     return () => window.removeEventListener("keydown", down, true);
   }, [leaveSettingsRef, settingsRouteRef]);
 
@@ -1339,6 +1319,27 @@ function MailHome() {
       showPanelToggle={!chatOpen && !settingsRoute}
     />
   );
+  useEffect(() => {
+    mailHost().publishSelection({
+      title: selectedProject?.name ?? "Mail",
+      accountId: readerAccount,
+      messageId: selectedMessageId,
+      projectId: selectedProject?.id,
+      selected: chatSelection.flatMap((row) => {
+        const accountId = row.accountId ?? selectedAccountId;
+        return accountId ? [{ accountId, id: row.id, subject: row.subject }] : [];
+      }),
+      quote: pendingQuote?.text,
+    });
+  }, [
+    readerAccount,
+    selectedMessageId,
+    selectedProject,
+    chatSelection,
+    selectedAccountId,
+    pendingQuote,
+  ]);
+
   return (
     <>
       <div
