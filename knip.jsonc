@@ -6,6 +6,9 @@
   "ignoreBinaries": ["eas", "file", "mkfifo", "pkill", "pkg-config", "plutil", "sips"],
   "workspaces": {
     ".": {
+      // Vite+ emits bundled workspace configs under root node_modules/.vite-temp.
+      // Their public-config import externalizes this shared account dependency.
+      "ignoreDependencies": ["@noble/hashes"],
       // Keep vendored reference repositories outside the root project.
       "project": ["*.{js,mjs,cjs,ts,mts,cts}", ".github/**/*.cjs"],
       "entry": [
