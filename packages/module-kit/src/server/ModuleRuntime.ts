@@ -31,7 +31,7 @@ import {
 } from "../engine/ServerModule.ts";
 import { HostHomeContributors } from "./HostPorts.ts";
 import { ModuleStateStore } from "./ModuleStateStore.ts";
-import { SuiteSqlClient } from "./SuiteDatabase.ts";
+import { SuiteSqlClient } from "./SuiteSqlClient.ts";
 
 /** A handler as `RpcGroup.of` or `Toolkit.toLayer` would receive it; the bridges retype it. */
 export type ErasedHandler = (...args: Array<any>) => any;

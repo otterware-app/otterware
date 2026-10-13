@@ -5,24 +5,17 @@
  * data home without schema drift in the main database.
  */
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
-import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
 import * as SqlClient from "effect/sql/SqlClient";
 
-export const SUITE_DATABASE_FILENAME = "suite.sqlite";
+import { SuiteSqlClient } from "./SuiteSqlClient.ts";
 
-/**
- * The suite database's client, under its own tag so it never collides with the
- * main `SqlClient.SqlClient` (statev2.sqlite) in the server's layer graph.
- * Module code written against a plain `SqlClient` gets it through
- * `layerSqlClient`, provided locally to that module only.
- */
-export class SuiteSqlClient extends Context.Service<SuiteSqlClient, SqlClient.SqlClient>()(
-  "@otterware/module-kit/server/SuiteDatabase/SuiteSqlClient",
-) {}
+export { layerSqlClient, SuiteSqlClient } from "./SuiteSqlClient.ts";
+
+export const SUITE_DATABASE_FILENAME = "suite.sqlite";
 
 const configure = (sql: SqlClient.SqlClient) =>
   Effect.gen(function* () {
@@ -62,6 +55,3 @@ export const layerFromStateDir = (stateDir: string) =>
   );
 
 export const layerMemory = layerFromClient(NodeSqliteClient.layer({ filename: ":memory:" }));
-
-/** The suite database as the plain `SqlClient`, for one module's own layers. */
-export const layerSqlClient = Layer.effect(SqlClient.SqlClient, SuiteSqlClient);

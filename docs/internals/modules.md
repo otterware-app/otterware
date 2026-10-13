@@ -61,6 +61,11 @@ other modules only through Home contributions and agent tools, never by importin
   gets its own service; there is no process-global snapshot.
 - **Home.** `HomeContributors.current` is the host's contributors (Code, from the orchestration
   projections) plus those of modules that are on. The Home module reads it per overview.
+- **In the browser.** The in-browser environment (ADR 0008, `packages/browser-environment`) runs
+  the same runtime, RPC bridges and tool gate from `@otterware/module-kit/runtime` in a Web
+  Worker over SQLite in WASM. Keep that entry free of Node imports; environment-only pieces
+  (the `suite.sqlite` file, the data home lock, the MCP server) stay in `./server`. Engines that
+  run there are listed in `packages/composition/src/browser.ts`.
 - **Data home.** `suite.sqlite` sits beside `statev2.sqlite`; the server refuses to start while
   another live server owns the data home and holds a directory lock meanwhile (ADR 0012).
 

@@ -10,6 +10,14 @@
     "./server": {
       "types": "./src/server.ts",
       "import": "./src/server.ts"
+    },
+    "./browser-contracts": {
+      "types": "./src/browserContracts.ts",
+      "import": "./src/browserContracts.ts"
+    },
+    "./browser": {
+      "types": "./src/browser.ts",
+      "import": "./src/browser.ts"
     }
   },
   "scripts": {

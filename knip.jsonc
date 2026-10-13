@@ -119,6 +119,11 @@
       // These workspace packages are private to this monorepo.
       "includeEntryExports": true,
     },
+    "packages/browser-environment": {
+      "includeEntryExports": true,
+      // The page spawns the worker by URL (`client.ts`), never imports it.
+      "entry": ["src/worker.ts!"],
+    },
     "packages/effect-acp": {
       "includeEntryExports": true,
       "entry": ["test/fixtures/*.ts"],
