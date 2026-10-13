@@ -18,13 +18,17 @@
     "./shared/theme-display": "./shared/src/theme-display.ts",
     "./shared/demo-mailboxes": "./shared/src/demo-mailboxes.ts",
     "./shared/support": "./shared/src/support.ts",
-    "./shared/view-marks": "./shared/src/view-marks.ts"
+    "./shared/view-marks": "./shared/src/view-marks.ts",
+    "./rpc": "./src/rpc.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vp test run --passWithNoTests"
   },
   "dependencies": {
+    "@otterware/module-kit": "workspace:*",
+    "@t3tools/contracts": "workspace:*",
+    "effect": "catalog:",
     "zod": "^4.6.5"
   },
   "devDependencies": {
