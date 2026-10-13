@@ -1,4 +1,4 @@
-import { resolveProfile } from "@otterware/profiles";
+import { resolveProfile } from "../../profiles/index.ts";
 import "vite-plus/test/config";
 import { defineConfig } from "vite-plus";
 

@@ -1,5 +1,5 @@
 import { moduleWorkerPlugin } from "../../scripts/otterware/module-workers.ts";
-import { resolveProfile } from "@otterware/profiles";
+import { resolveProfile } from "../../profiles/index.ts";
 import "vite-plus/test/config";
 import { defineConfig, mergeConfig } from "vite-plus";
 

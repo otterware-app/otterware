@@ -1,5 +1,5 @@
 import { profileWebAssetsPlugin } from "../../scripts/otterware/profile-web-assets.ts";
-import { resolveProfile } from "@otterware/profiles";
+import { resolveProfile } from "../../profiles/index.ts";
 import * as NodeZlib from "node:zlib";
 
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
