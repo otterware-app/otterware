@@ -1,0 +1,30 @@
+{
+  "name": "@otterware/composition",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./contracts": {
+      "types": "./src/contracts.ts",
+      "import": "./src/contracts.ts"
+    },
+    "./server": {
+      "types": "./src/server.ts",
+      "import": "./src/server.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc-rs --noEmit",
+    "test": "vp test run --config ../../vite.config.ts --dir ."
+  },
+  "dependencies": {
+    "@otterware/home-contracts": "workspace:*",
+    "@otterware/home-engine": "workspace:*",
+    "@otterware/module-kit": "workspace:*",
+    "@otterware/profiles": "workspace:*",
+    "@t3tools/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}
