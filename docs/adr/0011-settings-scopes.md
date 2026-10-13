@@ -6,11 +6,11 @@ through the module registry, never by editing the host's settings files.
 
 Every setting declares one scope, and the screen shows it:
 
-| Scope       | Stored in                       | Examples                                                       |
-| ----------- | ------------------------------- | -------------------------------------------------------------- |
-| Account     | Otter Cloud, synced everywhere  | signatures, mail layout, default calendar, themes, notifications |
-| Environment | that environment's server       | module on/off, sync depth, local folders, provider instances   |
-| Client      | the device                      | rail visibility, window and panel sizes                        |
+| Scope       | Stored in                      | Examples                                                         |
+| ----------- | ------------------------------ | ---------------------------------------------------------------- |
+| Account     | Otter Cloud, synced everywhere | signatures, mail layout, default calendar, themes, notifications |
+| Environment | that environment's server      | module on/off, sync depth, local folders, provider instances     |
+| Client      | the device                     | rail visibility, window and panel sizes                          |
 
 Account scope is the default for module preferences, as Otter Mail's preferences sync today.
 Environments without an Otter Account fall back to storing account-scoped preferences locally.

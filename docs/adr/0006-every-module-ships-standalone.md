@@ -2,13 +2,13 @@
 
 `otterware` builds these app profiles, each as a desktop app and a web app:
 
-| Profile   | Modules                 | Replaces                                           |
-| --------- | ----------------------- | -------------------------------------------------- |
-| Otterware | all, each toggleable    | `otterware-releases` channel builds                |
-| Otter Code| Code                    | `otter-code` desktop, web, npm CLI                 |
-| Otter Mail| Mail                    | `otter-mail` DMG/.deb and mail.otterware.app       |
-| Calendar  | Calendar                | `otter-calendar` nightly and its web app           |
-| Drive     | Drive                   | drive.otterware.app web app (CLI stays a CLI)      |
+| Profile    | Modules              | Replaces                                      |
+| ---------- | -------------------- | --------------------------------------------- |
+| Otterware  | all, each toggleable | `otterware-releases` channel builds           |
+| Otter Code | Code                 | `otter-code` desktop, web, npm CLI            |
+| Otter Mail | Mail                 | `otter-mail` DMG/.deb and mail.otterware.app  |
+| Calendar   | Calendar             | `otter-calendar` nightly and its web app      |
+| Drive      | Drive                | drive.otterware.app web app (CLI stays a CLI) |
 
 A profile is a build-time choice of modules, branding, app ID, data home and update feed; one
 codebase, one host. Existing installs of each replaced app must update in place to its profile
