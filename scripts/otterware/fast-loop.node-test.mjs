@@ -63,6 +63,8 @@ NodeTest.test("module changes select only that module; shared seams widen the ga
     "other",
   ]);
   for (const file of [
+    "scripts/otterware/affected.mjs",
+    "scripts/otterware/upstream-seams.txt",
     "pnpm-lock.yaml",
     "vite.config.ts",
     "package.json",

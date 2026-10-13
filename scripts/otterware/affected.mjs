@@ -50,6 +50,7 @@ const isDocumentation = (file) =>
   /\.(md|mdx)$/.test(file) && !file.startsWith("scripts/") && !file.startsWith(".github/");
 const isGlobal = (file) =>
   file.startsWith(".github/") ||
+  file.startsWith("scripts/otterware/") ||
   file.startsWith("patches/") ||
   file.startsWith("profiles/") ||
   file.startsWith("oxlint-plugin-t3code/") ||
