@@ -1,0 +1,67 @@
+name: Heal lockfile
+
+# A PR whose pnpm-lock.yaml came out of a merge inconsistent fails every CI job at install.
+# Regenerate it from the base branch's lockfile and push the fix, so no one resolves
+# pnpm-lock.yaml by hand. The push uses the release app's token so CI runs again on it.
+on:
+  pull_request:
+    paths:
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - "**/package.json"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: heal-lockfile-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  heal:
+    name: Heal lockfile
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: App token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ steps.app-token.outputs.token }}
+          fetch-depth: 0
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+
+      - name: Regenerate the lockfile if it is broken
+        env:
+          BASE: ${{ github.event.pull_request.base.ref }}
+        run: |
+          if vp install --frozen-lockfile --ignore-scripts > install.log 2>&1; then
+            echo "Lockfile is consistent."
+            exit 0
+          fi
+          if ! grep -q -E 'ERR_PNPM_(LOCKFILE|OUTDATED_LOCKFILE)' install.log; then
+            cat install.log
+            echo "::error::Install failed for a reason other than the lockfile."
+            exit 1
+          fi
+          git checkout "origin/$BASE" -- pnpm-lock.yaml
+          vp install --no-frozen-lockfile --ignore-scripts
+          git config user.name "otterware-bot"
+          git config user.email "otterware-bot@users.noreply.github.com"
+          git add pnpm-lock.yaml
+          git commit -m "chore: regenerate pnpm-lock.yaml from $BASE"
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
