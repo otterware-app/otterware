@@ -34,12 +34,35 @@ if (part === "lint" || part === "local") {
   if (process.env.GITHUB_EVENT_NAME === "push") run("vp", ["run", "knip:check"]);
 }
 if (part === "typecheck" || part === "local") {
-  for (const pkg of plan.typecheck) run("vp", ["run", "--filter", pkg, "typecheck"]);
+  if (part === "local") {
+    for (const pkg of plan.typecheck) run("vp", ["run", "--filter", pkg, "typecheck"]);
+  } else if (plan.typecheck.length) {
+    run("vp", [
+      "run",
+      "--parallel",
+      "--concurrency-limit",
+      "2",
+      ...plan.typecheck.flatMap((pkg) => ["--filter", pkg]),
+      "typecheck",
+    ]);
+  }
 }
 if (part === "test" || part === "local") {
   if (plan.affected.includes("@t3tools/scripts"))
     run("node", ["--test", "scripts/otterware/fast-loop.node-test.mjs"]);
-  for (const pkg of plan.tests) run("vp", ["run", "--filter", pkg, "test", "--maxWorkers=2"]);
+  if (part === "local") {
+    for (const pkg of plan.tests) run("vp", ["run", "--filter", pkg, "test", "--maxWorkers=2"]);
+  } else if (plan.tests.length) {
+    run("vp", [
+      "run",
+      "--parallel",
+      "--concurrency-limit",
+      "4",
+      ...plan.tests.flatMap((pkg) => ["--filter", pkg]),
+      "test",
+      "--maxWorkers=2",
+    ]);
+  }
   if (plan.full) {
     run("python3", ["-B", ".github/scripts/stage-preview-bundle.test.py"]);
     run("node", ["--test", ".github/scripts/check-nightly-release.test.cjs"]);
