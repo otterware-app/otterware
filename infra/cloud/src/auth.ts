@@ -3,7 +3,7 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import { derivedKey } from "../mail/src/keys.ts";
 import { isPublicDriveRequest } from "./drive-browser.ts";
-import type { Env, Identity } from "./env.ts";
+import type { Env } from "./env.ts";
 
 export const audienceSchema = z
   .string()
@@ -55,7 +55,7 @@ export async function issueToken(env: Env, sessionToken: string, audience: strin
   return { accessToken, expiresAt, audience };
 }
 
-export async function verifyToken(env: Env, token: string, audience: string): Promise<Identity> {
+export async function verifyToken(env: Env, token: string, audience: string) {
   const key = await cloudKey(env, "access");
   let claims;
   try {
@@ -79,6 +79,7 @@ export async function verifyToken(env: Env, token: string, audience: string): Pr
     sessionToken: claims.token,
     audience,
     expiresAt: claims.exp * 1000,
+    accountUser: found.user,
   };
 }
 
