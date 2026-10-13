@@ -26,6 +26,7 @@ import {
 import { authenticate as cloudAuthenticate } from "./auth.ts";
 import { createAuth } from "../drive/src/server/auth.ts";
 import { authenticate } from "../drive/src/server/actor.ts";
+import { ensureDriveIdentity } from "./drive-identity.ts";
 
 export function accountsEnv(env: Env): AccountsEnv {
   return {
@@ -91,26 +92,13 @@ export async function drive(request: Request, env: Env, parallel: boolean) {
   const url = new URL(request.url);
   try {
     if (url.pathname.startsWith("/api/v1/")) {
-      // Cloud tokens map to an explicitly linked Drive identity, never an email match.
+      // Provision from the authenticated Accounts subject, never an email match.
       if (request.headers.has("x-otter-audience")) {
         const identity = await cloudAuthenticate(request, env);
-        const linked = await env.DRIVE_DB.prepare(
-          "SELECT a.userId FROM account a JOIN user u ON u.id=a.userId WHERE a.providerId='otter' AND a.accountId=? AND coalesce(u.banned,0)=0",
-        )
-          .bind(identity.userId)
-          .first<{ userId: string }>();
-        if (!linked)
-          return Response.json(
-            { error: "Sign in to Drive once to create your account." },
-            { status: 409 },
-          );
+        const linked = await ensureDriveIdentity(bindings, identity.accountUser);
         const auth = createAuth(bindings);
         // Reuse Drive's actor/access checks without minting a persistent Drive session.
-        const actor = await authenticate(request, bindings, auth, {
-          id: linked.userId,
-          name: identity.userId,
-          email: "",
-        });
+        const actor = await authenticate(request, bindings, auth, linked);
         return driveApi(request, bindings, actor);
       }
       if (!env.DRIVE_SECRET)

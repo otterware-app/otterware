@@ -318,6 +318,37 @@ describe("parallel Cloud Worker", () => {
     expect((await request("/v1/cloud/connections", { headers: h })).status).toBe(403);
   });
 
+  it("provisions a personal Drive on concurrent first authenticated calls", async () => {
+    const h = { ...headers(await token("offline-b")), origin: "https://drive.otterware.app" };
+    const responses = await Promise.all(
+      [0, 1, 2].map(() => request("/api/v1/folders", { headers: h })),
+    );
+    for (const response of responses) {
+      expect(response.status, await response.clone().text()).toBe(200);
+      expect(await response.json()).toMatchObject({
+        data: [expect.objectContaining({ kind: "personal", ownerUserId: "offline-b" })],
+      });
+    }
+    const db = await runtime.getD1Database("DRIVE_DB", "cloud");
+    expect(await db.prepare("SELECT count(*) AS n FROM user WHERE id='offline-b'").first()).toEqual(
+      { n: 1 },
+    );
+    expect(
+      await db
+        .prepare(
+          "SELECT count(*) AS n FROM account WHERE providerId='otter' AND accountId='offline-b'",
+        )
+        .first(),
+    ).toEqual({ n: 1 });
+    expect(
+      await db
+        .prepare(
+          "SELECT count(*) AS n FROM folder WHERE kind='personal' AND owner_user_id='offline-b'",
+        )
+        .first(),
+    ).toEqual({ n: 1 });
+  });
+
   it("authorizes Drive mutations by the Cloud account despite unrelated host-only cookies", async () => {
     const accessToken = await token();
     const response = await request("/api/v1/folders", {
@@ -337,7 +368,7 @@ describe("parallel Cloud Worker", () => {
     expect((await request("/api/v1/folders", { headers: headers("invalid") })).status).toBe(401);
     expect(
       (await request("/api/v1/folders", { headers: headers(await token("offline-b")) })).status,
-    ).toBe(409);
+    ).toBe(200);
   });
   it("rejects an otherwise unexpired token immediately after account sign-out", async () => {
     const accessToken = await token("offline-b");
