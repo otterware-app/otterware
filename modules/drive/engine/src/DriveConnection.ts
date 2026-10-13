@@ -1,9 +1,10 @@
 import {
-  DRIVE_DEFAULT_BASE_URL,
+  DRIVE_CLOUD_ORIGIN,
   DriveError,
   type DriveConnectionStatus,
 } from "@otterware/drive-contracts";
 import type { OtterAccountSession } from "@t3tools/contracts/accounts";
+import * as Clock from "effect/Clock";
 import * as Config from "effect/Config";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -11,7 +12,7 @@ import * as SubscriptionRef from "effect/SubscriptionRef";
 import type { DriveApi, DriveApiError } from "./DriveApi.ts";
 
 export const DriveBaseUrlConfig = Config.String("OTTERWARE_DRIVE_URL").pipe(
-  Config.withDefault(DRIVE_DEFAULT_BASE_URL),
+  Config.withDefault(DRIVE_CLOUD_ORIGIN),
 );
 /** W2 supplies a refreshed OtterAccountSession; no refresh token crosses a Drive RPC. */
 export class DriveAccountSession extends Context.Service<
@@ -35,7 +36,7 @@ export function driveErrorOf(error: DriveApiError): DriveError {
   return new DriveError({ reason, detail: error.detail });
 }
 
-/** The legacy Drive exchange stays behind the account-session port until Cloud accepts W2 OAuth grants. */
+/** Accounts exchanges the OAuth grant for a session, then Cloud issues an audience-bound capability. */
 export const makeDriveConnection = (api: DriveApi, baseUrl: string) =>
   Effect.gen(function* () {
     const account = yield* DriveAccountSession;
@@ -45,7 +46,9 @@ export const makeDriveConnection = (api: DriveApi, baseUrl: string) =>
     });
     let exchanged: {
       accessToken: string;
+      at: number;
       token: string;
+      at: number;
       account: { userId: string | null; name: string } | null;
     } | null = null;
     let fallbackAccessToken: string | null = null;
@@ -57,11 +60,13 @@ export const makeDriveConnection = (api: DriveApi, baseUrl: string) =>
         yield* SubscriptionRef.set(state, { status: "disconnected", baseUrl });
         return null;
       }
-      if (exchanged?.accessToken === accessToken) return exchanged;
+      const now = yield* Clock.currentTimeMillis;
+      if (exchanged?.accessToken === accessToken && now - exchanged.at < 14 * 60_000)
+        return exchanged;
       const token = yield* api.suiteSession(accessToken).pipe(Effect.mapError(driveErrorOf));
       const me = yield* api.me({ token }).pipe(Effect.mapError(driveErrorOf));
       const name = { userId: me.userId ?? null, name: me.actor.name };
-      exchanged = { accessToken, token, account: name };
+      exchanged = { accessToken, token, account: name, at: now };
       yield* SubscriptionRef.set(state, { status: "connected", baseUrl, account: name });
       return exchanged;
     });

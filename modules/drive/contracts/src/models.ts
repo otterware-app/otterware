@@ -8,6 +8,10 @@ import * as Schema from "effect/Schema";
 
 import { IsoDateTime, ThreadId } from "@t3tools/contracts";
 
+export const DRIVE_CLOUD_ORIGIN = "https://cloud.otterware.app";
+export const DRIVE_CLOUD_AUDIENCE = "otterware:drive";
+export const DRIVE_ACCOUNTS_URL = "https://accounts.otterware.app/v1/auth";
+
 export const DRIVE_DEFAULT_BASE_URL = "https://drive.otterware.app";
 /** Hosts Drive moved away from; they redirect to `drive.otterware.app` with path and query. */
 export const DRIVE_LEGACY_HOSTS: ReadonlyArray<string> = [

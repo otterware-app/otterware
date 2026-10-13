@@ -28,6 +28,7 @@ import {
   type Folder,
   type SharedItem,
 } from "@otterware/drive-contracts/api";
+import { DRIVE_ACCOUNTS_URL, DRIVE_CLOUD_AUDIENCE } from "@otterware/drive-contracts";
 import type { DriveUploadSource } from "./DriveUploadSource.ts";
 import { sha256 } from "@noble/hashes/sha256";
 import { bytesToHex } from "@noble/hashes/utils";
@@ -157,6 +158,9 @@ export const makeDriveApi = (baseUrl: string) =>
         HttpClientRequest.setHeaders({
           accept: "application/json",
           authorization: `Bearer ${options.token}`,
+          ...(new URL(request.url).pathname.startsWith("/api/v1/")
+            ? { "x-otter-audience": DRIVE_CLOUD_AUDIENCE }
+            : {}),
           ...(options.folderId ? { "x-otterdrive-folder": options.folderId } : {}),
         }),
       );
@@ -469,14 +473,25 @@ export const makeDriveApi = (baseUrl: string) =>
       deviceCode,
       deviceToken,
       suiteSession: (token: string) =>
-        json(
-          HttpClientRequest.post(url("/api/auth/suite-session")).pipe(
-            HttpClientRequest.bodyJsonUnsafe({}),
-          ),
-          { token },
-          effectParser(Schema.Struct({ token: Schema.String })),
-          "suite session",
-        ).pipe(Effect.map((body) => body.token)),
+        Effect.gen(function* () {
+          const account = yield* json(
+            HttpClientRequest.post(`${DRIVE_ACCOUNTS_URL}/suite/session`).pipe(
+              HttpClientRequest.bodyJsonUnsafe({}),
+            ),
+            { token },
+            effectParser(Schema.Struct({ token: Schema.String })),
+            "account session",
+          );
+          const cloud = yield* json(
+            HttpClientRequest.post(url("/v1/cloud/token")).pipe(
+              HttpClientRequest.bodyJsonUnsafe({ audience: DRIVE_CLOUD_AUDIENCE }),
+            ),
+            { token: account.token },
+            effectParser(Schema.Struct({ accessToken: Schema.String })),
+            "Cloud capability",
+          );
+          return cloud.accessToken;
+        }),
       me: (options: DriveRequestOptions) =>
         json(HttpClientRequest.get(url("/api/v1/me")), options, meResponseSchema, "account").pipe(
           Effect.map((body) => body.data),
