@@ -1,4 +1,3 @@
-import type { Connection } from "@otterware/otter-cloud-client/contracts";
 import * as Effect from "effect/Effect";
 import * as Stream from "effect/Stream";
 import { useCallback, useEffect, useState } from "react";
@@ -7,6 +6,12 @@ import { Button } from "../../components/ui/button";
 import { ensureLocalApi } from "../../localApi";
 import { browserClient, runInBrowser } from "../browser/runtime";
 
+const readConnections = () =>
+  runInBrowser(
+    Effect.flatMap(browserClient, (client) => client["browser.account.connections"]({})),
+  );
+type Connection = Awaited<ReturnType<typeof readConnections>>["connections"][number];
+
 export function BrowserAccountConnections() {
   const auth = useAuth();
   const [connections, setConnections] = useState<readonly Connection[]>([]);
@@ -14,10 +19,7 @@ export function BrowserAccountConnections() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const refresh = useCallback(
-    () =>
-      runInBrowser(
-        Effect.flatMap(browserClient, (client) => client["browser.account.connections"]({})),
-      ).then((result) => setConnections(result.connections)),
+    () => readConnections().then((result) => setConnections(result.connections)),
     [],
   );
   useEffect(() => {

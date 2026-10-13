@@ -10,6 +10,7 @@
 import { MailEvent } from "@otterware/mail-contracts/rpc";
 import {
   accountGoogleAuth,
+  accountMicrosoftAuth,
   accountStore,
   createCloudSync,
   invalidateProjectCache,
@@ -151,6 +152,7 @@ async function start(options: WorkerOptions) {
     files,
     secrets,
     google: session ? accountGoogleAuth(session, noLocalGoogle) : noLocalGoogle,
+    microsoft: session ? accountMicrosoftAuth(session) : undefined,
     // The page does these (page.ts); the environment worker relays them.
     userFiles: {
       open: (name, bytes) => host("openFile", name, bytes),
@@ -191,7 +193,10 @@ async function start(options: WorkerOptions) {
         if (push.type === "mail" && typeof push.email === "string")
           void syncAccount(push.email, { force: true });
       }
-      if (event.type === "connections.changed") void platform.google.load().catch(() => {});
+      if (event.type === "connections.changed") {
+        void platform.google.load().catch(() => {});
+        void platform.microsoft?.load().catch(() => {});
+      }
       if (event.type === "sync.changed") void sync?.sync().catch(() => {});
     });
     void sync?.sync().catch(() => {});
@@ -199,7 +204,8 @@ async function start(options: WorkerOptions) {
     setInterval(() => void sync?.sync().catch(() => {}), 30_000);
     // Gmail mailboxes the account holds appear without a sign-in here.
     for (const account of await accountStore.listAccounts())
-      if (platform.google.isSignedIn(account.id)) void syncAccount(account.id, { force: true });
+      if (platform.google.isSignedIn(account.id) || platform.microsoft?.isSignedIn(account.id))
+        void syncAccount(account.id, { force: true });
   }
   ready = true;
   post({ type: "ready" });
