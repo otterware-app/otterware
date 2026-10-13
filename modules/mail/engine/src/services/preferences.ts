@@ -72,12 +72,7 @@ export function setUiPreference(key: string, value: string): Promise<void> {
 // ── Sections ────────────────────────────────────────────────────────────────
 
 /** App settings that follow the account (launch at login and the Dock badge stay per computer). */
-const SYNCED_SETTINGS = [
-  "syncIntervalSeconds",
-  "notificationsMode",
-  "readLanguages",
-  "autoTranslate",
-] as const satisfies readonly (keyof AppSettings)[];
+import { SYNCED_SETTINGS } from "../syncedSettings.ts";
 
 type Section = {
   /** This device's value; undefined when it has none worth sharing. */

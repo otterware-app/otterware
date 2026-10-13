@@ -53,7 +53,7 @@ export type AgentTool = {
   title: string;
   description: string;
   /** JSON Schema of the arguments. */
-  input: { type: "object"; properties: Record<string, unknown>; required?: string[] };
+  input: { type: "object"; properties: Record<string, unknown>; required?: readonly string[] };
   /** Only reads. Anything else confirms before changing a mailbox. */
   readOnly?: boolean;
   /** Can't be undone: it sends something to someone, or deletes for good. Not "safe". */

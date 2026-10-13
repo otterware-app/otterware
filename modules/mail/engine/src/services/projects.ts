@@ -421,3 +421,8 @@ export async function pullProjects(): Promise<void> {
   });
   if ((await load()).pending.length > 0) schedulePush(0);
 }
+
+/** Cloud sync replaced the durable project document; subsequent reads reload it. */
+export function invalidateProjectCache(): void {
+  state = null;
+}

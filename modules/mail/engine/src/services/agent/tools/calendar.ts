@@ -1,3 +1,4 @@
+import { mailToolDefinition } from "@otterware/mail-contracts/tools";
 /**
  * The calendar tools: the calendar of every mailbox whose provider has one
  * (`capabilities.calendar`; Google Calendar's primary calendar for Gmail).
@@ -88,53 +89,9 @@ function describeInput(input: EventInput): string {
 
 const notifyNote = (notify: boolean) => (notify ? "Attendees are told." : "Attendees aren't told.");
 
-const ACCOUNT = {
-  type: "string",
-  description: "The mailbox whose calendar it is, by address. Optional when there's only one.",
-} as const;
-
-const EVENT_FIELDS = {
-  title: { type: "string" },
-  start: {
-    type: "string",
-    description:
-      "ISO date-time (2026-10-01T14:00, this device's time zone unless it has an offset), or a date for all-day events.",
-  },
-  end: {
-    type: "string",
-    description:
-      "Same form as start. All-day events end the day after their last day. Left out: an hour (or a day) after the start; when moving an event, its length stays.",
-  },
-  allDay: { type: "boolean" },
-  timeZone: { type: "string", description: "IANA zone for the times (Europe/Paris)." },
-  location: { type: "string" },
-  description: { type: "string" },
-  attendees: {
-    type: "array",
-    items: { type: "string" },
-    description: "Every attendee's address (replaces the list when changing an event).",
-  },
-  videoCall: { type: "boolean", description: "Adds a video call link (Google Meet)." },
-  notify: { type: "boolean", description: "Email the attendees about it (default true)." },
-} as const;
-
 export const calendarTools: AgentTool[] = [
   {
-    name: "list_events",
-    title: "List events",
-    description:
-      "Events in the calendars of every mailbox that has one (or those named), soonest first; recurring events as their occurrences. Default: the next 7 days.",
-    input: {
-      type: "object",
-      properties: {
-        accounts: { type: "array", items: { type: "string" }, description: "By address." },
-        from: { type: "string", description: "ISO date or date-time; default now." },
-        to: { type: "string", description: "Default 7 days after `from`." },
-        query: { type: "string", description: "Words to find in the events." },
-        limit: { type: "number", description: "Per calendar; default 50, at most 250." },
-      },
-    },
-    readOnly: true,
+    ...mailToolDefinition("list_events"),
     async run(args) {
       const named = Boolean(strList(args, "accounts")?.length);
       const accounts = (await mailboxes(args)).filter(
@@ -178,30 +135,14 @@ export const calendarTools: AgentTool[] = [
     },
   },
   {
-    name: "get_event",
-    title: "Read an event",
-    description: "One event, whole: its time, place, description, attendees and their answers.",
-    input: {
-      type: "object",
-      properties: { account: ACCOUNT, eventId: { type: "string" } },
-      required: ["eventId"],
-    },
-    readOnly: true,
+    ...mailToolDefinition("get_event"),
     async run(args) {
       const account = await mailbox(args);
       return calendarOf(account, (calendar) => calendar.getEvent(account.id, str(args, "eventId")));
     },
   },
   {
-    name: "create_event",
-    title: "Add an event",
-    permanent: true,
-    description: "Adds an event to the mailbox's calendar, inviting any attendees.",
-    input: {
-      type: "object",
-      properties: { account: ACCOUNT, ...EVENT_FIELDS },
-      required: ["title", "start"],
-    },
+    ...mailToolDefinition("create_event"),
     async run(args, ctx) {
       const account = await mailbox(args);
       const input = eventInput(args);
@@ -222,15 +163,7 @@ export const calendarTools: AgentTool[] = [
     },
   },
   {
-    name: "update_event",
-    title: "Change an event",
-    permanent: true,
-    description: "Changes an event: only the fields given change.",
-    input: {
-      type: "object",
-      properties: { account: ACCOUNT, eventId: { type: "string" }, ...EVENT_FIELDS },
-      required: ["eventId"],
-    },
+    ...mailToolDefinition("update_event"),
     async run(args, ctx) {
       const account = await mailbox(args);
       const eventId = str(args, "eventId");
@@ -253,20 +186,7 @@ export const calendarTools: AgentTool[] = [
     },
   },
   {
-    name: "delete_event",
-    title: "Delete an event",
-    permanent: true,
-    description:
-      "Deletes an event from the mailbox's calendar (for an invitation, decline it instead).",
-    input: {
-      type: "object",
-      properties: {
-        account: ACCOUNT,
-        eventId: { type: "string" },
-        notify: EVENT_FIELDS.notify,
-      },
-      required: ["eventId"],
-    },
+    ...mailToolDefinition("delete_event"),
     async run(args, ctx) {
       const account = await mailbox(args);
       const eventId = str(args, "eventId");
@@ -287,19 +207,7 @@ export const calendarTools: AgentTool[] = [
     },
   },
   {
-    name: "respond_to_event",
-    title: "Answer an invitation",
-    permanent: true,
-    description: "Accepts, declines or tentatively accepts an invitation; the organizer is told.",
-    input: {
-      type: "object",
-      properties: {
-        account: ACCOUNT,
-        eventId: { type: "string" },
-        response: { type: "string", enum: RESPONSES },
-      },
-      required: ["eventId", "response"],
-    },
+    ...mailToolDefinition("respond_to_event"),
     async run(args, ctx) {
       const account = await mailbox(args);
       const eventId = str(args, "eventId");

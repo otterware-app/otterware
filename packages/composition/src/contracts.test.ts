@@ -22,8 +22,14 @@ describe("composeContracts", () => {
     expect([...calendar.group.requests.keys()]).toContain("calendar.subscribeWeek");
     expect([...calendar.group.requests.keys()]).not.toContain("home.overview");
 
+    const mail = composeContracts(PROFILES.mail);
+    expect(mail.moduleIds).toEqual(["mail"]);
+    expect([...mail.group.requests.keys()]).toContain("mail.gmail.listAccounts");
+    expect([...mail.group.requests.keys()]).not.toContain("calendar.subscribeWeek");
+    expect(mail.scopes["mail.gmail.sendMessage"]).toBe("orchestration:operate");
+
     const otterware = composeContracts(PROFILES.otterware);
-    expect(otterware.moduleIds).toEqual(["home", "calendar"]);
+    expect(otterware.moduleIds).toEqual(["home", "mail", "calendar"]);
     expect([...otterware.group.requests.keys()]).toContain("home.overview");
     expect(otterware.scopes["home.overview"]).toBe("orchestration:read");
   });
@@ -35,7 +41,9 @@ describe("composeContracts", () => {
           ? "module.home"
           : tag.startsWith("calendar.")
             ? "module.calendar"
-            : "host",
+            : tag.startsWith("mail.")
+              ? "module.mail"
+              : "host",
       );
     }
   });

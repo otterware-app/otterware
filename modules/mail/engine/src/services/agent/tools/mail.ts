@@ -1,3 +1,4 @@
+import { mailToolDefinition } from "@otterware/mail-contracts/tools";
 /**
  * The mail tools: find, read, sort and write mail in any of the user's
  * mailboxes. Conversations are threads, labels are the vocabulary for every
@@ -340,52 +341,11 @@ function describeMail(account: GmailAccount, mail: Composed, body: string): stri
   ].join("\n");
 }
 
-const COMPOSE_INPUT = {
-  account: { type: "string", description: "The mailbox to send from (its address)." },
-  to: {
-    type: "string",
-    description: "Recipients, comma-separated. Replies fill it in when left out.",
-  },
-  cc: { type: "string" },
-  bcc: { type: "string" },
-  subject: { type: "string", description: "Replies and forwards fill it in when left out." },
-  body: {
-    type: "string",
-    description:
-      "Plain text. The mailbox's signature and, for replies and forwards, the original message are added below it.",
-  },
-  replyTo: {
-    type: "string",
-    description:
-      "A messageId to reply to: the reply joins its conversation, goes to its sender (with replyAll, everyone on it) and quotes it.",
-  },
-  replyAll: { type: "boolean" },
-  forward: {
-    type: "string",
-    description: "A messageId to forward, with its attachments. Needs `to`.",
-  },
-  attachments: {
-    type: "array",
-    items: { type: "string" },
-    description: "Paths of files on this Mac to attach.",
-  },
-} as const;
-
 // ── The tools ────────────────────────────────────────────────────────────────
-
-const ACCOUNT = {
-  type: "string",
-  description: "The mailbox, by address. Optional when there's only one.",
-} as const;
 
 export const mailTools: AgentTool[] = [
   {
-    name: "list_accounts",
-    title: "List mailboxes",
-    description:
-      "The user's mailboxes (Gmail, IMAP, …) in Otter Mail: each one's address, provider, and whether it has a calendar. Every other tool names a mailbox by its address.",
-    input: { type: "object", properties: {} },
-    readOnly: true,
+    ...mailToolDefinition("list_accounts"),
     async run() {
       const accounts = await listMailboxes();
       const off = turnedOffMailboxes();
@@ -405,12 +365,7 @@ export const mailTools: AgentTool[] = [
     },
   },
   {
-    name: "list_labels",
-    title: "List labels",
-    description:
-      "A mailbox's labels (IMAP: its folders), with unread and total counts. Tools take a label by name.",
-    input: { type: "object", properties: { account: ACCOUNT } },
-    readOnly: true,
+    ...mailToolDefinition("list_labels"),
     async run(args) {
       const account = await mailbox(args);
       const labels = await labelsOf(account);
@@ -425,25 +380,7 @@ export const mailTools: AgentTool[] = [
     },
   },
   {
-    name: "list_threads",
-    title: "List conversations",
-    description:
-      "The newest conversations in a label (default the inbox), from every mailbox unless one is named. Reads what Otter Mail has on this device, filling in from the server as needed.",
-    input: {
-      type: "object",
-      properties: {
-        account: { type: "string", description: "One mailbox, by address; default every one." },
-        label: {
-          type: "string",
-          description:
-            "inbox (default), sent, drafts, starred, spam, trash, all, or a label's name.",
-        },
-        unreadOnly: { type: "boolean" },
-        limit: { type: "number", description: "Default 25, at most 100." },
-        cursor: { type: "string", description: "The previous page's cursor, for the next page." },
-      },
-    },
-    readOnly: true,
+    ...mailToolDefinition("list_threads"),
     async run(args) {
       const accounts = optStr(args, "account") ? [await mailbox(args)] : await mailboxes({});
       const ref = optStr(args, "label") ?? "inbox";
@@ -473,24 +410,7 @@ export const mailTools: AgentTool[] = [
     },
   },
   {
-    name: "search_mail",
-    title: "Search mail",
-    description:
-      "Searches every mailbox (or those named) and answers matching conversations, newest first, up to 50 per mailbox per page. Gmail's search syntax: words, and operators like from:, to:, subject:, has:attachment, is:unread, is:starred, in:inbox, label:, newer_than:7d, older_than:1y, after:2026/01/31, before:, -word. Gmail runs it on the server; mailboxes without server search run the same operators on what's on this device.",
-    input: {
-      type: "object",
-      properties: {
-        query: { type: "string" },
-        accounts: {
-          type: "array",
-          items: { type: "string" },
-          description: "Mailboxes to search, by address; default every one.",
-        },
-        cursor: { type: "string", description: "The previous page's cursor, for the next page." },
-      },
-      required: ["query"],
-    },
-    readOnly: true,
+    ...mailToolDefinition("search_mail"),
     async run(args) {
       const accounts = await mailboxes(args);
       const cursor = optStr(args, "cursor");
@@ -513,20 +433,7 @@ export const mailTools: AgentTool[] = [
     },
   },
   {
-    name: "get_thread",
-    title: "Read a conversation",
-    description:
-      "A whole conversation: every message's sender, recipients, date, text and attachments (oldest first). Quoted history is left out of each message unless includeQuoted is set, since the earlier messages are there. Reading doesn't mark it read.",
-    input: {
-      type: "object",
-      properties: {
-        account: ACCOUNT,
-        threadId: { type: "string" },
-        includeQuoted: { type: "boolean" },
-      },
-      required: ["threadId"],
-    },
-    readOnly: true,
+    ...mailToolDefinition("get_thread"),
     async run(args) {
       const account = await mailbox(args);
       const threadId = str(args, "threadId");
@@ -598,21 +505,7 @@ export const mailTools: AgentTool[] = [
     },
   },
   {
-    name: "get_attachment",
-    title: "Download an attachment",
-    description:
-      "Saves one of a message's attachments (from get_thread) to a file on this device and answers its path. The connected agent also receives supported file content.",
-    input: {
-      type: "object",
-      properties: {
-        account: ACCOUNT,
-        messageId: { type: "string" },
-        attachmentId: { type: "string" },
-      },
-      required: ["messageId", "attachmentId"],
-    },
-    readOnly: true,
-    needsFiles: true,
+    ...mailToolDefinition("get_attachment"),
     async run(args, ctx) {
       const account = await mailbox(args);
       const messageId = str(args, "messageId");
@@ -629,24 +522,7 @@ export const mailTools: AgentTool[] = [
     },
   },
   {
-    name: "update_threads",
-    title: "Update conversations",
-    description:
-      "Archives, moves back to the inbox, marks read or unread, stars or unstars, and adds or removes labels on conversations of one mailbox. In IMAP mailboxes a message is in one folder: adding a label moves it there.",
-    input: {
-      type: "object",
-      properties: {
-        account: ACCOUNT,
-        threadIds: { type: "array", items: { type: "string" } },
-        archive: { type: "boolean", description: "Out of the inbox." },
-        moveToInbox: { type: "boolean" },
-        read: { type: "boolean", description: "true: mark read; false: mark unread." },
-        starred: { type: "boolean" },
-        addLabels: { type: "array", items: { type: "string" }, description: "Label names." },
-        removeLabels: { type: "array", items: { type: "string" } },
-      },
-      required: ["threadIds"],
-    },
+    ...mailToolDefinition("update_threads"),
     async run(args, ctx) {
       const account = await mailbox(args);
       const ids = threads(args, account);
@@ -707,15 +583,7 @@ export const mailTools: AgentTool[] = [
     },
   },
   {
-    name: "trash_threads",
-    title: "Move to Trash",
-    description:
-      "Moves conversations of one mailbox to the Trash (restore_threads brings them back).",
-    input: {
-      type: "object",
-      properties: { account: ACCOUNT, threadIds: { type: "array", items: { type: "string" } } },
-      required: ["threadIds"],
-    },
+    ...mailToolDefinition("trash_threads"),
     async run(args, ctx) {
       const account = await mailbox(args);
       const ids = threads(args, account);
@@ -736,14 +604,7 @@ export const mailTools: AgentTool[] = [
     },
   },
   {
-    name: "restore_threads",
-    title: "Restore from Trash",
-    description: "Takes conversations out of the Trash, back where they were.",
-    input: {
-      type: "object",
-      properties: { account: ACCOUNT, threadIds: { type: "array", items: { type: "string" } } },
-      required: ["threadIds"],
-    },
+    ...mailToolDefinition("restore_threads"),
     async run(args, ctx) {
       const account = await mailbox(args);
       const ids = threads(args, account);
@@ -764,14 +625,7 @@ export const mailTools: AgentTool[] = [
     },
   },
   {
-    name: "create_label",
-    title: "Create a label",
-    description: "Creates a label (IMAP: a folder). Nest with slashes: Projects/Otter.",
-    input: {
-      type: "object",
-      properties: { account: ACCOUNT, name: { type: "string" } },
-      required: ["name"],
-    },
+    ...mailToolDefinition("create_label"),
     async run(args, ctx) {
       const account = await mailbox(args);
       const name = str(args, "name");
@@ -786,19 +640,7 @@ export const mailTools: AgentTool[] = [
     },
   },
   {
-    name: "save_draft",
-    title: "Save a draft",
-    description:
-      "Writes a message into the mailbox's Drafts without sending it, for the user to review and send from Otter Mail. The safe way to prepare mail. With draftId, replaces that draft.",
-    input: {
-      type: "object",
-      properties: {
-        ...COMPOSE_INPUT,
-        account: { type: "string", description: "The mailbox the draft is in (its address)." },
-        draftId: { type: "string", description: "The draft to replace." },
-      },
-    },
-    // A draft sends nothing and is the user's to look at: no approval.
+    ...mailToolDefinition("save_draft"),
     async run(args, ctx) {
       const account = await mailbox(args);
       const mail = await compose(args, account, ctx);
@@ -823,15 +665,7 @@ export const mailTools: AgentTool[] = [
     },
   },
   {
-    name: "delete_draft",
-    title: "Delete a draft",
-    permanent: true,
-    description: "Deletes a draft (its draftId is in get_thread).",
-    input: {
-      type: "object",
-      properties: { account: ACCOUNT, draftId: { type: "string" } },
-      required: ["draftId"],
-    },
+    ...mailToolDefinition("delete_draft"),
     async run(args, ctx) {
       const account = await mailbox(args);
       const draftId = str(args, "draftId");
@@ -846,18 +680,7 @@ export const mailTools: AgentTool[] = [
     },
   },
   {
-    name: "send_email",
-    title: "Send email",
-    permanent: true,
-    description:
-      "Sends a message: new, a reply (replyTo) or a forward (forward). Only when the user asked for it to be sent; otherwise use save_draft. With draftId, that draft is deleted once it's sent.",
-    input: {
-      type: "object",
-      properties: {
-        ...COMPOSE_INPUT,
-        draftId: { type: "string", description: "A draft this message replaces." },
-      },
-    },
+    ...mailToolDefinition("send_email"),
     async run(args, ctx) {
       const account = await mailbox(args);
       const mail = await compose(args, account, ctx);

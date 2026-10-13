@@ -1,3 +1,4 @@
+import { mailToolDefinition } from "@otterware/mail-contracts/tools";
 /**
  * The user's views, for the agent: saved filters across the mailboxes, each
  * a space in the app's rail (its list alone). A view is, for each mailbox,
@@ -120,50 +121,16 @@ function colorArg(args: ToolArgs): string | null | undefined {
   throw new Error(`"${color}" isn't a view color: ${Object.keys(VIEW_COLORS).join(", ")}.`);
 }
 
-const RULES = {
-  type: "array",
-  description:
-    "For each mailbox the view draws on: the labels its mail must have (all of them) and must not have (any). The mailboxes' matches are combined. Labels by name (list_labels), or inbox, starred, sent, drafts, important, unread.",
-  items: {
-    type: "object",
-    properties: {
-      account: { type: "string", description: "The mailbox, by address." },
-      mustHave: { type: "array", items: { type: "string" } },
-      mustNotHave: { type: "array", items: { type: "string" } },
-    },
-    required: ["account"],
-  },
-};
-
 export const viewTools: AgentTool[] = [
   {
-    name: "list_views",
-    title: "List views",
-    description:
-      "The user's views: saved filters across their mailboxes, each a space in the app's rail. Each with its rules (per mailbox, labels it must and must not have) and how many conversations it finds now.",
-    input: { type: "object", properties: {} },
-    readOnly: true,
+    ...mailToolDefinition("list_views"),
     async run() {
       const accounts = await listMailboxes();
       return { views: await Promise.all((await listViews()).map((v) => describe(v, accounts))) };
     },
   },
   {
-    name: "save_view",
-    title: "Save view",
-    description:
-      "Makes a view, or changes one (by `view`, its id; what's left out stays). A view only filters by labels: to gather mail by sender or subject, label it first. " +
-      `It can wear an icon (${VIEW_ICON_KEYS.join(", ")}) or an emoji, in a color (${Object.keys(VIEW_COLORS).join(", ")}). Answers what it finds, to check the rules are right.`,
-    input: {
-      type: "object",
-      properties: {
-        view: { type: "string", description: "The view to change, by id. Leave out to make one." },
-        name: { type: "string" },
-        rules: RULES,
-        icon: { type: "string", description: "An icon's key or an emoji; null for its initial." },
-        color: { type: "string", description: "A color's name; null for none." },
-      },
-    },
+    ...mailToolDefinition("save_view"),
     async run(args, ctx) {
       const id = optStr(args, "view");
       const existing = id ? await findView(id) : undefined;
@@ -200,15 +167,7 @@ export const viewTools: AgentTool[] = [
     },
   },
   {
-    name: "delete_view",
-    title: "Delete view",
-    permanent: true,
-    description: "Deletes a view. The mail and its labels stay as they are.",
-    input: {
-      type: "object",
-      properties: { view: { type: "string", description: "Its id (from list_views)." } },
-      required: ["view"],
-    },
+    ...mailToolDefinition("delete_view"),
     async run(args, ctx) {
       const view = await findView(str(args, "view"));
       await ctx.confirm(`Delete the view “${view.name}” (the mail and its labels stay)`);
