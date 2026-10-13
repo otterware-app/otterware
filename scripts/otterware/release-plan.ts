@@ -12,6 +12,12 @@ export function releaseProfiles(input: string) {
   });
 }
 
+/** Code and Otterware share a home: their runtime cache keys must still differ. */
+export function profileReleaseVersion(version: string, profile: string) {
+  if (!isProfileId(profile)) throw new Error("Unknown release profile");
+  return version.replace("-otterware.", `-otterware.${profile}.`);
+}
+
 export function releaseBranch(input: string) {
   if (!input.trim() || input === "main") return "";
   const branch = input
@@ -24,18 +30,21 @@ export function releaseBranch(input: string) {
 
 if (process.argv[1]?.endsWith("release-plan.ts")) {
   const profiles = releaseProfiles(process.env.RELEASE_PROFILES ?? "");
-  if (
-    profiles.some((profile) => profile.id !== "code") &&
-    process.env.REQUIRE_PROFILE_IDENTITY === "1"
-  ) {
-    const packager = NodeFS.readFileSync("scripts/build-desktop-artifact.ts", "utf8");
-    if (!packager.includes("activeProfile.brand.appId"))
-      throw new Error("Non-Code builds require W2 profile identity wiring");
-  }
   const tagBranch = /^otterware-build-channel-(.+)--[^-].*$/.exec(
     process.env.GITHUB_REF_NAME ?? "",
   )?.[1];
   const branch = releaseBranch(process.env.RELEASE_BRANCH || tagBranch || "");
+  if (process.env.REQUIRE_PROFILE_IDENTITY === "1") {
+    const packager = NodeFS.readFileSync("scripts/build-desktop-artifact.ts", "utf8");
+    const codeSigningTest =
+      profiles.length === 1 && profiles[0]?.id === "code" && branch === "test";
+    if (!packager.includes("activeProfile.brand.appId") && !codeSigningTest) {
+      throw new Error(
+        "Profile releases require W2 identity wiring; only code/test may verify signing before it lands",
+      );
+    }
+  }
+
   const core = JSON.parse(NodeFS.readFileSync("apps/desktop/package.json", "utf8")).version.split(
     /[-+]/,
   )[0];
@@ -51,7 +60,8 @@ if (process.argv[1]?.endsWith("release-plan.ts")) {
     profile: profile.id,
     productName: profile.brand.productName,
     channel: `${profile.id}${branch ? `-${branch}` : ""}`,
-    tag: `otterware-${profile.id}-v${version}`,
+    version: profileReleaseVersion(version, profile.id),
+    tag: `otterware-${profile.id}-v${profileReleaseVersion(version, profile.id)}`,
   }));
   const output = `matrix=${JSON.stringify({ include: matrix })}\nversion=${version}\n`;
   NodeFS.appendFileSync(process.env.GITHUB_OUTPUT ?? "/dev/stdout", output);

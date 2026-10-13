@@ -61,7 +61,6 @@ jobs:
           run-install: false
       - run: vp install --filter=@t3tools/web...
       - name: Require W2 profile branding
-        if: matrix.profile != 'code'
         run: grep -q activeProfile apps/web/src/branding.ts
       - run: vp run --filter @t3tools/web build
       - run: node scripts/otterware/web-preview.ts

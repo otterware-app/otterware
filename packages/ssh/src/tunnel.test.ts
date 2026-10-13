@@ -1,5 +1,6 @@
 import { assert, describe, it } from "@effect/vitest";
 import * as NodeServices from "@effect/platform-node/NodeServices";
+import { CLI_RELEASE_TAG_PREFIX } from "@t3tools/shared/cliRelease";
 import * as NetService from "@t3tools/shared/Net";
 import * as HostProcess from "@t3tools/shared/HostProcess";
 import * as Deferred from "effect/Deferred";
@@ -106,8 +107,10 @@ describe("ssh tunnel scripts", () => {
     assert.include(script, "T3_NODE_SCRIPT_PATH=''");
     assert.include(
       script,
-      "T3_RELEASE_BASE_URL='https://github.com/otterware-app/otter-code/releases/download'",
+      "T3_RELEASE_BASE_URL='https://github.com/otterware-app/otterware/releases/download'",
     );
+    // Archives come from the active profile's immutable release tag.
+    assert.include(script, 'T3_RELEASE_TAG="otterware-otterware-v$T3_ARCHIVE_VERSION"');
     assert.include(
       script,
       'T3_RUNTIME_DIR="$HOME/.otter-code/runtime/versions/$T3_ARCHIVE_VERSION"',
@@ -961,7 +964,7 @@ describe("archive runner script", () => {
     const arch = hostArch === "arm64" ? "arm64" : "x64";
     const stem = `t3-${archiveVersion}-${platform}-${arch}`;
     const stage = `${root}/stage/${stem}`;
-    const release = `${root}/mirror/v${archiveVersion}`;
+    const release = `${root}/mirror/${CLI_RELEASE_TAG_PREFIX}${archiveVersion}`;
     const script = [
       "set -eu",
       `mkdir -p '${stage}' '${release}'`,

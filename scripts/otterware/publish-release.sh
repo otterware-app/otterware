@@ -4,7 +4,7 @@ set -euo pipefail
 assets="${1:?assets directory required}"
 repo=otterware-app/otterware
 : "${VERSION:?}" "${CHANNEL:?}" "${SOURCE_SHA:?}" "${PROFILE:?}"
-[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-otterware\.[0-9]{8}\.[0-9]+$ ]]
+[[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-otterware\.([a-z]+\.)?[0-9]{8}\.[0-9]+$ ]]
 [[ "$CHANNEL" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]]
 tag="otterware-${PROFILE}-v$VERSION"
 rolling="channel-$CHANNEL"
@@ -36,7 +36,7 @@ if gh release view "$rolling" --repo "$repo" >/dev/null 2>&1; then
   # Do not let an older queued build rewind a branch channel.
   gh release download "$rolling" --repo "$repo" --pattern SHA256SUMS --dir "$feed"
   previous="$(sed -n 's/.*  t3-\(.*\)-linux-x64.tar.gz$/\1/p' "$feed/SHA256SUMS")"
-  [[ "$previous" =~ ^[0-9]+\.[0-9]+\.[0-9]+-otterware\.[0-9]{8}\.[0-9]+$ ]]
+  [[ "$previous" =~ ^[0-9]+\.[0-9]+\.[0-9]+-otterware\.([a-z]+\.)?[0-9]{8}\.[0-9]+$ ]]
   newest="$(printf '%s\n%s\n' "$VERSION" "$previous" | sort -V | tail -n 1)"
   if [[ "$newest" != "$VERSION" || "$previous" == "$VERSION" ]]; then
     echo "Immutable build published; channel already follows $previous, leaving it unchanged."

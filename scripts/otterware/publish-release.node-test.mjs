@@ -6,7 +6,7 @@ import * as NodeOS from "node:os";
 import * as NodePath from "node:path";
 import * as NodeTest from "node:test";
 
-const version = "0.14.0-otterware.20261013.100";
+const version = "0.14.0-otterware.code.20261013.100";
 function publish(previous = "") {
   const dir = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "otterware-publish-test-"));
   try {
@@ -84,7 +84,7 @@ NodeTest.test(
 );
 
 NodeTest.test("an older queued build never rewinds the rolling channel", () => {
-  const calls = publish("0.14.0-otterware.20261014.200");
+  const calls = publish("0.14.0-otterware.code.20261014.200");
   NodeAssert.equal(calls.filter((c) => c.command === "create").length, 1);
   NodeAssert.equal(calls.filter((c) => c.command === "upload").length, 0);
 });

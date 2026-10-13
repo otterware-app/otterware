@@ -19,7 +19,8 @@ must finish packaging before any profile publishes. No npm, relay or Cloudflare 
 publish happens in this workflow.
 
 Release versions start above Mail's existing 0.13.10 train (the migration floor is 0.14.0).
-This matters even when packaging all profiles from Code's lower package version: an installed
+Each version includes its profile before the date, keeping runtime directories distinct
+for Code and Otterware even though they share the same home. This matters even when packaging all profiles from Code's lower package version: an installed
 Mail app will refuse a lower version. Once the package version passes that floor, the next
 patch is used normally.
 

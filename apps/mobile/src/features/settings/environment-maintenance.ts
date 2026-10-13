@@ -49,6 +49,8 @@ const Releases = Schema.Array(
   Schema.Struct({
     tag_name: Schema.String,
     draft: Schema.optionalKey(Schema.Boolean),
+    // newestCliReleaseVersion matches the feed channel recorded in the release name.
+    name: Schema.optionalKey(Schema.String),
   }),
 );
 const decodeReleases = Schema.decodeUnknownSync(Releases);

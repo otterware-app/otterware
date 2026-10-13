@@ -69,11 +69,17 @@ knip.jsonc
 
 # Dependency notice registry: preserve notices omitted from Mail dependency tarballs
 third-party-licenses.config.json
-# Server packaging: embedded module worker artifacts
-apps/server/vite.config.ts
 
 # W8: baked profile channel stays authoritative over the legacy latest/nightly selector
 apps/desktop/src/electron/ElectronUpdater.ts
 
 # W8: verify the production runtime root added for module contracts
 scripts/lib/cli-external-packages*.ts
+
+# W8: runtime update/archive selection follows the baked profile feed
+packages/shared/src/cliRelease*.ts
+packages/ssh/src/tunnel*.ts
+apps/mobile/src/features/settings/environment-maintenance*.ts
+apps/server/src/cli/update.ts
+
+apps/server/src/cloud/pinnedRuntime.test.ts
