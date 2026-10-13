@@ -1,3 +1,4 @@
+import { mailStorage } from "../host/storage";
 /**
  * Recently viewed (Linear's history menu): the conversations, mailboxes and
  * Settings pages you've been to, newest first, for the title bar's clock
@@ -38,7 +39,7 @@ const MAX = 15;
 let cache: { raw: string | null; places: RecentPlace[] } = { raw: null, places: [] };
 
 export function getRecentlyViewed(): RecentPlace[] {
-  const raw = localStorage.getItem(KEY);
+  const raw = mailStorage.getItem(KEY);
   if (raw === cache.raw) return cache.places;
   let places: RecentPlace[] = [];
   try {
@@ -54,7 +55,7 @@ export function getRecentlyViewed(): RecentPlace[] {
 /** Puts `place` first (once: an earlier visit to the same URL goes). */
 function recordRecentlyViewed(place: RecentPlace): void {
   const rest = getRecentlyViewed().filter((p) => p.href !== place.href);
-  localStorage.setItem(KEY, JSON.stringify([place, ...rest].slice(0, MAX)));
+  mailStorage.setItem(KEY, JSON.stringify([place, ...rest].slice(0, MAX)));
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
 

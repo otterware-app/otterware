@@ -1,3 +1,4 @@
+import { mailStorage } from "../../host/storage";
 import { mailBridge } from "../../host/bridge";
 /**
  * custom-views.ts
@@ -99,7 +100,7 @@ function migrateLegacyView(v: StoredView): MailView {
 
 function readLegacyViews(): MailView[] | null {
   try {
-    const raw = localStorage.getItem(LEGACY_VIEWS_KEY);
+    const raw = mailStorage.getItem(LEGACY_VIEWS_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return null;
@@ -131,7 +132,7 @@ async function fetchViews(): Promise<MailView[]> {
   if (legacy) {
     try {
       await gmailApi.importViews(legacy);
-      localStorage.removeItem(LEGACY_VIEWS_KEY);
+      mailStorage.removeItem(LEGACY_VIEWS_KEY);
     } catch {
       // keep the legacy key so the next launch retries the import
     }
@@ -275,7 +276,7 @@ export type LastLocation = { accountId: string; labelId: string };
 
 export function loadLastLocation(): LastLocation | null {
   try {
-    const raw = localStorage.getItem(LAST_LOCATION_KEY);
+    const raw = mailStorage.getItem(LAST_LOCATION_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (parsed && typeof parsed.accountId === "string" && typeof parsed.labelId === "string") {
@@ -289,7 +290,7 @@ export function loadLastLocation(): LastLocation | null {
 
 export function saveLastLocation(loc: LastLocation): void {
   try {
-    localStorage.setItem(LAST_LOCATION_KEY, JSON.stringify(loc));
+    mailStorage.setItem(LAST_LOCATION_KEY, JSON.stringify(loc));
   } catch {
     // ignore
   }

@@ -23,6 +23,8 @@
     "@legendapp/list": "catalog:",
     "@noble/hashes": "catalog:",
     "@otterware/composition": "workspace:*",
+    "@otterware/mail-contracts": "workspace:*",
+    "@otterware/mail-web": "workspace:*",
     "@otterware/module-kit": "workspace:*",
     "@otterware/profiles": "workspace:*",
     "@otterware/provider-api-agents": "workspace:*",

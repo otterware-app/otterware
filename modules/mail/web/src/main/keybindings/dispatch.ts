@@ -65,6 +65,9 @@ let pending: { rules: ResolvedKeybinding[]; at: number } | null = null;
 
 function onKeyDown(event: KeyboardEvent): void {
   if (event.defaultPrevented || isModifierOnly(event) || event.isComposing) return;
+  // The host owns its global palette, including when Mail has focus.
+  if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "k")
+    return;
   if (event.target instanceof Element && event.target.closest("[data-keybinding-capture]")) return;
   const { resolved } = getKeybindings();
   const context = keybindingContext(event);

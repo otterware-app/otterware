@@ -1,4 +1,7 @@
-import { useState, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { ipc } from "../../lib/ipc";
+import { toast } from "./toast";
+import { useEffect, useState, type ReactNode } from "react";
 import type { ImapSettings, MailServer } from "@otterware/mail-contracts";
 import { ChevronRightIcon, MailIcon, ServerIcon } from "lucide-react";
 import { Button } from "../../components/ui/button";
@@ -37,6 +40,32 @@ export function AddMailboxMenu({
   /** The trigger (rendered via asChild). */
   children: ReactNode;
 }) {
+  const queryClient = useQueryClient();
+  const [outlookAvailable, setOutlookAvailable] = useState(false);
+  const [addingOutlook, setAddingOutlook] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void ipc<{ outlook: boolean }>("gmail:mailProviders")
+      .then((providers) => {
+        if (active) setOutlookAvailable(providers.outlook);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+  const addOutlook = async () => {
+    setAddingOutlook(true);
+    try {
+      const account = await ipc<GmailAccount>("gmail:addOutlookAccount");
+      await queryClient.invalidateQueries({ queryKey: ["gmail:accounts"] });
+      if (account) onAdded?.(account);
+    } catch (error) {
+      toast.error(readableError(error));
+    } finally {
+      setAddingOutlook(false);
+    }
+  };
   const [imapOpen, setImapOpen] = useState(false);
   return (
     <>
@@ -46,6 +75,15 @@ export function AddMailboxMenu({
           <DropdownMenuItem icon={<MailIcon />} onSelect={onGmail}>
             Gmail
           </DropdownMenuItem>
+          {outlookAvailable && (
+            <DropdownMenuItem
+              icon={<MailIcon />}
+              disabled={addingOutlook}
+              onSelect={() => void addOutlook()}
+            >
+              {addingOutlook ? "Connecting Outlook…" : "Microsoft Outlook"}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem icon={<ServerIcon />} onSelect={() => setImapOpen(true)}>
             Other mail (IMAP)
           </DropdownMenuItem>

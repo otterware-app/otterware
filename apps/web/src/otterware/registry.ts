@@ -8,6 +8,7 @@ import { type WebModule } from "@otterware/module-kit/web";
 import type { ModuleId } from "@otterware/profiles";
 import { activeProfile } from "@otterware/profiles/active";
 
+import { MailWebModule } from "./mail/MailWebModule";
 import { HomeWebModule } from "./home/HomeWebModule";
 import { CalendarWebModule } from "./calendar/CalendarWebModule";
 
@@ -15,6 +16,7 @@ import { CalendarWebModule } from "./calendar/CalendarWebModule";
 const WEB_MODULES = {
   home: HomeWebModule,
   calendar: CalendarWebModule,
+  mail: MailWebModule,
 } as const satisfies Partial<Record<ModuleId, WebModule>>;
 
 export type KnownWebModuleId = keyof typeof WEB_MODULES;

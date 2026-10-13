@@ -1,3 +1,4 @@
+import { mailStorage } from "../../host/storage";
 import { mailDocument } from "../../host/dom";
 import { HintTooltip as ImportedMailTooltip } from "./ui";
 import {
@@ -80,7 +81,7 @@ function fitSize(
 
 function loadSize(): FloatingSize | null {
   try {
-    const saved = JSON.parse(localStorage.getItem(SIZE_KEY) ?? "null");
+    const saved = JSON.parse(mailStorage.getItem(SIZE_KEY) ?? "null");
     return saved &&
       Number.isFinite(saved.width) &&
       Number.isFinite(saved.height) &&
@@ -179,7 +180,7 @@ export function FloatingReader({
 
   const commitSize = (next: FloatingSize) => {
     setSize(next);
-    localStorage.setItem(SIZE_KEY, JSON.stringify(next));
+    mailStorage.setItem(SIZE_KEY, JSON.stringify(next));
   };
 
   const startResize = (event: PointerEvent<HTMLButtonElement>, axis: ResizeAxis) => {

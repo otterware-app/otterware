@@ -1,3 +1,4 @@
+import { mailStorage } from "../../host/storage";
 import { mailDocument } from "../../host/dom";
 import { setSyncedPreference } from "../synced-preferences";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -47,7 +48,7 @@ export type ThemeChoice = Record<ThemeAppearance, string>;
 
 export function getThemeChoice(): ThemeChoice {
   const read = (mode: ThemeAppearance) => {
-    const id = localStorage.getItem(STORAGE_KEY[mode]);
+    const id = mailStorage.getItem(STORAGE_KEY[mode]);
     return id && findTheme(id) ? id : INITIAL_THEME_ID;
   };
   return { light: read("light"), dark: read("dark") };
@@ -152,7 +153,7 @@ const STYLE_ID = "otter-app-theme";
  * itself; the web app stores an explicit choice instead (src/web/bridge.ts).
  */
 export function appearance(): ThemeAppearance {
-  const chosen = localStorage.getItem("otter:theme-source");
+  const chosen = mailStorage.getItem("otter:theme-source");
   if (chosen === "light" || chosen === "dark") return chosen;
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }

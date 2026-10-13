@@ -1,3 +1,4 @@
+import { mailStorage } from "../host/storage";
 import { useEffect, useState } from "react";
 import { useAccounts } from "./gmail/hooks";
 import type { GmailAccount } from "./gmail/types";
@@ -24,7 +25,7 @@ const CHANGE_EVENT = "otter:mailboxes-change";
 
 function read(): MailboxArrangement {
   try {
-    const value = JSON.parse(localStorage.getItem(KEY) ?? "{}") as Partial<MailboxArrangement>;
+    const value = JSON.parse(mailStorage.getItem(KEY) ?? "{}") as Partial<MailboxArrangement>;
     return { order: value.order ?? [], off: value.off ?? [], combined: value.combined ?? true };
   } catch {
     return { order: [], off: [], combined: true };

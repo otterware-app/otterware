@@ -104,6 +104,8 @@ export function ModulePageLayout({
   title,
   sidebar,
   headerActions,
+  assistantOpen,
+  onAssistantOpenChange,
   children,
 }: {
   readonly moduleId: string;
@@ -113,12 +115,16 @@ export function ModulePageLayout({
   readonly sidebar?: ReactNode;
   readonly headerActions?: ReactNode;
   readonly children: ReactNode;
+  readonly assistantOpen?: boolean;
+  readonly onAssistantOpenChange?: (open: boolean) => void;
 }) {
   const module = moduleRegistry.byId(moduleId);
   const label = module?.label ?? moduleId;
   const availability = useServerModuleAvailability(module?.serverModule ?? null);
   const available = availability === "on";
-  const [chatOpen, setChatOpen] = useState(false);
+  const [localChatOpen, setLocalChatOpen] = useState(false);
+  const chatOpen = assistantOpen ?? localChatOpen;
+  const setChatOpen = onAssistantOpenChange ?? setLocalChatOpen;
 
   return (
     <SidebarInset className="h-dvh min-h-0 overflow-hidden overscroll-y-none isolate">
@@ -143,7 +149,7 @@ export function ModulePageLayout({
                 variant="ghost"
                 size="icon-sm"
                 aria-label="Toggle assistant"
-                onClick={() => setChatOpen((value) => !value)}
+                onClick={() => setChatOpen(!chatOpen)}
               >
                 <MessagesSquareIcon />
               </Button>

@@ -155,7 +155,11 @@ export function HintTooltip({
   const open = (target: Element | null) => {
     if (!target) return;
     clearTimer();
-    const reveal = () => setAnchor(target.getBoundingClientRect());
+    const reveal = () => {
+      const rect = target.getBoundingClientRect();
+      const area = mailDocument.body.getBoundingClientRect();
+      setAnchor(new DOMRect(rect.x - area.x, rect.y - area.y, rect.width, rect.height));
+    };
     if (Date.now() - lastTooltipClosedAt < TOOLTIP_GRACE_MS) reveal();
     else timer.current = window.setTimeout(reveal, TOOLTIP_DELAY_MS);
   };
@@ -181,13 +185,14 @@ export function HintTooltip({
       const middle = anchor.top + anchor.height / 2 - height / 2;
       const top = Math.min(
         Math.max(VIEWPORT_MARGIN, middle),
-        window.innerHeight - height - VIEWPORT_MARGIN,
+        mailDocument.body.clientHeight - height - VIEWPORT_MARGIN,
       );
       setPlacement({ top, left: anchor.right + TOOLTIP_GAP, side });
       return;
     }
     const fitsTop = anchor.top - TOOLTIP_GAP - height >= VIEWPORT_MARGIN;
-    const fitsBottom = anchor.bottom + TOOLTIP_GAP + height <= window.innerHeight - VIEWPORT_MARGIN;
+    const fitsBottom =
+      anchor.bottom + TOOLTIP_GAP + height <= mailDocument.body.clientHeight - VIEWPORT_MARGIN;
     const resolved =
       side === "top"
         ? fitsTop || !fitsBottom
@@ -201,7 +206,7 @@ export function HintTooltip({
     const centered = anchor.left + anchor.width / 2 - width / 2;
     const left = Math.min(
       Math.max(VIEWPORT_MARGIN, centered),
-      window.innerWidth - width - VIEWPORT_MARGIN,
+      mailDocument.body.clientWidth - width - VIEWPORT_MARGIN,
     );
     setPlacement({ top, left, side: resolved });
   }, [anchor, side]);

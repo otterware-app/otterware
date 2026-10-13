@@ -1,3 +1,4 @@
+import { mailStorage } from "../../host/storage";
 import { useLatest } from "../use-latest";
 import { useEffect, useState, type ReactNode } from "react";
 import {
@@ -42,7 +43,7 @@ const UNREAD_DOTS = "gmail:rail-unread-dots";
 
 /** Whether the rail dots the spaces with unread mail (Settings › General; off unless turned on). */
 export function useRailUnreadDots(): [boolean, (on: boolean) => void] {
-  const read = () => localStorage.getItem(UNREAD_DOTS) === "1";
+  const read = () => mailStorage.getItem(UNREAD_DOTS) === "1";
   const [on, setOn] = useState(read);
   const readForEffect = useLatest(read);
   useEffect(() => {

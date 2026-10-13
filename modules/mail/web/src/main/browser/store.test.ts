@@ -8,6 +8,7 @@ beforeEach(() => {
     getItem: (key: string) => storage.get(key) ?? null,
     setItem: (key: string, value: string) => void storage.set(key, value),
   });
+  vi.doMock("../../host/storage", () => ({ mailStorage: localStorage }));
   vi.stubGlobal("window", { desktopBridge: { features: { browser: true } } });
 });
 afterEach(() => vi.unstubAllGlobals());

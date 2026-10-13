@@ -1,3 +1,5 @@
+import { useMailCanWrite } from "../../host/bridge";
+import { useMailState, useMailSession } from "../../host/session";
 import { useLatest } from "../use-latest";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
@@ -51,7 +53,7 @@ export function DraftEditor({
   detail,
   threadMessages,
   autoFocus = true,
-  onDone,
+  onDone: onDoneProp,
   titleTrailing,
   titleLeading,
 }: {
@@ -64,17 +66,25 @@ export function DraftEditor({
   titleTrailing?: ReactNode;
   titleLeading?: ReactNode;
 }) {
-  const [to, setTo] = useState(detail.to ?? "");
-  const [cc, setCc] = useState(detail.cc ?? "");
-  const [ccVisible, setCcVisible] = useState(!!detail.cc);
-  const [bcc, setBcc] = useState(detail.bcc ?? "");
-  const [bccVisible, setBccVisible] = useState(!!detail.bcc);
-  const [subject, setSubject] = useState(detail.subject ?? "");
-  const [text, setText] = useState(detail.bodyText ?? "");
+  const session = useMailSession();
+  const stateKey = `editor:${accountId}:${detail.id}`;
+  const onDone = () => {
+    session.clear(stateKey + ":");
+    onDoneProp();
+  };
+  const [savedHtml, setHtml] = useMailState<string | undefined>(`${stateKey}:html`, undefined);
+  const [to, setTo] = useMailState(`${stateKey}:to`, detail.to ?? "");
+  const [cc, setCc] = useMailState(`${stateKey}:cc`, detail.cc ?? "");
+  const [ccVisible, setCcVisible] = useMailState(`${stateKey}:ccVisible`, !!detail.cc);
+  const [bcc, setBcc] = useMailState(`${stateKey}:bcc`, detail.bcc ?? "");
+  const [bccVisible, setBccVisible] = useMailState(`${stateKey}:bccVisible`, !!detail.bcc);
+  const [subject, setSubject] = useMailState(`${stateKey}:subject`, detail.subject ?? "");
+  const [text, setText] = useMailState(`${stateKey}:text`, detail.bodyText ?? "");
   const [sending, setSending] = useState(false);
-  const [formatting, setFormatting] = useState(false);
+  const [formatting, setFormatting] = useMailState(`${stateKey}:formatting`, false);
   const editorRef = useRef<RichTextRef>(null);
 
+  const canWrite = useMailCanWrite();
   const sendMessage = useSendMessage();
   const pruneThreadRows = usePruneThreadRows();
   const getAttachment = useGetAttachment();
@@ -129,7 +139,8 @@ export function DraftEditor({
   // rewrites the whole message, so a save without them silently drops the
   // attachments server-side. null = still loading (autosave and send stay
   // suspended until then).
-  const [attachments, setAttachments] = useState<ComposeAttachment[] | null>(
+  const [attachments, setAttachments] = useMailState<ComposeAttachment[] | null>(
+    `${stateKey}:attachments`,
     detail.attachments.length === 0 ? [] : null,
   );
   const [attachLoadFailed, setAttachLoadFailed] = useState(false);
@@ -147,7 +158,7 @@ export function DraftEditor({
   };
   const loadAttachmentsRef = useLatest(loadAttachments);
   useEffect(() => {
-    if (detail.attachments.length > 0) void loadAttachmentsRef.current();
+    if (detail.attachments.length > 0 && attachments === null) void loadAttachmentsRef.current();
   }, [detail.attachments.length, loadAttachmentsRef]);
 
   // Which Gmail draft owns this message row (known locally; Gmail as fallback).
@@ -162,6 +173,7 @@ export function DraftEditor({
   // useDraftAutosave). Ready once the draft id is known and its attachments
   // are back in memory — a save without them would drop them server-side.
   const draft = useDraftAutosave({
+    retainKey: `${stateKey}:draft`,
     accountId,
     threadId: detail.threadId || undefined,
     delayMs: autosaveDelayMs(attachments),
@@ -172,7 +184,7 @@ export function DraftEditor({
     getPayload: () => {
       if (attachments == null) return null;
       const plain = editorRef.current?.getText() ?? text;
-      const html = editorRef.current?.getHTML() ?? textToHtml(plain);
+      const html = editorRef.current?.getHTML() ?? savedHtml ?? textToHtml(plain);
       return {
         to: normalizeAddressList(to),
         cc: normalizeAddressList(cc) || undefined,
@@ -216,6 +228,7 @@ export function DraftEditor({
 
   const hasRecipient = splitAddressList(to).some((e) => parseAddressEntry(e).email.includes("@"));
   const canSend =
+    canWrite &&
     !sending &&
     !sendMessage.isPending &&
     hasRecipient &&
@@ -225,7 +238,7 @@ export function DraftEditor({
   const handleSend = async (scheduledAt?: number) => {
     if (!canSend) return;
     const plain = editorRef.current?.getText() ?? text;
-    const html = `<div dir="auto">${editorRef.current?.getHTML() ?? textToHtml(plain)}</div>`;
+    const html = `<div dir="auto">${editorRef.current?.getHTML() ?? savedHtml ?? textToHtml(plain)}</div>`;
     // Reply drafts thread onto the newest non-draft message in the conversation.
     const others = threadMessages.filter((m) => !m.labelIds.includes("DRAFT"));
     const last = others[others.length - 1];
@@ -332,12 +345,17 @@ export function DraftEditor({
       ref={editorRef}
       placeholder="Write your message…"
       ariaLabel="Message"
-      onTextChange={setText}
+      onTextChange={(value) => {
+        setText(value);
+        setHtml(editorRef.current?.getHTML());
+      }}
       autoFocus={autoFocus}
       showToolbar={formatting}
       minHeightClass={inThread ? "min-h-[140px]" : "min-h-[40vh]"}
       maxHeightClass={inThread ? "max-h-[45vh]" : "max-h-none"}
-      initialHTML={detail.bodyHtml ?? (detail.bodyText ? textToHtml(detail.bodyText) : undefined)}
+      initialHTML={
+        savedHtml ?? detail.bodyHtml ?? (detail.bodyText ? textToHtml(detail.bodyText) : undefined)
+      }
     />
   );
   const attachmentChips = (

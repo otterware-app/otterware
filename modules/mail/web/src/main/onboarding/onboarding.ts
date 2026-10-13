@@ -1,3 +1,4 @@
+import { mailStorage } from "../../host/storage";
 import { useSyncExternalStore } from "react";
 import { toast, type ToastId } from "../gmail/toast";
 
@@ -33,7 +34,7 @@ function subscribe(listener: () => void): () => void {
 }
 
 export function getSetupStage(): SetupStage | null {
-  const value = localStorage.getItem(STAGE_KEY);
+  const value = mailStorage.getItem(STAGE_KEY);
   return value === "setup" || value === "done" ? value : null;
 }
 
@@ -45,31 +46,31 @@ export function useSetupStage(): SetupStage | null {
 export function startSetup(step?: string): void {
   console.log("[Onboarding:startSetup]", { step });
   withdrawTourOffer();
-  if (step) localStorage.setItem(STEP_KEY, step);
-  else localStorage.removeItem(STEP_KEY);
-  localStorage.setItem(STAGE_KEY, "setup");
+  if (step) mailStorage.setItem(STEP_KEY, step);
+  else mailStorage.removeItem(STEP_KEY);
+  mailStorage.setItem(STAGE_KEY, "setup");
   emit();
 }
 
 export function finishSetup(): void {
   console.log("[Onboarding:finishSetup]");
-  localStorage.setItem(STAGE_KEY, "done");
-  localStorage.removeItem(STEP_KEY);
+  mailStorage.setItem(STAGE_KEY, "done");
+  mailStorage.removeItem(STEP_KEY);
   emit();
 }
 
 /** Marks a device that already had mail as set up, without showing the setup. */
 export function markSetUp(): void {
-  localStorage.setItem(STAGE_KEY, "done");
+  mailStorage.setItem(STAGE_KEY, "done");
   emit();
 }
 
 export function getSavedStep(): string | null {
-  return localStorage.getItem(STEP_KEY);
+  return mailStorage.getItem(STEP_KEY);
 }
 
 export function saveStep(step: string): void {
-  localStorage.setItem(STEP_KEY, step);
+  mailStorage.setItem(STEP_KEY, step);
 }
 
 /** Offers the tour in a toast, to someone whose mail was already here. */

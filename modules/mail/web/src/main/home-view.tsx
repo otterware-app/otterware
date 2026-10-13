@@ -1,7 +1,8 @@
+import { mailStorage } from "../host/storage";
 import { useMailState } from "../host/session";
 import type { MailRouter } from "./router";
 import { mailDocument } from "../host/dom";
-import { mailBridge, mailHost } from "../host/bridge";
+import { mailBridge, mailHost, useMailCanWrite } from "../host/bridge";
 import { useLatest } from "./use-latest";
 import { TodoistDialogs } from "./integrations/todoist";
 import {
@@ -15,7 +16,7 @@ import {
   type ReactNode,
   type PointerEvent as ReactPointerEvent,
 } from "react";
-import { useMatch, useNavigate, useRouter } from "@tanstack/react-router";
+import { useMatch, useNavigate, useRouter, useRouterState } from "@tanstack/react-router";
 import { ArrowLeftIcon } from "lucide-react";
 import { EmptyState } from "../components/ui/empty-state";
 import { useQueryClient } from "@tanstack/react-query";
@@ -221,7 +222,7 @@ function useStoredWidth(
   room?: () => number,
 ) {
   const [width, setWidth] = useState(() => {
-    const saved = Number(localStorage.getItem(key));
+    const saved = Number(mailStorage.getItem(key));
     return Number.isFinite(saved) && saved >= min && saved <= max ? saved : def;
   });
   const widthRef = useLatest(width);
@@ -260,7 +261,7 @@ function useStoredWidth(
       if (frameRef.current) frameRef.current.style.transitionProperty = "";
       widthRef.current = latest;
       setWidth(latest);
-      localStorage.setItem(key, String(latest));
+      mailStorage.setItem(key, String(latest));
     };
     if (frameRef.current) frameRef.current.style.transitionProperty = "none";
     window.addEventListener("pointermove", move);
@@ -314,12 +315,24 @@ const PANE_FRAME =
  * mail's shortcuts run under it.
  */
 export function HomeView() {
+  const canWrite = useMailCanWrite();
   const accountsQuery = useAccounts();
   const loaded = !accountsQuery.isLoading;
   if (loaded && (accountsQuery.data ?? []).length === 0) {
     return <SetupFlow />;
   }
-  return <MailHome />;
+  return (
+    <div className="h-full flex flex-col">
+      {!canWrite && (
+        <p role="status" className="px-4 py-2 text-sm text-muted-foreground">
+          This connection can read Mail. Editing and sending require write access.
+        </p>
+      )}
+      <div className="min-h-0 flex-1">
+        <MailHome />
+      </div>
+    </div>
+  );
 }
 
 function MailHome() {
@@ -343,7 +356,9 @@ function MailHome() {
 
   // The mail under Settings: where it was when Settings opened.
   const [lastMail, setLastMail] = useMailState<MailLoc | null>("home:lastMail", null);
-  if (routeLoc && !sameLoc(routeLoc, lastMail)) setLastMail(routeLoc);
+  useEffect(() => {
+    if (routeLoc && !sameLoc(routeLoc, lastMail)) setLastMail(routeLoc);
+  }, [routeLoc, lastMail, setLastMail]);
   // Where the route names no place in the mail (the index route, or a window
   // that started in Settings), it's where it was last time. Once the
   // mailboxes are known, it's always one of theirs (effects below catch the
@@ -372,7 +387,17 @@ function MailHome() {
     "home:activeSearchId",
     null,
   );
-  const [composeOpen, setComposeOpen] = useMailState("home:composeOpen", false);
+  const [composeOpen, setComposeOpen] = useMailState("home:composeOpen", () =>
+    new URLSearchParams(router.state.location.searchStr).has("compose"),
+  );
+  const routeHref = useRouterState({ select: (state) => state.location.href });
+  useEffect(() => {
+    const url = new URL(routeHref, "https://mail.invalid");
+    if (!url.searchParams.has("compose")) return;
+    setComposeOpen(true);
+    url.searchParams.delete("compose");
+    router.history.replace(`${url.pathname}${url.search}`);
+  }, [routeHref, router, setComposeOpen]);
   // The view being made ("new") or edited, in a dialog.
   const [viewEditor, setViewEditor] = useState<string | null>(null);
   // mailto: target from the OS (OtterMail as default mail app). The seq keys
@@ -398,6 +423,9 @@ function MailHome() {
   }, []);
   const openSettingsRef = useLatest(openSettings);
   useEffect(() => {
+    if (settingsRoute) openSettings(settingsRoute);
+  }, [settingsRoute, openSettings]);
+  useEffect(() => {
     const pull = async () => {
       try {
         const target = await gmailApi.getSettingsTarget();
@@ -412,18 +440,6 @@ function MailHome() {
     void pull();
     return mailBridge.on("settings:open", () => void pull());
   }, [openSettingsRef]);
-
-  // ⌘W (File ▸ Close): the agent's active chat tab closes first; with no
-  // tab left to close, the window does (Otter Code).
-  const closeChatTabRef = useRef<(() => boolean) | null>(null);
-  useEffect(
-    () =>
-      mailBridge.on("window:closeRequest", () => {
-        if (closeChatTabRef.current?.()) return;
-        void gmailApi.closeMainWindow();
-      }),
-    [],
-  );
 
   /** Moves the mail to `to`, from where it is (or was, under Settings). */
   const go = (to: Partial<MailLoc>, replace = false) => {
@@ -519,10 +535,10 @@ function MailHome() {
   // Mail and Settings are separate spaces: each keeps its sidebar open or
   // closed on its own, and the toggle acts on the one showing.
   const [mailSidebarOpen, setMailSidebarOpen] = useState(
-    () => localStorage.getItem("gmail:sidebar-open") !== "0",
+    () => mailStorage.getItem("gmail:sidebar-open") !== "0",
   );
   const [settingsSidebarOpen, setSettingsSidebarOpen] = useState(
-    () => localStorage.getItem("gmail:settings-sidebar-open") !== "0",
+    () => mailStorage.getItem("gmail:settings-sidebar-open") !== "0",
   );
   // A view's space has no sidebar: only its list.
   const sidebarOpen = settingsRoute ? settingsSidebarOpen : mailSidebarOpen && !viewSpace;
@@ -540,7 +556,7 @@ function MailHome() {
       ? ["gmail:settings-sidebar-open", setSettingsSidebarOpen]
       : ["gmail:sidebar-open", setMailSidebarOpen];
     setOpen((open) => {
-      localStorage.setItem(key, open ? "0" : "1");
+      mailStorage.setItem(key, open ? "0" : "1");
       return !open;
     });
   };
@@ -581,7 +597,7 @@ function MailHome() {
     if (settingsRouteRef.current) leaveSettingsRef.current();
     // oxlint-disable-next-line react/set-state-in-effect -- Synchronize pane and composer state with route, notification and navigation events.
     setComposeOpen(false);
-    localStorage.setItem("gmail:sidebar-open", "1");
+    mailStorage.setItem("gmail:sidebar-open", "1");
     setMailSidebarOpen(true);
   }, [tourRequested, leaveSettingsRef, settingsRouteRef]);
 
@@ -1294,7 +1310,8 @@ function MailHome() {
       onAdvance={handleReaderAdvance}
       onOpenChat={openChat}
       onQuote={(q) => {
-        if (chatOpen) setPendingQuote(q);
+        setPendingQuote(q);
+        openChat();
       }}
       onComposeTo={(email) => {
         setMailtoPrefill({ to: email, cc: "", subject: "", body: "" });

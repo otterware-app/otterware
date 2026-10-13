@@ -1,3 +1,4 @@
+import { mailStorage } from "../../host/storage";
 import { mailBridge } from "../../host/bridge";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -64,7 +65,7 @@ export function ExtensionsSection() {
   const extensionsButton = useBrowser((s) => s.extensionsButton);
   const [query, setQuery] = useState("");
   const [developerMode, setDeveloperMode] = useState(
-    () => localStorage.getItem(DEVELOPER_MODE_KEY) === "1",
+    () => mailStorage.getItem(DEVELOPER_MODE_KEY) === "1",
   );
   const [details, setDetails] = useState<string | null>(null);
   const [removing, setRemoving] = useState<Extension | null>(null);
@@ -115,7 +116,7 @@ export function ExtensionsSection() {
             <Switch
               checked={developerMode}
               onCheckedChange={(on) => {
-                localStorage.setItem(DEVELOPER_MODE_KEY, on ? "1" : "0");
+                mailStorage.setItem(DEVELOPER_MODE_KEY, on ? "1" : "0");
                 setDeveloperMode(on);
               }}
             />

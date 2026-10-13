@@ -1,3 +1,6 @@
+import { useMailCanWrite } from "../../host/bridge";
+import { mailStorage } from "../../host/storage";
+import { useMailState, useMailRef, useMailSession } from "../../host/session";
 import { mailRoot } from "../../host/dom";
 import { mailBridge } from "../../host/bridge";
 import { HintTooltip as ImportedMailTooltip } from "./ui";
@@ -1694,7 +1697,7 @@ function InlineComposer({
   lastMessage,
   baseSubject,
   threadId,
-  onClose,
+  onClose: onCloseProp,
 }: {
   accountId: string;
   mode: InlineMode;
@@ -1705,22 +1708,31 @@ function InlineComposer({
   threadId: string;
   onClose: () => void;
 }) {
-  const [text, setText] = useState("");
-  const [to, setTo] = useState("");
-  const [cc, setCc] = useState("");
-  const [ccVisible, setCcVisible] = useState(false);
-  const [bcc, setBcc] = useState("");
-  const [bccVisible, setBccVisible] = useState(false);
-  const recipientsDirty = useRef(false);
-  const [formatting, setFormatting] = useState(false);
+  const session = useMailSession();
+  const stateKey = `reply:${accountId}:${threadId}`;
+  const [savedHtml, setHtml] = useMailState<string | undefined>(`${stateKey}:html`, undefined);
+  const onClose = () => {
+    session.clear(stateKey + ":");
+    onCloseProp();
+  };
+  const [text, setText] = useMailState(`${stateKey}:text`, "");
+  const [to, setTo] = useMailState(`${stateKey}:to`, "");
+  const [cc, setCc] = useMailState(`${stateKey}:cc`, "");
+  const [ccVisible, setCcVisible] = useMailState(`${stateKey}:ccVisible`, false);
+  const [bcc, setBcc] = useMailState(`${stateKey}:bcc`, "");
+  const [bccVisible, setBccVisible] = useMailState(`${stateKey}:bccVisible`, false);
+  const recipientsDirty = useMailRef(`${stateKey}:recipientsDirty`, false);
+  const [formatting, setFormatting] = useMailState(`${stateKey}:formatting`, false);
   // Forward needs recipients typed in; replies show a one-line summary.
-  const [fieldsOpen, setFieldsOpen] = useState(mode === "forward");
+  const [fieldsOpen, setFieldsOpen] = useMailState(`${stateKey}:fieldsOpen`, mode === "forward");
   // null = still fetching the forwarded original's files.
-  const [attachments, setAttachments] = useState<ComposeAttachment[] | null>(
+  const [attachments, setAttachments] = useMailState<ComposeAttachment[] | null>(
+    `${stateKey}:attachments`,
     mode === "forward" ? null : [],
   );
   const editorRef = useRef<RichTextRef>(null);
   const toRef = useRef<HTMLInputElement>(null);
+  const canWrite = useMailCanWrite();
   const sendMessage = useSendMessage();
   const accountsQuery = useAccounts();
   // The latest message's detail carries its Cc line and body text (summaries
@@ -1761,7 +1773,7 @@ function InlineComposer({
 
   // Forward seeds the original's attachments; other modes keep manual picks.
   useEffect(() => {
-    if (mode !== "forward") return;
+    if (mode !== "forward" || attachments !== null) return;
     if (!lastDetail) {
       // oxlint-disable-next-line react/set-state-in-effect -- Reset transient reader/composer state when the message or attachment changes.
       setAttachments(null);
@@ -1812,6 +1824,7 @@ function InlineComposer({
 
   // Half-written replies/forwards persist as thread drafts.
   const draft = useDraftAutosave({
+    retainKey: `${stateKey}:draft`,
     accountId,
     threadId,
     delayMs: autosaveDelayMs(attachments),
@@ -1835,7 +1848,7 @@ function InlineComposer({
     getPayload: () => {
       if (!text.trim() || attachments == null) return null;
       const plain = editorRef.current?.getText() ?? text;
-      const html = editorRef.current?.getHTML() ?? textToHtml(plain);
+      const html = editorRef.current?.getHTML() ?? savedHtml ?? textToHtml(plain);
       return {
         to: normalizeAddressList(to),
         cc: normalizeAddressList(cc) || undefined,
@@ -1851,6 +1864,7 @@ function InlineComposer({
   const hasRecipient = splitAddressList(to).some((e) => parseAddressEntry(e).email.includes("@"));
   const forwardReady = attachments != null && (mode !== "forward" || lastDetail != null);
   const canSend =
+    canWrite &&
     !sendMessage.isPending &&
     hasRecipient &&
     forwardReady &&
@@ -2002,7 +2016,11 @@ function InlineComposer({
           ref={editorRef}
           placeholder={placeholder}
           ariaLabel={INLINE_MODE_LABEL[mode]}
-          onTextChange={setText}
+          initialHTML={savedHtml}
+          onTextChange={(value) => {
+            setText(value);
+            setHtml(editorRef.current?.getHTML());
+          }}
           showToolbar={formatting}
           minHeightClass="min-h-[120px]"
           maxHeightClass="max-h-[45vh]"
@@ -2105,7 +2123,7 @@ export function MessageReader({
   // and the card (16rem + 1rem margins) both fit; else a popover from the toggle.
   const summaryFits = readerWidth >= 48 * 16 + 16 * 16 + 2 * 16;
   const [summaryPinned, setSummaryPinned] = useState(
-    () => localStorage.getItem("gmail:summary-pinned") !== "0",
+    () => mailStorage.getItem("gmail:summary-pinned") !== "0",
   );
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [summaryFile, setSummaryFile] = useState<PreviewFile | null>(null);
@@ -2163,7 +2181,10 @@ export function MessageReader({
   const threadMessages = threadQuery.data ?? [];
   const isThread = !single && threadMessages.length > 1;
 
-  const [inline, setInline] = useState<InlineMode | null>(null);
+  const [inline, setInline] = useMailState<InlineMode | null>(
+    `reader:${accountId}:${messageId}:inline`,
+    null,
+  );
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(new Set());
   // Long runs of collapsed messages fold into "N more messages" until opened.
@@ -2193,12 +2214,6 @@ export function MessageReader({
   const onParentMouseUp = () => {
     emitQuote(window.getSelection()?.toString() ?? "");
   };
-
-  useEffect(() => {
-    // oxlint-disable-next-line react/set-state-in-effect -- Reset transient reader/composer state when the message or attachment changes.
-    setInline(null);
-    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Re-run this DOM/reset lifecycle when its explicit trigger changes, even when the callback reads refs.
-  }, [messageId]);
 
   // Escape closes the inline composer before anything else: registered in the
   // capture phase so home-view's Escape-deselects-message listener never fires
@@ -2829,7 +2844,7 @@ export function MessageReader({
                 label="Toggle summary"
                 active={summaryPinned}
                 onClick={() => {
-                  localStorage.setItem("gmail:summary-pinned", summaryPinned ? "0" : "1");
+                  mailStorage.setItem("gmail:summary-pinned", summaryPinned ? "0" : "1");
                   setSummaryPinned(!summaryPinned);
                 }}
               >

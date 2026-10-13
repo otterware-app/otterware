@@ -20,7 +20,8 @@
     "./shared/support": "./shared/src/support.ts",
     "./shared/view-marks": "./shared/src/view-marks.ts",
     "./rpc": "./src/rpc.ts",
-    "./tools": "./src/tool-definitions.ts"
+    "./tools": "./src/tool-definitions.ts",
+    "./settings": "./src/module-settings.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
