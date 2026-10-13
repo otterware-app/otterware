@@ -1,6 +1,10 @@
 import { defineModuleSettings } from "@otterware/module-kit/contracts";
 import * as Schema from "effect/Schema";
-import { CalendarId } from "./calendar.ts";
+import {
+  CalendarId,
+  CalendarNotificationRules,
+  CalendarEnvironmentPreferences,
+} from "./calendar.ts";
 
 export const CalendarSettings = defineModuleSettings({
   defaultCalendarId: {
@@ -9,7 +13,7 @@ export const CalendarSettings = defineModuleSettings({
     default: null,
     label: "Default calendar",
   },
-  weekStart: {
+  weekStartsOn: {
     scope: "account",
     schema: Schema.Literals([0, 1, 6]),
     default: 1,
@@ -23,21 +27,13 @@ export const CalendarSettings = defineModuleSettings({
   },
   notificationRules: {
     scope: "account",
-    schema: Schema.Array(
-      Schema.Struct({
-        minutesBefore: Schema.Int.check(Schema.isBetween({ minimum: 0, maximum: 10080 })),
-        enabled: Schema.Boolean,
-      }),
-    ),
+    schema: CalendarNotificationRules,
     default: [],
     label: "Event reminders",
   },
   syncWindow: {
     scope: "environment",
-    schema: Schema.Struct({
-      pastWeeks: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 104 })),
-      futureWeeks: Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 156 })),
-    }),
+    schema: CalendarEnvironmentPreferences.fields.syncWindow,
     default: { pastWeeks: 52, futureWeeks: 104 },
     label: "Sync window",
   },

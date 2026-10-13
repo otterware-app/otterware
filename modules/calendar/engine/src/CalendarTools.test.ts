@@ -7,7 +7,7 @@ import { CalendarService } from "./CalendarService.ts";
 import * as CalendarServiceLive from "./CalendarServiceLive.ts";
 import * as GoogleAuthUnavailable from "./GoogleAuthUnavailable.ts";
 import { calendarToolHandlers } from "./CalendarTools.ts";
-import { SqlitePersistenceMemory } from "./testing.ts";
+import { SqlitePersistenceMemory } from "../test/Sqlite.ts";
 
 const layer = CalendarServiceLive.layerWith({ demoLatency: false, autoSync: false }).pipe(
   Layer.provide(GoogleAuthUnavailable.layer),

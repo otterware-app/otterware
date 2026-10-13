@@ -14,7 +14,7 @@ import * as Queue from "effect/Queue";
 import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 
-import { SqlitePersistenceMemory } from "./testing.ts";
+import { SqlitePersistenceMemory } from "../test/Sqlite.ts";
 import { CalendarService } from "./CalendarService.ts";
 import * as CalendarServiceLive from "./CalendarServiceLive.ts";
 import { GoogleAuth } from "./google/GoogleAuth.ts";
@@ -793,4 +793,38 @@ describe("CalendarServiceLive sync", () => {
       Effect.andThen(body.pipe(Effect.provide(scheduledLayer(watched)))),
     );
   });
+});
+
+it.effect("stores reminder rules separately from environment sync depth", () =>
+  Effect.gen(function* () {
+    const { calendar } = yield* withDemo;
+    yield* calendar.updatePreferences({
+      notificationRules: [{ minutesBefore: 15, enabled: true }],
+    });
+    yield* calendar.updateEnvironmentPreferences({ syncWindow: { pastWeeks: 4, futureWeeks: 8 } });
+    const directory = yield* calendar.getDirectory;
+    expect(directory.preferences.notificationRules).toEqual([{ minutesBefore: 15, enabled: true }]);
+    expect(directory.environmentPreferences.syncWindow).toEqual({ pastWeeks: 4, futureWeeks: 8 });
+    yield* calendar.sync({});
+    expect((yield* calendar.getDirectory).environmentPreferences.syncWindow).toEqual({
+      pastWeeks: 4,
+      futureWeeks: 8,
+    });
+  }).pipe(Effect.provide(DemoLayer)),
+);
+
+it.effect("changing sync depth drops the old token and uses the new full-sync lower bound", () => {
+  const google = makeFakeGoogle(100);
+  return Effect.gen(function* () {
+    yield* TestClock.setTime(NOW);
+    const calendar = yield* CalendarService;
+    yield* Stream.runDrain(calendar.connect({}));
+    yield* calendar.sync({});
+    google.calls.length = 0;
+    yield* calendar.updateEnvironmentPreferences({ syncWindow: { pastWeeks: 2, futureWeeks: 6 } });
+    yield* calendar.sync({});
+    expect(google.calls.find((call) => call.method === "listEvents")?.options).toEqual({
+      timeMin: new Date(NOW - 14 * DAY_MS).toISOString(),
+    });
+  }).pipe(Effect.provide(googleLayer(google)));
 });
