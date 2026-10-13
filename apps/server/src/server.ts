@@ -183,6 +183,8 @@ import * as NetService from "@t3tools/shared/Net";
 import * as RelayClient from "@t3tools/shared/relayClient";
 import { disableTailscaleServe, ensureTailscaleServe } from "@t3tools/tailscale";
 import * as ServerActivation from "./serverActivation.ts";
+import * as ModuleAgentInstructions from "@otterware/module-kit/agent-instructions";
+import * as OtterwareServer from "./otterware/OtterwareServer.ts";
 
 // MCP handoff thread IDs include escaped provenance and can exceed find-my-way's
 // 100-character default for one path segment.
@@ -683,7 +685,10 @@ const layerRuntimeCoreDependencies = layerRuntimeCoreDependenciesBase.pipe(
   ),
 );
 
-const layerRuntimeDependencies = layerRuntimeCoreDependencies.pipe(
+// Otterware seam: the module runtime sits on the core dependencies.
+const layerRuntimeDependencies = OtterwareServer.layer.pipe(
+  Layer.provideMerge(layerRuntimeCoreDependencies),
+  Layer.provideMerge(ModuleAgentInstructions.layer),
   // Misc.
   // Usage reads provider history through the ProviderHost, which needs the
   // background policy below it.
@@ -770,6 +775,8 @@ const layerMakeServer = Layer.unwrap(
     const layerLauncher = ServiceLauncherClient.layer;
 
     yield* fixPath({ shellEnvironmentPrepared: config.shellEnvironmentPrepared });
+    // Otterware seam: one writer per data home (ADR 0012).
+    yield* OtterwareServer.guardStateDir(config);
 
     const layerHttpListening = Layer.effectDiscard(
       Effect.gen(function* () {
