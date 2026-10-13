@@ -414,7 +414,7 @@ export default function CalendarPage({
               ref={searchInput}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Title, location, description or guest"
+              placeholder="Title, location or description"
             />
           </label>
           <button type="submit" disabled={searching || !query.trim()}>
