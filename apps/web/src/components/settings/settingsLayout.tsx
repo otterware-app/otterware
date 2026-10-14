@@ -40,6 +40,7 @@ import {
   type SettingInheritanceState,
   type SettingOverridingProject,
 } from "./SettingInheritance";
+import { ModuleSettingsMerges } from "../../otterware/ModuleSettingsMerges";
 
 const EMPTY_SETTING_KEYS: readonly (keyof ServerSettings)[] = [];
 
@@ -577,6 +578,8 @@ export function SettingsPageContainer({
         <WorkspacePageContainer width={width} className={cn("gap-8", className)}>
           <SettingsScopeSentence />
           {children}
+          {/* Otterware seam: module settings pages merged into this host page. */}
+          <ModuleSettingsMerges />
         </WorkspacePageContainer>
       </div>
     </SettingsSearchTargetProvider>

@@ -76,6 +76,15 @@ export const HOME_MIGRATIONS: ReadonlyArray<SuiteMigration> = [
       `;
     }),
   },
+  {
+    module: "home",
+    id: 3,
+    name: "project_notes",
+    run: Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      yield* sql`ALTER TABLE suite_projects ADD COLUMN notes TEXT`;
+    }),
+  },
 ];
 
 /** Home's records in Otter Cloud's `home.projects` collection: projects and views. */
@@ -110,6 +119,7 @@ interface ProjectRow {
   readonly color: string;
   readonly icon: string | null;
   readonly rules_json: string;
+  readonly notes: string | null;
   readonly created_at: string;
   readonly updated_at: string;
 }
@@ -186,6 +196,7 @@ const make = Effect.gen(function* () {
         color,
         ...(row.icon === null ? {} : { icon: row.icon }),
         rules,
+        ...(row.notes === null ? {} : { notes: row.notes }),
         createdAt: row.created_at,
         updatedAt: row.updated_at,
       } satisfies HomeProject;
@@ -235,7 +246,7 @@ const make = Effect.gen(function* () {
     Effect.flatMap(Clock.currentTimeMillis, (now) => enqueue(id, null, now));
 
   const listProjects = sql<ProjectRow>`
-    SELECT id, name, color, icon, rules_json, created_at, updated_at
+    SELECT id, name, color, icon, rules_json, notes, created_at, updated_at
     FROM suite_projects ORDER BY created_at, id
   `.pipe(
     Effect.mapError(storeError("list projects")),
@@ -259,11 +270,12 @@ const make = Effect.gen(function* () {
     );
     const name = input.name.trim();
     const icon = input.icon ?? null;
+    const notes = input.notes ?? null;
     if (input.id === undefined) {
       const id = yield* newId("proj");
       yield* sql`
-        INSERT INTO suite_projects (id, name, color, icon, rules_json, created_at, updated_at)
-        VALUES (${id}, ${name}, ${input.color}, ${icon}, ${rulesJson}, ${timestamp}, ${timestamp})
+        INSERT INTO suite_projects (id, name, color, icon, rules_json, notes, created_at, updated_at)
+        VALUES (${id}, ${name}, ${input.color}, ${icon}, ${rulesJson}, ${notes}, ${timestamp}, ${timestamp})
       `.pipe(Effect.mapError(storeError("create a project")));
       return {
         id,
@@ -271,6 +283,7 @@ const make = Effect.gen(function* () {
         color: input.color,
         ...(input.icon ? { icon: input.icon } : {}),
         rules: input.rules,
+        ...(notes === null ? {} : { notes }),
         createdAt: timestamp,
         updatedAt: timestamp,
       };
@@ -278,9 +291,9 @@ const make = Effect.gen(function* () {
     const rows = yield* sql<ProjectRow>`
       UPDATE suite_projects
       SET name = ${name}, color = ${input.color}, icon = ${icon},
-          rules_json = ${rulesJson}, updated_at = ${timestamp}
+          rules_json = ${rulesJson}, notes = ${notes}, updated_at = ${timestamp}
       WHERE id = ${input.id}
-      RETURNING id, name, color, icon, rules_json, created_at, updated_at
+      RETURNING id, name, color, icon, rules_json, notes, created_at, updated_at
     `.pipe(Effect.mapError(storeError("update a project")));
     const row = rows[0];
     if (row === undefined) {
@@ -422,11 +435,12 @@ const make = Effect.gen(function* () {
         const project = value.value.project;
         const rulesJson = yield* encodeRules(project.rules);
         yield* sql`
-          INSERT INTO suite_projects (id, name, color, icon, rules_json, created_at, updated_at)
+          INSERT INTO suite_projects (id, name, color, icon, rules_json, notes, created_at, updated_at)
           VALUES (${id}, ${project.name}, ${project.color}, ${project.icon ?? null}, ${rulesJson},
-            ${project.createdAt}, ${project.updatedAt})
+            ${project.notes ?? null}, ${project.createdAt}, ${project.updatedAt})
           ON CONFLICT (id) DO UPDATE SET name = excluded.name, color = excluded.color,
-            icon = excluded.icon, rules_json = excluded.rules_json, updated_at = excluded.updated_at
+            icon = excluded.icon, rules_json = excluded.rules_json, notes = excluded.notes,
+            updated_at = excluded.updated_at
         `;
       } else {
         const view = value.value.view;

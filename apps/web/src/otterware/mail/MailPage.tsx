@@ -9,11 +9,15 @@ import {
   useMailPageCapabilities,
 } from "./browserClient";
 import { useMailDesktopCapabilities } from "./desktop";
-import { useModulePageContext, type ModulePageProps } from "@otterware/module-kit/web";
+import {
+  useModulePageContext,
+  useShellSelection,
+  type ModulePageProps,
+} from "@otterware/module-kit/web";
 import { MailSurface, type MailPageSelection } from "@otterware/mail-web";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { useCallback, useMemo, useState } from "react";
-import { ModulePageLayout } from "../ModulePageLayout";
+import { useModulePageFrameOverrides } from "../ModulePageLayout";
 import { useServerModuleAvailability } from "../moduleState";
 import { createMailHost } from "./rpc/host";
 import { mailSession } from "./sessions";
@@ -37,7 +41,6 @@ export default function MailPage({ subpath, active }: ModulePageProps) {
   );
   useMailPageCapabilities(inBrowser && active, navigateMail);
   const search = useLocation({ select: (location) => location.searchStr });
-  const [assistantOpen, setAssistantOpen] = useState(false);
   const [selection, setSelection] = useState<MailPageSelection | null>(null);
   const host = useMemo(
     () =>
@@ -48,7 +51,7 @@ export default function MailPage({ subpath, active }: ModulePageProps) {
               navigate: (path) => {
                 void navigate({ to: path });
               },
-              openAssistant: () => setAssistantOpen(true),
+              openAssistant: () => useShellSelection.getState().setAssistantOpen("mail", true),
               publishSelection: setSelection,
             },
             desktop,
@@ -82,20 +85,23 @@ export default function MailPage({ subpath, active }: ModulePageProps) {
     },
     active && available,
   );
+  // This browser's Mail reports its own state and chats with the light agent.
+  const assistantContent = useMemo(
+    () =>
+      inBrowser ? (
+        <BrowserChat
+          context={JSON.stringify({ module: "mail", path: `/mail/${subpath}`, selection })}
+        />
+      ) : undefined,
+    [inBrowser, subpath, selection],
+  );
+  const overrides = useMemo(
+    () => (inBrowser ? { availability, assistantContent } : null),
+    [inBrowser, availability, assistantContent],
+  );
+  useModulePageFrameOverrides(overrides, active);
   return (
-    <ModulePageLayout
-      moduleId="mail"
-      availability={availability}
-      assistantContent={
-        inBrowser ? (
-          <BrowserChat
-            context={JSON.stringify({ module: "mail", path: `/mail/${subpath}`, selection })}
-          />
-        ) : undefined
-      }
-      assistantOpen={assistantOpen}
-      onAssistantOpenChange={setAssistantOpen}
-    >
+    <>
       {inBrowser && active ? (
         <>
           <BrowserAccountBridge />
@@ -109,6 +115,6 @@ export default function MailPage({ subpath, active }: ModulePageProps) {
           path={`/${subpath}${search}`}
         />
       ) : null}
-    </ModulePageLayout>
+    </>
   );
 }

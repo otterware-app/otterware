@@ -104,13 +104,14 @@ const HomeCreateProjectTool = withToolTier(
 
 const HomeUpdateProjectTool = withToolTier(
   Tool.make("home_update_project", {
-    description: `Rename, recolor, or change the rules of a cross-app project. Omitted fields stay; rules replaces the whole rule set, so read the project first and send every rule to keep. ${RULES_DESCRIPTION}`,
+    description: `Rename, recolor, change the rules or the notes of a cross-app project. Omitted fields stay; rules replaces the whole rule set, so read the project first and send every rule to keep. ${RULES_DESCRIPTION}`,
     parameters: Schema.Struct({
       id: Schema.String,
       name: Schema.optional(Schema.String.check(Schema.isNonEmpty(), Schema.isMaxLength(80))),
       color: Schema.optional(ProjectIconColor),
       icon: Schema.optional(Schema.String),
       rules: Schema.optional(HomeProjectRules),
+      notes: Schema.optional(Schema.String.check(Schema.isMaxLength(20_000))),
     }),
     success: HomeProject,
     failure,

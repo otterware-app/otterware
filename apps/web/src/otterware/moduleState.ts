@@ -9,9 +9,11 @@ import {
   createEnvironmentRpcCommand,
   createEnvironmentRpcQueryAtomFamily,
 } from "@t3tools/client-runtime/state/runtime";
+import { activeProfile } from "@otterware/profiles/active";
 import type { EnvironmentId } from "@t3tools/contracts";
 
 import * as Effect from "effect/Effect";
+import { useMemo } from "react";
 
 import { connectionAtomRuntime } from "../connection/runtime";
 import { useEnvironmentQuery } from "../state/query";
@@ -83,4 +85,21 @@ export function useServerModuleAvailability(moduleId: string | null): ServerModu
   if (states.status === "unavailable") return "no-modules";
   const entry = states.modules.find((module) => module.id === moduleId);
   return entry === undefined ? "not-installed" : entry.state;
+}
+
+/**
+ * The profile's modules that are on in the environment module pages use;
+ * every profile module while the state is still loading or unreadable, so
+ * Settings never flashes a flat list before grouping.
+ */
+export function useOnModuleIds(): ReadonlyArray<string> {
+  const environmentId = useModuleEnvironmentId();
+  const states = useModuleStates(activeProfile.modules.length === 0 ? null : environmentId);
+  const ids =
+    states.status === "available"
+      ? states.modules.filter((entry) => entry.state === "on").map((entry) => entry.id)
+      : activeProfile.modules;
+  // A stable array for memo dependencies.
+  const key = ids.join(",");
+  return useMemo(() => activeProfile.modules.filter((id) => key.split(",").includes(id)), [key]);
 }

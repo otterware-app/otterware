@@ -13,9 +13,10 @@ import {
   type SettingsScopeSearch,
 } from "./settingsScope";
 
-// Otterware seam: contributed sections join the host settings tables.
+// Otterware seam: module settings pages join the host settings tables.
 import {
   OTTERWARE_SETTINGS_SECTION_LABELS,
+  OTTERWARE_SETTINGS_LABEL_OVERRIDES,
   OTTERWARE_SETTINGS_CATEGORY_SCOPES,
   OTTERWARE_SETTINGS_SEARCH_ITEMS,
   isProfileSettingsPathVisible,
@@ -106,7 +107,6 @@ export interface SettingsSearchAvailability {
  * subtitles both render from this record, so each label exists once.
  */
 export const SETTINGS_SECTION_LABELS: Readonly<Record<SettingsPath, string>> = {
-  ...OTTERWARE_SETTINGS_SECTION_LABELS,
   "/settings/diagnostics": "Diagnostics",
   "/settings/projects": "Project",
   "/settings/general": "General",
@@ -123,6 +123,8 @@ export const SETTINGS_SECTION_LABELS: Readonly<Record<SettingsPath, string>> = {
   "/settings/storage": "Storage",
   "/settings/connections": "Connections",
   "/settings/archived": "Archive",
+  ...OTTERWARE_SETTINGS_SECTION_LABELS,
+  ...OTTERWARE_SETTINGS_LABEL_OVERRIDES,
 };
 
 /** Anchor id of the first row bound to `command` on the Keybindings page. */

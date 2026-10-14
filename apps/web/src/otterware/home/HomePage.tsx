@@ -1,30 +1,44 @@
 import { useModulePageContext, type ModulePageProps } from "@otterware/module-kit/web";
-import { ModulePageLayout } from "../ModulePageLayout";
-import { HomeSidebar } from "./HomeSidebar";
-import {
-  HomeDashboardPage,
-  HomeNeedsYouPage,
-  HomeAgentsPage,
-  HomeProjectPage,
-  HomeViewPage,
-} from "./HomePages";
+import { useEffect } from "react";
 
+import { HomeAgentsPage, HomeDashboardPage, HomeNeedsYouPage, HomeViewPage } from "./HomePages";
+import { HomeProjectItemsPage, HomeProjectPage } from "./HomeProjectPage";
+import { useHomeOverview } from "./homePresentation";
+import { HomeDialogHost, useCurrentProject } from "./homeShell";
+
+/** Home's content; the host draws the sidebar and header from `homeShell.tsx`. */
 export default function HomePage({ subpath, active }: ModulePageProps) {
-  const [section, id] = subpath.split("/");
+  const [section, id, nested, app] = subpath.split("/");
+  const projectId = section === "projects" && id ? id : null;
   useModulePageContext({ module: "home", title: "Home", refs: [] }, active);
+  const setCurrentProject = useCurrentProject((state) => state.setProjectId);
+  useEffect(() => {
+    if (!active) return;
+    setCurrentProject(projectId);
+    return () => setCurrentProject(null);
+  }, [active, projectId, setCurrentProject]);
+  const { environmentId, overview } = useHomeOverview();
   return (
-    <ModulePageLayout moduleId="home" sidebar={<HomeSidebar />}>
+    <>
       {section === "needs-you" ? (
         <HomeNeedsYouPage />
       ) : section === "agents" ? (
         <HomeAgentsPage />
-      ) : section === "projects" && id ? (
-        <HomeProjectPage projectId={id} />
+      ) : projectId !== null && nested === "items" && app ? (
+        <HomeProjectItemsPage projectId={projectId} app={app} />
+      ) : projectId !== null ? (
+        <HomeProjectPage projectId={projectId} />
       ) : section === "views" && id ? (
         <HomeViewPage viewId={id} />
       ) : (
         <HomeDashboardPage />
       )}
-    </ModulePageLayout>
+      {environmentId !== null ? (
+        <HomeDialogHost
+          environmentId={environmentId}
+          projects={(overview?.projects ?? []).map((entry) => entry.project)}
+        />
+      ) : null}
+    </>
   );
 }

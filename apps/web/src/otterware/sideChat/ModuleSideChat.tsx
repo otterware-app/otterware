@@ -58,6 +58,7 @@ import {
   useEnsureAssistantProject,
 } from "../assistantThreads";
 import { moduleRegistry } from "../registry";
+import { ASSISTANT_LABEL } from "../ModulePageLayout";
 import { ModuleThreadAccessories } from "../ModuleThreadAccessories";
 import { useCurrentModulePageContext } from "@otterware/module-kit/web";
 import { BrowserChat } from "../browser/chat/BrowserChat";
@@ -142,15 +143,12 @@ function BrowserSideChat({ moduleId, onHide, hideShortcutLabel }: SideChatProps)
     true,
     Schema.Boolean,
   );
-  const moduleLabel = moduleRegistry.modules.find((module) => module.id === moduleId)?.label;
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-suite-side-chat-module={moduleId}>
       <WorkspacePageHeader electron={isElectron} className="gap-1 border-b border-border pr-2 pl-3">
         <MessagesSquareIcon className="size-4 shrink-0 text-muted-foreground" />
-        <span className="min-w-0 flex-1 truncate font-medium text-sm">
-          {moduleLabel ? `${moduleLabel} chat` : "Chat"}
-        </span>
-        <HeaderButton label={`Hide side chat (${hideShortcutLabel})`} onClick={onHide}>
+        <span className="min-w-0 flex-1 truncate font-medium text-sm">{ASSISTANT_LABEL}</span>
+        <HeaderButton label={`Hide ${ASSISTANT_LABEL} (${hideShortcutLabel})`} onClick={onHide}>
           <PanelRightCloseIcon />
         </HeaderButton>
       </WorkspacePageHeader>
@@ -267,7 +265,7 @@ function EnvironmentSideChat({ moduleId, onHide, hideShortcutLabel }: SideChatPr
   };
 
   const title =
-    activeShell?.title ?? (activeTarget?.kind === "draft" ? "New chat" : `${moduleLabel} chat`);
+    activeShell?.title ?? (activeTarget?.kind === "draft" ? "New chat" : ASSISTANT_LABEL);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-suite-side-chat-module={moduleId}>
@@ -326,7 +324,7 @@ function EnvironmentSideChat({ moduleId, onHide, hideShortcutLabel }: SideChatPr
         >
           <Maximize2Icon />
         </HeaderButton>
-        <HeaderButton label={`Hide side chat (${hideShortcutLabel})`} onClick={onHide}>
+        <HeaderButton label={`Hide ${ASSISTANT_LABEL} (${hideShortcutLabel})`} onClick={onHide}>
           <PanelRightCloseIcon />
         </HeaderButton>
       </WorkspacePageHeader>
@@ -358,7 +356,7 @@ function EnvironmentSideChat({ moduleId, onHide, hideShortcutLabel }: SideChatPr
       {environmentId === null || !ready ? (
         <SideChatEmpty
           title="Connecting…"
-          description="The side chat needs a connected environment."
+          description={`${ASSISTANT_LABEL} needs a connected environment.`}
         />
       ) : activeTarget === null ? (
         <SideChatEmpty

@@ -21,7 +21,6 @@ import { ensureLocalApi } from "../../localApi";
 import { connectionAtomRuntime } from "../../connection/runtime";
 import { appAtomRegistry } from "../../rpc/atomRegistry";
 import { usePrimaryEnvironmentId } from "../../state/environments";
-import { ModulePageLayout } from "../ModulePageLayout";
 
 type DriveWeb = typeof import("@otterware/composition/web/drive");
 
@@ -131,11 +130,7 @@ function makePage(drive: DriveWeb) {
   const { DriveApp } = drive;
   return function DrivePage(props: ModulePageProps) {
     const host = useShellDriveHost(drive, props);
-    return (
-      <ModulePageLayout moduleId="drive">
-        <DriveApp host={host} />
-      </ModulePageLayout>
-    );
+    return <DriveApp host={host} />;
   };
 }
 
@@ -147,10 +142,10 @@ function makeSettings(drive: DriveWeb) {
   };
 }
 
-export const DriveWebModule = createDriveWebModule(
-  lazy(async () => ({ default: makePage(await import("@otterware/composition/web/drive")) })),
-  lazy(async () => ({
+export const DriveWebModule = createDriveWebModule({
+  page: lazy(async () => ({ default: makePage(await import("@otterware/composition/web/drive")) })),
+  settings: lazy(async () => ({
     default: makeSettings(await import("@otterware/composition/web/drive")),
   })),
-  lazy(() => import("./ThreadDriveDocuments")),
-);
+  threadAccessory: lazy(() => import("./ThreadDriveDocuments")),
+});

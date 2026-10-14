@@ -75,7 +75,7 @@ export default function MailSettings() {
   );
   const openPane = (route: SettingsRoute) => {
     void navigate({
-      to: `/settings/mail?pane=${route.pane}${route.target ? `&target=${encodeURIComponent(route.target)}` : ""}`,
+      to: `/settings/mail/mail?pane=${route.pane}${route.target ? `&target=${encodeURIComponent(route.target)}` : ""}`,
     });
   };
   return (

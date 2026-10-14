@@ -2,7 +2,8 @@
 
 How a product area plugs into the host without editing it. Decisions: ADR 0004 (the host owns
 agents), 0006 (every module ships standalone), 0010 (live on/off per environment), 0011 (one
-Settings screen, scoped settings), 0012 (data homes), 0013 (package per layer).
+Settings screen, scoped settings), 0012 (data homes), 0013 (package per layer), 0020 (modules
+render on the shell).
 
 ## Pieces
 
@@ -13,10 +14,10 @@ Settings screen, scoped settings), 0012 (data homes), 0013 (package per layer).
 | `packages/composition`        | The only importer of module contracts, engines and web registrations; selects the profile          |
 | `modules/<m>/contracts`       | The module's RPC group (`defineModuleContract`), settings schema, tool and Home schemas            |
 | `modules/<m>/engine`          | `defineServerModule`: layer, migrations, RPC handlers, tools, agent instructions, Home contributor |
-| `modules/<m>/web`             | Registry declaration; receives host UI adapters while the UI kit is app-local                      |
+| `modules/<m>/web`             | `defineWebModule`: what the module contributes to the shell (see "The shell contract")             |
 | `apps/server/src/otterware/`  | Host adapters: the writer lock, Code's Home contributor, the assistant project, the seams' glue    |
-| `apps/web/src/otterware/`     | The web shell: registry, pages host, rail buttons, palette items, Settings › Modules, side chat    |
-| `apps/web/src/otterware/<m>/` | The module's pages (`defineWebModule`), until `components/ui` becomes a package (see below)        |
+| `apps/web/src/otterware/`     | The web shell: rail, module sidebar, page frame, settings groups, keybindings, palette, side chat  |
+| `apps/web/src/otterware/<m>/` | The module's pages and hooks, until `components/ui` becomes a package (see below)                  |
 
 The profile is chosen at build time with `OTTERWARE_PROFILE` (`otterware` by default) and baked
 into the server, web and desktop bundles as `__OTTERWARE_PROFILE__`; unbundled code reads the
@@ -41,14 +42,50 @@ agentInstructions, homeContributor, settings })`. The layer is opened when the m
 3. Register it: one line in `MODULE_CONTRACTS` and `SERVER_MODULES` (`packages/composition`), one
    line in `WEB_MODULES` (`apps/web/src/otterware/registry.ts`), and the id in the profiles that
    ship it.
-4. `modules/<m>/web`: `defineWebModule({ id, label, icon, rail, page, settings,
-commands, searchTerms, serverModule, sideChat })`. The page renders `ModulePageLayout` and
-   publishes what the user looks at with `useModulePageContext(context, active)`. Host UI pages
-   currently live in `apps/web/src/otterware/<m>/`; composition is the only importer of the
-   registration package. Sections contribute to the existing Settings screen and search tables.
+4. `modules/<m>/web`: `defineWebModule({ id, label, icon, page, useSpaces, useSidebar,
+useHeaderActions, stores, settings, commands, keybindingAliases, searchTerms, serverModule,
+sideChat })`, per the shell contract below. Host UI pages currently live in
+   `apps/web/src/otterware/<m>/`; composition is the only importer of the registration package.
 
 A module must work with any other subset of modules present, including none (ADR 0006): read
 other modules only through Home contributions and agent tools, never by importing them.
+
+## The shell contract
+
+A module contributes data; the host draws every frame (ADR 0020). `packages/module-kit/src/web`
+is the contract, `apps/web/src/otterware` the shell that reads it:
+
+- **Rail.** `useSpaces()` returns the module's rail items (Mail: accounts and views; Calendar:
+  views; Drive: drives). Code's items are the host's own. In the combined profile the rail is
+  Home, the switcher for the modules that are on, the active app's spaces, pins, then the foot;
+  a standalone profile shows only its module's spaces. Any space or sidebar row with an `href`
+  can be pinned (`railPins.ts`, Account scope). The active space per module lives in
+  `useShellSelection`; pages read it with `useActiveSpaceId`.
+- **Sidebar.** `useSidebar(context)` returns sections of rows for the active space; the host
+  draws them (`ModuleSidebar.tsx`) with the thread sidebar's pieces and adds "Pin to rail" to each
+  row's context menu. A module without the hook has no sidebar on its pages.
+- **Page.** `page` renders content only; `ModulePagesHost` keeps it mounted across routes and wraps
+  it in `ModulePageLayout`: header (space or project title, `useHeaderActions()`, the Otterware
+  Assistant toggle), the content, the Assistant beside it, and the calm state while the module is
+  off. A page that must change the frame (this browser's module state, a title of its own) calls
+  `useModulePageFrameOverrides`.
+- **Data.** `stores` are mounted once above the routes while the module is on
+  (`ModuleStoresHost`); `createClientStore` gives a zustand store with a persisted slice and a
+  declared scope. Nothing refetches because a page was hidden.
+- **Settings.** Each `settings` page declares a `placement` per profile: its own page under the
+  module's group (`/settings/<m>/<page>`, "Mail › Reading") or merged into an App page, whose
+  `SettingsPageContainer` renders it as a section. The sidebar groups (App, Code, one per module
+  that is on) come from `settingsNavLayout`; headers appear only with more than one module on, and
+  a standalone profile lists its original flat order. Search covers pages and their `rows`.
+- **Keybindings.** Commands are `<module>.<command>` (the contracts schema admits them). The
+  shell's defaults (`shellDefaultKeybindings`: ⌘1…⌘4 app switching in the combined profile, the
+  Assistant toggle, module `defaultKey`s scoped with `when: app.<module>`) merge below the user's
+  rules; `ShellKeybindings` runs them with the `app.*` context set to the active app, so the same
+  key can mean different things in Mail and Drive. `keybindingAliases` renames a module's old
+  command ids so custom bindings survive a prefix change. The Keybindings page filters by chip.
+- **Cross-app projects.** `/home/projects/<id>/<module>/<subpath>` shows a module's page inside the
+  project's scope: the registry's `forPath` reports `projectId`, Home owns the sidebar and the
+  page title, and the page receives `projectId`.
 
 ## How the host runs modules
 
@@ -96,6 +133,7 @@ Constraints behind the current layout, to revisit rather than work around:
   form state. Never key this host or a page by an environment id or an auth token.
 - Home uses the host UI kit and client state under `apps/web/src/otterware/home/`, because
   `components/ui` and the web state are not packages. Moving that UI to `modules/home/web`
-  needs the UI kit extraction first. Modules with their own UI, such as Calendar, keep it in
-  `modules/<m>/web`; host adapters provide environment RPC and the shared page/side-chat frame.
-  Composition keeps their registration cheap and loads their full UI only on first use.
+  needs the UI kit extraction first. Mail, Calendar and Drive still carry their first
+  integration's inner UI (own routers, sidebars, theme engines) inside the host frame until their
+  rebuild chunks replace it with the shell contract; composition keeps their registration cheap
+  and loads their full UI only on first use.

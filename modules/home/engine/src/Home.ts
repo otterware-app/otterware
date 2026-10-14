@@ -66,6 +66,7 @@ export class Home extends Context.Service<
       readonly color?: ProjectIconColor | undefined;
       readonly icon?: string | undefined;
       readonly rules?: HomeProjectRules | undefined;
+      readonly notes?: string | undefined;
     }) => Effect.Effect<HomeProject, HomeNotFoundError | HomeStoreError>;
   }
 >()("@otterware/home-engine/Home") {}
@@ -289,12 +290,14 @@ const make = Effect.gen(function* () {
         return yield* new HomeNotFoundError({ entity: "project", id: input.id });
       }
       const icon = input.icon ?? existing.icon;
+      const notes = input.notes ?? existing.notes;
       return yield* store.saveProject({
         id: existing.id,
         name: input.name ?? existing.name,
         color: input.color ?? existing.color,
         ...(icon === undefined ? {} : { icon }),
         rules: input.rules ?? existing.rules,
+        ...(notes === undefined ? {} : { notes }),
       });
     },
   );

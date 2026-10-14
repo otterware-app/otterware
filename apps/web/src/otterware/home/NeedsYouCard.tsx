@@ -22,6 +22,7 @@ export function NeedsYouCard({
   limit,
   emptyTitle = "Nothing needs you",
   emptyDescription = "Agent questions, approvals, replies and invites show up here.",
+  onOpen,
 }: {
   readonly items: ReadonlyArray<HomeRankedItem>;
   readonly projects: ReadonlyArray<HomeProject>;
@@ -31,6 +32,8 @@ export function NeedsYouCard({
   readonly limit?: number;
   readonly emptyTitle?: string;
   readonly emptyDescription?: string;
+  /** Replaces opening the item's target, e.g. inside a project's scope. */
+  readonly onOpen?: ((item: HomeRankedItem) => void) | undefined;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const counts = useMemo(() => {
@@ -84,6 +87,7 @@ export function NeedsYouCard({
               item={item}
               projects={item.projectIds.flatMap((id) => projectsById.get(id) ?? [])}
               actions={actions}
+              onOpen={onOpen}
             />
           ))}
         </HomeCard.Rows>
@@ -96,10 +100,12 @@ function NeedsYouRow({
   item,
   projects,
   actions,
+  onOpen,
 }: {
   readonly item: HomeRankedItem;
   readonly projects: ReadonlyArray<HomeProject>;
   readonly actions: HomeActions;
+  readonly onOpen?: ((item: HomeRankedItem) => void) | undefined;
 }) {
   const ordered = item.actions.toSorted(
     (left, right) => Number(left.primary) - Number(right.primary),
@@ -112,7 +118,7 @@ function NeedsYouRow({
         <button
           type="button"
           className="block w-full min-w-0 truncate text-left font-medium text-sm outline-none after:absolute after:inset-0 focus-visible:underline"
-          onClick={() => actions.openTarget(item.target)}
+          onClick={() => (onOpen ? onOpen(item) : actions.openTarget(item.target))}
         >
           {item.title}
         </button>

@@ -41,8 +41,8 @@ describe("check-upstream-seams", () => {
     const seams = parseSeams(NodeFS.readFileSync(SEAMS_FILE, "utf8"));
     const files = seams.filter((seam) => !seam.includes("*"));
     // The list is a rebase-cost budget: every entry is an upstream file each sync may have to
-    // re-merge by hand. Raised from 50 while modules land in parallel; bring it back down.
-    expect(files.length).toBeLessThan(64);
+    // re-merge by hand. Mechanical entries fold into globs; one-off edits are not listed.
+    expect(files.length).toBeLessThan(40);
     expect(new Set(seams).size).toBe(seams.length);
   });
 });

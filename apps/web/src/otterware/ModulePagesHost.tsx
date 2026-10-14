@@ -8,22 +8,35 @@
  * reconnect; that is the bug to avoid.)
  *
  * The route files under `routes/<module>*.tsx` render nothing; this host,
- * rendered by `AppSidebarLayout`, shows the page beside the router's content.
+ * rendered by `AppSidebarLayout`, shows the page in the host frame beside the
+ * router's content. Module stores mount here too, once, independent of visits.
  */
-import type { WebModule } from "@otterware/module-kit/web";
+import type { ModuleLocation, WebModule } from "@otterware/module-kit/web";
 import { useLocation } from "@tanstack/react-router";
-import { Activity, Suspense, useState, type ReactNode } from "react";
+import { Activity, lazy, Suspense, useState, type ReactNode } from "react";
 
+import { ModulePageLayout } from "./ModulePageLayout";
+import { ModuleStoresHost } from "./ModuleStoresHost";
 import { moduleRegistry } from "./registry";
-import { ModuleBackgroundRuntimes } from "./ModuleBackgroundRuntimes";
+
+// Loaded only once a page opens inside a cross-app project, so standalone
+// profiles never bundle Home.
+const HomeProjectTitle = lazy(() =>
+  import("./home/homeShell").then((m) => ({ default: m.HomeProjectTitle })),
+);
+
+interface RetainedPage {
+  readonly subpath: string;
+  readonly projectId: string | null;
+}
 
 function ModulePageFrame({
   module,
-  subpath,
+  retained,
   active,
 }: {
   readonly module: WebModule;
-  readonly subpath: string;
+  readonly retained: RetainedPage;
   readonly active: boolean;
 }) {
   const Page = module.page;
@@ -34,34 +47,51 @@ function ModulePageFrame({
       data-module-page={module.id}
     >
       <Activity mode={active ? "visible" : "hidden"}>
-        <Suspense fallback={null}>
-          <Page subpath={subpath} active={active} />
-        </Suspense>
+        <ModulePageLayout
+          module={module}
+          projectTitle={
+            retained.projectId === null ? null : (
+              <Suspense fallback={null}>
+                <HomeProjectTitle projectId={retained.projectId} />
+              </Suspense>
+            )
+          }
+        >
+          <Suspense fallback={null}>
+            <Page subpath={retained.subpath} active={active} projectId={retained.projectId} />
+          </Suspense>
+        </ModulePageLayout>
       </Activity>
     </div>
   );
 }
 
+const sameRetained = (left: RetainedPage | undefined, right: ModuleLocation) =>
+  left !== undefined && left.subpath === right.subpath && left.projectId === right.projectId;
+
 export function ModulePagesHost({ children }: { readonly children: ReactNode }) {
   const pathname = useLocation({ select: (location) => location.pathname });
   const current = moduleRegistry.forPath(pathname);
-  // The last sub-path per visited module, so a hidden page keeps its place.
-  const [subpaths, setSubpaths] = useState<Readonly<Record<string, string>>>({});
-  if (current !== null && subpaths[current.module.id] !== current.subpath) {
-    setSubpaths({ ...subpaths, [current.module.id]: current.subpath });
+  // The last location per visited module, so a hidden page keeps its place.
+  const [retained, setRetained] = useState<Readonly<Record<string, RetainedPage>>>({});
+  if (current !== null && !sameRetained(retained[current.module.id], current)) {
+    setRetained({
+      ...retained,
+      [current.module.id]: { subpath: current.subpath, projectId: current.projectId },
+    });
   }
   return (
     <>
-      <ModuleBackgroundRuntimes />
+      <ModuleStoresHost />
       {children}
-      {Object.entries(subpaths).map(([id, subpath]) => {
+      {Object.entries(retained).map(([id, page]) => {
         const module = moduleRegistry.byId(id);
         if (module === null) return null;
         return (
           <ModulePageFrame
             key={id}
             module={module}
-            subpath={subpath}
+            retained={page}
             active={current?.module.id === id}
           />
         );

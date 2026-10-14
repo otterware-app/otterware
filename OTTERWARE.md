@@ -20,7 +20,7 @@ packages/browser-environment       in-browser environment: module engines in a W
 modules/<m>/contracts              Effect Schema RPC group, tool definitions, settings schema
 modules/<m>/engine                 sync, storage, tools; portable: no Node or Electron imports
 modules/<m>/node                   environment-only adapters
-modules/<m>/web                    React routes, rail entry, settings sections (today: apps/web/src/otterware/<m>)
+modules/<m>/web                    what the module gives the shell: spaces, rows, pages, settings, commands (ADR 0020)
 packages/composition               the only importer of modules; merges them for the active profile
 profiles/<profile>.ts              modules, brand, app ID, data home, update feed
 infra/relay                        upstream Code relay (T3 Connect)

@@ -1,33 +1,36 @@
-import {
-  defineWebModule,
-  type WebModule,
-  type WebModuleSettingsSection,
-} from "@otterware/module-kit/web";
+import { defineWebModule, type WebModule } from "@otterware/module-kit/web";
 import { HardDriveIcon } from "lucide-react";
 
 /**
- * Drive's registration. The host supplies the page and the settings section,
+ * Drive's registration. The host supplies the page and the settings page,
  * which wrap `DriveApp` and `DriveSettings` in its account and routing; Drive
- * needs no server module to browse (it calls Otter Cloud directly).
+ * needs no server module to browse (it calls Otter Cloud directly). Chunk 3
+ * of the rebuild adds the spaces (drives), sidebar rows, header actions and
+ * the settings pages per docs/adr/0011.
  */
 export const createDriveWebModule = (
-  page: WebModule["page"],
-  settings: WebModuleSettingsSection["component"],
-  /** A thread's linked documents, from the environment's Drive module. */
-  threadAccessory: NonNullable<WebModule["threadAccessory"]>,
-) =>
-  defineWebModule({
+  shell: Pick<WebModule, "page" | "useSpaces" | "useSidebar" | "useHeaderActions" | "stores"> & {
+    readonly settings: WebModule["settings"][number]["component"];
+    /** A thread's linked documents, from the environment's Drive module. */
+    readonly threadAccessory: NonNullable<WebModule["threadAccessory"]>;
+  },
+) => {
+  const { settings, ...rest } = shell;
+  return defineWebModule({
     id: "drive",
     label: "Drive",
     icon: HardDriveIcon,
-    rail: { position: "start", order: 30 },
-    page,
-    settings: {
-      label: "Drive",
-      icon: HardDriveIcon,
-      searchTerms: ["drive", "files", "documents", "folders", "members", "sharing"],
-      component: settings,
-    },
+    ...rest,
+    settings: [
+      {
+        id: "drive",
+        label: "Drive",
+        icon: HardDriveIcon,
+        searchTerms: ["drive", "files", "documents", "folders", "members", "sharing"],
+        component: settings,
+        placement: { grouped: "page", standalone: "page" },
+      },
+    ],
     commands: [
       {
         id: "drive.shared",
@@ -51,5 +54,5 @@ export const createDriveWebModule = (
     searchTerms: ["drive", "files", "documents", "folders", "upload"],
     serverModule: null,
     sideChat: true,
-    threadAccessory,
   });
+};

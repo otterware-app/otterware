@@ -1,21 +1,44 @@
-import { defineWebModule } from "@otterware/module-kit/web";
-import { CalendarDaysIcon } from "lucide-react";
+import { defineWebModule, type ModuleSpace } from "@otterware/module-kit/web";
+import {
+  CalendarDaysIcon,
+  CalendarIcon,
+  CalendarRangeIcon,
+  ListIcon,
+  SquareIcon,
+} from "lucide-react";
 import { lazy } from "react";
 
+/** Calendar's spaces are its views, never individual calendars (ADR 0020). */
+export const CALENDAR_VIEW_SPACES: ReadonlyArray<ModuleSpace> = [
+  { id: "day", label: "Day", icon: SquareIcon, href: "/calendar/day" },
+  { id: "week", label: "Week", icon: CalendarRangeIcon, href: "/calendar/week" },
+  { id: "month", label: "Month", icon: CalendarIcon, href: "/calendar/month" },
+  { id: "agenda", label: "Agenda", icon: ListIcon, href: "/calendar/agenda" },
+];
+
+/**
+ * Calendar's registration. The host wraps the page with its environment
+ * provider; chunk 3 of the rebuild adds the sidebar rows (calendars, Watch
+ * only), header actions and the settings pages per docs/adr/0011.
+ */
 export const CalendarWebModule = defineWebModule({
   id: "calendar",
   label: "Calendar",
   icon: CalendarDaysIcon,
-  rail: { position: "start", order: 20 },
   serverModule: "calendar",
   sideChat: true,
   page: lazy(() => import("./CalendarPage.tsx")),
-  settings: {
-    label: "Calendar",
-    icon: CalendarDaysIcon,
-    searchTerms: ["calendar", "google", "accounts", "week", "time zone"],
-    component: lazy(() => import("./CalendarSettings.tsx")),
-  },
+  useSpaces: () => CALENDAR_VIEW_SPACES,
+  settings: [
+    {
+      id: "calendar",
+      label: "Calendar",
+      icon: CalendarDaysIcon,
+      searchTerms: ["calendar", "google", "accounts", "week", "time zone"],
+      component: lazy(() => import("./CalendarSettings.tsx")),
+      placement: { grouped: "page", standalone: "page" },
+    },
+  ],
   commands: [
     {
       id: "calendar.search",
