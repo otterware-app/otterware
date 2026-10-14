@@ -24,6 +24,7 @@ import * as BrowserAgent from "./agent/BrowserAgent.ts";
 import { layerAgentHandlers } from "./agent/handlers.ts";
 import * as BrowserInstallation from "./BrowserInstallation.ts";
 import { BrowserPlatform } from "./BrowserPlatform.ts";
+import * as BrowserSecrets from "./BrowserSecrets.ts";
 import { BrowserModulesRpcGroup } from "./contracts.ts";
 
 /**
@@ -68,7 +69,7 @@ export const layerHost =
       layerMailFollowsAccount,
     ).pipe(
       Layer.provideMerge(BrowserAgent.layer),
-      Layer.provideMerge(AgentStore.layer),
+      Layer.provideMerge(AgentStore.layer.pipe(Layer.provide(BrowserSecrets.layer))),
       Layer.provideMerge(layerRuntime<Requirements>(modules)),
       Layer.provideMerge(Layer.merge(layerAccountCredential, layerMailHost)),
       Layer.provideMerge(BrowserAccount.layer),

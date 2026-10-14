@@ -1,8 +1,8 @@
 /**
  * The light agent loop's data in `suite.sqlite`, namespaced `browser_agent_*`:
  * the user's Hermes and OpenClaw servers, threads, and each thread's history
- * as the chat shows it. Credentials stay in this browser profile, like the
- * rest of its data (ADR 0008).
+ * as the chat shows it. Credentials stay in this browser profile, sealed
+ * with its non-extractable key (`BrowserSecrets.ts`).
  */
 import { runSuiteMigrations, SuiteSqlClient } from "@otterware/module-kit/runtime";
 import type { SuiteMigration } from "@otterware/module-kit/engine";
@@ -15,6 +15,7 @@ import * as Schema from "effect/Schema";
 import * as SqlClient from "effect/sql/SqlClient";
 import type { SqlError } from "effect/sql/SqlError";
 
+import { BrowserSecrets } from "../BrowserSecrets.ts";
 import {
   type BrowserAgentAccess,
   type BrowserAgentKind,
@@ -125,20 +126,21 @@ export const layer = Layer.effect(
   AgentStore,
   Effect.gen(function* () {
     const sql = yield* SuiteSqlClient;
+    const secrets = yield* BrowserSecrets;
     yield* runSuiteMigrations(AGENT_MIGRATIONS).pipe(
       Effect.provideService(SqlClient.SqlClient, sql),
     );
 
     const server = (agent: "hermes" | "openclaw") =>
-      Effect.map(
-        sql<{ readonly base_url: string; readonly secret: string }>`
+      Effect.gen(function* () {
+        const rows = yield* sql<{ readonly base_url: string; readonly secret: string }>`
           SELECT base_url, secret FROM browser_agent_servers WHERE agent = ${agent}
-        `,
-        (rows): AgentServer => ({
+        `;
+        return {
           baseUrl: rows[0]?.base_url ?? "",
-          secret: rows[0]?.secret ?? "",
-        }),
-      );
+          secret: yield* secrets.open(rows[0]?.secret ?? ""),
+        } satisfies AgentServer;
+      });
 
     const thread = (id: string) =>
       Effect.map(sql<ThreadRow>`SELECT * FROM browser_agent_threads WHERE id = ${id}`, (rows) =>
@@ -148,11 +150,14 @@ export const layer = Layer.effect(
     return AgentStore.of({
       server,
       saveServer: (agent, { baseUrl, secret }) =>
-        sql`
-          INSERT INTO browser_agent_servers (agent, base_url, secret)
-          VALUES (${agent}, ${baseUrl}, ${secret})
-          ON CONFLICT (agent) DO UPDATE SET base_url = excluded.base_url, secret = excluded.secret
-        `.pipe(Effect.asVoid),
+        Effect.flatMap(
+          secrets.seal(secret),
+          (sealed) => sql`
+            INSERT INTO browser_agent_servers (agent, base_url, secret)
+            VALUES (${agent}, ${baseUrl}, ${sealed})
+            ON CONFLICT (agent) DO UPDATE SET base_url = excluded.base_url, secret = excluded.secret
+          `,
+        ).pipe(Effect.asVoid),
       threads: Effect.map(
         sql<ThreadRow>`SELECT * FROM browser_agent_threads ORDER BY updated_at DESC`,
         (rows) => rows.map(toThread),

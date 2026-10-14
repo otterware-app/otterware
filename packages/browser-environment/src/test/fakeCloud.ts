@@ -51,6 +51,7 @@ export class FakeSocket extends EventTarget {
 }
 
 export const makeFakeCloud = (): FakeCloud => {
+  let secretKey: Promise<CryptoKey> | undefined;
   const waiting = new Map<number, (socket: FakeSocket) => void>();
   const opened = (socket: FakeSocket) => {
     const index = fake.sockets.indexOf(socket);
@@ -105,6 +106,11 @@ export const makeFakeCloud = (): FakeCloud => {
           this.addEventListener("open", () => opened(this), { once: true });
         }
       } as unknown as typeof WebSocket,
+      secretKey: () =>
+        (secretKey ??= crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
+          "encrypt",
+          "decrypt",
+        ])),
     },
   };
   return fake;
