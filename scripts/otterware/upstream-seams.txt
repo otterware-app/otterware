@@ -97,3 +97,7 @@ apps/desktop/src/ipc/DesktopIpcHandlers.ts
 apps/desktop/src/preload.ts
 # CI: hold the first callback listener open before selecting a second test port
 apps/desktop/src/app/CodexAuthCallback.test.ts
+
+# Module unread counts share the host dock/taskbar badge and survive Code focus changes
+apps/desktop/src/ipc/methods/notificationBadge.ts
+apps/desktop/src/ipc/methods/notificationBadge.test.ts

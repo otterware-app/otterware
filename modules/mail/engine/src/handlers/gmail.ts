@@ -224,6 +224,9 @@ function parseAttachments(raw: unknown): ComposeAttachment[] | undefined {
 // ── Registration ──────────────────────────────────────────────────────────────
 
 export function registerGmailHandlers(): void {
+  handle("gmail:getUnreadCount", () =>
+    mailStore.countInboxUnreadAll(mailSync.turnedOffMailboxes()),
+  );
   handle("gmail:listSchedules", () => listSchedules());
   handle("gmail:scheduleMessage", (params: unknown) => {
     const p = params as Record<string, unknown>;

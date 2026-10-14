@@ -224,7 +224,7 @@ async function start() {
     relaySession: "bearer",
     broadcast,
     notify: (notification) => void host("notify", notification).catch(() => {}),
-    setUnreadCount: () => {},
+    setUnreadCount: (count) => broadcast("gmail:unread-count", count),
     onResume: () => () => {},
     asyncContext<T>() {
       const context = new NodeAsyncHooks.AsyncLocalStorage<T>();

@@ -2475,6 +2475,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     ...(platform === "win"
       ? { asar: { smartUnpack: false }, asarUnpack: [WINDOWS_NATIVE_ASAR_UNPACK_GLOB] }
       : {}),
+    protocols: activeProfile.id === "mail" ? [{ name: "Email", schemes: ["mailto"] }] : [],
     extraResources: [
       ...DESKTOP_EXTRA_RESOURCES,
       ...(platform === "win" ? [] : TSSERVER_EXTRA_RESOURCES),
@@ -2521,6 +2522,9 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
         ],
       },
       protocols: [
+        ...(activeProfile.id === "mail"
+          ? [{ name: "Email", schemes: ["mailto"], role: "Viewer" }]
+          : []),
         {
           name: activeProfile.brand.productName,
           schemes: [activeProfile.brand.urlScheme, activeProfile.brand.devUrlScheme],
@@ -2588,6 +2592,9 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       // in the .desktop entry (Exec already gets %U), so browsers can hand
       // t3code:// OAuth callbacks to the app.
       protocols: [
+        ...(activeProfile.id === "mail"
+          ? [{ name: "Email", schemes: ["mailto"], role: "Viewer" }]
+          : []),
         {
           name: activeProfile.brand.productName,
           schemes: [activeProfile.brand.urlScheme, activeProfile.brand.devUrlScheme],
