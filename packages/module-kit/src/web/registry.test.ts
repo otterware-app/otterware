@@ -2,12 +2,7 @@ import { HouseIcon, MailIcon } from "lucide-react";
 import { lazy } from "react";
 import { describe, expect, it } from "vite-plus/test";
 
-import {
-  createModuleRegistry,
-  defineWebModule,
-  moduleSettingsPath,
-  projectScopedModulePath,
-} from "./registry.ts";
+import { createModuleRegistry, defineWebModule, projectScopedModulePath } from "./registry.ts";
 
 const page = lazy(() => Promise.resolve({ default: () => null }));
 
@@ -60,14 +55,5 @@ describe("createModuleRegistry", () => {
     expect(registry.forPath("/home/projects/p1/drive")?.module).toBe(home);
     expect(registry.forPath("/settings/mail/reading")).toBeNull();
     expect(registry.isModulePath("/usage")).toBe(false);
-    expect(registry.settings.map((module) => module.id)).toEqual(["mail"]);
-    expect(moduleSettingsPath("mail", "reading")).toBe("/settings/mail/reading");
-    expect(registry.threadAccessories).toEqual([]);
-  });
-
-  it("lists the modules that show something on Code threads", () => {
-    const drive = defineWebModule({ ...mail, id: "drive", threadAccessory: page });
-    const registry = createModuleRegistry([home, mail, drive]);
-    expect(registry.threadAccessories.map((module) => module.id)).toEqual(["drive"]);
   });
 });

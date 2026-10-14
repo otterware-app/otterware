@@ -8,6 +8,7 @@ import { createAuth } from "./auth";
 import { authenticate } from "./actor";
 import { deleteIdentity, identityRequest } from "./identity";
 import { browserAuth } from "./browser-auth";
+import { deviceApproval } from "./device-approval";
 import type { Env } from "./types";
 
 let server: ReturnType<typeof createServer>;
@@ -358,12 +359,24 @@ describe("shared Otter identity", () => {
       user_code: string;
       device_code: string;
     };
-    const claim = await auth.handler(
-      new Request(`${env.APP_URL}/api/auth/device?user_code=${code.user_code}`, { headers }),
-    );
+    const pageUrl = `${env.APP_URL}/device?user_code=${code.user_code}`;
+    const signedOut = await deviceApproval(new Request(pageUrl), env);
+    expect(await signedOut.text()).toContain("Sign in with Otter Account");
+    const claim = await deviceApproval(new Request(pageUrl, { headers }), env);
     expect(claim.status).toBe(200);
+    const page = await claim.text();
+    expect(page).toContain(code.user_code);
+    expect(page).toContain("owner@example.com");
+    expect(page).toContain('value="approve"');
+    expect(page).toContain('value="deny"');
+    expect(
+      (await auth.api.deviceVerify({ headers, query: { user_code: code.user_code } })).status,
+    ).toBe("pending");
     const approved = await call("/device/approve", { userCode: code.user_code }, true);
     expect(approved.status).toBe(200);
+    expect(await (await deviceApproval(new Request(pageUrl, { headers }), env)).text()).toContain(
+      "already been reviewed",
+    );
     const granted = await call("/device/token", {
       grant_type: "urn:ietf:params:oauth:grant-type:device_code",
       device_code: code.device_code,
@@ -380,6 +393,14 @@ describe("shared Otter identity", () => {
     );
     expect(actor.userId).toBe("stable-otter-id");
     expect(actor.folderId).toBe("folder");
+  });
+  it("rejects invalid or expired approval codes and never accepts a page mutation", async () => {
+    const { response } = await login();
+    const request = new Request(`${env.APP_URL}/device?user_code=INVALID`, {
+      headers: { cookie: cookies(response) },
+    });
+    expect((await deviceApproval(request, env)).status).toBe(400);
+    expect((await deviceApproval(new Request(request, { method: "POST" }), env)).status).toBe(405);
   });
   it("does not link a new identity to an existing user just because the emails match", async () => {
     const { response } = await login("different-otter-id");

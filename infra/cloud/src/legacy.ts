@@ -27,6 +27,7 @@ import { authenticate as cloudAuthenticate } from "./auth.ts";
 import { createAuth } from "../drive/src/server/auth.ts";
 import { authenticate } from "../drive/src/server/actor.ts";
 import { ensureDriveIdentity } from "./drive-identity.ts";
+import { deviceApproval } from "../drive/src/server/device-approval.ts";
 
 export function accountsEnv(env: Env): AccountsEnv {
   return {
@@ -91,6 +92,7 @@ export async function drive(request: Request, env: Env, parallel: boolean) {
   if (!isAllowedHostPath(request, hostBindings)) return hostNotFound();
   const url = new URL(request.url);
   try {
+    if (url.pathname === "/device") return await deviceApproval(request, bindings);
     if (url.pathname.startsWith("/api/v1/")) {
       // Provision from the authenticated Accounts subject, never an email match.
       if (request.headers.has("x-otter-audience")) {

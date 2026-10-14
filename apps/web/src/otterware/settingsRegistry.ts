@@ -170,7 +170,17 @@ const ACCOUNT_SEARCH_ITEM: OtterwareSettingsSearchItem = {
   id: "account",
   title: "Otter Account",
   to: ACCOUNT_SETTINGS_PATH,
-  searchTerms: ["account", "sign in", "sign out", "otter", "devices", "tokens"],
+  searchTerms: [
+    "account",
+    "sign in",
+    "sign out",
+    "otter",
+    "devices",
+    "tokens",
+    "command line",
+    "CLI",
+    "otterdrive auth login",
+  ],
 };
 
 const MODULES_SEARCH_ITEM: OtterwareSettingsSearchItem = {

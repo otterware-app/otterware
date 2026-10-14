@@ -6,6 +6,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vite-plus/test";
 import { bundle } from "../scripts/bundle.ts";
 
 let runtime: Miniflare;
+let workerScript: string;
 const origin = "https://cloud.otterware.app";
 const audience = "environment:test";
 const identityScript = `
@@ -29,6 +30,7 @@ export default { async fetch(request, env) {
 `;
 beforeAll(async () => {
   const result = await bundle("src/worker.ts", false);
+  workerScript = result.outputFiles![0]!.text;
   runtime = new Miniflare(
     convertV4MiniflareOptions({
       workers: [
@@ -134,6 +136,45 @@ const mutation = (
 ) => ({ collection: "settings", id, modifiedAt, value, mutationId });
 
 describe("parallel Cloud Worker", () => {
+  it("serves CLI approval on the Drive host without falling through to SPA assets", async () => {
+    const cutover = new Miniflare(
+      convertV4MiniflareOptions({
+        modules: true,
+        script: workerScript,
+        compatibilityDate: "2026-09-01",
+        compatibilityFlags: ["nodejs_compat"],
+        bindings: {
+          CLOUD_ORIGIN: origin,
+          LEGACY_HOSTS: "enabled",
+          DRIVE_SECRET: "test-drive-secret-is-at-least-32-characters",
+          CONTENT_SIGNING_KEY: "test-content-secret-is-at-least-32-characters",
+        },
+        d1Databases: { DRIVE_DB: "device-test" },
+      }),
+    );
+    try {
+      const page = await cutover.dispatchFetch("https://drive.otterware.app/device");
+      expect(page.status).toBe(200);
+      expect(page.headers.get("cache-control")).toBe("no-store");
+      expect(await page.text()).toContain("otterdrive auth login");
+      expect((await cutover.dispatchFetch("https://usercontent.otterware.app/device")).status).toBe(
+        404,
+      );
+      expect(
+        (await cutover.dispatchFetch("https://drive.otterware.app/device", { method: "POST" }))
+          .status,
+      ).toBe(405);
+    } finally {
+      await cutover.dispose();
+    }
+  });
+  it("sends device approval to Drive's OAuth origin, preserving the CLI code", async () => {
+    const response = await request("/device?user_code=ABCD-EFGH", { redirect: "manual" });
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      "https://drive.otterware.app/device?user_code=ABCD-EFGH",
+    );
+  });
   it("serves health only on the new hostname and rejects uploaded-content paths", async () => {
     expect((await request("/health")).status).toBe(200);
     expect((await request("/raw/a/test/version/index.html")).status).toBe(404);

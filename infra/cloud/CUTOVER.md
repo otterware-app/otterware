@@ -119,11 +119,15 @@ newer local edits. `sync.changed` is an invalidation hint, never the copy of rec
 no account continue using the same local store and outbox.
 
 The imported Drive API is at `/api/v1/`; it accepts API keys/Drive sessions and Cloud tokens.
-Cloud users must already have an explicitly linked Drive identity (no matching by email).
+Cloud users get a Drive identity and personal drive on their first authenticated request, linked
+by the verified Otter Account subject (never by matching email).
 Preview and thumbnail grants continue targeting **only** `usercontent.otterware.app`, using the
-existing key. The Cloud host rejects `/raw/*` before dispatch. The Drive profile's W5 static
-build replaces `public/` only at cutover; this API deployment does not ship an incomplete Drive UI.
-The imported CLI source is in `drive-cli/`, built by `build:cli`; no CLI release is published.
+existing key. The Cloud host rejects `/raw/*` before dispatch. The Cloud build ships the
+standalone Drive profile under `public/drive/`; moving the canonical Drive hostname still waits
+for cutover. CLI device approval at `/device` is served by the Worker
+on that canonical hostname, independently of the SPA, using Drive's Otter Account OAuth session.
+The CLI source is in `apps/drive-cli/`, built by `build:cli`. Its separate
+`publish-drive-cli.yml` workflow publishes to npm only on manual dispatch.
 
 OpenRouter uses `/v1/cloud/agent/*` and a new `CloudAgentHub` namespace, preserving the imported
 `/connection`, `/sessions`, `/turn`, `/tool-result`, and `/cancel` protocol. Keys are sealed;

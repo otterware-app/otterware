@@ -59,6 +59,16 @@ export function AccountSettingsPage() {
             </Button>
           }
         />
+        <SettingsRow
+          id="account-command-line"
+          title="Command line"
+          description={
+            <>
+              Run <code>otterdrive auth login</code> in your terminal, then approve the sign-in in
+              your browser with your Otter Account.
+            </>
+          }
+        />
       </SettingsSection>
       {environmentId !== null ? (
         <SettingsSection id="account-environment" title="Environment">

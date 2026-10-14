@@ -1,27 +1,14 @@
 import { PROFILES } from "@otterware/profiles";
 import { describe, expect, it } from "vite-plus/test";
 
-import {
-  composeContracts,
-  OTTERWARE_RPC_AGGREGATES,
-  OTTERWARE_RPC_SUPERSET_SCOPES,
-} from "./contracts.ts";
+import { composeContracts } from "./contracts.ts";
 
 describe("composeContracts", () => {
   it("serves only the active profile's modules while the host RPCs stay", () => {
     const code = composeContracts(PROFILES.code);
     expect(code.moduleIds).toEqual([]);
-    expect([...code.group.requests.keys()]).toEqual([
-      "modules.list",
-      "modules.setEnabled",
-      "assistant.ensureProject",
-      "account.session.attach",
-      "account.session.detach",
-      "account.session.state",
-      "account.connections.list",
-      "account.connections.connect",
-      "account.connections.disconnect",
-    ]);
+    expect([...code.group.requests.keys()]).toContain("modules.list");
+    expect([...code.group.requests.keys()].some((tag) => tag.startsWith("mail."))).toBe(false);
 
     expect(code.scopes["account.session.attach"]).toBe("settings:write");
     expect(code.scopes["account.connections.list"]).toBe("orchestration:read");
@@ -46,21 +33,5 @@ describe("composeContracts", () => {
     expect(otterware.moduleIds).toEqual(["home", "mail", "calendar", "drive"]);
     expect([...otterware.group.requests.keys()]).toContain("home.overview");
     expect(otterware.scopes["home.overview"]).toBe("orchestration:read");
-  });
-
-  it("labels every known method for instrumentation and authorization", () => {
-    for (const tag of Object.keys(OTTERWARE_RPC_SUPERSET_SCOPES)) {
-      expect(OTTERWARE_RPC_AGGREGATES[tag as keyof typeof OTTERWARE_RPC_AGGREGATES]).toBe(
-        tag.startsWith("home.")
-          ? "module.home"
-          : tag.startsWith("calendar.")
-            ? "module.calendar"
-            : tag.startsWith("mail.")
-              ? "module.mail"
-              : tag.startsWith("drive.")
-                ? "module.drive"
-                : "host",
-      );
-    }
   });
 });

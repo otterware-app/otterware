@@ -251,6 +251,10 @@ function forwardToMail(c: Context<App>, request: Request, sessionToken: string) 
 }
 app.all("/v1/cloud/mail/*", (c) => forwardToMail(c, c.req.raw, c.var.identity.sessionToken));
 app.all("/api/*", (c) => drive(c.req.raw, c.env, true));
+// CLI auth remains on Drive's canonical origin, including its OAuth callback cookie.
+app.get("/device", (c) =>
+  c.redirect(`https://drive.otterware.app/device${new URL(c.req.url).search}`, 302),
+);
 app.notFound((c) => {
   const redirect = driveStaticRedirect(c.req.raw);
   if (redirect) return redirect;
