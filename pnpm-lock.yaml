@@ -1838,6 +1838,9 @@ importers:
 
   packages/client-runtime:
     dependencies:
+      '@otterware/browser-environment':
+        specifier: workspace:*
+        version: link:../browser-environment
       '@otterware/composition':
         specifier: workspace:*
         version: link:../composition
