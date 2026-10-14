@@ -496,6 +496,10 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v6
+        with:
+          # The check diffs against the branch point with main; a shallow merge checkout
+          # hides it for long stacked branches.
+          fetch-depth: 0
       - uses: voidzero-dev/setup-vp@v1
         with:
           node-version-file: package.json
