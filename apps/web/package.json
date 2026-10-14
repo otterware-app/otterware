@@ -24,6 +24,7 @@
     "@noble/hashes": "catalog:",
     "@otterware/browser-environment": "workspace:*",
     "@otterware/composition": "workspace:*",
+    "@otterware/mail-browser": "workspace:*",
     "@otterware/mail-contracts": "workspace:*",
     "@otterware/mail-web": "workspace:*",
     "@otterware/module-kit": "workspace:*",

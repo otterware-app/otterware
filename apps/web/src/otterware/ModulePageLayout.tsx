@@ -105,6 +105,8 @@ export function ModulePageLayout({
   sidebar,
   headerActions,
   assistantOpen,
+  assistantContent,
+  availability: targetAvailability,
   onAssistantOpenChange,
   children,
 }: {
@@ -116,11 +118,14 @@ export function ModulePageLayout({
   readonly headerActions?: ReactNode;
   readonly children: ReactNode;
   readonly assistantOpen?: boolean;
+  readonly assistantContent?: ReactNode;
+  readonly availability?: ServerModuleAvailability;
   readonly onAssistantOpenChange?: (open: boolean) => void;
 }) {
   const module = moduleRegistry.byId(moduleId);
   const label = module?.label ?? moduleId;
-  const availability = useServerModuleAvailability(module?.serverModule ?? null);
+  const serverAvailability = useServerModuleAvailability(module?.serverModule ?? null);
+  const availability = targetAvailability ?? serverAvailability;
   const available = availability === "on";
   const [localChatOpen, setLocalChatOpen] = useState(false);
   const chatOpen = assistantOpen ?? localChatOpen;
@@ -170,11 +175,13 @@ export function ModulePageLayout({
             aria-label="Assistant"
           >
             <Suspense fallback={null}>
-              <ModuleSideChat
-                moduleId={moduleId}
-                onHide={() => setChatOpen(false)}
-                hideShortcutLabel="Close assistant"
-              />
+              {assistantContent ?? (
+                <ModuleSideChat
+                  moduleId={moduleId}
+                  onHide={() => setChatOpen(false)}
+                  hideShortcutLabel="Close assistant"
+                />
+              )}
             </Suspense>
           </aside>
         ) : null}

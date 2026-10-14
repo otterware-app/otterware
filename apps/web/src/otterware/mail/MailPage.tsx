@@ -1,25 +1,47 @@
+import { BrowserAccountBridge } from "../browser/BrowserAccountBridge";
+import { BrowserEnvironmentNotice } from "../browser/BrowserEnvironmentNotice";
+import { BrowserChat } from "../browser/chat/BrowserChat";
+import { useModuleTarget } from "../browser/runtime";
+import {
+  browserMailTransport,
+  useBrowserMailAvailability,
+  useBrowserMailIdentity,
+  useMailPageCapabilities,
+} from "./browserClient";
 import { useMailDesktopCapabilities } from "./desktop";
 import { useModulePageContext, type ModulePageProps } from "@otterware/module-kit/web";
 import { MailSurface, type MailPageSelection } from "@otterware/mail-web";
 import { useLocation, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
-import { usePrimaryEnvironmentId } from "../../state/environments";
+import { useCallback, useMemo, useState } from "react";
 import { ModulePageLayout } from "../ModulePageLayout";
 import { useServerModuleAvailability } from "../moduleState";
 import { createMailHost } from "./rpc/host";
 import { mailSession } from "./sessions";
 
 export default function MailPage({ subpath, active }: ModulePageProps) {
-  const environmentId = usePrimaryEnvironmentId();
-  const available = useServerModuleAvailability("mail") === "on";
+  const target = useModuleTarget();
+  const environmentId = target._tag === "environment" ? target.environmentId : null;
+  const inBrowser = target._tag === "browser";
+  const browserAvailability = useBrowserMailAvailability(inBrowser);
+  const browserIdentity = useBrowserMailIdentity(inBrowser);
+  const serverAvailability = useServerModuleAvailability("mail");
+  const availability = inBrowser ? browserAvailability : serverAvailability;
+  const available = availability === "on";
   const navigate = useNavigate();
   const desktop = useMailDesktopCapabilities();
+  const navigateMail = useCallback(
+    (path: string) => {
+      void navigate({ to: path });
+    },
+    [navigate],
+  );
+  useMailPageCapabilities(inBrowser && active, navigateMail);
   const search = useLocation({ select: (location) => location.searchStr });
   const [assistantOpen, setAssistantOpen] = useState(false);
   const [selection, setSelection] = useState<MailPageSelection | null>(null);
   const host = useMemo(
     () =>
-      environmentId
+      environmentId || inBrowser
         ? createMailHost(
             environmentId,
             {
@@ -30,9 +52,10 @@ export default function MailPage({ subpath, active }: ModulePageProps) {
               publishSelection: setSelection,
             },
             desktop,
+            inBrowser ? { ...browserMailTransport, id: `browser:${browserIdentity}` } : undefined,
           )
         : null,
-    [environmentId, navigate, desktop],
+    [environmentId, inBrowser, browserIdentity, navigate, desktop],
   );
   useModulePageContext(
     {
@@ -62,9 +85,23 @@ export default function MailPage({ subpath, active }: ModulePageProps) {
   return (
     <ModulePageLayout
       moduleId="mail"
+      availability={availability}
+      assistantContent={
+        inBrowser ? (
+          <BrowserChat
+            context={JSON.stringify({ module: "mail", path: `/mail/${subpath}`, selection })}
+          />
+        ) : undefined
+      }
       assistantOpen={assistantOpen}
       onAssistantOpenChange={setAssistantOpen}
     >
+      {inBrowser && active ? (
+        <>
+          <BrowserAccountBridge />
+          <BrowserEnvironmentNotice />
+        </>
+      ) : null}
       {active && available && host ? (
         <MailSurface
           host={host}

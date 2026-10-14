@@ -869,6 +869,9 @@ importers:
       '@otterware/composition':
         specifier: workspace:*
         version: link:../../packages/composition
+      '@otterware/mail-browser':
+        specifier: workspace:*
+        version: link:../../modules/mail/browser
       '@otterware/mail-contracts':
         specifier: workspace:*
         version: link:../../modules/mail/contracts
