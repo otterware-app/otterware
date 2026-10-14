@@ -1,4 +1,4 @@
-import { OrchestrationDispatchCommandError } from "@t3tools/contracts";
+import { LanguageServiceError, OrchestrationDispatchCommandError } from "@t3tools/contracts";
 import * as Crypto from "effect/Crypto";
 import * as Orchestrator from "./orchestration-v2/Orchestrator.ts";
 
@@ -195,6 +195,8 @@ import { deletePendingAttachment, issueAttachmentUploadUrl } from "./assets/Atta
 import * as PortScanner from "./preview/PortScanner.ts";
 import * as WorkspaceEntries from "./workspace/WorkspaceEntries.ts";
 import * as WorkspaceFileSystem from "./workspace/WorkspaceFileSystem.ts";
+import { WorkspaceLanguageService } from "./workspace/WorkspaceLanguageService.ts";
+import { languageServerStatuses } from "./workspace/languageServers.ts";
 import { readWorkflowScript } from "./orchestration-v2/workflowScriptQuery.ts";
 import * as WorkspacePaths from "./workspace/WorkspacePaths.ts";
 import * as VcsStatusBroadcaster from "./vcs/VcsStatusBroadcaster.ts";
@@ -220,6 +222,7 @@ import * as EnvironmentAuth from "./auth/EnvironmentAuth.ts";
 import { requiredScopeForDeviceList, rpcAuthorizationError } from "./auth/RpcAuthorization.ts";
 import * as RpcAuthorization from "./auth/RpcAuthorization.ts";
 import { RpcInstrumentation, rpcInstrumentationLayer } from "./observability/RpcInstrumentation.ts";
+import * as OtterwareServer from "./otterware/OtterwareServer.ts";
 import * as ProcessDiagnostics from "./diagnostics/ProcessDiagnostics.ts";
 import * as ProcessResourceMonitor from "./diagnostics/ProcessResourceMonitor.ts";
 import * as ResourceTelemetry from "./resourceTelemetry/ResourceTelemetry.ts";
@@ -232,6 +235,7 @@ import * as PullRequestReviewGuideService from "./pullRequest/PullRequestReviewG
 import { listLinkedPullRequestThreads } from "./pullRequest/linkedThreads.ts";
 import { pullRequestSyncKey } from "./pullRequest/pullRequestSyncKey.ts";
 import * as SqlClient from "effect/sql/SqlClient";
+import * as LinearIssueSyncReactor from "./linear/LinearIssueSyncReactor.ts";
 import * as PullRequestSyncReactor from "./orchestration-v2/PullRequestSyncReactor.ts";
 import * as SourceControlDiscovery from "./sourceControl/SourceControlDiscovery.ts";
 import * as OtlpEndpointCheck from "./observability/OtlpEndpointCheck.ts";
@@ -1197,12 +1201,15 @@ export const subscribeOrchestrationV2Shell = Effect.fn("ws.orchestrationV2.subsc
   },
 );
 
+const isLanguageServiceError = Schema.is(LanguageServiceError);
+
 const layerWsRpc = (
   currentSession: EnvironmentAuth.AuthenticatedSession,
   clientOrigin: OrchestrationClientOrigin,
   clientAnalyticsProps: Readonly<Record<string, unknown>>,
   previewAutomationBroker: PreviewAutomationBroker.PreviewAutomationBroker["Service"],
   serverBrowser: ServerBrowser.ServerBrowser["Service"],
+  workspaceLanguage: WorkspaceLanguageService,
 ) =>
   ServerWsRpcGroup.toLayer(
     Effect.gen(function* () {
@@ -1244,6 +1251,7 @@ const layerWsRpc = (
       const pullRequests = yield* PullRequestService.PullRequestService;
       const reviewGuides = yield* PullRequestReviewGuideService.PullRequestReviewGuideService;
       const pullRequestSync = yield* PullRequestSyncReactor.PullRequestSyncReactor;
+      const linearIssues = yield* LinearIssueSyncReactor.LinearIssueSyncReactor;
       const deviceService = yield* DeviceService.DeviceService;
       const deviceHostContext =
         yield* Effect.context<Effect.Services<ReturnType<typeof remoteSshDeviceHosts>>>();
@@ -2507,6 +2515,8 @@ const layerWsRpc = (
                   ),
             ),
           ),
+        [WS_METHODS.linearIssueDetail]: (input) => linearIssues.readIssueDetail(input.reference),
+        [WS_METHODS.linearSubscribeIssueChanges]: () => linearIssues.issueChanges,
         [WS_METHODS.pullRequestsDetail]: (input) =>
           withPullRequestViewer(input, pullRequests.detail(input)),
         [WS_METHODS.pullRequestsPreview]: (input) =>
@@ -2675,6 +2685,33 @@ const layerWsRpc = (
                   cause,
                 }),
             ),
+          ),
+        [WS_METHODS.projectsLanguage]: (input) =>
+          serverSettings.getSettings.pipe(
+            Effect.map((settings) => settings.codeIntelligence),
+            // Unreadable settings must not take code intelligence down with them.
+            Effect.orElseSucceed(() => ({})),
+            Effect.flatMap((codeIntelligence) =>
+              Effect.tryPromise({
+                try: () => workspaceLanguage.request(input, codeIntelligence),
+                catch: (error) =>
+                  isLanguageServiceError(error)
+                    ? error
+                    : new LanguageServiceError({
+                        message: error instanceof Error ? error.message : String(error),
+                        resync: false,
+                      }),
+              }),
+            ),
+          ),
+        [WS_METHODS.projectsLanguageServers]: () =>
+          serverSettings.getSettings.pipe(
+            Effect.map((settings) => settings.codeIntelligence),
+            Effect.orElseSucceed(() => ({})),
+            Effect.flatMap((codeIntelligence) =>
+              Effect.promise(() => languageServerStatuses(codeIntelligence)),
+            ),
+            Effect.map((servers) => ({ servers })),
           ),
         [WS_METHODS.projectsReadFile]: (input) =>
           workspaceFileSystem.readFile(input).pipe(
@@ -2892,6 +2929,7 @@ const layerWsRpc = (
           vcsProvisioning.initRepository(input).pipe(Effect.tap(() => refreshGitStatus(input.cwd))),
         [WS_METHODS.reviewGetDiffPreview]: (input) => review.getDiffPreview(input),
         [WS_METHODS.reviewGetDiffFileContents]: (input) => review.getDiffFileContents(input),
+        [WS_METHODS.reviewListCommits]: (input) => review.listCommits(input),
         [WS_METHODS.terminalOpen]: (input) => terminalManager.open(input),
         [WS_METHODS.terminalAttach]: (input) =>
           Stream.callback<TerminalAttachStreamEvent, TerminalError>((queue) =>
@@ -3203,9 +3241,15 @@ export const layer = Layer.unwrap(
         const clientAnalyticsProps = readClientAnalyticsProps(request);
         yield* sessions.recordClientConnection(session.sessionId, clientOrigin);
         yield* analytics.record("client.connected", clientAnalyticsProps);
+        // Language sessions hold unsaved editor buffers and child processes for this connection only.
+        const workspaceLanguage = yield* Effect.acquireRelease(
+          Effect.sync(() => new WorkspaceLanguageService()),
+          (service) => Effect.sync(() => service.dispose()),
+        );
         const rpcWebSocketHttpEffect = yield* Effect.gen(function* () {
           const { protocol, httpEffect } = yield* RpcServer.makeProtocolWithHttpEffectWebsocket;
-          yield* RpcServer.make(ServerWsRpcGroup, WS_RPC_SERVER_OPTIONS).pipe(
+          // Otterware seam: serve the upstream group plus this build's host and module RPCs.
+          yield* RpcServer.make(OtterwareServer.ServerRpcGroup, WS_RPC_SERVER_OPTIONS).pipe(
             Effect.provideService(RpcServer.Protocol, withTerminalOutputWindow(protocol)),
             Effect.provide(
               Layer.merge(RpcAuthorization.layer(session.scopes), rpcInstrumentationLayer),
@@ -3222,7 +3266,10 @@ export const layer = Layer.unwrap(
               clientAnalyticsProps,
               previewAutomationBroker,
               serverBrowser,
+              workspaceLanguage,
             ).pipe(
+              // Otterware seam: host and module RPC handlers.
+              Layer.merge(OtterwareServer.layerRpcHandlers),
               Layer.provideMerge(RpcSerialization.layerJson),
               // Request fibers run in the handlers' context, so this reporter sees
               // their defects, not the rest of the server's.

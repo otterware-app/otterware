@@ -3,6 +3,12 @@ import {
   OrchestrationV2SearchThreadInput,
   OrchestrationV2SearchThreadResult,
 } from "./orchestrationV2.ts";
+import {
+  LanguageRequest,
+  LanguageResult,
+  LanguageServerStatusResult,
+  LanguageServiceError,
+} from "./language.ts";
 import { OrchestrationDispatchCommandError } from "./orchestrationDispatch.ts";
 import {
   McpAppCallToolInput,
@@ -148,6 +154,8 @@ import {
   ReviewDiffPreviewError,
   ReviewDiffPreviewInput,
   ReviewDiffPreviewResult,
+  ReviewListCommitsInput,
+  ReviewListCommitsResult,
 } from "./review.ts";
 import { KeybindingsConfigError } from "./keybindings.ts";
 import {
@@ -201,6 +209,12 @@ import {
   PullRequestUnavailableError,
   PullRequestUpdateInput,
 } from "./pullRequest.ts";
+import {
+  LinearIssueChange,
+  LinearIssueDetail,
+  LinearIssueDetailError,
+  LinearIssueDetailInput,
+} from "./linear.ts";
 import {
   RelayClientInstallFailedError,
   RelayClientInstallProgressEventSchema,
@@ -375,6 +389,8 @@ export const WS_METHODS = {
   projectsAdd: "projects.add",
   projectsRemove: "projects.remove",
   projectsListEntries: "projects.listEntries",
+  projectsLanguage: "projects.language",
+  projectsLanguageServers: "projects.languageServers",
   projectsReadFile: "projects.readFile",
   projectsSearchContents: "projects.searchContents",
   projectsSearchEntries: "projects.searchEntries",
@@ -438,6 +454,7 @@ export const WS_METHODS = {
   // Review methods
   reviewGetDiffPreview: "review.getDiffPreview",
   reviewGetDiffFileContents: "review.getDiffFileContents",
+  reviewListCommits: "review.listCommits",
 
   // Terminal methods
   terminalOpen: "terminal.open",
@@ -556,6 +573,8 @@ export const WS_METHODS = {
   pullRequestsInvalidate: "pullRequests.invalidate",
   pullRequestsReportState: "pullRequests.reportState",
   pullRequestsSubscribeRefreshes: "pullRequests.subscribeRefreshes",
+  linearIssueDetail: "linear.issueDetail",
+  linearSubscribeIssueChanges: "linear.subscribeIssueChanges",
   pullRequestsReviewerCandidates: "pullRequests.reviewerCandidates",
   pullRequestsRequestReviewers: "pullRequests.requestReviewers",
   pullRequestsLabelCandidates: "pullRequests.labelCandidates",
@@ -1003,6 +1022,19 @@ const WsPullRequestsLinkedThreadsRpc = Rpc.make(WS_METHODS.pullRequestsLinkedThr
   error: PullRequestRpcError,
 });
 
+const WsLinearIssueDetailRpc = Rpc.make(WS_METHODS.linearIssueDetail, {
+  payload: LinearIssueDetailInput,
+  success: LinearIssueDetail,
+  error: Schema.Union([LinearIssueDetailError, EnvironmentAuthorizationError]),
+});
+
+const WsLinearSubscribeIssueChangesRpc = Rpc.make(WS_METHODS.linearSubscribeIssueChanges, {
+  payload: Schema.Struct({}),
+  success: LinearIssueChange,
+  error: EnvironmentAuthorizationError,
+  stream: true,
+});
+
 const WsPullRequestsDetailRpc = Rpc.make(WS_METHODS.pullRequestsDetail, {
   payload: PullRequestRef,
   success: PullRequestDetail,
@@ -1227,6 +1259,18 @@ const WsProjectsListEntriesRpc = Rpc.make(WS_METHODS.projectsListEntries, {
   error: Schema.Union([ProjectListEntriesError, EnvironmentAuthorizationError]),
 });
 
+const WsProjectsLanguageRpc = Rpc.make(WS_METHODS.projectsLanguage, {
+  payload: LanguageRequest,
+  success: LanguageResult,
+  error: Schema.Union([LanguageServiceError, EnvironmentAuthorizationError]),
+});
+
+const WsProjectsLanguageServersRpc = Rpc.make(WS_METHODS.projectsLanguageServers, {
+  payload: Schema.Struct({}),
+  success: LanguageServerStatusResult,
+  error: EnvironmentAuthorizationError,
+});
+
 const WsProjectsReadFileRpc = Rpc.make(WS_METHODS.projectsReadFile, {
   payload: ProjectReadFileInput,
   success: ProjectReadFileResult,
@@ -1444,6 +1488,12 @@ const WsReviewGetDiffPreviewRpc = Rpc.make(WS_METHODS.reviewGetDiffPreview, {
 const WsReviewGetDiffFileContentsRpc = Rpc.make(WS_METHODS.reviewGetDiffFileContents, {
   payload: ReviewDiffFileContentsInput,
   success: ReviewDiffFileContentsResult,
+  error: Schema.Union([ReviewDiffPreviewError, EnvironmentAuthorizationError]),
+});
+
+const WsReviewListCommitsRpc = Rpc.make(WS_METHODS.reviewListCommits, {
+  payload: ReviewListCommitsInput,
+  success: ReviewListCommitsResult,
   error: Schema.Union([ReviewDiffPreviewError, EnvironmentAuthorizationError]),
 });
 
@@ -1949,6 +1999,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsPullRequestsStackRpc,
   WsPullRequestsLinkedThreadsRpc,
   WsPullRequestsDetailRpc,
+  WsLinearIssueDetailRpc,
+  WsLinearSubscribeIssueChangesRpc,
   WsPullRequestsPreviewRpc,
   WsPullRequestsChecksRpc,
   WsPullRequestsActivityRpc,
@@ -1981,6 +2033,8 @@ export const WsRpcGroup = RpcGroup.make(
   WsProjectCloneRetryRpc,
   WsSubscribeProjectClonesRpc,
   WsProjectsListEntriesRpc,
+  WsProjectsLanguageRpc,
+  WsProjectsLanguageServersRpc,
   WsProjectsReadFileRpc,
   WsProjectsSearchContentsRpc,
   WsProjectsSearchEntriesRpc,
@@ -2018,6 +2072,7 @@ export const WsRpcGroup = RpcGroup.make(
   WsVcsInitRpc,
   WsReviewGetDiffPreviewRpc,
   WsReviewGetDiffFileContentsRpc,
+  WsReviewListCommitsRpc,
   WsTerminalOpenRpc,
   WsTerminalAttachRpc,
   WsTerminalObserveRpc,

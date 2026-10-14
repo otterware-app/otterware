@@ -1,8 +1,9 @@
-import { WsRpcGroup } from "@t3tools/contracts";
+import { OtterwareWsRpcGroup } from "@otterware/composition/contracts";
 import * as Effect from "effect/Effect";
 import { RpcClient } from "effect/rpc";
 
-export const makeWsRpcProtocolClient = RpcClient.make(WsRpcGroup);
+// Otterware seam: the upstream group plus this build's host and module RPCs.
+export const makeWsRpcProtocolClient = RpcClient.make(OtterwareWsRpcGroup);
 type RpcClientFactory = typeof makeWsRpcProtocolClient;
 export type WsRpcProtocolClient =
   RpcClientFactory extends Effect.Effect<infer Client, any, any> ? Client : never;

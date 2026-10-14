@@ -1,3 +1,5 @@
+import { activeProfile } from "@otterware/profiles/active";
+import { profileIconPath } from "@otterware/profiles";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
@@ -61,33 +63,27 @@ const resolveResourcePath = Effect.fn("desktop.assets.resolveResourcePath")(func
   return Option.none<string>();
 });
 
-const sourceTreeIconFileNames = {
-  dev: {
-    ico: "blueprint-windows.ico",
-    macPng: "blueprint-macos-1024.png",
-    universalPng: "blueprint-universal-1024.png",
-  },
-  prod: {
-    ico: "t3-black-windows.ico",
-    macPng: "black-macos-1024.png",
-    universalPng: "black-universal-1024.png",
-  },
-} as const;
-
+// Otterware seam: source-tree artwork follows the profile's icon directory.
 function resolveSourceTreeIconPath(
   environment: DesktopEnvironment.DesktopEnvironment["Service"],
   ext: keyof DesktopIconPaths,
 ): string | undefined {
   if (environment.isPackaged || ext === "icns") return undefined;
-  const brand = environment.isDevelopment ? "dev" : "prod";
-  const fileNames = sourceTreeIconFileNames[brand];
-  const fileName =
+  const channel = environment.isDevelopment
+    ? "development"
+    : environment.branding.stageLabel === "Nightly"
+      ? "nightly"
+      : "production";
+  const filename =
     ext === "ico"
-      ? fileNames.ico
+      ? "windows.ico"
       : environment.platform === "darwin"
-        ? fileNames.macPng
-        : fileNames.universalPng;
-  return environment.path.join(environment.rootDir, "assets", brand, fileName);
+        ? "macos-1024.png"
+        : "universal-1024.png";
+  return environment.path.join(
+    environment.rootDir,
+    profileIconPath(activeProfile, channel, filename),
+  );
 }
 
 const resolveIconPath = Effect.fn("desktop.assets.resolveIconPath")(function* (

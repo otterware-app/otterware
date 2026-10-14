@@ -15,12 +15,15 @@ import {
   BotIcon,
   createLucideIcon,
   CalendarClockIcon,
+  BracesIcon,
   GitBranchIcon,
   HardDriveIcon,
   PanelsTopLeftIcon,
   KeyboardIcon,
+  LayersIcon,
   Link2Icon,
   PaletteIcon,
+  PuzzleIcon,
   SearchIcon,
   Settings2Icon,
   XIcon,
@@ -64,29 +67,39 @@ const SnapShotIcon = createLucideIcon("snap-shot", [
 ]);
 
 const T3ConnectSidebarSignIn = lazy(() =>
-  import("../clerk/T3ConnectSidebarSignIn").then((module) => ({
+  import("../accounts/T3ConnectSidebarSignIn").then((module) => ({
     default: module.T3ConnectSidebarSignIn,
   })),
 );
 const T3ConnectSidebarAvatar = lazy(() =>
-  import("../clerk/T3ConnectSidebarSignIn").then((module) => ({
+  import("../accounts/T3ConnectSidebarSignIn").then((module) => ({
     default: module.T3ConnectSidebarAvatar,
   })),
 );
 
+import {
+  OTTERWARE_SETTINGS_SECTION_ICONS,
+  isProfileSettingsPathVisible,
+} from "../../otterware/settingsRegistry";
+
+// Otterware seam: icons and profile visibility follow the registry.
 const SETTINGS_SECTION_ICONS: Readonly<
   Record<SettingsPath, ComponentType<{ className?: string }>>
 > = {
+  ...OTTERWARE_SETTINGS_SECTION_ICONS,
   "/settings/general": Settings2Icon,
   "/settings/diagnostics": Settings2Icon,
   "/settings/appearance": PaletteIcon,
   "/settings/projects": PanelsTopLeftIcon,
+  "/settings/project-groups": LayersIcon,
   "/settings/keybindings": KeyboardIcon,
   "/settings/snap-shot": SnapShotIcon,
   "/settings/providers": BotIcon,
   "/settings/integrations": BlocksIcon,
+  "/settings/extensions": PuzzleIcon,
   "/settings/scheduled-tasks": CalendarClockIcon,
   "/settings/source-control": GitBranchIcon,
+  "/settings/code-intelligence": BracesIcon,
   "/settings/storage": HardDriveIcon,
   "/settings/connections": Link2Icon,
   "/settings/archived": ArchiveIcon,
@@ -97,7 +110,7 @@ const SETTINGS_NAV_ITEMS: ReadonlyArray<{
   to: SettingsPath;
   icon: ComponentType<{ className?: string }>;
 }> = (Object.keys(SETTINGS_SECTION_LABELS) as SettingsPath[])
-  .filter((to) => to !== "/settings/diagnostics")
+  .filter((to) => to !== "/settings/diagnostics" && isProfileSettingsPathVisible(to))
   .map((to) => ({
     to,
     label: SETTINGS_SECTION_LABELS[to],
@@ -115,7 +128,10 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   const currentSearch = useLocation({ select: (location) => location.search });
   const scopeSearch = useMemo(() => validateSettingsScopeSearch(currentSearch), [currentSearch]);
   const navItems = SETTINGS_NAV_ITEMS.filter(
-    (item) => item.to !== "/settings/projects" || isSettingsOverviewVisible(scopeSearch),
+    (item) =>
+      (item.to !== "/settings/projects" || isSettingsOverviewVisible(scopeSearch)) &&
+      // Browser extensions run in the desktop app's browser only.
+      (item.to !== "/settings/extensions" || window.desktopBridge?.previewExtensions),
   );
   const { isMobile, setOpenMobile, open, setOpen } = useSidebar();
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -187,7 +203,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
         setOpenMobile(false);
       }
       void navigate({
-        to,
+        href: to,
         hash: "",
         replace: true,
         hashScrollIntoView: false,
@@ -211,7 +227,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
         return;
       }
       void navigate({
-        to: item.to,
+        href: item.to,
         hash: targetId,
         replace: true,
         hashScrollIntoView: false,

@@ -1,0 +1,8 @@
+data: {"id":"chatcmpl_run-8b1c","object":"chat.completion.chunk","created":1760000101,"model":"openclaw/default","choices":[{"index":0,"delta":{"role":"assistant"}}]}
+
+data: {"id":"chatcmpl_run-8b1c","object":"chat.completion.chunk","created":1760000101,"model":"openclaw/default","choices":[{"index":0,"delta":{"content":"Two threads are open."}}]}
+
+data: {"id":"chatcmpl_run-8b1c","object":"chat.completion.chunk","created":1760000101,"model":"openclaw/default","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+data: [DONE]
+

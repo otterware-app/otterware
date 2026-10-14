@@ -13,8 +13,19 @@ import {
   type SettingsScopeSearch,
 } from "./settingsScope";
 
+// Otterware seam: contributed sections join the host settings tables.
+import {
+  OTTERWARE_SETTINGS_SECTION_LABELS,
+  OTTERWARE_SETTINGS_CATEGORY_SCOPES,
+  OTTERWARE_SETTINGS_SEARCH_ITEMS,
+  isProfileSettingsPathVisible,
+  type OtterwareSettingsPath,
+} from "../../otterware/settingsRegistry";
+
 export type SettingsPath =
+  | OtterwareSettingsPath
   | "/settings/projects"
+  | "/settings/project-groups"
   | "/settings/general"
   | "/settings/diagnostics"
   | "/settings/appearance"
@@ -22,8 +33,10 @@ export type SettingsPath =
   | "/settings/snap-shot"
   | "/settings/providers"
   | "/settings/integrations"
+  | "/settings/extensions"
   | "/settings/scheduled-tasks"
   | "/settings/source-control"
+  | "/settings/code-intelligence"
   | "/settings/storage"
   | "/settings/connections"
   | "/settings/archived";
@@ -93,16 +106,20 @@ export interface SettingsSearchAvailability {
  * subtitles both render from this record, so each label exists once.
  */
 export const SETTINGS_SECTION_LABELS: Readonly<Record<SettingsPath, string>> = {
+  ...OTTERWARE_SETTINGS_SECTION_LABELS,
   "/settings/diagnostics": "Diagnostics",
   "/settings/projects": "Project",
   "/settings/general": "General",
+  "/settings/project-groups": "Project groups",
   "/settings/appearance": "Appearance",
   "/settings/keybindings": "Keybindings",
   "/settings/snap-shot": "SnapShots",
   "/settings/providers": "Providers",
   "/settings/integrations": "Integrations",
+  "/settings/extensions": "Browser Extensions",
   "/settings/scheduled-tasks": "Scheduled Tasks",
   "/settings/source-control": "Source Control",
+  "/settings/code-intelligence": "Code Intelligence",
   "/settings/storage": "Storage",
   "/settings/connections": "Connections",
   "/settings/archived": "Archive",
@@ -164,6 +181,7 @@ const SOURCE_CONTROL_HOST_SEARCH_ITEMS = sourceControlClients.definitions.flatMa
  * that may not be mounted point at their nearest stable section instead.
  */
 export const SETTINGS_SEARCH_ITEMS = [
+  ...OTTERWARE_SETTINGS_SEARCH_ITEMS,
   {
     id: "storage-worktree-keep-when",
     targetId: "storage-worktrees",
@@ -565,16 +583,10 @@ export const SETTINGS_SEARCH_ITEMS = [
   },
   {
     id: "cli-command",
-    title: "t3 command",
+    title: "otter-code command",
     to: "/settings/general",
     searchTerms: ["cli terminal shell path install command line"],
     desktopOnly: true,
-  },
-  {
-    id: "privacy-policy",
-    title: "Privacy policy",
-    to: "/settings/general",
-    searchTerms: ["telemetry analytics usage data tracking legal opt out"],
   },
   {
     id: "telemetry-export",
@@ -806,6 +818,28 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["pull request merge squash rebase last selected"],
   },
   {
+    id: "project-groups",
+    title: "Project groups",
+    to: "/settings/project-groups",
+    searchTerms: ["rail spaces workspaces organize group projects repositories"],
+  },
+  {
+    id: "browser-extensions",
+    title: "Browser extensions",
+    to: "/settings/extensions",
+    desktopOnly: true,
+    searchTerms: ["chrome web store add-ons plugins 1password password manager pin toolbar"],
+  },
+  {
+    id: "code-intelligence",
+    title: "Code intelligence",
+    to: "/settings/code-intelligence",
+    scope: "environment-defaults",
+    searchTerms: [
+      "intellisense language server lsp completion hover definition references diagnostics typescript javascript json python pyright rust rust-analyzer protobuf buf path",
+    ],
+  },
+  {
     id: "source-control",
     title: "Source control",
     to: "/settings/source-control",
@@ -948,7 +982,7 @@ export const SETTINGS_SEARCH_ITEMS = [
   {
     id: "t3-connect",
     localEnvironmentOnly: true,
-    title: "T3 Connect",
+    title: "Otter Connect",
     to: "/settings/connections",
     targetId: "connections-environment",
     searchTerms: ["managed tunnel cloud other devices remote"],
@@ -989,6 +1023,42 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: ["add pair backend host code ssh config agent tunnel saved t3 connect"],
   },
   {
+    id: "linear",
+    title: "Linear",
+    to: "/settings/connections",
+    searchTerms: ["linear account link workspace install agent delegate issues"],
+  },
+  {
+    id: "linear-api-key",
+    title: "Linear API key",
+    to: "/settings/connections",
+    searchTerms: ["personal token issue status"],
+  },
+  {
+    id: "linear-default-project",
+    title: "Default Linear project",
+    to: "/settings/connections",
+    targetId: "linear",
+    searchTerms: ["delegated issues agent run project"],
+    cloudOnly: true,
+  },
+  {
+    id: "linear-team-projects",
+    title: "Linear team projects",
+    to: "/settings/connections",
+    targetId: "linear",
+    searchTerms: ["team key mapping delegated issues project"],
+    cloudOnly: true,
+  },
+  {
+    id: "linear-prompt-template",
+    title: "Linear prompt template",
+    to: "/settings/connections",
+    targetId: "linear",
+    searchTerms: ["delegated issue first message context branch name"],
+    cloudOnly: true,
+  },
+  {
     id: "load-balancing",
     title: "Load balancing",
     to: "/settings/connections",
@@ -1015,8 +1085,10 @@ export type SettingsSearchItemId = (typeof SETTINGS_SEARCH_ITEMS)[number]["id"];
 const SEARCH_ITEMS_BY_ID = new Map(SETTINGS_SEARCH_ITEMS.map((item) => [item.id, item] as const));
 
 const SETTINGS_CATEGORY_SCOPES: Readonly<Record<SettingsPath, SettingsSearchScope | null>> = {
+  ...OTTERWARE_SETTINGS_CATEGORY_SCOPES,
   "/settings/diagnostics": "environment",
   "/settings/projects": "project",
+  "/settings/project-groups": null,
   "/settings/general": null,
   "/settings/appearance": null,
   "/settings/snap-shot": null,
@@ -1025,7 +1097,9 @@ const SETTINGS_CATEGORY_SCOPES: Readonly<Record<SettingsPath, SettingsSearchScop
   "/settings/keybindings": null,
   "/settings/providers": null,
   "/settings/integrations": null,
+  "/settings/extensions": null,
   "/settings/source-control": "environment-defaults",
+  "/settings/code-intelligence": "environment-defaults",
   "/settings/storage": "project-defaults",
   "/settings/connections": "connections",
   "/settings/scheduled-tasks": null,
@@ -1141,6 +1215,7 @@ export function filterAvailableSettingsSearchItems(
   const items: ReadonlyArray<SettingsSearchItem> = SETTINGS_SEARCH_ITEMS;
   return items.filter(
     (item) =>
+      isProfileSettingsPathVisible(item.to) &&
       (!item.cloudOnly || availability.hasCloudPublicConfig) &&
       (!item.environmentOnly || availability.hasEnvironment) &&
       (!item.providerSettingsOnly || availability.hasProviderSettingsEnvironment) &&

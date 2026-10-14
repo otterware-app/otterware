@@ -6,6 +6,8 @@ import * as Semaphore from "effect/Semaphore";
 import * as StorageCleanup from "./storageCleanup.ts";
 import * as PullRequestSyncReactor from "./orchestration-v2/PullRequestSyncReactor.ts";
 import * as PullRequestWatchReactor from "./orchestration-v2/PullRequestWatchReactor.ts";
+import * as LinearIssueSyncReactor from "./linear/LinearIssueSyncReactor.ts";
+import * as LinearSessionMirror from "./linear/LinearSessionMirror.ts";
 // @effect-diagnostics nodeBuiltinImport:off
 import * as NodeHttp from "node:http";
 
@@ -178,6 +180,8 @@ import * as NetService from "@t3tools/shared/Net";
 import * as RelayClient from "@t3tools/shared/relayClient";
 import { disableTailscaleServe, ensureTailscaleServe } from "@t3tools/tailscale";
 import * as ServerActivation from "./serverActivation.ts";
+import * as ModuleAgentInstructions from "@otterware/module-kit/agent-instructions";
+import * as OtterwareServer from "./otterware/OtterwareServer.ts";
 
 // MCP handoff thread IDs include escaped provenance and can exceed find-my-way's
 // 100-character default for one path segment.
@@ -571,6 +575,18 @@ const layerRuntimeCoreDependenciesBase = Layer.mergeAll(
     Layer.provide(layerPullRequestService),
     Layer.provide(ProjectionStoreV2.layer),
   ),
+  Layer.effectDiscard(
+    Effect.gen(function* () {
+      const service = yield* LinearIssueSyncReactor.LinearIssueSyncReactor;
+      yield* service.start();
+    }),
+  ).pipe(Layer.provideMerge(LinearIssueSyncReactor.layer), Layer.provide(ProjectionStoreV2.layer)),
+  Layer.effectDiscard(
+    Effect.gen(function* () {
+      const service = yield* LinearSessionMirror.LinearSessionMirror;
+      yield* service.start();
+    }),
+  ).pipe(Layer.provideMerge(LinearSessionMirror.layer)),
   // Subscribes to `account.rate-limits.updated` so usage bars track live
   // telemetry instead of waiting for the next status probe.
   ProviderUsageLimitsIngestion.layer,
@@ -666,7 +682,10 @@ const layerRuntimeCoreDependencies = layerRuntimeCoreDependenciesBase.pipe(
   ),
 );
 
-const layerRuntimeDependencies = layerRuntimeCoreDependencies.pipe(
+// Otterware seam: the module runtime sits on the core dependencies.
+const layerRuntimeDependencies = OtterwareServer.layer.pipe(
+  Layer.provideMerge(layerRuntimeCoreDependencies),
+  Layer.provideMerge(ModuleAgentInstructions.layer),
   // Misc.
   // Usage reads provider history through the ProviderHost, which needs the
   // background policy below it.
@@ -755,6 +774,8 @@ const layerMakeServer = Layer.unwrap(
     const layerLauncher = ServiceLauncherClient.layer;
 
     yield* fixPath({ shellEnvironmentPrepared: config.shellEnvironmentPrepared });
+    // Otterware seam: one writer per data home (ADR 0012).
+    yield* OtterwareServer.guardStateDir(config);
 
     const layerHttpListening = Layer.effectDiscard(
       Effect.gen(function* () {

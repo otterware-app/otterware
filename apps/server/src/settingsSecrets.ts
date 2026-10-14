@@ -2,10 +2,12 @@ import {
   AntigravitySettings,
   ClaudeSettings,
   CodexSettings,
+  LinearSettings,
   type ServerSettings,
   UsageLimitSourceConfig,
   secretSettingsFields,
 } from "@t3tools/contracts";
+import { apiAgentClients } from "@otterware/provider-api-agents/client";
 import { acpRegistryClient } from "@t3tools/provider-acp-registry/client";
 import { cursorClient } from "@t3tools/provider-cursor/client";
 import { grokClient } from "@t3tools/provider-grok/client";
@@ -25,12 +27,21 @@ const providerSecretFields = new Map([
   ["codex", secretSettingsFields(CodexSettings)],
   ["claudeAgent", secretSettingsFields(ClaudeSettings)],
   ["antigravity", secretSettingsFields(AntigravitySettings)],
-  ...[cursorClient, grokClient, museClient, openCodeClient, piClient, acpRegistryClient].map(
+  ...[
+    cursorClient,
+    grokClient,
+    museClient,
+    openCodeClient,
+    piClient,
+    acpRegistryClient,
+    ...apiAgentClients,
+  ].map(
     (definition) =>
       [definition.driverKind, secretSettingsFields(definition.settingsSchema)] as const,
   ),
 ]);
 const usageLimitSecretFields = secretSettingsFields(UsageLimitSourceConfig);
+const linearSecretFields = secretSettingsFields(LinearSettings);
 const encode = (value: string) => Buffer.from(value, "utf8").toString("base64url");
 
 export interface SettingsSecret {
@@ -146,5 +157,9 @@ export function mapSettingsSecrets(
     ]),
   ) as ServerSettings["usageLimitSources"];
 
-  return { ...settings, providerInstances, sourceControlHosts, usageLimitSources };
+  const linear = mapFields(settings.linear, linearSecretFields, (field) =>
+    field === "apiKey" ? "linear-api-key" : `linear-${encode(field)}`,
+  ) as ServerSettings["linear"];
+
+  return { ...settings, providerInstances, sourceControlHosts, usageLimitSources, linear };
 }

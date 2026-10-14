@@ -1,0 +1,1 @@
+Drive profile assets are generated into public/drive by scripts/drive-assets.ts when the separate @otterware/drive-web package is present. Do not commit generated files. Cloud serves the native profile under /drive and on document/share callback routes; uploaded content stays on usercontent.otterware.app.

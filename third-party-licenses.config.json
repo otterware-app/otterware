@@ -637,6 +637,85 @@
         "licenseId": "MIT",
         "copyrights": ["Copyright (c) 2019-present Fabio Spampinato, Andrew Maney"]
       }
+    },
+    {
+      "name": "@vscode/l10n",
+      "version": "0.0.18",
+      "generatedNotice": {
+        "licenseId": "MIT",
+        "copyrights": ["Copyright (c) Microsoft Corporation"]
+      }
+    },
+    {
+      "name": "electron-chrome-web-store",
+      "version": "0.13.0",
+      "generatedNotice": {
+        "licenseId": "MIT",
+        "copyrights": ["Copyright (c) Samuel Maddock <sam@samuelmaddock.com>"]
+      }
+    },
+    {
+      "name": "@better-auth/utils",
+      "version": "0.4.2",
+      "sourceUrl": "https://github.com/better-auth/utils",
+      "generatedNotice": {
+        "licenseId": "MIT",
+        "copyrights": ["Copyright (c) 2024 - present, Bereket Engida"]
+      }
+    },
+    {
+      "name": "@better-auth/utils",
+      "version": "0.5.0",
+      "sourceUrl": "https://github.com/better-auth/utils",
+      "generatedNotice": {
+        "licenseId": "MIT",
+        "copyrights": ["Copyright (c) 2024 - present, Bereket Engida"]
+      }
+    },
+    {
+      "name": "@sqlite.org/sqlite-wasm",
+      "version": "3.53.4-build1",
+      "sourceUrl": "https://github.com/sqlite/sqlite-wasm",
+      "generatedNotice": {
+        "licenseId": "Apache-2.0",
+        "preamble": [
+          "SQLite itself is in the public domain: https://sqlite.org/copyright.html\nIts WebAssembly build is packaged for npm by the SQLite project at https://github.com/sqlite/sqlite-wasm under the Apache License 2.0."
+        ]
+      }
+    },
+    {
+      "name": "ot-json1",
+      "generatedNotice": {
+        "licenseId": "ISC",
+        "copyrights": ["Copyright (c) 2013-2018, Joseph Gentle <me@josephg.com>"]
+      }
+    },
+    {
+      "name": "ot-text-unicode",
+      "generatedNotice": {
+        "licenseId": "ISC",
+        "copyrights": ["Copyright (c) Joseph Gentle <me@josephg.com>"]
+      }
+    },
+    {
+      "name": "unicount",
+      "generatedNotice": {
+        "licenseId": "ISC",
+        "copyrights": ["Copyright 2019 Joseph Gentle"]
+      }
+    },
+    {
+      "name": "franc-min",
+      "generatedNotice": {
+        "licenseId": "MIT",
+        "copyrights": ["Copyright (c) Titus Wormer <tituswormer@gmail.com>"]
+      }
+    },
+    {
+      "license": "Apache-2.0",
+      "name": "@univerjs/telemetry",
+      "version": "0.25.1",
+      "noticeFile": "LICENSE"
     }
   ]
 }

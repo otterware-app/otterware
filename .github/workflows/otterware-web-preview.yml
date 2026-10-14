@@ -1,0 +1,75 @@
+name: Deploy Otterware profile web previews
+on:
+  workflow_dispatch:
+    inputs:
+      profiles:
+        description: Comma-separated profiles (empty builds all five)
+        type: string
+        default: ""
+permissions:
+  contents: read
+concurrency:
+  group: otterware-next-web
+  cancel-in-progress: false
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version-file: package.json
+          package-manager-cache: false
+      - id: plan
+        env:
+          RELEASE_PROFILES: ${{ inputs.profiles }}
+        run: RELEASE_DATE=$(date -u +%Y%m%d) node scripts/otterware/release-plan.ts
+  deploy:
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      OTTERWARE_PROFILE: ${{ matrix.profile }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      VITE_HOSTED_APP_URL: https://${{ matrix.profile }}-next.otterware.app
+      VITE_ACCOUNTS_URL: ${{ vars.ACCOUNTS_URL || 'https://accounts.otterware.app/v1/auth' }}
+      VITE_ACCOUNTS_CLIENT_ID: otter-code-web
+      VITE_RELAY_URL: https://relay.code.otterware.app
+      VITE_OTTER_CLOUD_URL: https://cloud.otterware.app
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - run: vp install --filter=@t3tools/web...
+      - name: Require W2 profile branding
+        run: grep -q activeProfile apps/web/src/branding.ts
+      - run: vp run --filter @t3tools/web build
+      - run: node scripts/otterware/web-preview.ts
+      - run: vp dlx wrangler@4.147.0 deploy --config scripts/otterware/.web-preview.json
+      - name: Verify preview serves the profile build
+        env:
+          PREVIEW_URL: https://${{ matrix.profile }}-next.otterware.app
+          PROFILE_NAME: ${{ matrix.productName }}
+        run: |
+          curl --retry 6 --retry-delay 5 --retry-all-errors -fsS "$PREVIEW_URL/" -o /tmp/preview.html
+          grep -Fq '<html' /tmp/preview.html
+          echo "Preview: $PREVIEW_URL" >> "$GITHUB_STEP_SUMMARY"

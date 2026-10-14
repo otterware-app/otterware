@@ -1,0 +1,103 @@
+# Upstream-owned files Otterware may touch (OTTERWARE.md, docs/internals/modules.md).
+# One path or glob per line; `#` starts a comment. scripts/otterware/check-upstream-seams.ts
+# fails a PR that changes an upstream-owned file not listed here. Extending this list is a
+# deliberate decision made in the PR description.
+
+# Server: module runtime, RPC handlers, authorization, instrumentation, MCP tools, data home
+apps/server/src/server.ts
+apps/server/src/ws.ts
+apps/server/src/auth/RpcAuthorization.ts
+apps/server/src/observability/RpcInstrumentation.ts
+apps/server/src/mcp/McpHttpServer.ts
+apps/server/src/os-jank.ts
+
+# Shared: the typed client over the merged RPC group, module agent instructions
+packages/client-runtime/src/rpc/protocol.ts
+packages/client-runtime/src/rpc/client.ts
+packages/client-runtime/src/state/commandPermissions.ts
+packages/client-runtime/src/state/commandPermissions.test.ts
+packages/provider-core/src/server/runtimeInstructions.ts
+
+# Web: shell, rail, palette, landing, settings, side chat, branding
+apps/web/src/components/AppSidebarLayout.tsx
+apps/web/src/components/sidebar/SpaceRail.tsx
+apps/web/src/components/CommandPalette.tsx
+apps/web/src/components/ChatView.tsx
+apps/web/src/components/settings/settingsSearch.ts
+apps/web/src/components/settings/SettingsSidebarNav.tsx
+apps/web/src/routes/_chat.index.tsx
+apps/web/src/components/onboarding/WelcomeWizard.tsx
+apps/web/src/components/settings/SettingsPanels.tsx
+apps/web/src/branding.ts
+apps/web/src/branding.test.ts
+apps/web/src/routes/__root.tsx
+
+# Desktop identity from the app profile
+apps/desktop/src/app/DesktopAssets.ts
+apps/desktop/src/app/DesktopEarlyElectronStartup.ts
+apps/desktop/src/app/DesktopEnvironment.ts
+apps/desktop/src/app/DesktopStatePaths.ts
+apps/desktop/src/app/DesktopUserData.ts
+apps/desktop/src/electron/ElectronProtocol.ts
+apps/desktop/scripts/electron-launcher.mjs
+
+# Packaging from the app profile
+scripts/build-desktop-artifact.ts
+scripts/build-npm-platform-packages.ts
+scripts/lib/brand-assets.ts
+scripts/lib/brand-assets.test.ts
+
+# Focused compatibility fixtures for profile packaging
+scripts/build-desktop-artifact.test.ts
+scripts/build-npm-platform-packages.test.ts
+
+# Provider drivers, secrets and release checks touched by other workstreams (PRs #14, #16)
+apps/server/src/provider/builtInDrivers.ts
+apps/server/src/provider/providerCompatibility.test.ts
+apps/server/src/settingsSecrets.ts
+apps/web/src/components/settings/providerDriverMeta.ts
+apps/mobile/src/lib/providerClients.ts
+scripts/lib/third-party-licenses.ts
+scripts/release-smoke.ts
+docs/README.md
+docs/user/install.md
+
+# CI (W1)
+.github/workflows/ci.yml
+.github/workflows/mobile-fingerprint-check.yml
+
+# Generated and manifest files: regenerated or merged mechanically on every sync
+apps/web/src/routeTree.gen.ts
+pnpm-lock.yaml
+pnpm-workspace.yaml
+**/package.json
+**/vite.config.ts
+**/tsconfig.json
+knip.jsonc
+
+# Dependency notice registry: preserve notices omitted from Mail dependency tarballs
+third-party-licenses.config.json
+
+# W8: baked profile channel stays authoritative over the legacy latest/nightly selector
+apps/desktop/src/electron/ElectronUpdater.ts
+
+# W8: verify the production runtime root added for module contracts
+scripts/lib/cli-external-packages*.ts
+
+# W8: runtime update/archive selection follows the baked profile feed
+packages/shared/src/cliRelease*.ts
+packages/ssh/src/tunnel*.ts
+apps/mobile/src/features/settings/environment-maintenance*.ts
+apps/server/src/cli/update.ts
+
+apps/server/src/cloud/pinnedRuntime.test.ts
+
+# Desktop: module-owned IPC and preload bridges (Calendar OAuth callbacks/reminders)
+apps/desktop/src/ipc/DesktopIpcHandlers.ts
+apps/desktop/src/preload.ts
+# CI: hold the first callback listener open before selecting a second test port
+apps/desktop/src/app/CodexAuthCallback.test.ts
+
+# Module unread counts share the host dock/taskbar badge and survive Code focus changes
+apps/desktop/src/ipc/methods/notificationBadge.ts
+apps/desktop/src/ipc/methods/notificationBadge.test.ts

@@ -5,6 +5,7 @@ import * as References from "effect/References";
 import type * as RpcGroup from "effect/rpc/RpcGroup";
 import * as RpcMiddleware from "effect/rpc/RpcMiddleware";
 
+import { OTTERWARE_RPC_AGGREGATES } from "@otterware/composition/contracts";
 import { rpcRequestDuration, rpcRequestsTotal, withMetrics } from "./Metrics.ts";
 
 type WsRpcMethod = RpcGroup.Rpcs<typeof WsRpcGroup>["_tag"];
@@ -103,6 +104,8 @@ const RPC_AGGREGATES = {
   [WS_METHODS.pullRequestsRoutingIdentity]: "pull-requests",
   [WS_METHODS.pullRequestsStack]: "pull-requests",
   [WS_METHODS.pullRequestsLinkedThreads]: "pull-requests",
+  [WS_METHODS.linearIssueDetail]: "linear",
+  [WS_METHODS.linearSubscribeIssueChanges]: "linear",
   [WS_METHODS.pullRequestsDetail]: "pull-requests",
   [WS_METHODS.pullRequestsPreview]: "pull-requests",
   [WS_METHODS.pullRequestsChecks]: "pull-requests",
@@ -136,6 +139,8 @@ const RPC_AGGREGATES = {
   [WS_METHODS.projectCloneRetry]: "source-control",
   [WS_METHODS.subscribeProjectClones]: "source-control",
   [WS_METHODS.projectsListEntries]: "workspace",
+  [WS_METHODS.projectsLanguage]: "workspace",
+  [WS_METHODS.projectsLanguageServers]: "workspace",
   [WS_METHODS.projectsReadFile]: "workspace",
   [WS_METHODS.projectsSearchContents]: "workspace",
   [WS_METHODS.projectsSearchEntries]: "workspace",
@@ -173,6 +178,7 @@ const RPC_AGGREGATES = {
   [WS_METHODS.vcsInit]: "vcs",
   [WS_METHODS.reviewGetDiffPreview]: "review",
   [WS_METHODS.reviewGetDiffFileContents]: "review",
+  [WS_METHODS.reviewListCommits]: "review",
   [WS_METHODS.terminalOpen]: "terminal",
   [WS_METHODS.terminalAttach]: "terminal",
   [WS_METHODS.terminalObserve]: "terminal",
@@ -250,7 +256,10 @@ export const rpcInstrumentationLayer = Layer.succeed(RpcInstrumentation)((effect
       attributes: {
         ...DEFAULT_RPC_SPAN_ATTRIBUTES,
         "rpc.method": method,
-        "rpc.aggregate": RPC_AGGREGATES[method as WsRpcMethod],
+        // Otterware seam: `host` and `module.<id>` labels for the host and module methods.
+        "rpc.aggregate":
+          RPC_AGGREGATES[method as WsRpcMethod] ??
+          OTTERWARE_RPC_AGGREGATES[method as keyof typeof OTTERWARE_RPC_AGGREGATES],
       },
     }),
   );

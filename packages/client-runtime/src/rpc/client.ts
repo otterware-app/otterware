@@ -1,6 +1,7 @@
+// Otterware seam: module commands use the same destination grant checks as host commands.
+import { clientRpcRequiredScopes } from "../otterware/modulePermissions.ts";
 import {
   EnvironmentAuthorizationError,
-  clientRpcRequiredScopes,
   authScopeRequiredResponse,
   type EnvironmentId,
   type ClientGuardedRpcTag,
@@ -66,6 +67,7 @@ export type EnvironmentSubscriptionRpcTag =
   | typeof WS_METHODS.subscribeDeviceState
   | typeof WS_METHODS.subscribeResourceTelemetry
   | typeof WS_METHODS.pullRequestsSubscribeRefreshes
+  | typeof WS_METHODS.linearSubscribeIssueChanges
   | typeof WS_METHODS.subscribeVcsStatus
   | typeof WS_METHODS.subscribeWorktreeSetup
   | typeof WS_METHODS.subscribeProjectClones

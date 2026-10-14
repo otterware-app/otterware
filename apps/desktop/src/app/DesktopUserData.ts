@@ -1,3 +1,5 @@
+import { activeProfile } from "@otterware/profiles/active";
+import { profileAppIdentity } from "@otterware/profiles";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Path from "effect/Path";
@@ -37,12 +39,14 @@ export const resolveUserDataPath = Effect.fn("desktop.userData.resolveUserDataPa
     readonly appDataDirectory: string;
     readonly isDevelopment: boolean;
     readonly platform: NodeJS.Platform;
+    readonly stateDir?: string;
   }) {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
-    const names = input.isDevelopment
-      ? { current: "t3code-dev", legacy: "T3 Code (Dev)" }
-      : { current: "t3code-v2", legacy: "T3 Code (Alpha)" };
+    // Otterware seam: suite client files stay outside the shared Code server home.
+    if (activeProfile.id !== "code" && input.stateDir) return path.join(input.stateDir, "electron");
+    const identity = profileAppIdentity(activeProfile, input.isDevelopment);
+    const names = { current: identity.slug, legacy: identity.displayName };
     const destinationPath = path.join(input.appDataDirectory, names.current);
     const legacyPath = path.join(input.appDataDirectory, names.legacy);
     const inspect = (resourcePath: string) =>
@@ -57,13 +61,13 @@ export const resolveUserDataPath = Effect.fn("desktop.userData.resolveUserDataPa
       return (yield* inspect(legacyPath)) ? legacyPath : destinationPath;
     }
     // Chromium databases require their own profile for each running version.
-    if (input.platform !== "win32") return destinationPath;
+    if (activeProfile.id !== "code" || input.platform !== "win32") return destinationPath;
     const destinationState = path.join(destinationPath, "Local State");
     if (yield* inspect(destinationState)) return destinationPath;
     const legacyState = path.join(legacyPath, "Local State");
     const sourceState = (yield* inspect(legacyState))
       ? legacyState
-      : path.join(input.appDataDirectory, "t3code", "Local State");
+      : path.join(input.appDataDirectory, "otter-code", "Local State");
     if (!(yield* inspect(sourceState))) return destinationPath;
     // Windows safeStorage keys live here. Copy only these preferences, never locked databases.
     const state = yield* fs

@@ -1,3 +1,5 @@
+import { exposeOtterwareBridges } from "./otterware/preload.ts";
+import { exposeModuleDesktopBridge } from "./otterware/modulePreload.ts";
 import type {
   DesktopBridge,
   DesktopPreviewOpenLinkEvent,
@@ -7,11 +9,11 @@ import type {
   DesktopPreviewTabState,
   DesktopSnapShotEvent,
 } from "@t3tools/contracts";
-import { exposeClerkBridge } from "@clerk/electron/preload";
 import { contextBridge, ipcRenderer, webFrame, webUtils } from "electron";
 
 import * as IpcChannels from "./ipc/channels.ts";
 import { mergeLegacyLocalStorage } from "./legacyLocalStorageMerge.ts";
+import * as PreviewExtensionChannels from "./preview/extensions/channels.ts";
 
 const SNAP_SHOT_EVENT_TYPES = new Set([
   "requested",
@@ -29,8 +31,6 @@ function isSnapShotEvent(value: unknown): value is DesktopSnapShotEvent {
     (id === undefined || typeof id === "string")
   );
 }
-
-exposeClerkBridge({ passkeys: true });
 
 // Runs before any app script reads localStorage. See DesktopLegacyLocalStorage.
 try {
@@ -53,7 +53,7 @@ if (clientPlatform === "darwin") {
   const syncWindowControlInset = () => {
     document.documentElement.style.setProperty(
       "--desktop-window-controls-inset",
-      `${90 / webFrame.getZoomFactor()}px`,
+      `${82 / webFrame.getZoomFactor()}px`,
     );
   };
   window.addEventListener("DOMContentLoaded", syncWindowControlInset, { once: true });
@@ -75,6 +75,8 @@ function unwrapEnsureSshEnvironmentResult(result: unknown) {
   }
   return result as Awaited<ReturnType<DesktopBridge["ensureSshEnvironment"]>>;
 }
+
+exposeModuleDesktopBridge();
 
 contextBridge.exposeInMainWorld("desktopBridge", {
   getAppBranding: () => {
@@ -136,6 +138,9 @@ contextBridge.exposeInMainWorld("desktopBridge", {
   dismissSnapShotAnimation: (id) =>
     ipcRenderer.invoke(IpcChannels.DISMISS_SNAP_SHOT_ANIMATION_CHANNEL, id),
   acknowledgeSnapShot: (id) => ipcRenderer.invoke(IpcChannels.ACKNOWLEDGE_SNAP_SHOT_CHANNEL, id),
+  getAccountSession: () => ipcRenderer.invoke("otter-account:get-session"),
+  setAccountSession: (session) => ipcRenderer.invoke("otter-account:set-session", session),
+  authorizeAccount: (request) => ipcRenderer.invoke("otter-account:authorize", request),
   getConnectionCatalog: () => ipcRenderer.invoke(IpcChannels.GET_CONNECTION_CATALOG_CHANNEL),
   setConnectionCatalog: (catalog) =>
     ipcRenderer.invoke(IpcChannels.SET_CONNECTION_CATALOG_CHANNEL, catalog),
@@ -207,6 +212,8 @@ contextBridge.exposeInMainWorld("desktopBridge", {
     ipcRenderer.invoke(IpcChannels.OPEN_SYSTEM_SETTINGS_CHANNEL, pane),
   probeRemoteEditors: () => ipcRenderer.invoke(IpcChannels.PROBE_REMOTE_EDITORS_CHANNEL, undefined),
   pasteAsText: () => ipcRenderer.invoke(IpcChannels.PASTE_AS_TEXT_CHANNEL, undefined),
+  takePendingThreadLink: () =>
+    ipcRenderer.invoke(IpcChannels.TAKE_PENDING_THREAD_LINK_CHANNEL, undefined),
   onMenuAction: (listener) => {
     const wrappedListener = (_event: Electron.IpcRendererEvent, action: unknown) => {
       if (typeof action !== "string") return;
@@ -439,4 +446,36 @@ contextBridge.exposeInMainWorld("desktopBridge", {
         ipcRenderer.removeListener(IpcChannels.PREVIEW_OPEN_LINK_CHANNEL, wrappedListener);
     },
   },
+  previewExtensions: {
+    list: () => ipcRenderer.invoke(PreviewExtensionChannels.LIST_CHANNEL),
+    actions: (webContentsId) =>
+      ipcRenderer.invoke(PreviewExtensionChannels.ACTIONS_CHANNEL, webContentsId),
+    runAction: (input) => ipcRenderer.invoke(PreviewExtensionChannels.RUN_ACTION_CHANNEL, input),
+    setActiveTab: (webContentsId) =>
+      ipcRenderer.invoke(PreviewExtensionChannels.SET_ACTIVE_TAB_CHANNEL, webContentsId),
+    openOptions: (extensionId) =>
+      ipcRenderer.invoke(PreviewExtensionChannels.OPEN_OPTIONS_CHANNEL, extensionId),
+    openWebStore: (url) => ipcRenderer.invoke(PreviewExtensionChannels.OPEN_WEB_STORE_CHANNEL, url),
+    setEnabled: (extensionId, enabled) =>
+      ipcRenderer.invoke(PreviewExtensionChannels.SET_ENABLED_CHANNEL, extensionId, enabled),
+    remove: (extensionId) =>
+      ipcRenderer.invoke(PreviewExtensionChannels.REMOVE_CHANNEL, extensionId),
+    loadUnpacked: () => ipcRenderer.invoke(PreviewExtensionChannels.LOAD_UNPACKED_CHANNEL),
+    onChanged: (listener) => {
+      const wrappedListener = () => listener();
+      ipcRenderer.on(PreviewExtensionChannels.CHANGED_CHANNEL, wrappedListener);
+      return () =>
+        ipcRenderer.removeListener(PreviewExtensionChannels.CHANGED_CHANNEL, wrappedListener);
+    },
+    onOpenTab: (listener) => {
+      const wrappedListener = (_event: Electron.IpcRendererEvent, url: unknown) => {
+        if (typeof url === "string") listener(url);
+      };
+      ipcRenderer.on(PreviewExtensionChannels.OPEN_TAB_CHANNEL, wrappedListener);
+      return () =>
+        ipcRenderer.removeListener(PreviewExtensionChannels.OPEN_TAB_CHANNEL, wrappedListener);
+    },
+  },
 } satisfies DesktopBridge);
+
+exposeOtterwareBridges();

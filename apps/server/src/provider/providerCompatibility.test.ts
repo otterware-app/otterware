@@ -15,6 +15,7 @@ import * as ProviderInstanceRegistry from "./ProviderInstanceRegistry.ts";
 import type { ProviderInstance } from "@t3tools/provider-core/server/driver";
 import { makeManualOnlyProviderMaintenanceCapabilities } from "@t3tools/provider-core/server/maintenanceResolver";
 import { BUILT_IN_DRIVERS } from "./builtInDrivers.ts";
+import { API_AGENT_DRIVERS } from "@otterware/provider-api-agents/server";
 import * as Schema from "effect/Schema";
 import {
   applyProviderCompatibility,
@@ -58,6 +59,8 @@ describe("provider compatibility", () => {
     for (const builtIn of BUILT_IN_DRIVERS) {
       // Registry entries are arbitrary external ACP agents, not one versioned harness.
       if (builtIn.driverKind === "acpRegistry") continue;
+      // API agents run behind HTTP endpoints with no installed version to check.
+      if (API_AGENT_DRIVERS.some((driver) => driver.driverKind === builtIn.driverKind)) continue;
       assert.isDefined(
         resolveProviderCompatibility(
           ModelManifest.BUNDLED_MODEL_MANIFEST.compatibility,

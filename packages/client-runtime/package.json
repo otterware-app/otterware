@@ -59,6 +59,10 @@
       "types": "./src/connection/index.ts",
       "default": "./src/connection/index.ts"
     },
+    "./otterware/browser-environment": {
+      "types": "./src/otterware/browserEnvironment.ts",
+      "default": "./src/otterware/browserEnvironment.ts"
+    },
     "./authorization": {
       "types": "./src/authorization/index.ts",
       "default": "./src/authorization/index.ts"
@@ -418,6 +422,10 @@
     "./pull-request-markdown": {
       "types": "./src/pullRequestMarkdown.ts",
       "default": "./src/pullRequestMarkdown.ts"
+    },
+    "./accounts": {
+      "types": "./src/accounts/session.ts",
+      "default": "./src/accounts/session.ts"
     }
   },
   "scripts": {
@@ -425,6 +433,8 @@
     "test": "vp test run"
   },
   "dependencies": {
+    "@otterware/browser-environment": "workspace:*",
+    "@otterware/composition": "workspace:*",
     "@pierre/diffs": "catalog:",
     "@t3tools/contracts": "workspace:*",
     "@t3tools/shared": "workspace:*",

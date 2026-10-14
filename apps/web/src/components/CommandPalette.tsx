@@ -1,4 +1,5 @@
-"use client";
+import { profilePaletteItems, codeSurfaceItems } from "../otterware/profileVisibility";
+("use client");
 
 import { threadPullRequestLinkMode } from "@t3tools/client-runtime/thread-pull-request-compatibility";
 import { visibleThreadPullRequests } from "@t3tools/shared/threadPullRequests";
@@ -68,6 +69,7 @@ import {
   FolderPlusIcon,
   MessageSquareDashedIcon,
   LinkIcon,
+  ListTodoIcon,
   MessageSquareIcon,
   MonitorIcon,
   MoonIcon,
@@ -97,6 +99,7 @@ import { useAtomValue } from "@effect/atom-react";
 import { isDesktopLocalConnectionTarget } from "../connection/desktopLocal";
 import { useDesktopLocalBootstraps } from "../connection/useDesktopLocalBootstraps";
 import { useHandleNewThread } from "../hooks/useHandleNewThread";
+import { useActiveProjectSpace } from "../hooks/useProjectSpace";
 import { useOpenPanelPullRequestUrl } from "../hooks/useOpenPanelPullRequestUrl";
 import { writeTextToClipboard } from "../hooks/useCopyToClipboard";
 import {
@@ -208,8 +211,11 @@ import { Checkbox } from "./ui/checkbox";
 import { ProjectFavicon } from "./ProjectFavicon";
 import { ProjectFilePicker } from "./files/ProjectFilePicker";
 import { openLinkPullRequestDialog } from "./pullRequest/LinkPullRequestDialog";
+import { openLinkLinearIssueDialog } from "./linear/LinkLinearIssueDialog";
 import { ProjectContentSearchDialog } from "./search/ProjectContentSearchDialog";
 import { toggleThemeEditorForTheme } from "./settings/themeEditorStore";
+// Otterware seam: module navigation and commands come from the registry.
+import { moduleCommandPaletteItems } from "../otterware/modulePaletteItems";
 import { searchSettings, SETTINGS_SECTION_LABELS } from "./settings/settingsSearch";
 import {
   COMMAND_PALETTE_META_ICON_CLASS,
@@ -644,12 +650,13 @@ function OpenCommandPaletteDialog(props: {
   const desktopLocalBootstraps = useDesktopLocalBootstraps();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const availableSettingsSearchItems = useAvailableSettingsSearchItems();
-  const { activeDraftThread, activeThread, defaultProjectRef, handleNewThread } =
+  const { activeDraftThread, activeThread, defaultProjectRef, handleNewThread, isProjectInSpace } =
     useHandleNewThread();
   const paletteRouteTarget = useParams({
     strict: false,
     select: (params) => resolveThreadRouteTarget(params),
   });
+  const { space, projectFilter } = useActiveProjectSpace();
   const projects = useProjects();
   const referenceThreadRef =
     pathname === "/pull-requests"
@@ -880,8 +887,9 @@ function OpenCommandPaletteDialog(props: {
         activeThread: activeThread ?? undefined,
         defaultProjectRef,
         handleNewThread,
+        isProjectInSpace,
       }),
-    [activeDraftThread, activeThread, defaultProjectRef, handleNewThread],
+    [activeDraftThread, activeThread, defaultProjectRef, handleNewThread, isProjectInSpace],
   );
   const projectPickerEntries = useMemo(
     () =>
@@ -1247,7 +1255,12 @@ function OpenCommandPaletteDialog(props: {
     const projectItems = enumerateCommandPaletteItems(
       buildProjectActionItems({
         // The no-project home shows once, as the "No project" item below.
-        projects: pickerProjects.filter((project) => !isScratch(project)),
+        // A project group offers only its own projects.
+        projects: pickerProjects.filter(
+          (project) =>
+            !isScratch(project) &&
+            (space.kind !== "group" || projectFilter === null || projectFilter(project)),
+        ),
         valuePrefix: "new-thread-in",
         searchTerms: (project) => {
           const group = projectGroupByTargetKey.get(`${project.environmentId}:${project.id}`);
@@ -1324,9 +1337,11 @@ function OpenCommandPaletteDialog(props: {
     handleNewThread,
     pickerProjects,
     projectEnvironmentLocationById,
+    projectFilter,
     projectGroupByTargetKey,
     scratchTargetEnvironmentId,
     scratchWorkspaceRootFor,
+    space.kind,
     startScratchThread,
   ]);
 
@@ -1828,6 +1843,7 @@ function OpenCommandPaletteDialog(props: {
             activeThread: activeThread ?? undefined,
             defaultProjectRef,
             handleNewThread,
+            isProjectInSpace,
           });
         },
       });
@@ -2003,6 +2019,34 @@ function OpenCommandPaletteDialog(props: {
           },
         });
         if (refreshed._tag === "Failure") throw squashAtomCommandFailure(refreshed);
+      },
+    });
+  }
+
+  if (
+    activeThread !== null &&
+    activeThreadServerConfig?.environment.capabilities.threadLinearIssues === true
+  ) {
+    const threadRef = scopeThreadRef(activeThread.environmentId, activeThread.id);
+    actionItems.push({
+      kind: "action",
+      value: "action:link-linear-issue",
+      searchTerms: ["link", "linear", "issue", "ticket", "attach"],
+      title: "Link Linear issue to thread",
+      icon: <ListTodoIcon className={ITEM_ICON_CLASS} />,
+      run: async () => {
+        openLinkLinearIssueDialog(threadRef);
+      },
+    });
+    actionItems.push({
+      kind: "action",
+      value: "action:open-thread-linear-issues",
+      searchTerms: ["linear", "issues", "linked", "tickets"],
+      title: "Show linked Linear issues",
+      disabled: (activeThread.linearIssues ?? []).length === 0,
+      icon: <ListTodoIcon className={ITEM_ICON_CLASS} />,
+      run: async () => {
+        useRightPanelStore.getState().open(threadRef, "linear-issues");
       },
     });
   }
@@ -2244,6 +2288,8 @@ function OpenCommandPaletteDialog(props: {
     },
   });
 
+  actionItems.push(...moduleCommandPaletteItems(navigate));
+
   // Target the active thread or draft's project, falling back to the first sidebar group.
   const contextualProjectGroup =
     (contextualProjectRef
@@ -2282,7 +2328,10 @@ function OpenCommandPaletteDialog(props: {
     });
   }
 
-  const rootGroups = buildRootGroups({ actionItems, recentThreadItems });
+  const rootGroups = buildRootGroups({
+    actionItems: profilePaletteItems(actionItems),
+    recentThreadItems,
+  });
   const settingsSearchItems: CommandPaletteActionItem[] = searchSettings(
     deferredQuery,
     availableSettingsSearchItems,
@@ -2296,7 +2345,7 @@ function OpenCommandPaletteDialog(props: {
     icon: <SettingsIcon className={ITEM_ICON_CLASS} />,
     run: async () => {
       await navigate({
-        to: item.to,
+        href: item.to,
         hash: item.targetId ?? item.id,
         replace: pathname === item.to,
         hashScrollIntoView: false,
@@ -2323,7 +2372,7 @@ function OpenCommandPaletteDialog(props: {
     activeGroups,
     query: deferredQuery,
     isInSubmenu: currentView !== null,
-    projectSearchItems: projectSearchItems,
+    projectSearchItems: codeSurfaceItems(projectSearchItems),
     settingsSearchItems,
     threadSearchItems:
       linkedThreadSearch?.linkedThreads && deferredQuery === linkedThreadSearch.query

@@ -1,0 +1,26 @@
+{
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "Preserve",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "types": ["node"],
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        // Drive's UI is plain React in the browser, like apps/web.
+        "diagnosticSeverity": {
+          "globalDate": "off",
+          "globalTimers": "off",
+          "globalRandom": "off",
+          "globalFetch": "off",
+          "globalConsole": "off",
+          "cryptoRandomUUID": "off"
+        }
+      }
+    ],
+    "erasableSyntaxOnly": false
+  },
+  "include": ["src", "vite.config.ts"]
+}

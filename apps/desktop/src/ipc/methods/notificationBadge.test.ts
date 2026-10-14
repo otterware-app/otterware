@@ -28,7 +28,11 @@ vi.mock("electron", () => ({
 
 import * as ElectronApp from "../../electron/ElectronApp.ts";
 import * as DesktopIpc from "../DesktopIpc.ts";
-import { applyNotificationBadge, installNotificationBadge } from "./notificationBadge.ts";
+import {
+  applyNotificationBadge,
+  installNotificationBadge,
+  setModuleNotificationBadge,
+} from "./notificationBadge.ts";
 
 const badge = { count: 2, image: "data:image/png;base64,aGVsbG8=" };
 
@@ -51,10 +55,7 @@ it.each(["darwin", "linux"] as const)("sets and clears the native %s count", (pl
 
 it("sets and clears the Windows taskbar overlay", () => {
   applyNotificationBadge("win32", badge);
-  expect(native.setOverlayIcon).toHaveBeenLastCalledWith(
-    native.image,
-    "2 threads with new notifications",
-  );
+  expect(native.setOverlayIcon).toHaveBeenLastCalledWith(native.image, "2 unread items");
   applyNotificationBadge("win32", { count: 0, image: null });
   expect(native.setOverlayIcon).toHaveBeenLastCalledWith(null, "");
 });
@@ -142,3 +143,12 @@ it.effect("validates IPC and clears on native focus, quit, and disposal", () =>
     expect(handlers.size).toBe(0);
   }),
 );
+
+it("keeps module unread counts when Code notifications clear on focus", () => {
+  setModuleNotificationBadge("darwin", "mail", { count: 7, image: null });
+  native.getFocusedWindow.mockReturnValue({});
+  applyNotificationBadge("darwin", { count: 0, image: null });
+  expect(native.setBadgeCount).toHaveBeenLastCalledWith(7);
+  setModuleNotificationBadge("darwin", "mail", { count: 0, image: null });
+  expect(native.setBadgeCount).toHaveBeenLastCalledWith(0);
+});

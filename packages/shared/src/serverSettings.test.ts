@@ -732,6 +732,29 @@ describe("serverSettings helpers", () => {
     expect(Object.keys(removed.usageLimitSources)).toEqual([hubB]);
   });
 
+  it("patches Linear settings per key and replaces the team list as a whole", () => {
+    const engineering = ProjectId.make("engineering");
+    const current = applyServerSettingsPatch(DEFAULT_SERVER_SETTINGS, {
+      linear: {
+        apiKey: "key",
+        defaultProjectId: engineering,
+        teamProjects: [
+          { teamKey: "ENG", projectId: engineering },
+          { teamKey: "OPS", projectId: engineering },
+        ],
+      },
+    });
+    const next = applyServerSettingsPatch(current, {
+      linear: { teamProjects: [{ teamKey: "OPS", projectId: engineering }] },
+    });
+    expect(next.linear).toEqual({
+      apiKey: "key",
+      defaultProjectId: engineering,
+      teamProjects: [{ teamKey: "OPS", projectId: engineering }],
+      promptTemplate: "",
+    });
+  });
+
   it("replaces and removes individual usage prices without clobbering other models", () => {
     const prices = { inputCostPerMillionTokens: 2, outputCostPerMillionTokens: 8 };
     const current = applyServerSettingsPatch(DEFAULT_SERVER_SETTINGS, {
@@ -1152,5 +1175,20 @@ describe("synchronized model preferences", () => {
       favorites: [],
       providerModelPreferences: {},
     });
+  });
+});
+
+describe("railProjectGroups", () => {
+  it("replaces the whole list, so a deleted group does not survive", () => {
+    const zentio = { id: "zentio", name: "Zentio", projectKeys: ["github.com/zentio/app"] };
+    const otterware = { id: "otterware", name: "Otterware", projectKeys: [] };
+    const withBoth = applyServerSettingsPatch(DEFAULT_SERVER_SETTINGS, {
+      railProjectGroups: [zentio, otterware],
+    });
+
+    expect(
+      applyServerSettingsPatch(withBoth, { railProjectGroups: [otterware] }).railProjectGroups,
+    ).toEqual([otterware]);
+    expect(applyServerSettingsPatch(withBoth, {}).railProjectGroups).toEqual([zentio, otterware]);
   });
 });

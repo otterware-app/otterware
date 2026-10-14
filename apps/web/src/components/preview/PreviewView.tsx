@@ -60,6 +60,7 @@ import { openPreviewSession } from "./openPreviewSession";
 import { showPreviewPopup } from "./showPreviewPopup";
 import { PreviewChromeRow } from "./PreviewChromeRow";
 import { PreviewEmptyState } from "./PreviewEmptyState";
+import { PreviewExtensionToolbar } from "./PreviewExtensionToolbar";
 import { PreviewMoreMenu, type PreviewMoreMenuActions } from "./PreviewMoreMenu";
 import {
   commitBrowserViewportChange,
@@ -1020,6 +1021,15 @@ export function PreviewView({
             </Tooltip>
           ) : null
         }
+        extensionActions={
+          previewBridge && !isServerTab ? (
+            <PreviewExtensionToolbar
+              threadRef={threadRef}
+              webContentsId={desktopOverlay?.webContentsId ?? null}
+              visible={visible}
+            />
+          ) : null
+        }
         trailingActions={
           moreMenuActions ? (
             <PreviewMoreMenu
@@ -1097,7 +1107,7 @@ export function PreviewView({
           ) : (
             <div className="flex h-full items-center justify-center p-8 text-center">
               <p className="max-w-sm text-sm text-muted-foreground">
-                This tab is open in the T3 Code desktop app.
+                This tab is open in the Otter Code desktop app.
               </p>
             </div>
           )

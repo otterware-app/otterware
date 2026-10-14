@@ -1,0 +1,65 @@
+name: Deploy Otter Cloud
+on:
+  push:
+    branches: [main]
+    paths:
+      - infra/cloud/**
+      - packages/otter-cloud-client/**
+      - modules/drive/contracts/**
+      - modules/drive/web/**
+      - profiles/drive.ts
+      - .github/workflows/otterware-cloud.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: otterware-cloud-production
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.repository == 'otterware-app/otterware' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.OTTER_CLOUD_CLOUDFLARE_API_TOKEN }}
+      OTTER_CLOUD_GOOGLE_PROVIDER_CLIENT_SECRET: ${{ secrets.OTTER_CLOUD_GOOGLE_PROVIDER_CLIENT_SECRET }}
+      OTTER_CLOUD_MICROSOFT_PROVIDER_CLIENT_SECRET: ${{ secrets.OTTER_CLOUD_MICROSOFT_PROVIDER_CLIENT_SECRET }}
+      OTTER_CLOUD_ACCOUNTS_SECRET: ${{ secrets.OTTER_CLOUD_ACCOUNTS_SECRET }}
+      OTTER_CLOUD_MAIL_SECRET: ${{ secrets.OTTER_CLOUD_MAIL_SECRET }}
+      OTTER_CLOUD_DRIVE_SECRET: ${{ secrets.OTTER_CLOUD_DRIVE_SECRET }}
+      OTTER_CLOUD_CONTENT_SIGNING_KEY: ${{ secrets.OTTER_CLOUD_CONTENT_SIGNING_KEY }}
+    steps:
+      # The Cloud lives on the Cloudflare account its token can reach, which is not
+      # necessarily the Code relay's account (vars.CLOUDFLARE_ACCOUNT_ID).
+      - name: Resolve the Cloudflare account from the token
+        run: |
+          id=$(curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts?per_page=50" |
+            jq -r 'if (.result | length) == 1 then .result[0].id else empty end')
+          if [ -z "$id" ]; then
+            echo "::error::OTTER_CLOUD_CLOUDFLARE_API_TOKEN must reach exactly one Cloudflare account."
+            exit 1
+          fi
+          echo "CLOUDFLARE_ACCOUNT_ID=$id" >> "$GITHUB_ENV"
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.10.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.18.0
+          cache: pnpm
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Verify permissions and prepare the new database
+        working-directory: infra/cloud
+        run: node scripts/deploy.ts --prepare
+      - name: Apply only Cloud account-data migrations
+        working-directory: infra/cloud
+        run: pnpm exec wrangler d1 migrations apply ACCOUNT_DATA --remote --config .wrangler.deploy.json
+      - name: Build, deploy, configure and smoke-test the new Worker
+        working-directory: infra/cloud
+        run: node scripts/deploy.ts

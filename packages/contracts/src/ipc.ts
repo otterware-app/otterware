@@ -19,6 +19,7 @@ import type {
   DesktopAppActivationRequest,
   DesktopAppActivationResponse,
 } from "./desktopAppActivation.ts";
+import type { DesktopPreviewExtensionsBridge } from "./previewExtensions.ts";
 
 export interface ContextMenuItem<T extends string = string> {
   id: T;
@@ -1147,6 +1148,12 @@ export interface DesktopBridge {
   getLocalEnvironmentBearerToken: () => Promise<string>;
   getClientSettings: () => Promise<ClientSettings | null>;
   setClientSettings: (settings: ClientSettings) => Promise<void>;
+  getAccountSession?: () => Promise<string | null>;
+  setAccountSession?: (session: string | null) => Promise<void>;
+  authorizeAccount?: (request: {
+    readonly state: string;
+    readonly challenge: string;
+  }) => Promise<{ readonly code: string; readonly redirectUri: string }>;
   getConnectionCatalog?: () => Promise<string | null>;
   setConnectionCatalog?: (catalog: string) => Promise<boolean>;
   clearConnectionCatalog?: () => Promise<void>;
@@ -1231,6 +1238,11 @@ export interface DesktopBridge {
   probeRemoteEditors?: () => Promise<readonly EditorId[]>;
   /** Present when the desktop shell can perform an ordered plain-text paste. */
   pasteAsText?: () => Promise<void>;
+  /**
+   * The thread path (`/<environmentId>/<threadId>`) from an `ottercode://` link
+   * the window hasn't opened yet, if any. Optional: older desktop builds lack it.
+   */
+  takePendingThreadLink?: () => Promise<string | null>;
   onMenuAction: (listener: (action: string) => void) => () => void;
   onSnapShotEvent?: (listener: (event: DesktopSnapShotEvent) => void) => () => void;
   /**
@@ -1271,6 +1283,8 @@ export interface DesktopBridge {
    * Electron desktop build; web builds have `preview === undefined`.
    */
   preview?: DesktopPreviewBridge;
+  /** Chrome extensions in the browser preview; absent on builds without them. */
+  previewExtensions?: DesktopPreviewExtensionsBridge;
 }
 
 /** Renderer callback invoked by Electron with a fresh user gesture before display-media capture. */

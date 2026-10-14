@@ -1,0 +1,9 @@
+event: run.started
+data: {"event": "run.started", "run_id": "run_77aa", "timestamp": 1760000300.0, "user_message": {"role": "user", "content": "hi"}, "runtime": {}}
+
+event: run.failed
+data: {"event": "run.failed", "run_id": "run_77aa", "timestamp": 1760000301.0, "session_id": "sess_42", "message_id": "msg_1", "failed": true, "turn_exit_reason": "iteration_budget_exhausted", "messages": [], "usage": null}
+
+event: done
+data: {"event": "done", "run_id": "run_77aa", "timestamp": 1760000301.1}
+
