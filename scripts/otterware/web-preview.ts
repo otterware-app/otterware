@@ -7,7 +7,7 @@ const profile = resolveProfile(process.env.OTTERWARE_PROFILE);
 const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
 if (!accountId || !/^[a-f0-9]{32}$/.test(accountId))
   throw new Error("Missing Cloudflare account ID");
-const host = `${profile.id}.next.otterware.app`;
+const host = `${profile.id}-next.otterware.app`;
 NodeFS.writeFileSync(
   "scripts/otterware/.web-preview.json",
   JSON.stringify({

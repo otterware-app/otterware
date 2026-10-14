@@ -38,7 +38,7 @@ its immutable test release and tag. Keep the five main feeds unpublished until e
 has merged and the developer's first all-profile build is ready (ADR 0016).
 
 `otterware-web-preview.yml` deploys only new `otterware-next-<profile>` Workers at
-`https://<profile>.next.otterware.app`. Dispatch it once the requested modules are on main.
+`https://<profile>-next.otterware.app` (one level, so Cloudflare's standard `*.otterware.app` certificate covers it). Dispatch it once the requested modules are on main.
 It uses `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` and never updates today's domains.
 
 Legacy repository migration PRs wait for the developer's go: do not merge them or enable
