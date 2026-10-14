@@ -72,7 +72,7 @@ const CORE_WHEN_VARIABLES = [
 ] as const;
 
 // Otterware seam: the shell's `app.*` variables are known to the editor.
-import { SHELL_WHEN_VARIABLES } from "../../otterware/shell";
+import { SHELL_WHEN_VARIABLES } from "../../otterware/shellWhenVariables";
 
 const DEFAULT_WHEN_VARIABLES = new Set<string>([...CORE_WHEN_VARIABLES, ...SHELL_WHEN_VARIABLES]);
 for (const binding of DEFAULT_RESOLVED_KEYBINDINGS) {

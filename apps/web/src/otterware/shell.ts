@@ -4,12 +4,7 @@
  * location. Code is the host, not a module, so it appears here as the app
  * `code`; everything else is a module id from the registry.
  */
-import {
-  HOME_MODULE_ID,
-  shellWhenVariables,
-  type ModuleLocation,
-  type ShellKind,
-} from "@otterware/module-kit/web";
+import { HOME_MODULE_ID, type ModuleLocation, type ShellKind } from "@otterware/module-kit/web";
 import { activeProfile } from "@otterware/profiles/active";
 import { useLocation } from "@tanstack/react-router";
 import { useEffect } from "react";
@@ -42,8 +37,7 @@ export const SHELL_APPS: ReadonlyArray<ShellApp> = [
   ...moduleRegistry.modules.map((module) => module.id),
 ];
 
-/** The `app.*` when-variables keybindings can use. */
-export const SHELL_WHEN_VARIABLES = shellWhenVariables(SHELL_APPS);
+export { SHELL_WHEN_VARIABLES } from "./shellWhenVariables";
 
 /** The app that owns the shell at `location`: Home inside a cross-app project. */
 export function shellOwner(location: ModuleLocation): ShellApp {
