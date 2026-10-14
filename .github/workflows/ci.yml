@@ -514,7 +514,9 @@ jobs:
   # Require only this name in branch protection. Every omission must match the plan.
   check:
     name: CI gate
-    if: ${{ always() }}
+    # A run cancelled by a newer push for the same PR must not record a failed gate; the
+    # newer run reports it. Failed or skipped jobs still reach the gate.
+    if: ${{ !cancelled() }}
     needs:
       [
         plan,
