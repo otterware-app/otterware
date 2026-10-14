@@ -1,5 +1,8 @@
 import { afterEach, expect, it, vi } from "vite-plus/test";
 
+// Profile routing does not call native APIs or need an Electron binary installed.
+vi.mock("electron", () => ({ app: {}, BrowserWindow: {}, webContents: {} }));
+
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.resetModules();
