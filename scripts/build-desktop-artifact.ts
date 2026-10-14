@@ -2509,6 +2509,16 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   if (platform === "mac") {
     const path = yield* Path.Path;
     const repoRoot = yield* RepoRoot;
+    // API-key releases recover transient CloudKit staple failures before DMG/ZIP creation.
+    // Keep electron-builder's other credential strategies and signing flow intact.
+    const retryNotarizationStaple =
+      signed &&
+      Boolean(process.env.APPLE_API_KEY) &&
+      !process.env.APPLE_ID &&
+      !process.env.APPLE_APP_SPECIFIC_PASSWORD;
+    if (retryNotarizationStaple) {
+      buildConfig.afterSign = path.join(repoRoot, "scripts/otterware/notarize-desktop.ts");
+    }
     buildConfig.mac = {
       target: target === "dmg" ? [target, "zip"] : [target],
       icon: "icon.icns",
@@ -2544,6 +2554,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
         },
       ],
       ...(signed ? { sign: path.join(repoRoot, "scripts/sign-macos.ts") } : {}),
+      ...(retryNotarizationStaple ? { notarize: false } : {}),
       ...(macSigning
         ? {
             entitlements: macSigning.entitlementsPath,
