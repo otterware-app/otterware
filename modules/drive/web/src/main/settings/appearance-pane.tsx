@@ -1,5 +1,6 @@
 import { useTheme } from "../../lib/theme";
 import { cn } from "../../lib/utils";
+import { ListDensityRow } from "./density-row";
 import { SettingsPageContainer, SettingsSection } from "./settings-ui";
 
 type Scheme = "system" | "light" | "dark";
@@ -128,6 +129,9 @@ export function AppearancePane() {
             />
           ))}
         </div>
+      </SettingsSection>
+      <SettingsSection title="Documents">
+        <ListDensityRow />
       </SettingsSection>
     </SettingsPageContainer>
   );

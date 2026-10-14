@@ -35,6 +35,20 @@ export interface DriveHost {
   readonly navigate: (to: string, options?: { readonly replace?: boolean }) => void;
   /** The href an anchor uses for a Drive path. */
   readonly href: (to: string) => string;
+  /**
+   * Opens a Drive path outside this window: a browser tab of this site, or,
+   * from the desktop app, of drive.otterware.app.
+   */
+  readonly openInNewTab: (to: string) => void;
+  /**
+   * Holds navigations, the browser's Back and Forward included, while
+   * `shouldBlock` resolves true for the Drive path they lead to; leaving Drive
+   * for another page of the surrounding app is never held. Returns the release.
+   */
+  readonly blockNavigation: (blocker: {
+    readonly shouldBlock: (next: DriveLocation) => boolean | Promise<boolean>;
+    readonly beforeUnload: () => boolean;
+  }) => () => void;
   /** Inside the Otterware shell: the shell owns the window, its palette, theme and account. */
   readonly embedded: boolean;
   /** The page is showing; shortcuts and page context pause while it is not. */
