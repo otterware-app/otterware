@@ -32,6 +32,8 @@ import { Skeleton } from "../../components/ui/skeleton";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
 
 import { AgentsCard, useAgentEntries } from "./AgentsCard";
+import { isThisBrowser } from "../browser/moduleEndpoint";
+import { BrowserChat } from "../browser/chat/BrowserChat";
 import { HomeComposer } from "./HomeComposer";
 import { useHomeDialogs } from "./HomeSidebar";
 import {
@@ -167,7 +169,11 @@ export function HomeDashboardPage() {
                   limit={12}
                 />
               </div>
-              {state.environmentId !== null ? (
+              {isThisBrowser(state.environmentId) ? (
+                <div className="px-6 pb-5 lg:px-8">
+                  <BrowserChat className="max-h-[32rem]" />
+                </div>
+              ) : state.environmentId !== null ? (
                 <div className="sticky bottom-0 z-10 px-6 pb-5 lg:px-8">
                   <HomeComposer
                     environmentId={state.environmentId}
@@ -421,7 +427,14 @@ export function HomeProjectPage({ projectId }: { readonly projectId: string }) {
                 />
               ) : null}
             </div>
-            {state.environmentId !== null ? (
+            {isThisBrowser(state.environmentId) ? (
+              <div className="mx-auto w-full max-w-5xl px-6 pb-5 lg:px-8">
+                <BrowserChat
+                  className="max-h-[32rem]"
+                  context={`Cross-app project: ${summary?.project.name ?? projectId}`}
+                />
+              </div>
+            ) : state.environmentId !== null ? (
               <div className="sticky bottom-0 z-10 mx-auto w-full max-w-5xl px-6 pb-5 lg:px-8">
                 <HomeComposer
                   key={projectId}

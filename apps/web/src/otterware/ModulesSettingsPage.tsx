@@ -7,6 +7,7 @@
 import type { ModuleStateEntry } from "@otterware/module-kit/contracts";
 import { useAtomValue } from "@effect/atom-react";
 import { useSettingsScope } from "../components/settings/SettingsScopeContext";
+import type * as Effect from "effect/Effect";
 import { useState } from "react";
 
 import {
@@ -16,29 +17,40 @@ import {
   SettingsUnavailableGroup,
 } from "../components/settings/settingsLayout";
 import { Switch } from "../components/ui/switch";
-import { usePrimaryEnvironmentId } from "../state/environments";
-import { useAtomCommand } from "../state/use-atom-command";
+import { isThisBrowser, useModuleCommand, useModuleEnvironmentId } from "./browser/moduleEndpoint";
+import type { browserClient } from "./browser/runtime";
 import { setModuleEnabled, useModuleStates } from "./moduleState";
 import { moduleRegistry } from "./registry";
 
-function describeState(entry: ModuleStateEntry): string {
+const setInBrowser = (
+  client: Effect.Success<typeof browserClient>,
+  input: { readonly id: string; readonly enabled: boolean },
+) => client["modules.setEnabled"](input);
+
+function describeState(entry: ModuleStateEntry, where: string): string {
   switch (entry.state) {
     case "on":
-      return "On. Its pages, agent tools and instructions are available on this environment.";
+      return `On. Its pages, agent tools and instructions are available in ${where}.`;
     case "off":
-      return "Off. Its pages, agent tools and instructions are unavailable on this environment.";
+      return `Off. Its pages, agent tools and instructions are unavailable in ${where}.`;
     case "failed":
       return `Could not start${entry.failure ? `: ${entry.failure}` : ""}. Turn it on again to retry.`;
   }
 }
 
 export function ModulesSettingsPage() {
-  const primaryEnvironmentId = usePrimaryEnvironmentId();
+  const moduleEnvironmentId = useModuleEnvironmentId();
   const { environment } = useSettingsScope();
-  const environmentId = environment?.environmentId ?? primaryEnvironmentId;
+  const environmentId = environment?.environmentId ?? moduleEnvironmentId;
+  // Without a paired environment the modules run in this browser, the user's own.
+  const inBrowser = isThisBrowser(environmentId);
+  const where = inBrowser ? "this browser" : "this environment";
   const states = useModuleStates(environmentId);
-  const canWrite = useAtomValue(setModuleEnabled.permissionAtom(environmentId));
-  const setEnabled = useAtomCommand(setModuleEnabled);
+  const environmentCanWrite = useAtomValue(
+    setModuleEnabled.permissionAtom(inBrowser ? null : environmentId),
+  );
+  const canWrite = inBrowser || environmentCanWrite;
+  const setEnabled = useModuleCommand(setModuleEnabled, setInBrowser);
   const [pendingId, setPendingId] = useState<string | null>(null);
 
   const toggle = async (id: string, enabled: boolean) => {
@@ -59,11 +71,11 @@ export function ModulesSettingsPage() {
             key={entry.id}
             id={`module-${entry.id}`}
             title={moduleRegistry.byId(entry.id)?.label ?? entry.id}
-            description={describeState(entry)}
+            description={describeState(entry, where)}
             control={
               <Switch
                 size="sm"
-                aria-label={`${moduleRegistry.byId(entry.id)?.label ?? entry.id} on this environment`}
+                aria-label={`${moduleRegistry.byId(entry.id)?.label ?? entry.id} in ${where}`}
                 checked={entry.state === "on"}
                 disabled={!canWrite || pendingId !== null}
                 onCheckedChange={(checked) => void toggle(entry.id, checked)}
@@ -77,8 +89,9 @@ export function ModulesSettingsPage() {
     <SettingsPageContainer>
       <SettingsSection title="Modules">
         <p className="text-sm text-muted-foreground">
-          Environment scope · Changes apply to this environment and all clients connected to it.
-          Data is kept when a module is off.
+          {inBrowser
+            ? "This browser · No environment is paired, so modules run in this browser profile. Data is kept when a module is off."
+            : "Environment scope · Changes apply to this environment and all clients connected to it. Data is kept when a module is off."}
         </p>
         <SettingsUnavailableGroup
           message={
@@ -98,8 +111,8 @@ export function ModulesSettingsPage() {
               title="No modules"
               description={
                 states.status === "loading"
-                  ? "Reading this environment’s modules…"
-                  : "This environment’s build ships no modules."
+                  ? `Reading the modules of ${where}…`
+                  : `The build for ${where} ships no modules.`
               }
             />
           )}

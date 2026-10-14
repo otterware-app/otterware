@@ -17,11 +17,11 @@ import { useCallback, useState } from "react";
 
 import { stackedThreadToast, toastManager } from "../../components/ui/toast";
 import { ensureLocalApi } from "../../localApi";
-import { useAtomCommand } from "../../state/use-atom-command";
 import { buildThreadRouteParams } from "../../threadRoutes";
 import { type ModuleThreadLaunch, useModuleThreadLauncher } from "../assistantThreads";
 import type { ModulePageContext } from "@otterware/module-kit/web";
-import { homeCommands } from "./homeRpc";
+import { isThisBrowser, useModuleCommand } from "../browser/moduleEndpoint";
+import { browserHomeCommands, homeCommands } from "./homeRpc";
 
 const errorText = (error: unknown) =>
   error instanceof Error && error.message.trim().length > 0 ? error.message : undefined;
@@ -44,7 +44,9 @@ function homeItemContext(item: HomeRankedItem): ModulePageContext {
 
 export function useHomeActions(environmentId: EnvironmentId | null, onChanged: () => void) {
   const navigate = useNavigate();
-  const perform = useAtomCommand(homeCommands.performAction, { reportFailure: false });
+  const perform = useModuleCommand(homeCommands.performAction, browserHomeCommands.performAction, {
+    reportFailure: false,
+  });
   const launch = useModuleThreadLauncher(environmentId);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
 
@@ -64,7 +66,8 @@ export function useHomeActions(environmentId: EnvironmentId | null, onChanged: (
       }
       const params: Record<string, string> = { ...target.params };
       if (target.route.includes("$environmentId") && params.environmentId === undefined) {
-        if (environmentId === null) return;
+        // This browser has no environment routes (threads, projects).
+        if (environmentId === null || isThisBrowser(environmentId)) return;
         params.environmentId = environmentId;
       }
       // Contributor routes are data, so they cannot be checked against the route tree here.
@@ -78,6 +81,10 @@ export function useHomeActions(environmentId: EnvironmentId | null, onChanged: (
     async (input: ModuleThreadLaunch & { readonly open?: boolean; readonly key?: string }) => {
       setPendingKey(input.key ?? "start");
       try {
+        if (isThisBrowser(environmentId))
+          throw new Error(
+            "Agent threads run on an environment. Pair one, or ask in the chat on Home.",
+          );
         const ref = await launch(input);
         onChanged();
         if (input.open) {
@@ -107,7 +114,7 @@ export function useHomeActions(environmentId: EnvironmentId | null, onChanged: (
         setPendingKey(null);
       }
     },
-    [launch, onChanged, openThread],
+    [environmentId, launch, onChanged, openThread],
   );
 
   const runAction = useCallback(

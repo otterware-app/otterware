@@ -36,8 +36,8 @@ import { Toggle, ToggleGroup } from "../../components/ui/toggle-group";
 import { cn } from "../../lib/utils";
 import { PROJECT_ICON_COLORS } from "../../projectIconColors";
 import { useProjects } from "../../state/entities";
-import { useAtomCommand } from "../../state/use-atom-command";
-import { homeCommands } from "./homeRpc";
+import { useModuleCommand } from "../browser/moduleEndpoint";
+import { browserHomeCommands, homeCommands } from "./homeRpc";
 import { HOME_MODULES } from "./homePresentation";
 
 const EMPTY_PROJECT_RULES: HomeProjectRules = {
@@ -188,8 +188,12 @@ function ProjectForm({
   readonly onCancel: () => void;
   readonly onSaved: (project: HomeProject | null) => void;
 }) {
-  const save = useAtomCommand(homeCommands.saveProject, { reportFailure: false });
-  const remove = useAtomCommand(homeCommands.deleteProject, { reportFailure: false });
+  const save = useModuleCommand(homeCommands.saveProject, browserHomeCommands.saveProject, {
+    reportFailure: false,
+  });
+  const remove = useModuleCommand(homeCommands.deleteProject, browserHomeCommands.deleteProject, {
+    reportFailure: false,
+  });
   const codeProjects = useProjects().filter(
     (project) =>
       project.environmentId === environmentId &&
@@ -464,8 +468,12 @@ function ViewForm({
   readonly onCancel: () => void;
   readonly onSaved: (view: HomeView | null) => void;
 }) {
-  const save = useAtomCommand(homeCommands.saveView, { reportFailure: false });
-  const remove = useAtomCommand(homeCommands.deleteView, { reportFailure: false });
+  const save = useModuleCommand(homeCommands.saveView, browserHomeCommands.saveView, {
+    reportFailure: false,
+  });
+  const remove = useModuleCommand(homeCommands.deleteView, browserHomeCommands.deleteView, {
+    reportFailure: false,
+  });
   const initial = view?.filter ?? EMPTY_VIEW_FILTER;
   const [name, setName] = useState(view?.name ?? "");
   const [modules, setModules] = useState<ReadonlyArray<HomeItemModule>>(initial.modules);

@@ -43,3 +43,6 @@ export const composeBrowserContracts = (profile: AppProfile) => {
     ) as Superset["group"],
   };
 };
+
+/** Mail's page capabilities in the browser (files, notifications, badge); browser-only RPCs. */
+export { MailPageRpcGroup } from "@otterware/mail-browser/page-contracts";

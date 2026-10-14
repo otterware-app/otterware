@@ -4,6 +4,7 @@
  * RPC handlers for its group. The worker (`worker.ts`) provides SQLite on
  * OPFS and the browser's platform services; tests provide memory and fakes.
  */
+import { layerMailPage, layerMailPageHandlers } from "@otterware/composition/browser";
 import type { ServerModule } from "@otterware/module-kit/engine";
 import { AssistantProjectError } from "@otterware/module-kit/contracts";
 import {
@@ -67,11 +68,14 @@ export const layerHost =
       layerAccountHandlers,
       layerAgentHandlers,
       layerMailFollowsAccount,
+      layerMailPageHandlers,
     ).pipe(
       Layer.provideMerge(BrowserAgent.layer),
       Layer.provideMerge(AgentStore.layer.pipe(Layer.provide(BrowserSecrets.layer))),
       Layer.provideMerge(layerRuntime<Requirements>(modules)),
-      Layer.provideMerge(Layer.mergeAll(layerAccountCredential, layerMailHost, layerHomeAccount)),
+      Layer.provideMerge(
+        Layer.mergeAll(layerAccountCredential, layerMailHost, layerHomeAccount, layerMailPage),
+      ),
       Layer.provideMerge(BrowserAccount.layer),
       Layer.provideMerge(BrowserInstallation.layer),
       Layer.provideMerge(layerHttpClient),

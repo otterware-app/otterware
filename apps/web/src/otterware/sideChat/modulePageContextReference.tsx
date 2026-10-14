@@ -25,6 +25,17 @@ export function modulePageContextLabel(context: ModulePageContext): string {
   return focus && focus !== moduleLabel ? `${moduleLabel} · ${focus}` : moduleLabel;
 }
 
+/** The page's context as plain text, for agents that take it inline (the browser's chat). */
+export function modulePageContextText(context: ModulePageContext): string {
+  return [
+    `The user is looking at ${modulePageContextLabel(context)}.`,
+    ...context.refs.map(
+      (ref) =>
+        `- ${ref.kind} ${ref.id}${ref.label ? `: ${ref.label}` : ""}${ref.href ? ` (${ref.href})` : ""}`,
+    ),
+  ].join("\n");
+}
+
 /** One message's context: the page, what is selected on it, and optionally a Code project. */
 export function modulePageContextDecoration(
   context: ModulePageContext,

@@ -20,9 +20,9 @@ import { type ComponentProps, type ReactNode, useEffect, useState } from "react"
 
 import { ProjectMonogram } from "../../components/ProjectMonogram";
 import { cn } from "../../lib/utils";
-import { usePrimaryEnvironmentId } from "../../state/environments";
 import { useEnvironmentQuery } from "../../state/query";
-import { homeOverviewQuery } from "./homeRpc";
+import { isThisBrowser, useModuleEnvironmentId } from "../browser/moduleEndpoint";
+import { browserHomeOverviewQuery, homeOverviewQuery } from "./homeRpc";
 
 import { activeProfile } from "@otterware/profiles/active";
 
@@ -166,9 +166,13 @@ export interface HomeOverviewState {
 }
 
 export function useHomeOverview(input: HomeOverviewInput = {}): HomeOverviewState {
-  const environmentId = usePrimaryEnvironmentId();
+  const environmentId = useModuleEnvironmentId();
   const query = useEnvironmentQuery(
-    environmentId === null ? null : homeOverviewQuery({ environmentId, input }),
+    environmentId === null
+      ? null
+      : isThisBrowser(environmentId)
+        ? browserHomeOverviewQuery(JSON.stringify(input))
+        : homeOverviewQuery({ environmentId, input }),
   );
   return {
     environmentId,

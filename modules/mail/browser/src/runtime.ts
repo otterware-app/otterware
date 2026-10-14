@@ -7,6 +7,7 @@ import type { ModuleToolCallerScope } from "@otterware/module-kit/engine";
 import type { MailEvent } from "@otterware/mail-contracts/rpc";
 import type { ChannelEvent, OtterCloudClient, SyncRecord } from "@otterware/otter-cloud-client";
 
+import type { MailPage } from "./page.ts";
 import type { FromWorker, ToWorker } from "./protocol.ts";
 
 /** What Mail needs from the signed-in Otter Account, held by the environment worker. */
@@ -26,6 +27,7 @@ const STARTUP_TIMEOUT_MS = 60_000;
 export async function openMailWorker(
   account: MailBrowserAccount | undefined,
   onEvent: (event: MailEvent) => void,
+  page: MailPage["Service"] | undefined,
   spawn: () => Worker = () =>
     new Worker(new URL("./worker.ts", import.meta.url), { type: "module", name: "otterware-mail" }),
 ) {
@@ -60,7 +62,28 @@ export async function openMailWorker(
     worker.terminate();
   };
   const hostCall = async (operation: string, args: ReadonlyArray<unknown>) => {
-    if (operation === "notify") return;
+    // The page's capabilities (page.ts): files, notifications, the badge.
+    switch (operation) {
+      case "openFile":
+        if (!page) break;
+        await page.ask({ _tag: "open", name: String(args[0]), bytes: args[1] as Uint8Array });
+        return;
+      case "saveFile":
+        if (!page) return false;
+        return (
+          (await page.ask({ _tag: "save", name: String(args[0]), bytes: args[1] as Uint8Array }))
+            .saved ?? false
+        );
+      case "pickFiles":
+        if (!page) return [];
+        return (await page.ask({ _tag: "pick" })).files ?? [];
+      case "notify":
+        page?.tell({ _tag: "notify", notification: args[0] as never });
+        return;
+      case "setUnreadCount":
+        page?.tell({ _tag: "badge", count: Number(args[0]) });
+        return;
+    }
     if (!account) throw new Error("Sign in to your Otter Account to use this mailbox.");
     switch (operation) {
       case "connections":

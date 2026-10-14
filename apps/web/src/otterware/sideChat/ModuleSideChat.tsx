@@ -60,7 +60,14 @@ import {
 import { moduleRegistry } from "../registry";
 import { ModuleThreadAccessories } from "../ModuleThreadAccessories";
 import { useCurrentModulePageContext } from "@otterware/module-kit/web";
-import { modulePageContextDecoration, modulePageContextLabel } from "./modulePageContextReference";
+import { BrowserChat } from "../browser/chat/BrowserChat";
+import { BrowserEnvironmentNotice } from "../browser/BrowserEnvironmentNotice";
+import { useModuleTarget } from "../browser/runtime";
+import {
+  modulePageContextDecoration,
+  modulePageContextLabel,
+  modulePageContextText,
+} from "./modulePageContextReference";
 
 const SideChatTarget = Schema.NullOr(
   Schema.Union([
@@ -110,15 +117,69 @@ function useAssistantProjectId(environmentId: EnvironmentId | null) {
   );
 }
 
-export function ModuleSideChat({
-  moduleId,
-  onHide,
-  hideShortcutLabel,
-}: {
+interface SideChatProps {
   readonly moduleId: string;
   readonly onHide: () => void;
   readonly hideShortcutLabel: string;
-}) {
+}
+
+/**
+ * The side chat of the environment module pages use: an assistant thread on
+ * a paired environment, or this browser's light agent chat without one
+ * (ADR 0009).
+ */
+export function ModuleSideChat(props: SideChatProps) {
+  const target = useModuleTarget();
+  if (target._tag === "browser") return <BrowserSideChat {...props} />;
+  return <EnvironmentSideChat {...props} />;
+}
+
+/** The light agent chat in the side panel, sending what the page shows with each message. */
+function BrowserSideChat({ moduleId, onHide, hideShortcutLabel }: SideChatProps) {
+  const pageContext = useCurrentModulePageContext();
+  const [includeContext, setIncludeContext] = useLocalStorage(
+    INCLUDE_CONTEXT_KEY,
+    true,
+    Schema.Boolean,
+  );
+  const moduleLabel = moduleRegistry.modules.find((module) => module.id === moduleId)?.label;
+  return (
+    <div className="flex min-h-0 flex-1 flex-col" data-suite-side-chat-module={moduleId}>
+      <WorkspacePageHeader electron={isElectron} className="gap-1 border-b border-border pr-2 pl-3">
+        <MessagesSquareIcon className="size-4 shrink-0 text-muted-foreground" />
+        <span className="min-w-0 flex-1 truncate font-medium text-sm">
+          {moduleLabel ? `${moduleLabel} chat` : "Chat"}
+        </span>
+        <HeaderButton label={`Hide side chat (${hideShortcutLabel})`} onClick={onHide}>
+          <PanelRightCloseIcon />
+        </HeaderButton>
+      </WorkspacePageHeader>
+      {pageContext ? (
+        <label className="flex shrink-0 items-center gap-2 border-b border-border px-3 py-1.5 text-muted-foreground text-xs">
+          <span className="min-w-0 flex-1 truncate">
+            {includeContext ? "Sends " : "Not sending "}
+            <span className="font-medium text-foreground">
+              {modulePageContextLabel(pageContext)}
+            </span>
+          </span>
+          <Switch
+            size="sm"
+            checked={includeContext}
+            onCheckedChange={(checked) => setIncludeContext(checked)}
+            aria-label="Send what is on this page with messages"
+          />
+        </label>
+      ) : null}
+      <BrowserEnvironmentNotice />
+      <BrowserChat
+        className="min-h-0 flex-1 p-3"
+        {...(includeContext && pageContext ? { context: modulePageContextText(pageContext) } : {})}
+      />
+    </div>
+  );
+}
+
+function EnvironmentSideChat({ moduleId, onHide, hideShortcutLabel }: SideChatProps) {
   const navigate = useNavigate();
   const environmentId = usePrimaryEnvironmentId();
   const [target, setTarget] = useLocalStorage(targetKey(moduleId), null, SideChatTarget);

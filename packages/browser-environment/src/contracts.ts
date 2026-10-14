@@ -5,7 +5,10 @@
  * the browser's own Account group and its light agent loop (ADR 0009). No projects, threads or projections.
  * Pages build their client from this.
  */
-import { composeBrowserContracts } from "@otterware/composition/browser-contracts";
+import {
+  composeBrowserContracts,
+  MailPageRpcGroup,
+} from "@otterware/composition/browser-contracts";
 import { activeProfile } from "@otterware/profiles/active";
 
 import { BrowserAccountRpcGroup } from "./account/contracts.ts";
@@ -25,4 +28,5 @@ export const BrowserModulesRpcGroup = composed.group;
 export const BrowserEnvironmentRpcGroup = BrowserModulesRpcGroup.merge(
   BrowserAccountRpcGroup,
   BrowserAgentRpcGroup,
+  MailPageRpcGroup,
 );

@@ -1,5 +1,6 @@
 /**
- * Home's queries and commands against the primary environment. The overview
+ * Home's queries and commands against the environment module pages use: a
+ * paired one, or this browser without one. The overview
  * refreshes on an interval (Mail, Calendar and Drive change outside the app)
  * and immediately when a thread's attention state changes on this client, so
  * Code rows follow the sidebar without waiting for the next poll.
@@ -8,12 +9,18 @@ import {
   createEnvironmentRpcCommand,
   createEnvironmentRpcQueryAtomFamily,
 } from "@t3tools/client-runtime/state/runtime";
-import { HOME_METHODS } from "@otterware/composition/contracts";
+import { HOME_METHODS, type HomeOverviewInput } from "@otterware/composition/contracts";
+import * as Duration from "effect/Duration";
+import * as Effect from "effect/Effect";
+import * as Schedule from "effect/Schedule";
+import * as Stream from "effect/Stream";
 import { Atom } from "effect/reactivity";
 
 import { appAtomRegistry } from "../../rpc/atomRegistry";
 import { connectionAtomRuntime } from "../../connection/runtime";
 import { environmentThreadShells } from "../../state/threads";
+import type { browserClient } from "../browser/runtime";
+import { browserAtomRuntime, browserClient as browserClientEffect } from "../browser/runtime";
 
 const homeDefinitionRevisionAtom = Atom.make(0);
 
@@ -67,4 +74,41 @@ export const homeCommands = {
     label: "environment-data:suite:home-delete-view",
     tag: HOME_METHODS.deleteView,
   }),
+};
+
+/**
+ * Home's overview from this browser when no environment is paired: read now,
+ * again every 20 seconds and after a project or view changes here.
+ */
+export const browserHomeOverviewQuery = Atom.family((key: string) =>
+  browserAtomRuntime.atom((get) => {
+    get(homeDefinitionRevisionAtom);
+    const input = JSON.parse(key) as HomeOverviewInput;
+    return Stream.fromSchedule(Schedule.spaced(Duration.seconds(20))).pipe(
+      Stream.prepend([0]),
+      Stream.mapEffect(() =>
+        Effect.flatMap(browserClientEffect, (client) => client[HOME_METHODS.overview](input)),
+      ),
+    );
+  }),
+);
+
+type BrowserClient = Effect.Success<typeof browserClient>;
+
+/** The same commands, answered by this browser (`useModuleCommand`). */
+export const browserHomeCommands = {
+  performAction: (
+    client: BrowserClient,
+    input: Parameters<BrowserClient["home.performAction"]>[0],
+  ) => client[HOME_METHODS.performAction](input),
+  saveProject: (client: BrowserClient, input: Parameters<BrowserClient["home.saveProject"]>[0]) =>
+    client[HOME_METHODS.saveProject](input),
+  deleteProject: (
+    client: BrowserClient,
+    input: Parameters<BrowserClient["home.deleteProject"]>[0],
+  ) => client[HOME_METHODS.deleteProject](input),
+  saveView: (client: BrowserClient, input: Parameters<BrowserClient["home.saveView"]>[0]) =>
+    client[HOME_METHODS.saveView](input),
+  deleteView: (client: BrowserClient, input: Parameters<BrowserClient["home.deleteView"]>[0]) =>
+    client[HOME_METHODS.deleteView](input),
 };
