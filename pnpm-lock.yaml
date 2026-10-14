@@ -846,6 +846,9 @@ importers:
       '@dnd-kit/utilities':
         specifier: ^3.2.2
         version: 3.2.2(react@19.2.6)
+      '@e965/xlsx':
+        specifier: 0.20.3
+        version: 0.20.3
       '@effect/atom-react':
         specifier: 4.0.4
         version: 4.0.4(effect@4.0.4)(react@19.2.6)(scheduler@0.28.0)
@@ -861,9 +864,15 @@ importers:
       '@otterware/browser-environment':
         specifier: workspace:*
         version: link:../../packages/browser-environment
+      '@otterware/calendar-contracts':
+        specifier: workspace:*
+        version: link:../../modules/calendar/contracts
       '@otterware/composition':
         specifier: workspace:*
         version: link:../../packages/composition
+      '@otterware/drive-contracts':
+        specifier: workspace:*
+        version: link:../../modules/drive/contracts
       '@otterware/mail-browser':
         specifier: workspace:*
         version: link:../../modules/mail/browser
@@ -876,6 +885,9 @@ importers:
       '@otterware/module-kit':
         specifier: workspace:*
         version: link:../../packages/module-kit
+      '@otterware/otter-cloud-client':
+        specifier: workspace:*
+        version: link:../../packages/otter-cloud-client
       '@otterware/profiles':
         specifier: workspace:*
         version: link:../../profiles
@@ -918,6 +930,9 @@ importers:
       '@t3tools/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      '@tanstack/history':
+        specifier: ^1.161.0
+        version: 1.162.0
       '@tanstack/react-pacer':
         specifier: ^0.19.4
         version: 0.19.4(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -963,9 +978,24 @@ importers:
       '@tiptap/starter-kit':
         specifier: ^3.31.3
         version: 3.31.3
+      '@univerjs/core':
+        specifier: 0.25.1
+        version: 0.25.1(react@19.2.6)(rxjs@7.8.2)
+      '@univerjs/preset-docs-core':
+        specifier: 0.25.1
+        version: 0.25.1(@types/react-dom@19.2.3(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(rxjs@7.8.2)
+      '@univerjs/preset-sheets-core':
+        specifier: 0.25.1
+        version: 0.25.1(@types/react-dom@19.2.3(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(rxjs@7.8.2)
+      '@univerjs/themes':
+        specifier: 0.25.1
+        version: 0.25.1
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
+      clsx:
+        specifier: 2.1.1
+        version: 2.1.1
       culori:
         specifier: ^4.0.2
         version: 4.0.2
@@ -1005,6 +1035,9 @@ importers:
       morphicons:
         specifier: ^1.7.1
         version: 1.7.1(react-native-svg@15.15.5(react-native@0.88.0-rc.3(@babel/core@7.29.7)(@react-native/metro-config@0.88.0-rc.3(@babel/core@7.29.7)(bufferutil@4.1.0)(utf-8-validate@6.0.6))(@types/react@19.3.0)(bufferutil@4.1.0)(react@19.2.6)(utf-8-validate@6.0.6))(react@19.2.6))(react-native@0.88.0-rc.3(@babel/core@7.29.7)(@react-native/metro-config@0.88.0-rc.3(@babel/core@7.29.7)(bufferutil@4.1.0)(utf-8-validate@6.0.6))(@types/react@19.3.0)(bufferutil@4.1.0)(react@19.2.6)(utf-8-validate@6.0.6))(react@19.2.6)
+      papaparse:
+        specifier: 5.5.4
+        version: 5.5.4
       react:
         specifier: 19.2.6
         version: 19.2.6
@@ -1023,6 +1056,9 @@ importers:
       unbash:
         specifier: ^5.0.0
         version: 5.0.0
+      zod:
+        specifier: 4.6.5
+        version: 4.6.5
       zustand:
         specifier: ^5.0.11
         version: 5.0.14(@types/react@19.3.0)(react@19.2.6)(use-sync-external-store@1.7.0(react@19.2.6))
@@ -1054,6 +1090,9 @@ importers:
       '@types/mdast':
         specifier: ^4.0.4
         version: 4.0.4
+      '@types/papaparse':
+        specifier: 5.5.2
+        version: 5.5.2
       '@types/react':
         specifier: ~19.3.0
         version: 19.3.0
@@ -1308,9 +1347,6 @@ importers:
 
   modules/calendar/web:
     dependencies:
-      '@legendapp/list':
-        specifier: 'catalog:'
-        version: 3.3.5(patch_hash=680cc6a5c5b4a4032e467e7b3fde22f89a84c0ee2e6eac6fda737d6277cc0806)(react-dom@19.2.6(react@19.2.6))(react-native@0.88.0-rc.3(@babel/core@7.29.7)(@react-native/metro-config@0.88.0-rc.3(@babel/core@7.29.7)(bufferutil@4.1.0)(utf-8-validate@6.0.6))(@types/react@19.3.0)(bufferutil@4.1.0)(react@19.2.6)(utf-8-validate@6.0.6))(react@19.2.6)
       '@otterware/calendar-contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -1323,9 +1359,6 @@ importers:
       '@t3tools/contracts':
         specifier: workspace:*
         version: link:../../../packages/contracts
-      clsx:
-        specifier: 2.1.1
-        version: 2.1.1
       effect:
         specifier: 4.0.4
         version: 4.0.4
@@ -1395,6 +1428,9 @@ importers:
       '@effect/vitest':
         specifier: 4.0.4
         version: 4.0.4(patch_hash=ebaec66c6bdd25e1b8d5bfd4a14f25ab959bdcca6e22ed8871d061e50e2db0ad)(@types/node@24.12.4)(@vitest/ui@5.0.1)(bufferutil@4.1.0)(effect@4.0.4)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.0(@noble/hashes@1.8.0))(msw@2.12.11(@types/node@24.12.4)(typescript@7.0.2))(terser@5.48.0)(tsx@4.23.0)(typescript@7.0.2)(unrun@0.2.39)(utf-8-validate@6.0.6)(yaml@2.9.0)
+      '@otterware/otter-cloud-client':
+        specifier: workspace:*
+        version: link:../../../packages/otter-cloud-client
       '@types/node':
         specifier: 24.12.4
         version: 24.12.4
@@ -1429,100 +1465,31 @@ importers:
 
   modules/drive/web:
     dependencies:
-      '@base-ui/react':
-        specifier: ^1.4.1
-        version: 1.9.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.4.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
-      '@e965/xlsx':
-        specifier: 0.20.3
-        version: 0.20.3
       '@otterware/drive-contracts':
         specifier: workspace:*
         version: link:../contracts
       '@otterware/module-kit':
         specifier: workspace:*
         version: link:../../../packages/module-kit
-      '@otterware/otter-cloud-client':
-        specifier: workspace:*
-        version: link:../../../packages/otter-cloud-client
       '@t3tools/client-runtime':
         specifier: workspace:*
         version: link:../../../packages/client-runtime
-      '@t3tools/shared':
-        specifier: workspace:*
-        version: link:../../../packages/shared
-      '@tanstack/history':
-        specifier: ^1.161.0
-        version: 1.162.0
-      '@tanstack/react-query':
-        specifier: ^5.87.4
-        version: 5.104.2(react@19.2.6)
-      '@univerjs/core':
-        specifier: 0.25.1
-        version: 0.25.1(react@19.2.6)(rxjs@7.8.2)
-      '@univerjs/preset-docs-core':
-        specifier: 0.25.1
-        version: 0.25.1(@types/react-dom@19.2.3(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(rxjs@7.8.2)
-      '@univerjs/preset-sheets-core':
-        specifier: 0.25.1
-        version: 0.25.1(@types/react-dom@19.2.3(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(rxjs@7.8.2)
-      '@univerjs/themes':
-        specifier: 0.25.1
-        version: 0.25.1
-      class-variance-authority:
-        specifier: ^0.7.1
-        version: 0.7.1
-      clsx:
-        specifier: 2.1.1
-        version: 2.1.1
       effect:
         specifier: 4.0.4
         version: 4.0.4
       lucide-react:
         specifier: ^0.564.0
         version: 0.564.0(react@19.2.6)
-      papaparse:
-        specifier: 5.5.4
-        version: 5.5.4
       react:
         specifier: 19.2.6
         version: 19.2.6
-      react-dom:
-        specifier: 19.2.6
-        version: 19.2.6(react@19.2.6)
-      react-markdown:
-        specifier: ^10.1.0
-        version: 10.1.0(@types/react@19.3.0)(react@19.2.6)
-      remark-gfm:
-        specifier: 'catalog:'
-        version: 4.0.1
-      tailwind-merge:
-        specifier: ^3.4.0
-        version: 3.6.0
-      zod:
-        specifier: 4.6.5
-        version: 4.6.5
     devDependencies:
-      '@tailwindcss/vite':
-        specifier: 4.3.3
-        version: 4.3.3(vite@8.3.4(@types/node@24.12.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(yaml@2.9.0))
       '@types/node':
         specifier: 24.12.4
         version: 24.12.4
-      '@types/papaparse':
-        specifier: 5.5.2
-        version: 5.5.2
       '@types/react':
         specifier: ~19.3.0
         version: 19.3.0
-      '@types/react-dom':
-        specifier: ~19.2.3
-        version: 19.2.3(@types/react@19.3.0)
-      '@vitejs/plugin-react':
-        specifier: ^6.0.1
-        version: 6.0.2(@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7)(@babel/plugin-transform-runtime@7.29.7(@babel/core@7.29.7))(@babel/runtime@7.29.7)(rolldown@1.2.13)(vite@8.3.4(@types/node@24.12.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(yaml@2.9.0)))(babel-plugin-react-compiler@1.0.0)(vite@8.3.4(@types/node@24.12.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(yaml@2.9.0))
-      tailwindcss:
-        specifier: 4.3.3
-        version: 4.3.3
       vite-plus:
         specifier: 1.0.0
         version: 1.0.0(@types/node@24.12.4)(@vitest/ui@5.0.1)(bufferutil@4.1.0)(esbuild@0.28.2)(jiti@2.7.0)(jsdom@30.1.0(@noble/hashes@1.8.0))(msw@2.12.11(@types/node@24.12.4)(typescript@7.0.2))(terser@5.48.0)(tsx@4.23.0)(typescript@7.0.2)(unrun@0.2.39)(utf-8-validate@6.0.6)(yaml@2.9.0)
@@ -19271,17 +19238,6 @@ snapshots:
       '@babel/runtime': 7.29.7
       vite: '@voidzero-dev/vite-plus-core@1.0.0(@types/node@24.12.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(typescript@7.0.2)(unrun@0.2.39)(yaml@2.9.0)'
 
-  '@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7)(@babel/plugin-transform-runtime@7.29.7(@babel/core@7.29.7))(@babel/runtime@7.29.7)(rolldown@1.2.13)(vite@8.3.4(@types/node@24.12.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(yaml@2.9.0))':
-    dependencies:
-      '@babel/core': 7.29.7
-      picomatch: 4.0.4
-      rolldown: 1.2.13
-    optionalDependencies:
-      '@babel/plugin-transform-runtime': 7.29.7(@babel/core@7.29.7)
-      '@babel/runtime': 7.29.7
-      vite: 8.3.4(@types/node@24.12.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(yaml@2.9.0)
-    optional: true
-
   '@rolldown/pluginutils@1.0.0-rc.17':
     optional: true
 
@@ -19510,13 +19466,6 @@ snapshots:
       '@tailwindcss/oxide': 4.3.3
       tailwindcss: 4.3.3
       vite: '@voidzero-dev/vite-plus-core@1.0.0(@types/node@24.12.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(typescript@7.0.2)(unrun@0.2.39)(yaml@2.9.0)'
-
-  '@tailwindcss/vite@4.3.3(vite@8.3.4(@types/node@24.12.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(yaml@2.9.0))':
-    dependencies:
-      '@tailwindcss/node': 4.3.3
-      '@tailwindcss/oxide': 4.3.3
-      tailwindcss: 4.3.3
-      vite: 8.3.4(@types/node@24.12.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(yaml@2.9.0)
 
   '@tanstack/devtools-event-client@0.4.3': {}
 
@@ -20564,14 +20513,6 @@ snapshots:
       vite: '@voidzero-dev/vite-plus-core@1.0.0(@types/node@24.12.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(typescript@7.0.2)(unrun@0.2.39)(yaml@2.9.0)'
     optionalDependencies:
       '@rolldown/plugin-babel': 0.2.3(@babel/core@7.29.7)(@babel/plugin-transform-runtime@7.29.7(@babel/core@7.29.7))(@babel/runtime@7.29.7)(@voidzero-dev/vite-plus-core@1.0.0(@types/node@24.12.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(typescript@7.0.2)(unrun@0.2.39)(yaml@2.9.0))(rolldown@1.2.5)
-      babel-plugin-react-compiler: 1.0.0
-
-  '@vitejs/plugin-react@6.0.2(@rolldown/plugin-babel@0.2.3(@babel/core@7.29.7)(@babel/plugin-transform-runtime@7.29.7(@babel/core@7.29.7))(@babel/runtime@7.29.7)(rolldown@1.2.13)(vite@8.3.4(@types/node@24.12.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(yaml@2.9.0)))(babel-plugin-react-compiler@1.0.0)(vite@8.3.4(@types/node@24.12.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(yaml@2.9.0))':
-    dependencies:
-      '@rolldown/pluginutils': 1.0.1
-      vite: 8.3.4(@types/node@24.12.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(yaml@2.9.0)
-    optionalDependencies:
-      '@rolldown/plugin-babel': 0.2.3(@babel/core@7.29.7)(@babel/plugin-transform-runtime@7.29.7(@babel/core@7.29.7))(@babel/runtime@7.29.7)(rolldown@1.2.13)(vite@8.3.4(@types/node@24.12.4)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(yaml@2.9.0))
       babel-plugin-react-compiler: 1.0.0
 
   '@vitest/browser-preview@5.0.1(@voidzero-dev/vite-plus-core@1.0.0(@types/node@24.12.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(typescript@7.0.2)(unrun@0.2.39)(yaml@2.9.0))(bufferutil@4.1.0)(msw@2.12.11(@types/node@24.12.4)(typescript@7.0.2))(utf-8-validate@6.0.6)(vitest@5.0.1)':
@@ -27649,6 +27590,7 @@ snapshots:
       terser: 5.48.0
       tsx: 4.23.0
       yaml: 2.9.0
+    optional: true
 
   vitefu@1.1.3(@voidzero-dev/vite-plus-core@1.0.0(@types/node@24.12.4)(esbuild@0.28.1)(jiti@2.7.0)(terser@5.48.0)(tsx@4.23.0)(typescript@6.0.3)(unrun@0.2.39)(yaml@2.9.0)):
     optionalDependencies:

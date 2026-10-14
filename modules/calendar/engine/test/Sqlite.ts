@@ -1,3 +1,4 @@
+import watchOnlyMigration from "../src/watchOnlyMigration.ts";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
@@ -17,5 +18,6 @@ export const SqlitePersistenceMemory = Layer.effectDiscard(
     yield* preferenceSyncMigration;
     yield* reminderMigration;
     yield* calendarReminderDefaultsMigration;
+    yield* watchOnlyMigration;
   }),
 ).pipe(Layer.provideMerge(NodeSqliteClient.layer({ filename: ":memory:" })));

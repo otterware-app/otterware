@@ -1,0 +1,387 @@
+import { lazy, Suspense, useEffect, useMemo, useState, type ReactNode } from "react";
+import { isolatedContentUrl } from "@otterware/otter-cloud-client/drive";
+import { useModulePageContext } from "@otterware/module-kit/web";
+import { useDriveHost } from "../../host";
+import { useNavigate } from "../../lib/router";
+import { useQuery } from "@tanstack/react-query";
+import {
+  ChevronDownIcon,
+  DownloadIcon,
+  EllipsisIcon,
+  FileWarningIcon,
+  LinkIcon,
+  Maximize2Icon,
+  Minimize2Icon,
+  UserPlusIcon,
+} from "lucide-react";
+import { documentKind } from "../../lib/document-kind";
+import { artifactBootstrapQuery } from "../../lib/artifact-query";
+import { Button, IconButton } from "../../components/ui/button";
+import { EmptyState } from "../../components/ui/empty-state";
+import {
+  DropdownMenu,
+  DropdownMenuCheckItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "../../components/ui/menu";
+import { HintTooltip } from "../../components/ui/tooltip";
+import { cn } from "../../lib/utils";
+import { TitleBand } from "../top-bar";
+import { ContentLoading } from "./content-loading";
+import { DocumentMenuItems, copyLink, downloadDocument, shareDocument } from "./document-menu";
+import { formatRelative } from "./documents";
+
+const DocumentPreview = lazy(() =>
+  import("./document-preview").then((module) => ({
+    default: module.DocumentPreview,
+  })),
+);
+
+/** Where a document is, for its links and API calls. */
+export interface DocumentLocation {
+  /**
+   * The folder you reach it through; undefined for a document shared with
+   * you on its own, outside every folder you can open.
+   */
+  folderId: string | undefined;
+  /** The folder in its links. */
+  folderSlug: string;
+  /** How API calls name it: its slug in `folderId`, or its id. */
+  reference: string;
+}
+
+/**
+ * The main pane with a document open (Otter Mail's reader): its title band
+ * holds the title, the version picker, Share and the everyday actions; the
+ * document fills the rest.
+ */
+export function DocumentViewer({
+  location,
+  slug,
+  version,
+  sheet,
+  onSheetChange,
+  headerLeading,
+  expanded,
+  onToggleExpanded,
+  roundedLeft,
+}: {
+  location: DocumentLocation;
+  /** The document's slug, from its link. */
+  slug: string;
+  version?: number | undefined;
+  sheet?: string | undefined;
+  onSheetChange: (sheet: string | undefined) => void;
+  headerLeading?: ReactNode;
+  /** The sidebar and list are hidden, giving the document the window. */
+  expanded: boolean;
+  /** Absent on a phone, where the document always has the window. */
+  onToggleExpanded?: (() => void) | undefined;
+  /** Nothing to the viewer's left: its bottom-left corner follows the panel's. */
+  roundedLeft: boolean;
+}) {
+  const navigate = useNavigate();
+  const [editorActions, setEditorActions] = useState<HTMLDivElement | null>(null);
+  const { folderId, folderSlug, reference } = location;
+  const bootstrap = useQuery(artifactBootstrapQuery(folderId, reference, version));
+  const artifact = bootstrap.data?.artifact ?? null;
+  const versions = bootstrap.data?.versions ?? [];
+  const bootstrapPreview = bootstrap.data?.preview ?? null;
+  // Uploaded content (HTML, video) only ever loads from the isolated content
+  // origin, never the app's: a preview anywhere else is refused.
+  const preview = useMemo(() => {
+    if (!bootstrapPreview) return null;
+    try {
+      // The signed URL needs no content cookie, so it loads outside otterware.app too.
+      return {
+        ...bootstrapPreview,
+        url: isolatedContentUrl(bootstrapPreview.signedUrl ?? bootstrapPreview.url),
+      };
+    } catch {
+      return null;
+    }
+  }, [bootstrapPreview]);
+  const previewRefused = bootstrapPreview !== null && preview === null;
+  const selected =
+    versions.find((item) => item.number === version) ??
+    versions.find((item) => item.id === artifact?.currentVersion?.id) ??
+    artifact?.currentVersion ??
+    null;
+  const error =
+    bootstrap.error instanceof Error
+      ? bootstrap.error.message
+      : previewRefused
+        ? "This document’s preview isn’t on Drive’s content site, so it isn’t shown."
+        : null;
+  const host = useDriveHost();
+  const seen = host.active && artifact && selected ? selected.number : null;
+  const onDocumentViewed = host.onDocumentViewed;
+  useEffect(() => {
+    if (artifact && seen !== null) onDocumentViewed?.(artifact.id, seen);
+  }, [artifact?.id, seen, onDocumentViewed]);
+  // What the side chat tells the agent about: this document, at this version.
+  useModulePageContext(
+    artifact
+      ? {
+          module: "drive",
+          title: artifact.title,
+          refs: [
+            {
+              kind: "drive.document",
+              id: artifact.id,
+              label: selected
+                ? `${artifact.title} (version ${selected.number}${selected.number === artifact.currentVersion?.number ? ", current" : ""})`
+                : artifact.title,
+              href: artifact.url,
+            },
+          ],
+        }
+      : null,
+    host.active,
+  );
+  const latest = artifact?.currentVersion?.number ?? 1;
+  const kind =
+    preview && selected ? documentKind(preview.contentType, selected.entryPath) : "frame";
+
+  const openVersion = (number: number) =>
+    void navigate(
+      number === latest
+        ? {
+            to: "/$folderSlug/a/$slug",
+            params: { folderSlug, slug },
+            search: (current) => ({ ...current, sheet }),
+          }
+        : {
+            to: "/$folderSlug/a/$slug/$version",
+            params: {
+              folderSlug,
+              slug,
+              version: `v${number}`,
+            },
+            search: (current) => ({ ...current, sheet }),
+          },
+    );
+
+  return (
+    <div className="flex h-full min-w-0 flex-col">
+      <TitleBand className="gap-1.5">
+        {headerLeading}
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          {artifact ? (
+            <>
+              <h1 className="min-w-0 truncate text-sm font-medium text-foreground">
+                {artifact.title}
+              </h1>
+              {selected ? (
+                <DropdownMenu>
+                  <HintTooltip label="Versions" side="bottom">
+                    <DropdownMenuTrigger
+                      render={
+                        <button
+                          type="button"
+                          aria-label={`Version ${selected.number}, pick another`}
+                          className="flex h-6 shrink-0 items-center gap-0.5 rounded-md px-1.5 text-xs text-muted-foreground tabular-nums outline-none hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring data-popup-open:bg-accent"
+                        />
+                      }
+                    >
+                      v{selected.number}
+                      {selected.number !== latest ? " (old)" : ""}
+                      <ChevronDownIcon className="size-3.5" />
+                    </DropdownMenuTrigger>
+                  </HintTooltip>
+                  <DropdownMenuContent className="w-80">
+                    <DropdownMenuLabel>
+                      {versions.length} {versions.length === 1 ? "version" : "versions"}
+                    </DropdownMenuLabel>
+                    {versions.map((item) => (
+                      <DropdownMenuCheckItem
+                        key={item.id}
+                        checked={item.number === selected.number}
+                        className="h-auto"
+                        onClick={() => openVersion(item.number)}
+                      >
+                        <span className="flex min-w-0 items-baseline gap-2">
+                          <span className="w-7 shrink-0 text-muted-foreground tabular-nums">
+                            v{item.number}
+                          </span>
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate">
+                              {item.label || "Untitled version"}
+                            </span>
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {formatRelative(item.createdAt)}
+                              {item.createdBy ? ` · ${item.createdBy.name}` : ""}
+                            </span>
+                          </span>
+                        </span>
+                      </DropdownMenuCheckItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : null}
+              {artifact.archivedAt ? (
+                <span className="shrink-0 rounded-md bg-warning-surface px-1.5 py-0.5 text-2xs text-warning-foreground">
+                  Archived
+                </span>
+              ) : null}
+            </>
+          ) : (
+            <span className="h-3.5 w-40 animate-skeleton rounded-full bg-accent" />
+          )}
+        </div>
+
+        <div ref={setEditorActions} className="flex items-center empty:hidden" />
+        {artifact ? (
+          <>
+            <Button
+              size="sm"
+              variant={artifact.role === "viewer" ? "outline" : "accent"}
+              className="me-1"
+              onClick={() => shareDocument(artifact, folderId)}
+            >
+              <UserPlusIcon className="size-3.5" />
+              Share
+            </Button>
+            <HintTooltip label="Copy link" side="bottom">
+              <IconButton label="Copy link" onClick={() => void copyLink(artifact)}>
+                <LinkIcon className="size-4" />
+              </IconButton>
+            </HintTooltip>
+            <HintTooltip label="Download" side="bottom">
+              <IconButton
+                label={`Download ${artifact.title}`}
+                onClick={() => void downloadDocument(artifact, folderId, selected?.number)}
+              >
+                <DownloadIcon className="size-4" />
+              </IconButton>
+            </HintTooltip>
+            <DropdownMenu>
+              <HintTooltip label="More" side="bottom">
+                <DropdownMenuTrigger render={<IconButton label="Document actions" />}>
+                  <EllipsisIcon className="size-4" />
+                </DropdownMenuTrigger>
+              </HintTooltip>
+              <DropdownMenuContent align="end" className="min-w-56">
+                <DocumentMenuItems
+                  artifact={artifact}
+                  folderId={folderId}
+                  {...(selected ? { version: selected.number } : {})}
+                  onMoved={(moved, destination) =>
+                    void navigate({
+                      to: "/$folderSlug/a/$slug",
+                      params: {
+                        folderSlug: destination.slug,
+                        slug: moved.slug,
+                      },
+                    })
+                  }
+                  onDeleted={() =>
+                    void navigate({
+                      to: "/home",
+                      search: (current) => ({ ...current, sheet: undefined }),
+                    })
+                  }
+                />
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        ) : null}
+        {onToggleExpanded ? (
+          <>
+            <span aria-hidden className="mx-1 h-5 w-px shrink-0 bg-border" />
+            <HintTooltip label={expanded ? "Show the list" : "Full width"} side="bottom">
+              <IconButton
+                label={expanded ? "Show the list" : "Full width"}
+                aria-pressed={expanded}
+                onClick={onToggleExpanded}
+              >
+                {expanded ? (
+                  <Minimize2Icon className="size-4" />
+                ) : (
+                  <Maximize2Icon className="size-4" />
+                )}
+              </IconButton>
+            </HintTooltip>
+          </>
+        ) : null}
+      </TitleBand>
+
+      {/* The document, inside the panel's 1px edge and clipped to its
+          rounded corners: the right ones, and the left ones with nothing to
+          its left. */}
+      <div className={cn("flex min-h-0 flex-1 pt-px pr-px pb-px", roundedLeft && "pl-px")}>
+        <div
+          className={cn(
+            "relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-r-xl",
+            roundedLeft && "rounded-l-xl",
+          )}
+        >
+          {error ? (
+            <EmptyState
+              className="h-full"
+              icon={FileWarningIcon}
+              title="Couldn’t open this document"
+              description={error}
+            />
+          ) : !artifact || !selected || !preview ? (
+            <ContentLoading />
+          ) : kind !== "frame" && kind !== "video" ? (
+            <Suspense fallback={<ContentLoading />}>
+              <DocumentPreview
+                readOnly={artifact.role === "viewer"}
+                actionsContainer={editorActions}
+                kind={kind}
+                entryPath={selected.entryPath}
+                expectedCurrentVersion={artifact.versionCount}
+                onSheetChange={onSheetChange}
+                folderId={folderId}
+                folderSlug={folderSlug}
+                selectedSheet={sheet}
+                slug={slug}
+                reference={reference}
+                version={selected.number}
+              />
+            </Suspense>
+          ) : kind === "video" ? (
+            <VideoPlayer
+              key={`${slug}:${selected.number}`}
+              src={preview.url}
+              title={`${artifact.title}, version ${selected.number}`}
+            />
+          ) : (
+            <iframe
+              key={`${slug}:${selected.number}:${preview.url}`}
+              className="size-full border-0 bg-white [color-scheme:light]"
+              src={preview.url}
+              title={`${artifact.title}, version ${selected.number}`}
+              sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-downloads allow-modals"
+              referrerPolicy="no-referrer"
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A video document. The preview URL starts a content session and redirects to
+ * the file, so it's kept from the first render: a refetched bootstrap brings
+ * a new URL, which would restart the video.
+ */
+function VideoPlayer({ src, title }: { src: string; title: string }) {
+  const [source] = useState(src);
+  return (
+    <div className="flex size-full items-center justify-center bg-black">
+      <video
+        className="size-full object-contain"
+        src={source}
+        aria-label={title}
+        controls
+        playsInline
+        preload="metadata"
+      />
+    </div>
+  );
+}

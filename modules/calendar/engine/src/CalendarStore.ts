@@ -60,6 +60,7 @@ export interface CalendarRecord {
   readonly accessRole: CalendarAccessRole;
   readonly primary: boolean;
   readonly visible: boolean;
+  readonly watchOnly?: boolean;
   readonly timeZone: string | null;
   readonly position: number;
   readonly syncToken: string | null;
@@ -124,6 +125,7 @@ const calendarOf = (row: Row): CalendarRecord => ({
   accessRole: text(row.access_role) as CalendarAccessRole,
   primary: num(row.is_primary) === 1,
   visible: num(row.visible) === 1,
+  watchOnly: num(row.watch_only) === 1,
   timeZone: textOrNull(row.time_zone),
   position: num(row.position),
   syncToken: textOrNull(row.sync_token),
@@ -338,6 +340,11 @@ export function makeCalendarStore(sql: SqlClient.SqlClient) {
 
   const setCalendarVisible = (calendarId: string, visible: boolean) =>
     sql`UPDATE calendar_calendars SET visible = ${visible ? 1 : 0} WHERE calendar_id = ${calendarId}`.pipe(
+      Effect.asVoid,
+    );
+
+  const setCalendarWatchOnly = (calendarId: string, watchOnly: boolean) =>
+    sql`UPDATE calendar_calendars SET watch_only = ${watchOnly ? 1 : 0} WHERE calendar_id = ${calendarId}`.pipe(
       Effect.asVoid,
     );
 
@@ -655,6 +662,7 @@ export function makeCalendarStore(sql: SqlClient.SqlClient) {
     insertCalendar,
     updateCalendarFromRemote,
     setCalendarVisible,
+    setCalendarWatchOnly,
     setCalendarColor,
     setCalendarSync,
     setHorizon,

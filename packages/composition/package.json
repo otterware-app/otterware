@@ -23,33 +23,9 @@
       "types": "./src/web.ts",
       "import": "./src/web.ts"
     },
-    "./web/calendar": {
-      "types": "./src/calendar-web.ts",
-      "import": "./src/calendar-web.ts"
-    },
-    "./web/calendar/host": {
-      "types": "./src/calendar-host.ts",
-      "import": "./src/calendar-host.ts"
-    },
-    "./web/calendar/rpc": {
+    "./calendar-rpc": {
       "types": "./src/calendar-rpc.ts",
       "import": "./src/calendar-rpc.ts"
-    },
-    "./web/calendar/page": {
-      "types": "./src/calendar-page.ts",
-      "import": "./src/calendar-page.ts"
-    },
-    "./web/calendar/settings": {
-      "types": "./src/calendar-settings.ts",
-      "import": "./src/calendar-settings.ts"
-    },
-    "./web/calendar/notifications": {
-      "types": "./src/calendar-notifications.ts",
-      "import": "./src/calendar-notifications.ts"
-    },
-    "./web/drive": {
-      "types": "./src/drive-web.ts",
-      "import": "./src/drive-web.ts"
     }
   },
   "scripts": {

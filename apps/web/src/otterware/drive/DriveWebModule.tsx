@@ -1,3 +1,6 @@
+import { HardDriveIcon } from "lucide-react";
+import { useDriveSpaces, useDriveSidebar, useDriveHeaderActions } from "./driveShell";
+import { useDriveStore, runDriveCommand } from "./ui/driveStore";
 /**
  * Drive in the Otterware shell. Drive's window (`@otterware/drive-web`) calls
  * Otter Cloud directly with the Otter Account's token; this adapter hands it
@@ -5,7 +8,7 @@
  * `drive.markViewed` so Home stops listing documents the user has opened.
  */
 import { createDriveWebModule } from "@otterware/composition/web";
-import type { DriveHost } from "@otterware/composition/web/drive";
+import type { DriveHost } from "./ui";
 import type { ModulePageProps } from "@otterware/module-kit/web";
 import { EnvironmentRegistry } from "@t3tools/client-runtime/connection";
 import { request } from "@t3tools/client-runtime/rpc";
@@ -22,7 +25,7 @@ import { connectionAtomRuntime } from "../../connection/runtime";
 import { appAtomRegistry } from "../../rpc/atomRegistry";
 import { usePrimaryEnvironmentId } from "../../state/environments";
 
-type DriveWeb = typeof import("@otterware/composition/web/drive");
+type DriveWeb = typeof import("./ui");
 
 function markViewed(environmentId: EnvironmentId, artifactId: string, version: number) {
   return Effect.runPromise(
@@ -44,9 +47,14 @@ function markViewed(environmentId: EnvironmentId, artifactId: string, version: n
 /** The account, Cloud client and route Drive runs against in the shell. */
 function useShellDriveHost(
   drive: Pick<DriveWeb, "createDriveCloudClient" | "publicDriveUrl">,
-  { active, subpath }: { readonly active: boolean; readonly subpath: string },
+  {
+    active,
+    subpath,
+    projectId,
+  }: { readonly active: boolean; readonly subpath: string; readonly projectId?: string | null },
 ): DriveHost {
   const auth = useAuth();
+  const basePath = projectId ? `/home/projects/${projectId}/drive` : "/drive";
   const navigate = useNavigate();
   const { history } = useRouter();
   const environmentId = usePrimaryEnvironmentId();
@@ -55,7 +63,8 @@ function useShellDriveHost(
   const [location, setLocation] = useState(searchStr);
   if (active && location !== searchStr) setLocation(searchStr);
   // `getToken` reads the account session's current token; it is stable for the app's lifetime.
-  const [client] = useState(() => drive.createDriveCloudClient(auth.getToken));
+  const [fallbackClient] = useState(() => drive.createDriveCloudClient(auth.getToken));
+  const client = useDriveStore((state) => state.transport) ?? fallbackClient;
   const onDocumentViewed = useCallback(
     (artifactId: string, version: number) => {
       // Best effort: without Drive on this environment there is nothing to clear.
@@ -70,15 +79,15 @@ function useShellDriveHost(
       history.block({
         blockerFn: ({ nextLocation }) => {
           const path = nextLocation.pathname;
-          if (path !== "/drive" && !path.startsWith("/drive/")) return false;
+          if (path !== basePath && !path.startsWith(`${basePath}/`)) return false;
           return shouldBlock({
-            pathname: path.slice("/drive".length) || "/",
+            pathname: path.slice(basePath.length) || "/",
             search: nextLocation.search,
           });
         },
         enableBeforeUnload: beforeUnload,
       }),
-    [history],
+    [history, basePath],
   );
   // The desktop app's own origin opens nowhere else, so its tabs open Drive's site.
   const openInNewTab = useCallback(
@@ -94,7 +103,7 @@ function useShellDriveHost(
   const user = auth.user;
   return useMemo(
     (): DriveHost => ({
-      client,
+      transport: client,
       account: user
         ? { id: user.id, name: user.name ?? user.email, email: user.email, image: user.image }
         : null,
@@ -103,8 +112,21 @@ function useShellDriveHost(
       signOut: null,
       location: { pathname: `/${subpath}`, search: location },
       navigate: (to, options) =>
-        void navigate({ href: `/drive${to}`, replace: options?.replace ?? false }),
-      href: (to) => `/drive${to}`,
+        void navigate({
+          href: to.startsWith("/settings")
+            ? to.includes("members")
+              ? "/settings/drive/access"
+              : to.includes("account")
+                ? "/settings/account"
+                : to.includes("appearance")
+                  ? "/settings/appearance"
+                  : to.includes("agents")
+                    ? "/settings/providers"
+                    : "/settings/drive/drives"
+            : `${basePath}${to}`,
+          replace: options?.replace ?? false,
+        }),
+      href: (to) => `${basePath}${to}`,
       openInNewTab,
       blockNavigation,
       embedded: true,
@@ -118,6 +140,7 @@ function useShellDriveHost(
       subpath,
       location,
       navigate,
+      basePath,
       openInNewTab,
       blockNavigation,
       active,
@@ -134,18 +157,89 @@ function makePage(drive: DriveWeb) {
   };
 }
 
-function makeSettings(drive: DriveWeb) {
+function makeSettings(drive: DriveWeb, page: string) {
   const { DriveSettings } = drive;
   return function DriveSettingsSection() {
     const host = useShellDriveHost(drive, { active: true, subpath: "settings" });
-    return <DriveSettings host={host} />;
+    return <DriveSettings host={host} page={page} />;
   };
 }
 
 export const DriveWebModule = createDriveWebModule({
-  page: lazy(async () => ({ default: makePage(await import("@otterware/composition/web/drive")) })),
-  settings: lazy(async () => ({
-    default: makeSettings(await import("@otterware/composition/web/drive")),
+  useSpaces: useDriveSpaces,
+  useSidebar: useDriveSidebar,
+  useHeaderActions: useDriveHeaderActions,
+  stores: [{ id: "drive.data", runtime: lazy(() => import("./DriveBackgroundRuntime")) }],
+  page: lazy(async () => ({ default: makePage(await import("./ui")) })),
+  settings: (
+    [
+      {
+        id: "drives",
+        label: "Drives and folders",
+        placement: "page",
+        rows: ["Shared drives", "New drive", "Move folder", "Delete empty folder", "Drive link"],
+      },
+      {
+        id: "access",
+        label: "Shared drive access",
+        placement: "page",
+        rows: ["People with access", "Invite"],
+      },
+      { id: "appearance", label: "Drive display", placement: "appearance", rows: ["List density"] },
+    ] as const
+  ).map((page) => ({
+    id: page.id,
+    label: page.label,
+    icon: HardDriveIcon,
+    searchTerms: page.rows,
+    placement: { grouped: page.placement, standalone: page.placement },
+    rows: page.rows.map((title) => ({
+      id: `drive-${title.toLowerCase().replaceAll(" ", "-")}`,
+      title,
+    })),
+    component: lazy(async () => ({ default: makeSettings(await import("./ui"), page.id) })),
   })),
+  commands: [
+    {
+      id: "drive.shared",
+      title: "Drive: Shared with me",
+      searchTerms: ["shared"],
+      subpath: "home?view=shared",
+    },
+    {
+      id: "drive.recent",
+      title: "Drive: recent documents",
+      searchTerms: ["recent"],
+      subpath: "home?view=recent",
+    },
+    {
+      id: "drive.archived",
+      title: "Drive: archived documents",
+      searchTerms: ["archived"],
+      subpath: "home?view=archived",
+    },
+    ...[
+      ["folder.new", "New folder", "mod+shift+n"],
+      ["document.upload", "Upload", "u"],
+      ["search.focus", "Search documents", "/"],
+      ["list.next", "Next document", "j"],
+      ["list.previous", "Previous document", "k"],
+      ["list.nextArrow", "Next document (arrow)", "arrowdown"],
+      ["list.previousArrow", "Previous document (arrow)", "arrowup"],
+      ["document.close", "Close document", "escape"],
+      ...Array.from({ length: 9 }, (_, index) => [
+        `folder.jump.${index + 1}`,
+        `Open drive ${index + 1}`,
+        `alt+${index + 1}`,
+      ]),
+    ].map(([id, title, key]) => ({
+      id: `drive.${id}` as const,
+      title: `Drive: ${title}`,
+      searchTerms: [title!],
+      defaultKey: key!,
+      when: "!editableFocus",
+      run: () => runDriveCommand(id!.replace(/Arrow$/, "")),
+    })),
+  ],
   threadAccessory: lazy(() => import("./ThreadDriveDocuments")),
 });

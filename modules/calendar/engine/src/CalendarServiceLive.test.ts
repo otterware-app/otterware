@@ -1,3 +1,4 @@
+import { calendarHomeContributor } from "./CalendarHome.ts";
 // @effect-diagnostics globalDate:off globalDateInEffect:off - Fake Google events carry RFC 3339 stamps like the real API.
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { describe, expect, it } from "@effect/vitest";
@@ -88,6 +89,67 @@ const instancesIn = (calendarId: CalendarId, week: string) =>
 
 const standupsOf = (instances: ReadonlyArray<CalendarEventInstance>) =>
   instances.filter((instance) => instance.title.includes("tandup"));
+
+it.effect(
+  "watch-only calendars stay readable and visible but do not require attention or block free time",
+  () =>
+    Effect.gen(function* () {
+      const { calendar, work } = yield* withDemo;
+      const start = at("2026-10-01", 18 * 60);
+      const end = start + 30 * 60_000;
+      const created = yield* calendar.createEvent({
+        calendarId: work.calendarId,
+        title: "Watch-only planning fixture",
+        time: {
+          allDay: false,
+          start: new Date(start).toISOString(),
+          end: new Date(end).toISOString(),
+        },
+      });
+      const input = {
+        start,
+        end,
+        durationMinutes: 30,
+        calendarIds: [work.calendarId],
+        workingHoursOnly: false,
+        timeZone: "UTC",
+      };
+      expect(yield* calendar.findFreeTime(input)).toEqual([]);
+      yield* calendar.updateCalendar({ calendarId: work.calendarId, watchOnly: true });
+      expect(
+        (yield* calendar.getDirectory).calendars.find(
+          (entry) => entry.calendarId === work.calendarId,
+        ),
+      ).toMatchObject({ visible: true, watchOnly: true });
+      expect(
+        (yield* calendar.listInstances({ start, end, calendarIds: [work.calendarId] })).find(
+          (entry) => entry.eventId === created.event!.eventId,
+        ),
+      ).toMatchObject({ watchOnly: true });
+      expect(
+        (yield* calendar.search({ query: "Watch-only planning fixture" })).results[0],
+      ).toMatchObject({ watchOnly: true });
+      expect(
+        yield* calendar.getEvent({ calendarId: work.calendarId, eventId: created.event!.eventId }),
+      ).toMatchObject({ watchOnly: true });
+      expect(yield* calendar.findFreeTime(input)).toEqual([{ start, end }]);
+      const { snapshot } = yield* watchWeek(WEEK);
+      expect(snapshot.some((entry) => entry.eventId === created.event!.eventId)).toBe(true);
+      const home = yield* calendarHomeContributor;
+      expect(
+        (yield* home.today).some((entry) => entry.facets?.calendarId === work.calendarId),
+      ).toBe(false);
+      expect(
+        (yield* home.needsYou).some((entry) => entry.facets?.calendarId === work.calendarId),
+      ).toBe(false);
+      yield* calendar.updateCalendar({ calendarId: work.calendarId, watchOnly: false });
+      expect(yield* calendar.findFreeTime(input)).toEqual([]);
+      yield* calendar.updateCalendar({ calendarId: work.calendarId, visible: false });
+      expect(
+        (yield* watchWeek(WEEK)).snapshot.some((entry) => entry.calendarId === work.calendarId),
+      ).toBe(false);
+    }).pipe(Effect.provide(DemoLayer)),
+);
 
 describe("CalendarServiceLive with the standard demo", () => {
   it.effect("syncs the demo accounts into the directory and week chunks", () =>

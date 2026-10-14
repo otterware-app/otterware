@@ -1,3 +1,4 @@
+import { ProviderConnections } from "./account/ProviderConnections";
 /**
  * Module settings pages whose placement merges them into the host page being
  * shown (ADR 0011): each renders as one section, titled with the page's label,
@@ -12,14 +13,23 @@ import { mergedModuleSettingsPages } from "./settingsRegistry";
 
 export function ModuleSettingsMerges() {
   const pathname = useLocation({ select: (location) => location.pathname });
-  return mergedModuleSettingsPages(pathname).map((entry) => {
-    const Page = entry.page.component;
-    return (
-      <SettingsSection key={entry.sectionId} id={entry.sectionId} title={entry.page.label}>
-        <Suspense fallback={null}>
-          <Page />
-        </Suspense>
-      </SettingsSection>
-    );
-  });
+  return (
+    <>
+      {pathname === "/settings/connections" ? (
+        <SettingsSection title="Otter Account connections">
+          <ProviderConnections />
+        </SettingsSection>
+      ) : null}
+      {mergedModuleSettingsPages(pathname).map((entry) => {
+        const Page = entry.page.component;
+        return (
+          <SettingsSection key={entry.sectionId} id={entry.sectionId} title={entry.page.label}>
+            <Suspense fallback={null}>
+              <Page />
+            </Suspense>
+          </SettingsSection>
+        );
+      })}
+    </>
+  );
 }

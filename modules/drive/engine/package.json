@@ -23,6 +23,7 @@
   "devDependencies": {
     "@effect/platform-node": "catalog:",
     "@effect/vitest": "catalog:",
+    "@otterware/otter-cloud-client": "workspace:*",
     "@types/node": "catalog:",
     "vite-plus": "catalog:"
   }

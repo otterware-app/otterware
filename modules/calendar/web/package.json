@@ -4,36 +4,16 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "import": "./src/index.ts"
-    },
-    "./host": {
-      "types": "./src/host.tsx",
-      "import": "./src/host.tsx"
-    },
-    "./module": {
       "types": "./src/CalendarWebModule.ts",
       "import": "./src/CalendarWebModule.ts"
-    },
-    "./page": {
-      "types": "./src/CalendarPage.tsx",
-      "import": "./src/CalendarPage.tsx"
-    },
-    "./settings": {
-      "types": "./src/CalendarSettings.tsx",
-      "import": "./src/CalendarSettings.tsx"
-    },
-    "./rpc": {
-      "types": "./src/rpc/index.ts",
-      "import": "./src/rpc/index.ts"
-    },
-    "./notifications": {
-      "types": "./src/CalendarNotifications.tsx",
-      "import": "./src/CalendarNotifications.tsx"
     },
     "./registration": {
       "types": "./src/CalendarWebModule.ts",
       "import": "./src/CalendarWebModule.ts"
+    },
+    "./rpc": {
+      "types": "./src/rpc/index.ts",
+      "import": "./src/rpc/index.ts"
     }
   },
   "scripts": {
@@ -41,12 +21,10 @@
     "test": "vp test run --config ../../../vite.config.ts --dir . --passWithNoTests"
   },
   "dependencies": {
-    "@legendapp/list": "catalog:",
     "@otterware/calendar-contracts": "workspace:*",
     "@otterware/module-kit": "workspace:*",
     "@t3tools/client-runtime": "workspace:*",
     "@t3tools/contracts": "workspace:*",
-    "clsx": "2.1.1",
     "effect": "catalog:",
     "lucide-react": "^0.564.0",
     "react": "19.2.6"

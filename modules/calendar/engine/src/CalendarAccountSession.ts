@@ -1,3 +1,5 @@
+import { OtterAccountSession } from "@otterware/module-kit/account";
+import * as Config from "effect/Config";
 import { OtterCloudClient, CloudError } from "@otterware/otter-cloud-client";
 import { CalendarError } from "@otterware/calendar-contracts";
 import * as Clock from "effect/Clock";
@@ -88,6 +90,10 @@ export const accountSessionLayer = <E, R>(
   Layer.effect(
     CalendarAccountSession,
     Effect.gen(function* () {
+      const host = yield* Effect.serviceOption(OtterAccountSession);
+      const cloudOrigin = yield* Config.String("OTTERWARE_CLOUD_ORIGIN").pipe(
+        Config.withDefault("https://cloud.otterware.app"),
+      );
       const http = yield* HttpClient.HttpClient;
       const context = yield* Effect.context<R>();
       const readCredential = credential.pipe(Effect.provide(context));
@@ -100,6 +106,12 @@ export const accountSessionLayer = <E, R>(
       } | null = null;
       const current = lock.withPermits(1)(
         Effect.gen(function* () {
+          if (Option.isSome(host)) {
+            const account = host.value.current();
+            return account
+              ? Option.some({ accountId: account.accountId, client: account.client, cloudOrigin })
+              : Option.none<CalendarCloudContext>();
+          }
           const saved = yield* readCredential.pipe(Effect.mapError(failed));
           if (Option.isNone(saved)) {
             cached?.abort.abort();

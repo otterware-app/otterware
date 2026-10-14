@@ -24,7 +24,7 @@ import {
 } from "./providers.ts";
 import { pullRecords, pushRecords, pushSchema } from "./sync.ts";
 import { DRIVE_BROWSER_AUDIENCE, isPublicDriveRequest } from "./drive-browser.ts";
-import { driveStaticRequest } from "./drive-static.ts";
+import { driveStaticRequest, driveStaticRedirect } from "./drive-static.ts";
 import { drive, legacy } from "./legacy.ts";
 import type { App, Env } from "./env.ts";
 import { SESSION_HEADER } from "../mail/src/user-hub.ts";
@@ -252,6 +252,8 @@ function forwardToMail(c: Context<App>, request: Request, sessionToken: string) 
 app.all("/v1/cloud/mail/*", (c) => forwardToMail(c, c.req.raw, c.var.identity.sessionToken));
 app.all("/api/*", (c) => drive(c.req.raw, c.env, true));
 app.notFound((c) => {
+  const redirect = driveStaticRedirect(c.req.raw);
+  if (redirect) return redirect;
   const asset = driveStaticRequest(c.req.raw);
   return asset ? c.env.ASSETS.fetch(asset) : new Response("Not found", { status: 404 });
 });

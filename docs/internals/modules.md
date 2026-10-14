@@ -131,9 +131,7 @@ Constraints behind the current layout, to revisit rather than work around:
 - The retained pages host keys pages only by module id. Environment changes update hooks; auth
   transitions hide the shell with React Activity. Hidden pages pause effects without discarding
   form state. Never key this host or a page by an environment id or an auth token.
-- Home uses the host UI kit and client state under `apps/web/src/otterware/home/`, because
-  `components/ui` and the web state are not packages. Moving that UI to `modules/home/web`
-  needs the UI kit extraction first. Mail, Calendar and Drive still carry their first
-  integration's inner UI (own routers, sidebars, theme engines) inside the host frame until their
-  rebuild chunks replace it with the shell contract; composition keeps their registration cheap
-  and loads their full UI only on first use.
+- Module pages use the host UI kit under `apps/web/src/otterware/<module>/`, because
+  `components/ui` and the web state are not packages. Moving that UI to `modules/<module>/web`
+  needs the UI kit extraction first. Composition keeps registration cheap; the shell mounts
+  background stores independently of lazy page content.

@@ -1,5 +1,5 @@
 import type { CalendarEventInstance, CalendarWeekEvent } from "@otterware/calendar-contracts";
-import { instanceKey, sameInstance } from "./days.ts";
+import { instanceKey, sameInstance } from "@otterware/calendar-contracts";
 /** Instances of one or more week chunks by `calendarEventKey`. */
 export type CalendarInstanceMap = ReadonlyMap<string, CalendarEventInstance>;
 
