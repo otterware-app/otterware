@@ -4,7 +4,7 @@ import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import { ElectronWindow } from "../electron/ElectronWindow.ts";
 
-export const moduleDesktopRegistry = createDesktopRegistry();
+const moduleDesktopRegistry = createDesktopRegistry();
 
 export const installModuleDesktopBridge = Effect.gen(function* () {
   const windows = yield* ElectronWindow;
