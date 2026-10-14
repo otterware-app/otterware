@@ -184,3 +184,5 @@ export const calendarNotificationsStream = Stream.unwrap(
     );
   }),
 );
+
+export { applyCalendarWeekEvent, EMPTY_CALENDAR_INSTANCES } from "../runtime/week.ts";

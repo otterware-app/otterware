@@ -1,3 +1,5 @@
+import { OTTER_ACCOUNTS_URL } from "@t3tools/shared/otterAccounts";
+import { ensureLocalApi } from "../../localApi";
 /**
  * Settings › Account (ADR 0020): the Otter Account this client is signed in
  * to, and the environment it is attached to. Modules add their own rows here
@@ -43,10 +45,24 @@ export function AccountSettingsPage() {
             )
           }
         />
+        <SettingsRow
+          id="account-security"
+          title="Security"
+          description="Account · Manage your sign-in methods and account security."
+          control={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void ensureLocalApi().shell.openExternal(OTTER_ACCOUNTS_URL)}
+            >
+              Manage account
+            </Button>
+          }
+        />
       </SettingsSection>
       {environmentId !== null ? (
         <SettingsSection id="account-environment" title="Environment">
-          <AccountConnections environmentId={environmentId} />
+          <AccountConnections environmentId={environmentId} accountOnly />
         </SettingsSection>
       ) : null}
     </SettingsPageContainer>

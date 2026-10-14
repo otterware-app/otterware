@@ -1,3 +1,4 @@
+import watchOnlyMigration from "./watchOnlyMigration.ts";
 import {
   CalendarContract,
   CalendarSettings,
@@ -62,6 +63,7 @@ export const makeCalendarModule = <E, R>(auth: Layer.Layer<GoogleAuth, E, R>) =>
         name: "calendar_reminder_defaults",
         run: calendarReminderDefaultsMigration,
       },
+      { module: "calendar", id: 6, name: "watch_only", run: watchOnlyMigration },
     ],
     layer: CalendarServiceLive.layer.pipe(Layer.provide(auth)),
     rpcHandlers,
@@ -69,7 +71,7 @@ export const makeCalendarModule = <E, R>(auth: Layer.Layer<GoogleAuth, E, R>) =>
     homeContributor: calendarHomeContributor,
     settings: CalendarSettings,
     agentInstructions:
-      "Use calendar_list_accounts, calendar_list_events, calendar_search_events, calendar_get_event and calendar_find_free_time to read the environment's calendars. Create, update, delete or respond to events only when asked. Use the viewer time zone from page context; all-day dates have an exclusive end.",
+      "Use calendar_update_calendar to change visibility, color or the reversible account-scoped watchOnly flag. Use calendar_list_accounts, calendar_list_events, calendar_search_events, calendar_get_event and calendar_find_free_time to read the environment's calendars. Events flagged watchOnly are reference calendars: do not suggest responding, warn about conflicts or count them as busy. calendar_find_free_time excludes them; list and search still include them. Create, update, delete or respond to events only when asked. Use the viewer time zone from page context; all-day dates have an exclusive end.",
   });
 
 export const CalendarModule = makeCalendarModule(GoogleAuthUnavailable.layer);

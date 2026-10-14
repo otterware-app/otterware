@@ -66,7 +66,7 @@ export function withShellKeybindings(
   return mergeShellKeybindings(scoped, SHELL_DEFAULT_KEYBINDINGS);
 }
 
-const shellKeybindingsAtom = Atom.make((get) =>
+export const shellKeybindingsAtom = Atom.make((get) =>
   withShellKeybindings(get(primaryServerKeybindingsAtom)),
 ).pipe(Atom.withLabel("otterware-shell-keybindings"));
 

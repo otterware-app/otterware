@@ -25,7 +25,13 @@ function checked<A, E>(result: AtomCommandResult<A, E>): A {
 }
 
 /** The account is attached explicitly to the selected environment, including remote ones. */
-export function AccountConnections({ environmentId }: { environmentId: EnvironmentId }) {
+export function AccountConnections({
+  environmentId,
+  accountOnly = false,
+}: {
+  environmentId: EnvironmentId;
+  accountOnly?: boolean;
+}) {
   const auth = useAuth();
   const state = useEnvironmentQuery(accountState({ environmentId, input: {} }));
   const connections = useEnvironmentQuery(
@@ -89,7 +95,7 @@ export function AccountConnections({ environmentId }: { environmentId: Environme
                   "Contacts.Read",
                   "Calendars.ReadWrite",
                 ],
-          returnTo: "https://mail.otterware.app/settings/mail?pane=accounts",
+          returnTo: window.location.href,
         },
       }).then(checked);
       await ensureLocalApi().shell.openExternal(result.url);
@@ -97,8 +103,8 @@ export function AccountConnections({ environmentId }: { environmentId: Environme
   return (
     <section className="flex flex-col gap-3" aria-label="Otter Account connections">
       <p className="text-sm text-muted-foreground">
-        Environment scope · Connect your Otter Account to share provider connections and Mail
-        preferences with this environment.
+        Environment scope · Connect your Otter Account to share provider connections and Mail and
+        Calendar preferences with this environment.
       </p>
       {!auth.isSignedIn ? (
         <Button onClick={() => void run(auth.signIn)} disabled={busy}>
@@ -120,12 +126,16 @@ export function AccountConnections({ environmentId }: { environmentId: Environme
       ) : (
         <>
           <div className="flex flex-wrap gap-2">
-            <Button disabled={!canWrite || busy} onClick={() => void add("google")}>
-              Connect Google
-            </Button>
-            <Button disabled={!canWrite || busy} onClick={() => void add("microsoft")}>
-              Connect Microsoft
-            </Button>
+            {!accountOnly && (
+              <>
+                <Button disabled={!canWrite || busy} onClick={() => void add("google")}>
+                  Connect Google
+                </Button>
+                <Button disabled={!canWrite || busy} onClick={() => void add("microsoft")}>
+                  Connect Microsoft
+                </Button>
+              </>
+            )}
             <Button
               variant="outline"
               disabled={!canWrite || busy}
@@ -134,26 +144,27 @@ export function AccountConnections({ environmentId }: { environmentId: Environme
               Disconnect environment
             </Button>
           </div>
-          {connections.data?.map((connection) => (
-            <div key={connection.id} className="flex items-center justify-between gap-3 text-sm">
-              <span>
-                {connection.email} · {connection.provider}
-              </span>
-              <Button
-                variant="ghost"
-                disabled={!canWrite || busy}
-                onClick={() =>
-                  void run(() =>
-                    disconnect({ environmentId, input: { connectionId: connection.id } }).then(
-                      checked,
-                    ),
-                  )
-                }
-              >
-                Disconnect provider
-              </Button>
-            </div>
-          ))}
+          {!accountOnly &&
+            connections.data?.map((connection) => (
+              <div key={connection.id} className="flex items-center justify-between gap-3 text-sm">
+                <span>
+                  {connection.email} · {connection.provider}
+                </span>
+                <Button
+                  variant="ghost"
+                  disabled={!canWrite || busy}
+                  onClick={() =>
+                    void run(() =>
+                      disconnect({ environmentId, input: { connectionId: connection.id } }).then(
+                        checked,
+                      ),
+                    )
+                  }
+                >
+                  Disconnect provider
+                </Button>
+              </div>
+            ))}
         </>
       )}
       {error || state.error ? (

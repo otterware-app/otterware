@@ -129,7 +129,13 @@ it.effect("maps synced calendar references to local ids and ignores environment 
     yield* sql`INSERT INTO calendar_calendars (calendar_id, account_id, remote_id, name, color, access_role, is_primary, visible, position, horizon_start, horizon_end) VALUES ('local-calendar', 'local-account', 'primary', 'Work', '#123456', 'owner', 1, 1, 0, 0, 0)`;
     test.remote("alice", "defaultCalendarId", { account: "cloud:connection", calendar: "primary" });
     test.remote("alice", "calendars", [
-      { account: "cloud:connection", calendar: "primary", visible: false, color: "#654321" },
+      {
+        account: "cloud:connection",
+        calendar: "primary",
+        visible: false,
+        color: "#654321",
+        watchOnly: true,
+      },
     ]);
     test.remote("alice", "syncWindow", { pastDays: 1, futureDays: 1 });
     test.remote("alice", "hourFormat", "invalid");
@@ -137,7 +143,13 @@ it.effect("maps synced calendar references to local ids and ignores environment 
     const result = Option.getOrThrow(yield* sync.sync);
     expect(result.preferences.defaultCalendarId).toBe("local-calendar");
     expect(result.appearances).toEqual([
-      { account: "cloud:connection", calendar: "primary", visible: false, color: "#654321" },
+      {
+        account: "cloud:connection",
+        calendar: "primary",
+        visible: false,
+        color: "#654321",
+        watchOnly: true,
+      },
     ]);
     expect(result.preferences.hourFormat).toBe(DEFAULT_CALENDAR_PREFERENCES.hourFormat);
     expect(result.preferences).not.toHaveProperty("syncWindow");

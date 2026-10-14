@@ -360,6 +360,7 @@ function epochOf(value: string | undefined): number | undefined {
 }
 
 export interface DetailsContext {
+  readonly watchOnly?: boolean;
   readonly calendarId: string;
   /** The id the view knows: the instance id for occurrences. */
   readonly eventId: string;
@@ -388,6 +389,7 @@ export function eventDetails(event: RemoteEvent, context: DetailsContext): Calen
   const location = event.location?.trim();
   return {
     ...toInstance(row),
+    ...(context.watchOnly ? { watchOnly: true } : {}),
     description: event.description ?? "",
     ...(location ? { location } : {}),
     ...(context.times.allDay ? {} : { timeZone: context.times.timeZone }),

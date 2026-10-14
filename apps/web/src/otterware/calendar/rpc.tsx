@@ -1,3 +1,4 @@
+import { useAuth } from "../../accounts/AccountProvider";
 import {
   CalendarError,
   CalendarAccountId,
@@ -10,11 +11,8 @@ import {
   calendarConnectStream,
   calendarNotificationsStream,
   createCalendarAtoms,
-} from "@otterware/composition/web/calendar/rpc";
-import {
-  CalendarClientProvider,
-  type CalendarWebClient,
-} from "@otterware/composition/web/calendar/host";
+} from "@otterware/composition/calendar-rpc";
+import { CalendarClientProvider, type CalendarWebClient } from "./ui/host";
 import { useAtomValue } from "@effect/atom-react";
 import { EnvironmentRegistry, EnvironmentSupervisor } from "@t3tools/client-runtime/connection";
 import { request } from "@t3tools/client-runtime/rpc";
@@ -203,22 +201,24 @@ function makeClient(environmentId: EnvironmentId | null): CalendarWebClient {
  * Calendar talks to a paired environment when there is one and to this
  * browser otherwise (ADR 0008).
  */
-export function CalendarEnvironmentProvider({ children }: { children: ReactNode }) {
+export function CalendarEnvironmentProvider({
+  children,
+  runtime = false,
+}: {
+  children: ReactNode;
+  runtime?: boolean;
+}) {
   const target = useModuleTarget();
+  const { userId } = useAuth();
   const environmentId = target._tag === "environment" ? target.environmentId : null;
   const inBrowser = target._tag === "browser";
   const client = useMemo(
-    () => (inBrowser ? makeBrowserCalendarClient() : makeClient(environmentId)),
-    [inBrowser, environmentId],
+    () => (inBrowser ? makeBrowserCalendarClient(userId) : makeClient(environmentId)),
+    [inBrowser, environmentId, userId],
   );
   return (
-    <CalendarClientProvider client={client} key={environmentId ?? target._tag}>
-      {inBrowser ? (
-        <>
-          <BrowserAccountBridge />
-          <BrowserEnvironmentNotice />
-        </>
-      ) : null}
+    <CalendarClientProvider client={client}>
+      {inBrowser ? <>{runtime ? <BrowserAccountBridge /> : <BrowserEnvironmentNotice />}</> : null}
       {children}
     </CalendarClientProvider>
   );

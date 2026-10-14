@@ -7,7 +7,6 @@ import { DRIVE_MIGRATIONS } from "./DriveStore.ts";
 import { DriveToolkit } from "@otterware/drive-contracts";
 import { handlers } from "./DriveToolkit.ts";
 import { homeContributor } from "./DriveHome.ts";
-import { DriveAccountSession } from "./DriveConnection.ts";
 import { DriveUploadSources, uploadInputError } from "./DriveUploadSource.ts";
 
 const rpcHandlers = Effect.gen(function* () {
@@ -48,16 +47,12 @@ const rpcHandlers = Effect.gen(function* () {
   });
 });
 
-export const makeDriveModule = <E, R, E2, R2>(
-  account: Layer.Layer<DriveAccountSession, E, R>,
-  uploads: Layer.Layer<DriveUploadSources, E2, R2>,
-) =>
+export const makeDriveModule = <E, R>(uploads: Layer.Layer<DriveUploadSources, E, R>) =>
   defineServerModule({
     contract: DriveContract,
     migrations: DRIVE_MIGRATIONS,
     layer: DriveService.layerStart.pipe(
       Layer.provideMerge(DriveService.layer),
-      Layer.provide(account),
       Layer.provide(uploads),
     ),
     rpcHandlers,
@@ -70,7 +65,6 @@ The user's documents live in Otter Drive (drive.otterware.app). Use the \`drive_
   });
 
 export const DriveModule = makeDriveModule(
-  Layer.succeed(DriveAccountSession, { current: Effect.succeed(null) }),
   Layer.succeed(DriveUploadSources, {
     prepare: () => Effect.fail(uploadInputError("This host has no file source adapter.")),
   }),

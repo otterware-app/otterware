@@ -10,11 +10,7 @@ import {
   type CalendarDirectory,
   type CalendarEventInstance,
 } from "@otterware/composition/contracts";
-import {
-  applyCalendarWeekEvent,
-  EMPTY_CALENDAR_INSTANCES,
-  type CalendarWebClient,
-} from "@otterware/composition/web/calendar";
+import { applyCalendarWeekEvent, EMPTY_CALENDAR_INSTANCES, type CalendarWebClient } from "./ui";
 import { useAtomValue } from "@effect/atom-react";
 import * as Cause from "effect/Cause";
 import * as Effect from "effect/Effect";
@@ -63,10 +59,10 @@ const call = <A, E>(
 
 const done = () => undefined;
 
-export function makeBrowserCalendarClient(): CalendarWebClient {
+export function makeBrowserCalendarClient(accountId: string | null): CalendarWebClient {
   return {
     // Reminders are keyed by environment; this browser is one of its own.
-    environmentId: "this-browser",
+    environmentId: `this-browser:${accountId ?? "signed-out"}`,
     watchNotifications: (onNotification, onError) => {
       const controller = new AbortController();
       void runInBrowser(

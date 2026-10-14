@@ -85,6 +85,7 @@ function entryOf(instance: CalendarEventInstance, names: Map<string, string>, zo
   return {
     calendarId: instance.calendarId,
     calendar: names.get(instance.calendarId) ?? "",
+    ...(instance.watchOnly ? { watchOnly: true } : {}),
     eventId: instance.eventId,
     ...(instance.seriesId !== undefined ? { seriesId: instance.seriesId } : {}),
     title: instance.title === "" ? "(No title)" : instance.title,
@@ -152,6 +153,8 @@ export const calendarToolHandlers = Effect.gen(function* () {
     );
 
   return CalendarToolkit.of({
+    calendar_update_calendar: (input) =>
+      calendar.updateCalendar(input).pipe(Effect.as({ updated: true })),
     calendar_list_accounts: ({ timeZone }) =>
       calendar.getDirectory.pipe(
         Effect.map((directory) => ({
@@ -174,6 +177,7 @@ export const calendarToolHandlers = Effect.gen(function* () {
                 name: entry.name,
                 color: entry.color,
                 visible: entry.visible,
+                watchOnly: entry.watchOnly === true,
                 accessRole: entry.accessRole,
                 primary: entry.primary,
                 ...(entry.defaultReminders !== undefined

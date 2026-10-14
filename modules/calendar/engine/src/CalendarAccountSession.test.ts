@@ -1,3 +1,5 @@
+import { OtterAccountSession, type ConnectedAccount } from "@otterware/module-kit/account";
+import { OtterCloudClient } from "@otterware/otter-cloud-client";
 import { expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
 import * as HttpClient from "effect/http/HttpClient";
@@ -94,5 +96,46 @@ it.effect("cancels in-flight SDK fetches when their module/account scope closes"
     const pending = makeCloudFetch(http, abort.signal)("https://cloud.test/v1/cloud/connections");
     abort.abort();
     yield* Effect.promise(() => expect(pending).rejects.toBeDefined());
+  }),
+);
+
+it.effect("uses the shared host account and observes detach without a second Google session", () =>
+  Effect.gen(function* () {
+    const client = new OtterCloudClient({
+      origin: "https://cloud.test",
+      audience: "environment:test",
+      sessionToken: async () => "host-session",
+    });
+    const identity: ConnectedAccount = {
+      accountId: "alice",
+      client,
+      connections: () => client.connections(),
+      providerToken: (id) => client.providerToken(id),
+      push: (records) => client.push(records),
+      pull: (cursor) => client.pull(cursor),
+      subscribe: () => () => {},
+    };
+    let attached = true;
+    const host = Layer.succeed(OtterAccountSession, {
+      current: () => (attached ? identity : null),
+      attach: async () => "alice",
+      detach: async () => {},
+      subscribe: () => () => {},
+    });
+    const context = yield* Layer.build(
+      accountSessionLayer(Effect.die("The host owns the session")).pipe(
+        Layer.provide(host),
+        Layer.provide(
+          Layer.succeed(
+            HttpClient.HttpClient,
+            HttpClient.make(() => Effect.die("No duplicate exchange")),
+          ),
+        ),
+      ),
+    );
+    const session = Context.get(context, CalendarAccountSession);
+    expect(Option.getOrThrow(yield* session.current).client).toBe(client);
+    attached = false;
+    expect(Option.isNone(yield* session.current)).toBe(true);
   }),
 );

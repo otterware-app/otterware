@@ -104,6 +104,8 @@ export const Calendar = Schema.Struct({
   primary: Schema.Boolean,
   /** Shown in the combined view. Hidden calendars are not sent in week chunks. */
   visible: Schema.Boolean,
+  /** Kept in the grid, excluded from attention and scheduling. */
+  watchOnly: Schema.optional(Schema.Boolean),
   timeZone: Schema.optional(TimeZoneName),
 });
 export type Calendar = typeof Calendar.Type;
@@ -262,6 +264,7 @@ export type CalendarResponseStatus = typeof CalendarResponseStatus.Type;
  * Deliberately small; `calendar.getEvent` returns the rest.
  */
 export const CalendarEventInstance = Schema.Struct({
+  watchOnly: Schema.optional(Schema.Boolean),
   calendarId: CalendarId,
   eventId: CalendarEventId,
   /** The recurring series this instance belongs to. */
@@ -525,6 +528,7 @@ export const CalendarAddDemoInput = Schema.Struct({
 export type CalendarAddDemoInput = typeof CalendarAddDemoInput.Type;
 
 export const CalendarUpdateCalendarInput = Schema.Struct({
+  watchOnly: Schema.optional(Schema.Boolean),
   calendarId: CalendarId,
   visible: Schema.optional(Schema.Boolean),
   color: Schema.optional(HexColor),
@@ -591,4 +595,19 @@ export class CalendarError extends Schema.TaggedError<CalendarError>()("Calendar
   override get message(): string {
     return this.detail;
   }
+}
+
+export function instanceKey(instance: CalendarEventInstance): string {
+  return `${instance.calendarId}/${instance.eventId}`;
+}
+
+/** Whether two instances carry the same data (instances are flat records of primitives). */
+export function sameInstance(a: CalendarEventInstance, b: CalendarEventInstance): boolean {
+  if (a === b) return true;
+  const aKeys = Object.keys(a) as Array<keyof CalendarEventInstance>;
+  if (aKeys.length !== Object.keys(b).length) return false;
+  for (const key of aKeys) {
+    if (a[key] !== b[key]) return false;
+  }
+  return true;
 }

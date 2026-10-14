@@ -8,7 +8,8 @@ import * as SqlClient from "effect/sql/SqlClient";
 import { HttpClient, HttpClientResponse } from "effect/http";
 import * as Stream from "effect/Stream";
 import { makeDriveApi, type DriveApi } from "./DriveApi.ts";
-import { DriveAccountSession } from "./DriveConnection.ts";
+import { OtterAccountSession, type ConnectedAccount } from "@otterware/module-kit/account";
+import { OtterCloudClient } from "@otterware/otter-cloud-client";
 import { DriveUploadSources, uploadInputError } from "./DriveUploadSource.ts";
 import { homeContributor } from "./DriveHome.ts";
 import { DriveService, makeWith } from "./DriveService.ts";
@@ -186,22 +187,40 @@ function makeFakeDrive() {
 
 const database = SuiteDatabase.layerSqlClient.pipe(Layer.provideMerge(SuiteDatabase.layerMemory));
 const testLayer = Layer.mergeAll(database, NodeServices.layer);
-const disconnected = Layer.succeed(DriveAccountSession, { current: Effect.succeed(null) });
-const connected = Layer.succeed(DriveAccountSession, {
-  current: Effect.succeed({
-    version: 1 as const,
-    accountsUrl: "https://accounts.otterware.app",
-    resource: BASE,
-    clientId: "test",
-    accessToken: "account-access",
-    refreshToken: "unused",
-    expiresAt: 4_000_000_000_000,
-    user: { id: "u-1", email: "ada@example.com", name: "Ada", image: null },
-  }),
+const disconnected = Layer.empty;
+function hostAccount(): ConnectedAccount {
+  const client = new OtterCloudClient({
+    origin: BASE,
+    audience: "environment:test",
+    sessionToken: async () => "host-session",
+    fetch: async (_input, init) => {
+      expect(JSON.parse(String(init?.body))).toEqual({ audience: "otterware:drive" });
+      return Response.json({
+        accessToken: TOKEN,
+        audience: "otterware:drive",
+        expiresAt: Number.MAX_SAFE_INTEGER,
+      });
+    },
+  });
+  return {
+    accountId: "u-1",
+    client,
+    connections: () => client.connections(),
+    providerToken: (id) => client.providerToken(id),
+    push: (records) => client.push(records),
+    pull: (cursor) => client.pull(cursor),
+    subscribe: () => () => {},
+  };
+}
+const connected = Layer.succeed(OtterAccountSession, {
+  current: () => hostAccount(),
+  attach: async () => "u-1",
+  detach: async () => {},
+  subscribe: () => () => {},
 });
 const setup = (
   fake: ReturnType<typeof makeFakeDrive>,
-  account = connected,
+  account: Layer.Layer<OtterAccountSession> | Layer.Layer<never> = connected,
   adaptApi: (api: DriveApi) => DriveApi = (api) => api,
 ) =>
   Effect.gen(function* () {
@@ -221,6 +240,29 @@ const setup = (
     );
   });
 describe("DriveService", () => {
+  it.effect("uses the host audience token and drops cached identity after host sign-out", () =>
+    Effect.gen(function* () {
+      const fake = makeFakeDrive();
+      let signedIn = true;
+      const identity = hostAccount();
+      const account = Layer.succeed(OtterAccountSession, {
+        current: () => (signedIn ? identity : null),
+        attach: async () => "u-1",
+        detach: async () => {},
+        subscribe: () => () => {},
+      });
+      const drive = yield* setup(fake, account, (api) => ({
+        ...api,
+        suiteSession: () => Effect.die("Host tokens must not use the legacy exchange"),
+      }));
+      expect((yield* drive.status).status).toBe("connected");
+      signedIn = false;
+      expect((yield* drive.status).status).toBe("disconnected");
+      signedIn = true;
+      expect((yield* drive.status).status).toBe("connected");
+    }).pipe(Effect.provide(testLayer)),
+  );
+
   it.effect("creates its tables in suite.sqlite", () =>
     Effect.gen(function* () {
       yield* runSuiteMigrations(DRIVE_MIGRATIONS);

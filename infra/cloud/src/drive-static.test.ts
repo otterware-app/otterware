@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { driveStaticRequest } from "./drive-static.ts";
+import { driveStaticRequest, driveStaticRedirect } from "./drive-static.ts";
 describe("Drive static profile", () => {
   it("serves the standalone shell and version/share links", () => {
     for (const path of [
@@ -34,4 +34,16 @@ describe("Drive static profile", () => {
       driveStaticRequest(new Request("https://cloud.otterware.app/drive", { method: "POST" })),
     ).toBeNull();
   });
+});
+
+it("keeps legacy document, version and folder links on the host Drive route", () => {
+  for (const path of ["/home?folder=team", "/team/a/plan/v2", "/s/shared"]) {
+    const response = driveStaticRedirect(new Request(`https://drive.otterware.app${path}`));
+    expect(response?.headers.get("location")).toBe(`https://drive.otterware.app/drive${path}`);
+  }
+  expect(driveStaticRedirect(new Request("https://drive.otterware.app/drive/home"))).toBeNull();
+  expect(
+    new URL(driveStaticRequest(new Request("https://drive.otterware.app/favicon.svg"))!.url)
+      .pathname,
+  ).toBe("/drive/favicon.svg");
 });

@@ -21,6 +21,12 @@ export const CalendarSettings = defineModuleSettings({
     default: 1,
     label: "Week starts on",
   },
+  watchOnlyCalendars: {
+    scope: "account",
+    schema: Schema.Array(CalendarId),
+    default: [],
+    label: "Watch-only calendars",
+  },
   visibleCalendars: {
     scope: "account",
     schema: Schema.Array(CalendarId),

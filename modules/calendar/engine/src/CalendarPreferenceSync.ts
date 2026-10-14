@@ -24,6 +24,7 @@ const CalendarRef = Schema.Struct({ account: Schema.String, calendar: Schema.Str
 const CalendarAppearance = Schema.Struct({
   ...CalendarRef.fields,
   visible: Schema.Boolean,
+  watchOnly: Schema.optional(Schema.Boolean),
   color: Schema.String,
 });
 const decodeRef = Schema.decodeUnknownEffect(Schema.NullOr(CalendarRef));
@@ -33,6 +34,7 @@ type CatalogRow = {
   remote_id: string;
   external_id: string;
   visible: number;
+  watch_only: number;
   color: string;
 };
 type Cached = { setting: string; value_json: string; modified_at: number; mutation_id: string };
@@ -50,7 +52,7 @@ export const makePreferenceSync = (initial: CalendarPreferences) =>
       account_id: string | null;
     }>`SELECT account_id FROM calendar_preference_sync_meta WHERE id = 1`;
     let activeAccount = activeRows[0]?.account_id ?? "";
-    const catalog = sql<CatalogRow>`SELECT c.calendar_id, c.remote_id, a.external_id, c.visible, c.color FROM calendar_calendars c JOIN calendar_accounts a ON a.account_id = c.account_id`;
+    const catalog = sql<CatalogRow>`SELECT c.calendar_id, c.remote_id, a.external_id, c.visible, c.watch_only, c.color FROM calendar_calendars c JOIN calendar_accounts a ON a.account_id = c.account_id`;
     const save = (
       table: "calendar_preference_sync_cache" | "calendar_preference_sync_outbox",
       accountId: string,
@@ -110,6 +112,7 @@ export const makePreferenceSync = (initial: CalendarPreferences) =>
           account: row.external_id,
           calendar: row.remote_id,
           visible: row.visible === 1,
+          watchOnly: row.watch_only === 1,
           color: row.color,
         })),
       });

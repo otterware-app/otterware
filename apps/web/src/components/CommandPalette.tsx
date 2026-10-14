@@ -1,8 +1,8 @@
+"use client";
 // Otterware seam: palette shortcut labels include module defaults and migrated aliases.
 import { useShellKeybindings } from "../otterware/shellKeybindings";
 import { OTTERWARE_THEMES } from "../otterware/themes";
 import { profilePaletteItems, codeSurfaceItems } from "../otterware/profileVisibility";
-("use client");
 
 import { threadPullRequestLinkMode } from "@t3tools/client-runtime/thread-pull-request-compatibility";
 import { visibleThreadPullRequests } from "@t3tools/shared/threadPullRequests";
@@ -230,7 +230,7 @@ import {
   ThreadRowTrailingStatus,
   ThreadSearchPullRequestNumber,
 } from "./ThreadStatusIndicators";
-import { primaryServerKeybindingsAtom, primaryServerProvidersAtom } from "../state/server";
+import { primaryServerProvidersAtom } from "../state/server";
 import {
   applyProviderInstanceSettings,
   deriveProviderInstanceEntries,

@@ -9,6 +9,7 @@ import { moduleToolFailures, withToolTier } from "@otterware/module-kit/contract
  */
 import {
   CalendarAccessRole,
+  CalendarUpdateCalendarInput,
   CalendarEventReminders,
   CalendarReminderOverrides,
   CalendarAccountStatus,
@@ -33,6 +34,7 @@ const TIME_NOTE =
 const ViewerTimeZone = Schema.optional(Schema.String);
 
 const EventEntry = Schema.Struct({
+  watchOnly: Schema.optional(Schema.Boolean),
   calendarId: CalendarId,
   calendar: Schema.String,
   eventId: CalendarEventId,
@@ -95,6 +97,7 @@ const ListAccountsTool = Tool.make("calendar_list_accounts", {
             name: Schema.String,
             color: Schema.String,
             visible: Schema.Boolean,
+            watchOnly: Schema.optional(Schema.Boolean),
             accessRole: CalendarAccessRole,
             primary: Schema.Boolean,
             defaultReminders: Schema.optional(CalendarReminderOverrides),
@@ -251,7 +254,7 @@ const RespondTool = Tool.make("calendar_respond_to_invitation", {
   .annotate(Tool.OpenWorld, false);
 
 const FindFreeTimeTool = Tool.make("calendar_find_free_time", {
-  description: `Find free time of at least durationMinutes between start and end (at most two months), merging busy time across all accounts' shown calendars, or only calendarIds / accountIds. All-day events, events marked free and declined invitations don't count as busy. workingHoursOnly (default true) keeps slots inside the user's working hours. ${TIME_NOTE}`,
+  description: `Find free time of at least durationMinutes between start and end (at most two months), merging busy time across all accounts' shown calendars, or only calendarIds / accountIds. Watch-only calendars, all-day events, events marked free and declined invitations don't count as busy. workingHoursOnly (default true) keeps slots inside the user's working hours. ${TIME_NOTE}`,
   parameters: Schema.Struct({
     start: Schema.String,
     end: Schema.String,
@@ -275,7 +278,19 @@ const FindFreeTimeTool = Tool.make("calendar_find_free_time", {
   .annotate(Tool.Idempotent, true)
   .annotate(Tool.OpenWorld, false);
 
+const UpdateCalendarTool = Tool.make("calendar_update_calendar", {
+  description:
+    "Change a calendar's account-scoped color, visibility or watchOnly flag. Watch-only calendars stay visible, but Home, invitations, reminders and free-time suggestions skip them. Set watchOnly to false to reverse it. Hide is independent.",
+  parameters: CalendarUpdateCalendarInput,
+  success: Schema.Struct({ updated: Schema.Boolean }),
+  failure: moduleToolFailures(CalendarError),
+})
+  .annotate(Tool.Title, "Update calendar preferences")
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, true);
+
 export const CalendarToolkit = Toolkit.make(
+  withToolTier(UpdateCalendarTool, "safe"),
   withToolTier(ListAccountsTool, "read-only"),
   withToolTier(ListEventsTool, "read-only"),
   withToolTier(SearchEventsTool, "read-only"),

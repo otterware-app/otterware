@@ -1,12 +1,13 @@
 import {
   DRIVE_CLOUD_ORIGIN,
+  DRIVE_CLOUD_AUDIENCE,
   DriveError,
   type DriveConnectionStatus,
 } from "@otterware/drive-contracts";
-import type { OtterAccountSession } from "@t3tools/contracts/accounts";
+import { OtterAccountSession } from "@otterware/module-kit/account";
+import * as Option from "effect/Option";
 import * as Clock from "effect/Clock";
 import * as Config from "effect/Config";
-import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as SubscriptionRef from "effect/SubscriptionRef";
 import type { DriveApi, DriveApiError } from "./DriveApi.ts";
@@ -14,14 +15,6 @@ import type { DriveApi, DriveApiError } from "./DriveApi.ts";
 export const DriveBaseUrlConfig = Config.String("OTTERWARE_DRIVE_URL").pipe(
   Config.withDefault(DRIVE_CLOUD_ORIGIN),
 );
-/** W2 supplies a refreshed OtterAccountSession; no refresh token crosses a Drive RPC. */
-export class DriveAccountSession extends Context.Service<
-  DriveAccountSession,
-  {
-    readonly current: Effect.Effect<OtterAccountSession | null, DriveError>;
-  }
->()("@otterware/drive-engine/DriveConnection/DriveAccountSession") {}
-
 export function driveErrorOf(error: DriveApiError): DriveError {
   const reason =
     error.status === 401
@@ -39,7 +32,7 @@ export function driveErrorOf(error: DriveApiError): DriveError {
 /** Accounts exchanges the OAuth grant for a session, then Cloud issues an audience-bound capability. */
 export const makeDriveConnection = (api: DriveApi, baseUrl: string) =>
   Effect.gen(function* () {
-    const account = yield* DriveAccountSession;
+    const account = yield* Effect.serviceOption(OtterAccountSession);
     const state = yield* SubscriptionRef.make<DriveConnectionStatus>({
       status: "disconnected",
       baseUrl,
@@ -52,8 +45,28 @@ export const makeDriveConnection = (api: DriveApi, baseUrl: string) =>
     } | null = null;
     let fallbackAccessToken: string | null = null;
     const session = Effect.gen(function* () {
-      const current = yield* account.current;
-      const accessToken = current?.accessToken ?? fallbackAccessToken;
+      // The host owns refresh and revocation. Consult it on every request, even
+      // when the account identity is cached. Legacy sync is used only without a host.
+      const host = Option.isSome(account) ? account.value.current() : null;
+      const accessToken = Option.isSome(account)
+        ? host
+          ? yield* Effect.tryPromise({
+              try: () => host.client.accessToken(DRIVE_CLOUD_AUDIENCE),
+              catch: () =>
+                new DriveError({
+                  reason: "not_connected",
+                  detail: "Sign in to your Otter Account to use Drive.",
+                }),
+            }).pipe(
+              Effect.tapError(() =>
+                Effect.gen(function* () {
+                  exchanged = null;
+                  yield* SubscriptionRef.set(state, { status: "disconnected", baseUrl });
+                }),
+              ),
+            )
+          : null
+        : fallbackAccessToken;
       if (!accessToken) {
         exchanged = null;
         yield* SubscriptionRef.set(state, { status: "disconnected", baseUrl });
@@ -62,7 +75,9 @@ export const makeDriveConnection = (api: DriveApi, baseUrl: string) =>
       const now = yield* Clock.currentTimeMillis;
       if (exchanged?.accessToken === accessToken && now - exchanged.at < 14 * 60_000)
         return exchanged;
-      const token = yield* api.suiteSession(accessToken).pipe(Effect.mapError(driveErrorOf));
+      const token = Option.isSome(account)
+        ? accessToken
+        : yield* api.suiteSession(accessToken).pipe(Effect.mapError(driveErrorOf));
       const me = yield* api.me({ token }).pipe(Effect.mapError(driveErrorOf));
       const name = { userId: me.userId ?? null, name: me.actor.name };
       exchanged = { accessToken, token, account: name, at: now };

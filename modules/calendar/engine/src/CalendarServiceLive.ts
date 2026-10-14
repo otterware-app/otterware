@@ -424,6 +424,7 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
         }
       : {}),
     visible: calendar.visible,
+    watchOnly: calendar.watchOnly === true,
     ...(calendar.timeZone ? { timeZone: calendar.timeZone } : {}),
   });
 
@@ -765,7 +766,13 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
       yield* ensureHorizon(input.start, input.end);
       const calendarIds = input.calendarIds ?? (yield* store.visibleCalendarIds);
       const rows = yield* store.rangeInstances(calendarIds, input.start, input.end);
-      return rows.map(toInstance);
+      const watched = new Set(
+        (yield* store.listCalendars).filter((c) => c.watchOnly).map((c) => c.calendarId),
+      );
+      return rows.map((row) => ({
+        ...toInstance(row),
+        ...(watched.has(row.calendarId) ? { watchOnly: true } : {}),
+      }));
     }).pipe(failedTo("load the events"));
 
   // ── Resolving events ─────────────────────────────────────────────
@@ -862,6 +869,7 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
 
   const detailsOf = (target: Target, resolved: Resolved): CalendarEventDetails =>
     eventDetails(resolved.current, {
+      watchOnly: target.calendar.watchOnly === true,
       calendarId: target.calendar.calendarId,
       eventId: resolved.kind === "occurrence" ? resolved.instanceId : resolved.stored.eventId,
       seriesId:
@@ -1496,12 +1504,14 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
             Effect.gen(function* () {
               if (input.visible !== undefined && input.visible !== calendar.visible)
                 yield* store.setCalendarVisible(input.calendarId, input.visible);
+              if (input.watchOnly !== undefined)
+                yield* store.setCalendarWatchOnly(input.calendarId, input.watchOnly);
               if (input.color !== undefined && input.color !== calendar.color)
                 yield* store.setCalendarColor(input.calendarId, input.color.toLowerCase());
               yield* preferenceSync.queueCalendars;
             }),
           );
-          if (input.visible !== undefined && input.visible !== calendar.visible)
+          if (input.visible !== undefined || input.watchOnly !== undefined)
             yield* publishReplace(input.calendarId);
           yield* publishDirectory;
         }),
@@ -1689,7 +1699,13 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
 
   const applyAccountPreferences = (data: {
     preferences: CalendarPreferences;
-    appearances: readonly { account: string; calendar: string; visible: boolean; color: string }[];
+    appearances: readonly {
+      account: string;
+      calendar: string;
+      visible: boolean;
+      color: string;
+      watchOnly?: boolean | undefined;
+    }[];
   }) =>
     writes
       .withPermits(1)(
@@ -1710,6 +1726,13 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
                 if (!target) continue;
                 if (target.visible !== appearance.visible) {
                   yield* store.setCalendarVisible(target.calendarId, appearance.visible);
+                  changed.add(target.calendarId);
+                }
+                if (Boolean(target.watchOnly) !== Boolean(appearance.watchOnly)) {
+                  yield* store.setCalendarWatchOnly(
+                    target.calendarId,
+                    appearance.watchOnly === true,
+                  );
                   changed.add(target.calendarId);
                 }
                 if (target.color !== appearance.color) {
@@ -2205,7 +2228,15 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
             : undefined);
         if (row !== undefined) results.push(toInstance(row));
       }
-      return { results };
+      const watched = new Set(
+        (yield* store.listCalendars).filter((c) => c.watchOnly).map((c) => c.calendarId),
+      );
+      return {
+        results: results.map((event) => ({
+          ...event,
+          ...(watched.has(event.calendarId) ? { watchOnly: true } : {}),
+        })),
+      };
     }).pipe(failedTo("search the calendars"));
 
   const findFreeTime: CalendarServiceShape["findFreeTime"] = (input) =>
@@ -2219,6 +2250,9 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
       yield* ensureHorizon(input.start, input.end);
       const calendarIds = input.calendarIds ?? (yield* store.visibleCalendarIds);
       const rows = yield* store.rangeInstances(calendarIds, input.start, input.end);
+      const watched = new Set(
+        (yield* store.listCalendars).filter((c) => c.watchOnly).map((c) => c.calendarId),
+      );
       const range = { start: input.start, end: input.end };
       const zone = zoneOr(input.timeZone, serverZone);
       const windows =
@@ -2227,7 +2261,10 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
           : workingWindows(range, preferences.workingHours, zone);
       return freeSlots(
         windows,
-        mergeBusy(rows, range),
+        mergeBusy(
+          rows.filter((row) => !watched.has(row.calendarId)),
+          range,
+        ),
         input.durationMinutes * MINUTE,
         FREE_SLOT_LIMIT,
       );
@@ -2277,7 +2314,7 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
         JOIN calendar_accounts a ON a.account_id = c.account_id
         LEFT JOIN calendar_events exception ON exception.calendar_id = i.calendar_id AND exception.event_id = i.instance_id
         LEFT JOIN calendar_events master ON master.calendar_id = i.calendar_id AND master.event_id = i.source_key
-        WHERE c.visible = 1 AND a.status != 'signed_out' AND (i.response IS NULL OR i.response != 'declined')
+        WHERE c.visible = 1 AND c.watch_only = 0 AND a.status != 'signed_out' AND (i.response IS NULL OR i.response != 'declined')
           AND i.start_ms >= ${now - DAY_MS} AND i.start_ms <= ${now + 29 * DAY_MS}
         ORDER BY i.start_ms`;
         return yield* Effect.forEach(rows, (row) =>
