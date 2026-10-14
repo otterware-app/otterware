@@ -2,7 +2,7 @@
 import * as NodeFSP from "node:fs/promises";
 import * as NodePath from "node:path";
 
-export const quoteExec = (value: string) => `"${value.replace(/["`$\\]/g, (c) => `\\${c}`)}"`;
+const quoteExec = (value: string) => `"${value.replace(/["`$\\]/g, (c) => `\\${c}`)}"`;
 export async function setLinuxLogin(
   file: string,
   executable: string,

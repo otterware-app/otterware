@@ -20,14 +20,14 @@ export type DesktopEntry = {
 };
 
 /** Where .desktop files live, the user's first: their entries override the system's. */
-export function applicationDirs(env: NodeJS.ProcessEnv = process.env): string[] {
+function applicationDirs(env: NodeJS.ProcessEnv = process.env): string[] {
   const dataHome = env.XDG_DATA_HOME || NodePath.join(NodeOS.homedir(), ".local/share");
   const dataDirs = (env.XDG_DATA_DIRS || "/usr/local/share:/usr/share").split(":");
   return [dataHome, ...dataDirs].filter(Boolean).map((dir) => NodePath.join(dir, "applications"));
 }
 
 /** Splits an Exec value into words: double quotes group, backslash escapes. */
-export function execWords(value: string): string[] {
+function execWords(value: string): string[] {
   const words: string[] = [];
   let word: string | null = null;
   let quoted = false;
@@ -49,7 +49,7 @@ export function execWords(value: string): string[] {
   return words.filter((w) => !/^%[a-zA-Z]$/.test(w));
 }
 
-export function parseDesktopEntry(id: string, file: string, text: string): DesktopEntry | null {
+function parseDesktopEntry(id: string, file: string, text: string): DesktopEntry | null {
   const fields = new Map<string, string>();
   let inEntry = false;
   for (const line of text.split("\n")) {

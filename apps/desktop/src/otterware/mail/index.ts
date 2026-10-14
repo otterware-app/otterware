@@ -46,7 +46,12 @@ export function installMailDesktop(
     launchAtLogin:
       platform === "linux" ? await linuxLogin(loginFile) : app.getLoginItemSettings().openAtLogin,
   });
-  const mailApps = platform === "darwin" ? mac : platform === "linux" ? linux : null;
+  const mailApps =
+    platform === "darwin"
+      ? { listMailApps: mac.listMailApps, setDefaultMailApp: mac.setDefaultMailApp }
+      : platform === "linux"
+        ? { listMailApps: linux.listMailApps, setDefaultMailApp: linux.setDefaultMailApp }
+        : null;
   const stop = registry.register("mail", {
     "app:capabilities": desktopMethod(empty, () => ({
       platform,
