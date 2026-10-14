@@ -52,7 +52,7 @@ export type EnvironmentLock = (waiting: () => void) => Promise<() => void>;
 const LOCK_NAME = "otterware-browser-environment";
 
 /** Web Locks, which every current browser has; without them, no coordination. */
-export const webLock: EnvironmentLock = (waiting) =>
+const webLock: EnvironmentLock = (waiting) =>
   new Promise((resolve) => {
     const locks = (globalThis.navigator as Navigator | undefined)?.locks;
     if (locks === undefined) return resolve(() => {});
