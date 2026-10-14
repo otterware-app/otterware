@@ -1,0 +1,44 @@
+name: Mail translator
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "native/mail-translator/**"
+      - "scripts/otterware/mail-translator*"
+      - ".github/workflows/otterware-mail-translator.yml"
+      - ".github/workflows/otterware-desktop.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  translator:
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          sparse-checkout: |
+            native/mail-translator
+            scripts/otterware/mail-translator.ts
+          sparse-checkout-cone-mode: false
+      - name: Select the SDK for Mail's macOS 26 Translation API
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
+          xcodebuild -version
+          xcrun --sdk macosx --show-sdk-version
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "26.8.2"
+          package-manager-cache: false
+      - name: Build and stage the release helper
+        run: |
+          node --input-type=module -e 'import { stageMailTranslator } from "./scripts/otterware/mail-translator.ts"; await stageMailTranslator(process.cwd(), process.env.RUNNER_TEMP, "arm64");'
+      - name: Verify language detection and fallback on macOS 15
+        run: |
+          set -euo pipefail
+          helper="$RUNNER_TEMP/bin/mail-translator"
+          printf '%s' '{"text":"This is a long English sentence about sending email to my friends."}' | "$helper" detect | jq -e '.language == "en" and .confidence > 0'
+          printf '%s' '{"texts":["Hello"],"source":"en","target":"de"}' | "$helper" translate | jq -e '.status == "unavailable" and .texts == []'

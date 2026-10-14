@@ -42,6 +42,12 @@ jobs:
       T3CODE_ACCOUNTS_CLI_CLIENT_ID: ${{ vars.ACCOUNTS_CLI_CLIENT_ID || 'otter-code-cli' }}
       T3CODE_RELAY_URL: https://relay.code.otterware.app
     steps:
+      - name: Select the SDK for Mail's macOS 26 Translation API
+        if: inputs.platform == 'mac' && (inputs.profile == 'mail' || inputs.profile == 'otterware')
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.3.app/Contents/Developer
+          xcodebuild -version
+          xcrun --sdk macosx --show-sdk-version
       - uses: actions/checkout@v6
         with:
           sparse-checkout: |

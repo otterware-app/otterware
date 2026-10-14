@@ -19,7 +19,12 @@ export async function stageMailTranslator(
       ? ["--arch", "arm64", "--arch", "x86_64"]
       : ["--arch", arch === "x64" ? "x86_64" : "arm64"]),
   ];
-  await exec("swift", args, { timeout: 8 * 60000, maxBuffer: 8 * 1024 * 1024 });
+  const build = exec("swift", args, { timeout: 8 * 60000, maxBuffer: 8 * 1024 * 1024 });
+  // Swift emits compiler diagnostics on both streams. Effect's error renderer
+  // does not include execFile's captured stdout when the build fails.
+  build.child.stdout?.pipe(process.stdout);
+  build.child.stderr?.pipe(process.stderr);
+  await build;
   const { stdout } = await exec("swift", [...args, "--show-bin-path"], { timeout: 30000 });
   const bin = NodePath.join(resources, "bin");
   await NodeFSP.mkdir(bin, { recursive: true });
