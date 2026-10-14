@@ -13,6 +13,7 @@ import * as AccountSession from "./AccountSession.ts";
  */
 import { OtterwareWsRpcGroup } from "@otterware/composition/contracts";
 import * as CalendarAccountCredential from "./CalendarAccountCredential.ts";
+import * as HomeAccount from "./HomeAccount.ts";
 import * as Composition from "@otterware/composition/server";
 import type { ModuleToolCallerScope } from "@otterware/module-kit/engine";
 import { ModuleRuntime, StateDirGuard } from "@otterware/module-kit/server";
@@ -81,6 +82,7 @@ export const layer = layerHostRpcHandlers.pipe(
     ),
   ),
   Layer.provide(CalendarAccountCredential.layer),
+  Layer.provide(HomeAccount.layer),
   Layer.provideMerge(AccountSession.layer),
   Layer.provide(CodeHomeContributor.layerHostContributors),
   Layer.provideMerge(AssistantProject.layer),

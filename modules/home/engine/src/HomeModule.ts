@@ -3,7 +3,8 @@
  * every contributor, cross-app projects and saved views (in `suite.sqlite`,
  * tables unchanged from the old `otterware` branch). Code's own contributor
  * and the assistant project are host-owned (ADR 0004) and reach Home through
- * module-kit's `HomeContributors` and `assistant.ensureProject`.
+ * module-kit's `HomeContributors` and `assistant.ensureProject`. Projects and
+ * views sync through the host's Otter Account (`HomeSync.ts`).
  */
 import { HOME_METHODS, HomeContract } from "@otterware/home-contracts";
 import { defineServerModule } from "@otterware/module-kit/engine";
@@ -12,6 +13,7 @@ import * as Layer from "effect/Layer";
 
 import * as Home from "./Home.ts";
 import * as HomeStore from "./HomeStore.ts";
+import * as HomeSync from "./HomeSync.ts";
 import * as HomeToolkit from "./HomeToolkit.ts";
 
 const rpcHandlers = Effect.gen(function* () {
@@ -30,7 +32,8 @@ const rpcHandlers = Effect.gen(function* () {
 export const HomeModule = defineServerModule({
   contract: HomeContract,
   migrations: HomeStore.HOME_MIGRATIONS,
-  layer: Home.layer.pipe(Layer.provideMerge(HomeStore.layer)),
+  // HomeSync runs while the module is on, when the host provides a `HomeAccount`.
+  layer: Layer.mergeAll(Home.layer, HomeSync.layer).pipe(Layer.provideMerge(HomeStore.layer)),
   rpcHandlers,
   tools: { toolkit: HomeToolkit.HomeToolkit, handlers: HomeToolkit.handlers },
   agentInstructions: `## Home

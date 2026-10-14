@@ -55,3 +55,4 @@ export const layerRpcHandlers = () => moduleKitRpcHandlers(OtterwareRpcGroup);
 
 export { registerModuleTools } from "@otterware/module-kit/server";
 export { ACTIVE_MODULE_IDS, OtterwareRpcGroup } from "./contracts.ts";
+export { HomeAccount, type HomeSyncAccount } from "@otterware/home-engine";

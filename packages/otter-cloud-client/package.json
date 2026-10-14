@@ -8,7 +8,8 @@
     "./drive": {
       "types": "./src/drive/client.ts",
       "import": "./src/drive/client.ts"
-    }
+    },
+    "./session": "./src/session.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
