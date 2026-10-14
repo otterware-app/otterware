@@ -19,7 +19,7 @@ import { useMemo } from "react";
 
 import { connectionAtomRuntime } from "../../connection/runtime";
 
-export const driveThreadLinkChanges = createDriveThreadLinkAtoms(connectionAtomRuntime);
+const driveThreadLinkChanges = createDriveThreadLinkAtoms(connectionAtomRuntime);
 
 const sessions = createEnvironmentSessionAtoms(connectionAtomRuntime);
 
