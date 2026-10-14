@@ -1,12 +1,10 @@
-import type { ThemeDefinition } from "../themePalettes.ts";
-
-export const OTTERWARE_THEME_IDS = ["otter-mail"] as const;
+import type { ThemeDefinition } from "@t3tools/shared/themePalettes";
 
 /**
- * Mail's former palette, selectable through the host theme system on every
- * surface. Values are canonical OKLCH like every built-in palette.
+ * Mail's former palette, offered beside the host's built-in themes on web and
+ * desktop (Appearance, the command palette). Values are canonical OKLCH like every built-in palette.
  */
-export const OTTERWARE_THEME_PRESETS: ReadonlyArray<ThemeDefinition> = [
+export const OTTERWARE_THEMES: ReadonlyArray<ThemeDefinition> = [
   {
     id: "otter-mail",
     label: "Otter Mail",

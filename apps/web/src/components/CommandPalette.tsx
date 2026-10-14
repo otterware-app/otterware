@@ -1,5 +1,6 @@
 // Otterware seam: palette shortcut labels include module defaults and migrated aliases.
 import { useShellKeybindings } from "../otterware/shellKeybindings";
+import { OTTERWARE_THEMES } from "../otterware/themes";
 import { profilePaletteItems, codeSurfaceItems } from "../otterware/profileVisibility";
 ("use client");
 
@@ -724,7 +725,7 @@ function OpenCommandPaletteDialog(props: {
     const seen = new Set<string>();
     return [
       ...STANDARD_THEME_CARDS.map((card) => ({ ...card, id: null })),
-      ...[...BUILT_IN_THEMES, ...customThemes, ...environmentThemes]
+      ...[...BUILT_IN_THEMES, ...OTTERWARE_THEMES, ...customThemes, ...environmentThemes]
         .filter((definition) => {
           if (seen.has(definition.id)) return false;
           seen.add(definition.id);

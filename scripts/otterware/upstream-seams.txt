@@ -62,9 +62,6 @@ docs/**/*.md
 
 # Generated and manifest files: regenerated or merged mechanically on every sync
 apps/web/src/routeTree.gen.ts
-apps/mobile/generated-uniwind-theme*
-apps/mobile/uniwind-types.d.ts
-apps/mobile/scripts/generate-uniwind-themes.test.ts
 pnpm-*.yaml
 **/package.json
 **/vite.config.ts
@@ -76,8 +73,9 @@ third-party-licenses.config.json
 apps/mobile/src/features/connection/environmentStatusText.test.ts
 packages/client-runtime/src/relay/managedRelay.test.ts
 
-# Mail contributes its built-in palette through the shared theme registry.
-packages/shared/src/themePalettes.ts
+# Mail contributes its built-in palette to the web theme library and the Appearance list.
+apps/web/src/themePalette.ts
+apps/web/src/components/settings/ThemeSettings.tsx
 
 # Mail content supplies scroll viewport refs and handlers to the host control.
 apps/web/src/components/ui/scroll-area.tsx

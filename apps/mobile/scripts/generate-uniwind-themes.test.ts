@@ -27,8 +27,6 @@ describe("generate mobile Uniwind themes", () => {
 
   it("registers every custom palette for both appearances", () => {
     expect(customThemeNames).toEqual([
-      "otter-mail-light",
-      "otter-mail-dark",
       "chatgpt-light",
       "chatgpt-dark",
       "t3-chat-light",
