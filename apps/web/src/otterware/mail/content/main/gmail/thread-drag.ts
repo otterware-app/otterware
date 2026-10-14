@@ -50,7 +50,7 @@ import { mailDocument } from "../../host/dom";
  */
 import { ALL_MAIL_LABEL_ID } from "./label-names";
 
-export const THREAD_DRAG_MIME = "application/x-ottermail-threads";
+const THREAD_DRAG_MIME = "application/x-ottermail-threads";
 
 export type ThreadDragPayload = {
   threads: { accountId: string; threadId: string }[];

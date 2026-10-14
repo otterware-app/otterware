@@ -39,7 +39,7 @@ export function getSetupStage(): SetupStage | null {
   return value === "setup" || value === "done" ? value : null;
 }
 
-export function useSetupStage(): SetupStage | null {
+function useSetupStage(): SetupStage | null {
   return useSyncExternalStore(subscribe, getSetupStage);
 }
 
@@ -48,7 +48,7 @@ export function startSetup(_step?: string): void {
   mailHost().navigate("/settings/connections");
 }
 
-export function finishSetup(): void {
+function finishSetup(): void {
   console.log("[Onboarding:finishSetup]");
   mailStorage.setItem(STAGE_KEY, "done");
   mailStorage.removeItem(STEP_KEY);
@@ -61,11 +61,11 @@ export function markSetUp(): void {
   emit();
 }
 
-export function getSavedStep(): string | null {
+function getSavedStep(): string | null {
   return mailStorage.getItem(STEP_KEY);
 }
 
-export function saveStep(step: string): void {
+function saveStep(step: string): void {
   mailStorage.setItem(STEP_KEY, step);
 }
 

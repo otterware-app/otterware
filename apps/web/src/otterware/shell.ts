@@ -37,15 +37,13 @@ export const SHELL_APPS: ReadonlyArray<ShellApp> = [
   ...moduleRegistry.modules.map((module) => module.id),
 ];
 
-export { SHELL_WHEN_VARIABLES } from "./shellWhenVariables";
-
 /** The app that owns the shell at `location`: Home inside a cross-app project. */
 export function shellOwner(location: ModuleLocation): ShellApp {
   return location.projectId === null ? location.module.id : HOME_MODULE_ID;
 }
 
 /** The app for a pathname, or null on utility pages (Settings, Usage), which keep the last one. */
-export function shellAppForPath(pathname: string): ShellApp | null {
+function shellAppForPath(pathname: string): ShellApp | null {
   const location = moduleRegistry.forPath(pathname);
   if (location !== null) return shellOwner(location);
   if (isSidebarUtilityPage(pathname)) return null;
@@ -86,6 +84,6 @@ export function useShellApp(): ShellApp {
   return useShellAppStore((state) => state.activeApp);
 }
 
-export function appLabel(app: ShellApp): string {
+function appLabel(app: ShellApp): string {
   return app === "code" ? "Code" : (moduleRegistry.byId(app)?.label ?? app);
 }

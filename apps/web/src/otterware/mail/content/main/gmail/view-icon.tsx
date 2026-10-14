@@ -97,7 +97,7 @@ import { cn } from "./ui";
 import { MailView } from "./types";
 
 /** Each icon key's drawing (shared's VIEW_ICON_KEYS, which the agents offer too). */
-export const VIEW_ICONS: Record<ViewIconKey, LucideIcon> = {
+const VIEW_ICONS: Record<ViewIconKey, LucideIcon> = {
   star: StarIcon,
   bookmark: BookmarkIcon,
   heart: HeartIcon,

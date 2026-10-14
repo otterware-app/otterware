@@ -12,15 +12,7 @@ import {
 } from "~/components/ui/dialog";
 import { Button } from "~/components/ui/button";
 
-export {
-  DialogHeader,
-  DialogFooter,
-  DialogTitle,
-  DialogDescription,
-  DialogTrigger,
-  DialogClose,
-  DialogPortal,
-};
+export { DialogHeader, DialogFooter, DialogTitle, DialogDescription, DialogClose };
 type DialogProps = Omit<ComponentProps<typeof HostDialog>, "onOpenChange" | "children"> & {
   children?: ReactNode;
   onOpenChange?: ((open: boolean) => void) | undefined;

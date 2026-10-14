@@ -118,7 +118,6 @@ import {
   ContextMenu,
   ContextMenuTrigger,
   ContextMenuContent,
-  ContextMenuItem,
 } from "./menu";
 import { RichTextArea, textToHtml, type RichTextRef } from "./rich-text";
 import { RecipientInput } from "./recipient-input";
@@ -1131,17 +1130,17 @@ function ImageAttachmentTile({
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent>
-        <ContextMenuItem icon="eye" onSelect={handleOpen}>
+        <DropdownMenuItem icon="eye" onSelect={handleOpen}>
           Open
-        </ContextMenuItem>
+        </DropdownMenuItem>
         {previewable && features.openFiles ? (
-          <ContextMenuItem icon="arrow.up.forward.app" onSelect={openInApp}>
+          <DropdownMenuItem icon="arrow.up.forward.app" onSelect={openInApp}>
             Open in default app
-          </ContextMenuItem>
+          </DropdownMenuItem>
         ) : null}
-        <ContextMenuItem icon="square.and.arrow.down" onSelect={save}>
+        <DropdownMenuItem icon="square.and.arrow.down" onSelect={save}>
           Save…
-        </ContextMenuItem>
+        </DropdownMenuItem>
       </ContextMenuContent>
       {preview}
     </ContextMenu>
@@ -1192,17 +1191,17 @@ function FileAttachmentRow({
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent>
-        <ContextMenuItem icon="eye" onSelect={handleOpen}>
+        <DropdownMenuItem icon="eye" onSelect={handleOpen}>
           Open
-        </ContextMenuItem>
+        </DropdownMenuItem>
         {previewable && features.openFiles ? (
-          <ContextMenuItem icon="arrow.up.forward.app" onSelect={openInApp}>
+          <DropdownMenuItem icon="arrow.up.forward.app" onSelect={openInApp}>
             Open in default app
-          </ContextMenuItem>
+          </DropdownMenuItem>
         ) : null}
-        <ContextMenuItem icon="square.and.arrow.down" onSelect={save}>
+        <DropdownMenuItem icon="square.and.arrow.down" onSelect={save}>
           Save…
-        </ContextMenuItem>
+        </DropdownMenuItem>
       </ContextMenuContent>
       {preview}
     </ContextMenu>

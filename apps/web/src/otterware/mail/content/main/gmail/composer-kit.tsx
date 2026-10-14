@@ -21,7 +21,7 @@ import { GmailMessageDetail } from "./types";
  * Codex's composer card: a big soft surface. Light themes keep a faint outline
  * and shadow; dark themes let the raised tone carry it.
  */
-export const COMPOSER_SURFACE =
+const COMPOSER_SURFACE =
   "rounded-3xl border border-(--chat-composer-outline) bg-(--chat-composer-surface) shadow-composer transition-colors focus-within:border-input/70 dark:border-transparent dark:shadow-none dark:inset-shadow-2xs dark:inset-shadow-(color:--chat-composer-highlight) dark:focus-within:border-transparent";
 
 /**
@@ -293,7 +293,7 @@ export function draftStatus(draft: {
   return draftStatusText(draft.saveState);
 }
 
-export function draftStatusText(state: DraftSaveState): string | null {
+function draftStatusText(state: DraftSaveState): string | null {
   if (state === "saving") return "Saving draft…";
   if (state === "saved") return "Draft saved";
   if (state === "error") return "Couldn't save draft — retrying";

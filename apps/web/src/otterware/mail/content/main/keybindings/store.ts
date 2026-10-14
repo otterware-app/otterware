@@ -32,7 +32,7 @@ export function setHostKeybindings(config: ResolvedKeybindingsConfig) {
 }
 export const getKeybindings = () => state;
 export const useKeybindingsState = () => useSyncExternalStore(subscribe, getKeybindings);
-export function shortcutLabelFor(
+function shortcutLabelFor(
   resolved: ResolvedKeybinding[],
   command: KeybindingCommand,
 ): string | null {

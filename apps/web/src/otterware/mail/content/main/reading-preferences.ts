@@ -60,7 +60,7 @@ export const READING_WIDTHS = {
   full: { label: "Full width", maxWidth: "none" },
 } as const;
 export type ReadingWidth = keyof typeof READING_WIDTHS;
-export const DEFAULT_READING_WIDTH: ReadingWidth = "full";
+const DEFAULT_READING_WIDTH: ReadingWidth = "full";
 const READING_WIDTH_KEY = "otter:reading-width";
 
 export const MESSAGE_LIST_STYLES = {
@@ -68,7 +68,7 @@ export const MESSAGE_LIST_STYLES = {
   dividers: { label: "With dividers", description: "A compact list with full-width separators." },
 } as const;
 export type MessageListStyle = keyof typeof MESSAGE_LIST_STYLES;
-export const DEFAULT_MESSAGE_LIST_STYLE: MessageListStyle = "classic";
+const DEFAULT_MESSAGE_LIST_STYLE: MessageListStyle = "classic";
 const MESSAGE_LIST_STYLE_KEY = "otter:message-list-style";
 
 export const MAIL_LAYOUTS = {
@@ -80,10 +80,10 @@ export const MAIL_LAYOUTS = {
   },
 } as const;
 export type MailLayout = keyof typeof MAIL_LAYOUTS;
-export const DEFAULT_MAIL_LAYOUT: MailLayout = "split";
+const DEFAULT_MAIL_LAYOUT: MailLayout = "split";
 const MAIL_LAYOUT_KEY = "otter:mail-layout";
 
-export function getMailLayout(): MailLayout {
+function getMailLayout(): MailLayout {
   const value = mailStorage.getItem(MAIL_LAYOUT_KEY);
   if (value === "flow" || value === "popup") return "floating";
   return value !== null && Object.hasOwn(MAIL_LAYOUTS, value)
@@ -96,7 +96,7 @@ export function setMailLayout(layout: MailLayout): void {
   window.dispatchEvent(new Event(CHANGE_EVENT));
 }
 
-export function getMessageListStyle(): MessageListStyle {
+function getMessageListStyle(): MessageListStyle {
   const value = mailStorage.getItem(MESSAGE_LIST_STYLE_KEY);
   return value !== null && Object.hasOwn(MESSAGE_LIST_STYLES, value)
     ? (value as MessageListStyle)
@@ -112,7 +112,7 @@ function isReadingWidth(value: string | null): value is ReadingWidth {
   return value !== null && Object.hasOwn(READING_WIDTHS, value);
 }
 
-export function getReadingWidth(): ReadingWidth {
+function getReadingWidth(): ReadingWidth {
   const value = mailStorage.getItem(READING_WIDTH_KEY);
   return isReadingWidth(value) ? value : DEFAULT_READING_WIDTH;
 }
@@ -126,7 +126,7 @@ function isValid(setting: InterfaceSetting, value: number): boolean {
   return Number.isInteger(value) && value >= setting.min && value <= setting.max;
 }
 
-export function getInterfaceSetting(setting: InterfaceSetting): number {
+function getInterfaceSetting(setting: InterfaceSetting): number {
   const raw = mailStorage.getItem(setting.key);
   const value = raw === null ? NaN : Number(raw);
   return isValid(setting, value) ? value : setting.defaultValue;

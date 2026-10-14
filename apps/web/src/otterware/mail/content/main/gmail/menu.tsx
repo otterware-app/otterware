@@ -113,8 +113,6 @@ export function ContextMenuTrigger({
 }
 // Base UI context menus share the host's Menu popup, items and submenus.
 export const ContextMenuContent = MenuPopup;
-export const ContextMenuItem = DropdownMenuItem;
-export const ContextMenuCheckboxItem = DropdownMenuCheckboxItem;
 export const ContextMenuSeparator = MenuSeparator;
 export function ContextMenuSub(
   props: ComponentProps<typeof DropdownMenuSub> & { icon?: string | undefined },

@@ -70,7 +70,7 @@ const IMAGE_TYPES = new Set(["image/gif", "image/jpeg", "image/png", "image/webp
 const IMAGE_EXTENSIONS = /\.(gif|jpe?g|png|webp)$/i;
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
-export const MAX_ATTACHMENTS = 10;
+const MAX_ATTACHMENTS = 10;
 
 /** What a sent message keeps (thumbnails are small data URLs, fit for storage). */
 export type SentAttachment = {
@@ -126,7 +126,7 @@ function thumbnail(url: string): Promise<string | undefined> {
 }
 
 /** The composer's attachments: add (validate + stage), remove, take on send. */
-export function useChatAttachments() {
+function useChatAttachments() {
   const [items, setItems] = useState<DraftAttachment[]>([]);
   const itemsRef = useLatest(items);
 
@@ -229,7 +229,7 @@ const movedWithin = (e: DragEvent) =>
   e.relatedTarget !== null && e.currentTarget.contains(e.relatedTarget as Node);
 
 /** Otter Code's workspace file drop: handlers for the panel + overlay state. */
-export function useFileDrop(onFiles: (files: File[]) => void) {
+function useFileDrop(onFiles: (files: File[]) => void) {
   const [active, setActive] = useState(false);
   // Cancelling a drag with Escape may never fire dragleave.
   useEffect(() => {
@@ -271,7 +271,7 @@ export function useFileDrop(onFiles: (files: File[]) => void) {
   };
 }
 
-export function DropOverlay() {
+function DropOverlay() {
   return (
     <div className="pointer-events-none absolute inset-2 z-40 flex items-center justify-center rounded-2xl border-2 border-dashed border-primary/60 bg-primary/[0.035]">
       <div
@@ -286,7 +286,7 @@ export function DropOverlay() {
 }
 
 /** Otter Code's paste rule: images (or files without text) attach; text pastes. */
-export function filesFromPaste(data: DataTransfer): File[] {
+function filesFromPaste(data: DataTransfer): File[] {
   const files = Array.from(data.files);
   if (files.length === 0) return [];
   const text = data.getData("text/plain");
@@ -303,7 +303,7 @@ export function filesFromPaste(data: DataTransfer): File[] {
  * a name and a detail say more than a preview would): a tile with the kind's
  * icon or a thumbnail, the name over a muted detail, and remove on hover.
  */
-export function AttachmentChip({
+function AttachmentChip({
   tile,
   name,
   detail,
@@ -382,7 +382,7 @@ function extensionOf(name: string): string {
  * The composer's attachments as chips in a row at its top; `children` go
  * first (the attached mail).
  */
-export function ComposerAttachments({
+function ComposerAttachments({
   items,
   onRemove,
   children,
@@ -423,7 +423,7 @@ export function ComposerAttachments({
 
 /** Attachments inside a sent user bubble (Otter Code's MessagesTimeline). */
 /* oxlint-disable react/no-array-index-key -- Sent messages keep immutable attachment snapshots, including repeated filenames. */
-export function SentAttachments({ attachments }: { attachments: SentAttachment[] }) {
+function SentAttachments({ attachments }: { attachments: SentAttachment[] }) {
   const images = attachments.filter((a) => a.kind === "image");
   const files = attachments.filter((a) => a.kind === "file");
   return (

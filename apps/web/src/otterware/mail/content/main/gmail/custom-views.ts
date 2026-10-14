@@ -78,10 +78,10 @@ export const INBOX_VIEW_ID = "__inbox__";
 export const STARRED_VIEW_ID = "__starred__";
 export const SENT_VIEW_ID = "__sent__";
 export const DRAFTS_VIEW_ID = "__drafts__";
-export const IMPORTANT_VIEW_ID = "__important__";
+const IMPORTANT_VIEW_ID = "__important__";
 export const ALL_MAIL_VIEW_ID = "__allmail__";
-export const JUNK_VIEW_ID = "__junk__";
-export const TRASH_VIEW_ID = "__trash__";
+const JUNK_VIEW_ID = "__junk__";
+const TRASH_VIEW_ID = "__trash__";
 
 const DEFAULT_VIEWS: MailView[] = [
   { id: INBOX_VIEW_ID, name: "Inbox", kind: "inbox", rules: null },

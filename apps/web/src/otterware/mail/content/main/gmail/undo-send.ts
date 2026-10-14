@@ -9,7 +9,7 @@ import { forgetUndo, registerUndo, type UndoAction } from "./undo";
  */
 
 /** How long a message is held before it's handed to Gmail. */
-export const UNDO_SEND_MS = 10_000;
+const UNDO_SEND_MS = 10_000;
 
 export type SavedDraft = { accountId: string; messageId: string };
 

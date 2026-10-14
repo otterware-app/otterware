@@ -14,10 +14,7 @@ import {
 } from "~/components/ui/select";
 import { Undo2Icon } from "lucide-react";
 export { SettingsGroup } from "~/components/settings/SettingsGroup";
-export {
-  useSettingsSearchTarget,
-  SettingsSearchTarget,
-} from "~/components/settings/settingsLayout";
+export { SettingsSearchTarget } from "~/components/settings/settingsLayout";
 export const MailSettingScope = createContext<"account" | "environment" | "client">("account");
 export function SettingsRow(props: ComponentProps<typeof HostRow>) {
   const inheritedScope = useContext(MailSettingScope);
@@ -154,7 +151,7 @@ export function DraftInput({
 }
 
 /** "5m ago". */
-export function timeAgo(ts: number): string {
+function timeAgo(ts: number): string {
   const mins = Math.floor((Date.now() - ts) / 60_000);
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;

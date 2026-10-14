@@ -63,7 +63,7 @@ export const mailCommands: ReadonlyArray<WebModuleCommand> = KEYBINDING_COMMANDS
 export function encodeLabelCommand(name: string) {
   return `mail.label.move.${Array.from(new TextEncoder().encode(name), (byte) => byte.toString(16).padStart(2, "0")).join("")}` as const;
 }
-export function decodeLabelCommand(command: string): string | null {
+function decodeLabelCommand(command: string): string | null {
   const encoded = command.replace(/^mail\.label\.move\./, "");
   if (encoded === command || !/^(?:[0-9a-f]{2})+$/.test(encoded)) return null;
   try {

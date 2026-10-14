@@ -211,7 +211,7 @@ export function useLabels(accountId: string | null) {
   });
 }
 
-export function useCreateLabel() {
+function useCreateLabel() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ accountId, name }: { accountId: string; name: string }) => {
@@ -285,7 +285,7 @@ export function useUpdateLabel() {
   });
 }
 
-export function useDeleteLabel() {
+function useDeleteLabel() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ accountId, labelId }: { accountId: string; labelId: string }) => {
@@ -504,7 +504,7 @@ export function useCombinedCounts(rules: ViewRule[], viewId: string, enabled = t
 }
 
 /** Unread count per view id, for the Combined sidebar rows. */
-export function useViewUnreadCounts(
+function useViewUnreadCounts(
   views: MailView[],
   accounts: GmailAccount[],
   enabled = true,
@@ -1532,7 +1532,7 @@ function shouldRefreshLists(key: string, status: SyncStatus): boolean {
   return true;
 }
 
-export function syncLabel(status: SyncStatus): string {
+function syncLabel(status: SyncStatus): string {
   if (status.syncing && status.phase === "full" && status.total) {
     return `Syncing ${status.synced.toLocaleString()} of ~${status.total.toLocaleString()}`;
   }
@@ -1545,7 +1545,7 @@ export function syncLabel(status: SyncStatus): string {
 }
 
 /** Aggregated sync activity across every account, for the sidebar footer. */
-export function useGlobalSyncStatus(accountIds: string[]): { syncing: boolean; label: string } {
+function useGlobalSyncStatus(accountIds: string[]): { syncing: boolean; label: string } {
   const qc = useQueryClient();
   // The backend broadcasts when any sync starts so idle 10s polls don't miss
   // short syncs (menu-triggered "Synchronize All Mailboxes", the auto timer).
@@ -1801,7 +1801,7 @@ export function useDeleteThreadsForever() {
 
 /** Empty Junk / Empty Trash for some accounts — permanent, so it clears the
     undo slot, and the toast reports what went. */
-export function useEmptyFolder() {
+function useEmptyFolder() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({

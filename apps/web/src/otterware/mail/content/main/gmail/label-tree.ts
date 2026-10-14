@@ -42,7 +42,7 @@ export function buildLabelTree(labels: GmailLabel[]): LabelTreeNode[] {
   return root;
 }
 
-export function sortLabelTree(nodes: LabelTreeNode[]): void {
+function sortLabelTree(nodes: LabelTreeNode[]): void {
   nodes.sort((a, b) => a.segment.localeCompare(b.segment));
   for (const node of nodes) sortLabelTree(node.children);
 }

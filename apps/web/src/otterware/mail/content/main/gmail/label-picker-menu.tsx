@@ -49,7 +49,7 @@ export type LabelMenuKit = {
  * first item is the parent itself (so it stays selectable), siblings
  * alphabetical at every depth via buildLabelTree.
  */
-export function renderLabelMenuNodes(
+function renderLabelMenuNodes(
   nodes: LabelTreeNode[],
   applied: Set<string>,
   onToggle: (labelId: string, checked: boolean) => void,

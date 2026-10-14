@@ -32,7 +32,7 @@ export type QuoteContext = {
 };
 
 /** One row (or thread rep) → context entry. */
-export function contextFromMessages(
+function contextFromMessages(
   messages: GmailMessageSummary[],
   accountEmailById: (accountId: string | undefined) => string,
 ): AgentContext {
@@ -48,7 +48,7 @@ export function contextFromMessages(
 }
 
 /** A highlighted excerpt → a single quote context entry. */
-export function contextFromQuote(q: QuoteContext): AgentContext {
+function contextFromQuote(q: QuoteContext): AgentContext {
   return {
     conversations: [
       {
@@ -64,11 +64,7 @@ export function contextFromQuote(q: QuoteContext): AgentContext {
 }
 
 /** Question + pointer block sent with a chat turn. */
-export function buildHandoffText(
-  question: string,
-  context: AgentContext,
-  provider: ProviderKind,
-): string {
+function buildHandoffText(question: string, context: AgentContext, provider: ProviderKind): string {
   const lines: string[] = [question.trim(), "", "— context from Otter Mail —"];
   if (context.project) {
     lines.push(`• Project “${context.project.name}” (projectId ${context.project.id})`);

@@ -21,8 +21,8 @@ import {
   ContextMenu,
   ContextMenuTrigger,
   ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuCheckboxItem,
+  DropdownMenuItem,
+  DropdownMenuCheckboxItem,
   ContextMenuSeparator,
   ContextMenuSub,
 } from "./menu";
@@ -654,23 +654,23 @@ function MessageRow({
           </button>
         ) : null}
         <ContextMenuContent>
-          <ContextMenuItem
+          <DropdownMenuItem
             icon={unread ? "envelope.open" : "envelope.badge"}
             onSelect={handleToggleRead}
           >
             {unread ? "Mark as read" : "Mark as unread"}
-          </ContextMenuItem>
-          <ContextMenuItem
+          </DropdownMenuItem>
+          <DropdownMenuItem
             icon={message.starred ? "flag.slash" : "flag"}
             onSelect={() => handleStarToggle()}
           >
             {message.starred ? "Unflag" : "Flag"}
-          </ContextMenuItem>
+          </DropdownMenuItem>
           <ContextMenuSeparator />
-          <ContextMenuItem icon="cursorarrow" onSelect={onChatAgent}>
+          <DropdownMenuItem icon="cursorarrow" onSelect={onChatAgent}>
             Open in agent chat
-          </ContextMenuItem>
-          <ContextMenuItem
+          </DropdownMenuItem>
+          <DropdownMenuItem
             onSelect={() =>
               addEmailToTodoist({
                 accountId: message.accountId ?? accountId,
@@ -680,7 +680,7 @@ function MessageRow({
             }
           >
             Add to Todoist…
-          </ContextMenuItem>
+          </DropdownMenuItem>
           <ContextMenuSub label="Add to project">
             <AddToProjectItems
               threads={[
@@ -690,49 +690,49 @@ function MessageRow({
                 },
               ]}
               suggestedName={message.subject}
-              Item={ContextMenuItem}
+              Item={DropdownMenuItem}
               Separator={ContextMenuSeparator}
             />
           </ContextMenuSub>
           <ContextMenuSeparator />
           <ContextMenuSub label={labelChoices.folders ? "Move to folder" : "Label"}>
             {renderLabelChoices(labelChoices, {
-              Item: ContextMenuItem,
-              CheckboxItem: ContextMenuCheckboxItem,
+              Item: DropdownMenuItem,
+              CheckboxItem: DropdownMenuCheckboxItem,
               Sub: ContextMenuSub,
               Separator: ContextMenuSeparator,
             })}
           </ContextMenuSub>
           <ContextMenuSeparator />
           {trashed || junk ? null : (
-            <ContextMenuItem
+            <DropdownMenuItem
               icon={inInbox ? "archivebox" : "tray.and.arrow.down"}
               onSelect={() => handleArchive()}
             >
               {inInbox ? "Archive" : "Move to inbox"}
-            </ContextMenuItem>
+            </DropdownMenuItem>
           )}
           {inInbox && !trashed && !junk && (
-            <ContextMenuItem onSelect={() => setSnoozeOpen(true)}>Snooze…</ContextMenuItem>
+            <DropdownMenuItem onSelect={() => setSnoozeOpen(true)}>Snooze…</DropdownMenuItem>
           )}
           {trashed ? null : (
-            <ContextMenuItem icon={junk ? "checkmark.shield" : "xmark.bin"} onSelect={handleJunk}>
+            <DropdownMenuItem icon={junk ? "checkmark.shield" : "xmark.bin"} onSelect={handleJunk}>
               {junk ? "Not junk" : "Move to junk"}
-            </ContextMenuItem>
+            </DropdownMenuItem>
           )}
           {trashed ? (
-            <ContextMenuItem icon="trash.slash" onSelect={() => handleTrash()}>
+            <DropdownMenuItem icon="trash.slash" onSelect={() => handleTrash()}>
               Restore from trash
-            </ContextMenuItem>
+            </DropdownMenuItem>
           ) : (
-            <ContextMenuItem icon="trash" color="red" onSelect={() => handleTrash()}>
+            <DropdownMenuItem icon="trash" color="red" onSelect={() => handleTrash()}>
               Move to trash
-            </ContextMenuItem>
+            </DropdownMenuItem>
           )}
           {trashed || junk ? (
-            <ContextMenuItem icon="trash.fill" color="red" onSelect={onDeleteForever}>
+            <DropdownMenuItem icon="trash.fill" color="red" onSelect={onDeleteForever}>
               Delete forever…
-            </ContextMenuItem>
+            </DropdownMenuItem>
           ) : null}
         </ContextMenuContent>
       </ContextMenu>

@@ -62,13 +62,7 @@ export function HintTooltip({
     </Tooltip>
   );
 }
-export function Kbd({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string | undefined;
-}) {
+function Kbd({ children, className }: { children: ReactNode; className?: string | undefined }) {
   return (
     <kbd
       className={cn(
@@ -82,7 +76,7 @@ export function Kbd({
 }
 
 /** Unread count: a quiet tabular numeral, brightening on the selected row. */
-export function UnreadPill({ count, selected }: { count: number; selected?: boolean | undefined }) {
+function UnreadPill({ count, selected }: { count: number; selected?: boolean | undefined }) {
   if (count <= 0) return null;
   return (
     <span

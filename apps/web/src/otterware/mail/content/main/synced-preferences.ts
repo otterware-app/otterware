@@ -61,7 +61,7 @@ function apply(ui: UiPreferences, skip: ReadonlySet<string> = new Set()): void {
 }
 
 /** The browser awaits this before mounting, so its first render uses its saved palette. */
-export function loadSyncedPreferences(initialize = false): Promise<void> {
+function loadSyncedPreferences(initialize = false): Promise<void> {
   const state = preferences();
   const host = mailHost();
   return (state.initialPreferences ??= mailBridge

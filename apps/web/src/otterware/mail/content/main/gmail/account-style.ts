@@ -35,7 +35,7 @@ export function getAccountDisplayName(account: Pick<GmailAccount, "name" | "disp
 }
 
 /** Readable text color for surfaces painted in an account color (YIQ luma). */
-export function getAccountContrastColor(hex: string): string {
+function getAccountContrastColor(hex: string): string {
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);

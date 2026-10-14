@@ -39,7 +39,7 @@ import { moduleRegistry } from "./registry";
 import { useSwitchApp } from "./ShellRail";
 import { SHELL_APPS, SWITCHER_APPS, shellKind, useShellApp, useShellAppStore } from "./shell";
 
-export const SHELL_DEFAULT_KEYBINDINGS = shellDefaultKeybindings({
+const SHELL_DEFAULT_KEYBINDINGS = shellDefaultKeybindings({
   kind: shellKind,
   modules: moduleRegistry.modules,
 });
@@ -66,7 +66,7 @@ export function withShellKeybindings(
   return mergeShellKeybindings(scoped, SHELL_DEFAULT_KEYBINDINGS);
 }
 
-export const shellKeybindingsAtom = Atom.make((get) =>
+const shellKeybindingsAtom = Atom.make((get) =>
   withShellKeybindings(get(primaryServerKeybindingsAtom)),
 ).pipe(Atom.withLabel("otterware-shell-keybindings"));
 
@@ -75,7 +75,7 @@ export function useShellKeybindings(): ResolvedKeybindingsConfig {
 }
 
 /** `app.<id>` true for the active app; spread into a shortcut's match context. */
-export function useAppWhenContext(): Record<string, boolean> {
+function useAppWhenContext(): Record<string, boolean> {
   return appWhenContext(useShellApp(), SHELL_APPS);
 }
 

@@ -4,13 +4,7 @@ import { useKeybindingsState } from "../keybindings/store";
 import { cn } from "../gmail/ui";
 
 /** One key, drawn as a keycap. */
-export function Keycap({
-  children,
-  className,
-}: {
-  children: string;
-  className?: string | undefined;
-}) {
+function Keycap({ children, className }: { children: string; className?: string | undefined }) {
   return (
     <kbd
       className={cn(

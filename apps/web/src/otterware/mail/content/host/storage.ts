@@ -1,7 +1,7 @@
 import { mailHost, mailHostOrNull } from "./bridge";
 
 /** Mail's old window-local keys must not collide with host settings or another environment. */
-export const mailStoragePrefix = (environmentId: string) =>
+const mailStoragePrefix = (environmentId: string) =>
   `otterware:mail:${encodeURIComponent(environmentId)}:`;
 export function storageFor(environmentId: string) {
   const prefix = mailStoragePrefix(environmentId);

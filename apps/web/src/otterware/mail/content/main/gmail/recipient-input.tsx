@@ -16,7 +16,7 @@ import { toast } from "./toast";
 import {
   ContextMenu,
   ContextMenuContent,
-  ContextMenuItem,
+  DropdownMenuItem,
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "./menu";
@@ -212,17 +212,17 @@ export const RecipientInput = forwardRef<
               </ImportedMailTooltip>
             </ContextMenuTrigger>
             <ContextMenuContent>
-              <ContextMenuItem onSelect={() => copy(email)}>Copy address</ContextMenuItem>
+              <DropdownMenuItem onSelect={() => copy(email)}>Copy address</DropdownMenuItem>
               {name ? (
-                <ContextMenuItem onSelect={() => copy(formatAddressEntry(name, email))}>
+                <DropdownMenuItem onSelect={() => copy(formatAddressEntry(name, email))}>
                   Copy name and address
-                </ContextMenuItem>
+                </DropdownMenuItem>
               ) : null}
               <ContextMenuSeparator />
-              <ContextMenuItem onSelect={() => editAt(i)}>Edit</ContextMenuItem>
-              <ContextMenuItem color="red" onSelect={() => removeAt(i)}>
+              <DropdownMenuItem onSelect={() => editAt(i)}>Edit</DropdownMenuItem>
+              <DropdownMenuItem color="red" onSelect={() => removeAt(i)}>
                 Remove
-              </ContextMenuItem>
+              </DropdownMenuItem>
             </ContextMenuContent>
           </ContextMenu>
         );

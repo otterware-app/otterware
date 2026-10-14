@@ -21,13 +21,13 @@ import { cn } from "./ui";
  */
 
 /** The reason from a rejected invoke, without the IPC bridge's wrapping. */
-export function readableError(err: unknown): string {
+function readableError(err: unknown): string {
   const raw = err instanceof Error ? err.message : String(err);
   return raw.replace(/^Error invoking remote method '[^']*':\s*/, "").replace(/^Error:\s*/, "");
 }
 
 /** "Add mailbox" as a menu: Gmail, or other mail (the IMAP dialog). */
-export function AddMailboxMenu({
+function AddMailboxMenu({
   onGmail,
   onAdded,
   align = "start",
@@ -134,7 +134,7 @@ const looksLikeEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emai
 
 type Discovery = { email: string; state: "looking" | "found" | "none" } | null;
 
-export function ImapAccountDialog({
+function ImapAccountDialog({
   open,
   onOpenChange,
   onAdded,

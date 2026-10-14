@@ -25,7 +25,7 @@ import { type KnownWebModuleId, moduleRegistry } from "./registry";
 import { shellKind } from "./shell";
 
 export const MODULES_SETTINGS_PATH = "/settings/modules";
-export const ACCOUNT_SETTINGS_PATH = "/settings/account";
+const ACCOUNT_SETTINGS_PATH = "/settings/account";
 
 /**
  * Page ids modules may declare, so `SettingsPath` stays a finite union the
@@ -52,7 +52,7 @@ export type OtterwareSettingsPath =
 type SettingsIcon = ComponentType<{ className?: string }>;
 
 /** The host pages a module page can merge into, by their routes. */
-export const HOST_SETTINGS_PAGE_PATHS = {
+const HOST_SETTINGS_PAGE_PATHS = {
   general: "/settings/general",
   appearance: "/settings/appearance",
   keybindings: "/settings/keybindings",
@@ -81,7 +81,7 @@ export interface PlacedModuleSettingsPage {
 }
 
 /** Every module page, placed for this profile. */
-export const MODULE_SETTINGS_PAGES: ReadonlyArray<PlacedModuleSettingsPage> =
+const MODULE_SETTINGS_PAGES: ReadonlyArray<PlacedModuleSettingsPage> =
   moduleRegistry.modules.flatMap((module) =>
     module.settings.map((page) => ({
       module,

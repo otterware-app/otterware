@@ -30,7 +30,7 @@ export const MAILBOX_JUMP_COMMANDS = [
 ] as const;
 
 /** ⌘1…⌘9 pick the Nth model while the model picker is open (T3's modelPicker.jump.N). */
-export const MODEL_PICKER_JUMP_COMMANDS = [
+const MODEL_PICKER_JUMP_COMMANDS = [
   "modelPicker.jump.1",
   "modelPicker.jump.2",
   "modelPicker.jump.3",
@@ -90,7 +90,7 @@ export const KEYBINDING_COMMANDS = [
   "message.translate",
 ] as const;
 
-export const LABEL_MOVE_PREFIX = "label.move:";
+const LABEL_MOVE_PREFIX = "label.move:";
 /** Label shortcuts saved before they became moves; they now move too. */
 const LEGACY_LABEL_PREFIX = "label.toggle:";
 
@@ -101,7 +101,7 @@ export type KeybindingCommand = (typeof KEYBINDING_COMMANDS)[number] | LabelMove
 /** What a handler registers under: a fixed command, or every label move. */
 export type CommandHandlerKey = (typeof KEYBINDING_COMMANDS)[number] | "label.move";
 
-export function labelMoveCommand(labelName: string): LabelMoveCommand {
+function labelMoveCommand(labelName: string): LabelMoveCommand {
   return `${LABEL_MOVE_PREFIX}${labelName}`;
 }
 
@@ -113,7 +113,7 @@ export function labelMoveName(command: string): string | null {
   return name || null;
 }
 
-export function isKeybindingCommand(value: string): value is KeybindingCommand {
+function isKeybindingCommand(value: string): value is KeybindingCommand {
   return (
     (KEYBINDING_COMMANDS as readonly string[]).includes(value) || labelMoveName(value) !== null
   );
@@ -126,7 +126,7 @@ export type KeybindingRule = {
 };
 
 /** Context keys offered in the When editor (plus the literals). */
-export const WHEN_VARIABLES = [
+const WHEN_VARIABLES = [
   "editableFocus",
   "dialogOpen",
   "settingsOpen",
@@ -139,7 +139,7 @@ export const WHEN_VARIABLES = [
 ] as const;
 
 const OUTSIDE_FIELDS = "!editableFocus && !dialogOpen";
-export const IN_MAIL = "!editableFocus && !dialogOpen && !settingsOpen && !panelExpanded";
+const IN_MAIL = "!editableFocus && !dialogOpen && !settingsOpen && !panelExpanded";
 const ON_MESSAGE = `${IN_MAIL} && messageOpen`;
 
 export const DEFAULT_KEYBINDINGS: ReadonlyArray<KeybindingRule> = [

@@ -68,7 +68,7 @@ type Operator = { key: string; value: string; negated: boolean; raw: string };
 
 const OPERATOR_RE = /(^|\s)(-?)([a-z_]+):("[^"]*"|\([^)]*\)|\S+)/gi;
 
-export function parseOperators(q: string): Operator[] {
+function parseOperators(q: string): Operator[] {
   return [...q.matchAll(OPERATOR_RE)].map((m) => ({
     key: m[3]!.toLowerCase(),
     value: m[4]!,
@@ -154,7 +154,7 @@ export function timeLabel(q: string): string | null {
 }
 
 /** Gmail's yyyy/mm/dd. */
-export function gmailDate(date: Date): string {
+function gmailDate(date: Date): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${date.getFullYear()}/${pad(date.getMonth() + 1)}/${pad(date.getDate())}`;
 }
