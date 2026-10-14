@@ -68,3 +68,7 @@ pnpm-*.yaml
 **/tsconfig.json
 knip.jsonc
 third-party-licenses.config.json
+
+# Rebrand: upstream tests that assert the product name or the renamed account token field
+apps/mobile/src/features/connection/environmentStatusText.test.ts
+packages/client-runtime/src/relay/managedRelay.test.ts
