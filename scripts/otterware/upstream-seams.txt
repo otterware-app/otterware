@@ -62,6 +62,9 @@ docs/**/*.md
 
 # Generated and manifest files: regenerated or merged mechanically on every sync
 apps/web/src/routeTree.gen.ts
+apps/mobile/generated-uniwind-theme*
+apps/mobile/uniwind-types.d.ts
+apps/mobile/scripts/generate-uniwind-themes.test.ts
 pnpm-*.yaml
 **/package.json
 **/vite.config.ts
