@@ -68,7 +68,7 @@ interface ModulePageFrame {
 const FrameContext = createContext<ModulePageFrame | null>(null);
 
 /** For pages: adjust the frame while mounted; pass null to reset. */
-export function useModulePageFrame(): ModulePageFrame {
+function useModulePageFrame(): ModulePageFrame {
   const frame = useContext(FrameContext);
   if (frame === null) throw new Error("useModulePageFrame must be used inside a module page.");
   return frame;

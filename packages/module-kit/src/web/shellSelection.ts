@@ -9,6 +9,8 @@ import * as Schema from "effect/Schema";
 import { createClientStore } from "./clientStore.ts";
 
 interface ShellSelectionState {
+  readonly assistantRequest: { moduleId: string; command: "newChat" | "previousChat" } | null;
+  readonly requestAssistant: (moduleId: string, command: "newChat" | "previousChat") => void;
   readonly activeSpaceByModule: Readonly<Record<string, string>>;
   readonly assistantOpenByModule: Readonly<Record<string, boolean>>;
   readonly selectSpace: (moduleId: string, spaceId: string | null) => void;
@@ -24,6 +26,12 @@ export const useShellSelection = createClientStore<
   typeof PersistedSelection.Type
 >(
   (set) => ({
+    assistantRequest: null,
+    requestAssistant: (moduleId, command) =>
+      set((state) => ({
+        assistantRequest: { moduleId, command },
+        assistantOpenByModule: { ...state.assistantOpenByModule, [moduleId]: true },
+      })),
     activeSpaceByModule: {},
     assistantOpenByModule: {},
     selectSpace: (moduleId, spaceId) =>

@@ -82,7 +82,8 @@ function evaluateWhenNode(node: KeybindingWhenNode, context: ShortcutMatchContex
   }
 }
 
-function matchesWhenClause(
+// Otterware seam: contextual content handlers use the host predicate evaluator.
+export function matchesWhenClause(
   whenAst: KeybindingWhenNode | undefined,
   context: ShortcutMatchContext,
 ): boolean {

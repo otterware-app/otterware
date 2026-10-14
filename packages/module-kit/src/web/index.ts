@@ -52,3 +52,4 @@ export {
   shellWhenVariables,
   type ShellKind,
 } from "./keybindings.ts";
+export { useModuleCommandContext } from "./commandContext.ts";

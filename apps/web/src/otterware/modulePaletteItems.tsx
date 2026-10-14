@@ -45,15 +45,17 @@ export function moduleCommandPaletteItems(
           await navigate({ href: modulePath(module.id) });
         },
       },
-      ...module.commands.map((command): CommandPaletteActionItem => ({
-        kind: "action",
-        value: `action:module:${command.id}`,
-        searchTerms: [module.label.toLowerCase(), ...command.searchTerms],
-        title: command.title,
-        icon: <Icon className={ITEM_ICON_CLASS} />,
-        shortcutCommand: command.id as KeybindingCommand,
-        run: () => runModuleCommand(module.id, command, navigate),
-      })),
+      ...[...module.commands, ...(module.paletteCommands?.() ?? [])].map(
+        (command): CommandPaletteActionItem => ({
+          kind: "action",
+          value: `action:module:${command.id}`,
+          searchTerms: [module.label.toLowerCase(), ...command.searchTerms],
+          title: command.title,
+          icon: <Icon className={ITEM_ICON_CLASS} />,
+          shortcutCommand: command.id as KeybindingCommand,
+          run: () => runModuleCommand(module.id, command, navigate),
+        }),
+      ),
     ];
   });
   if (shellKind !== "code") {
@@ -75,5 +77,19 @@ export function moduleCommandPaletteItems(
       },
     });
   }
+  if (shellKind !== "code")
+    for (const command of ["newChat", "previousChat"] as const)
+      items.push({
+        kind: "action",
+        value: `action:module:assistant.${command}`,
+        searchTerms: ["assistant", "otterware", "agent", "chat"],
+        title: `${command === "newChat" ? "New" : "Previous"} Otterware Assistant chat`,
+        icon: <MessagesSquareIcon className={ITEM_ICON_CLASS} />,
+        shortcutCommand: `assistant.${command}`,
+        run: async () => {
+          const module = moduleRegistry.byId(useShellAppStore.getState().activeApp);
+          if (module?.sideChat) useShellSelection.getState().requestAssistant(module.id, command);
+        },
+      });
   return items;
 }

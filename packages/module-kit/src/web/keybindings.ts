@@ -36,6 +36,8 @@ export const SHELL_GLOBAL_COMMANDS: ReadonlyArray<string> = [
   "commandPalette.toggle",
   ...APP_SWITCH_COMMANDS,
   ASSISTANT_TOGGLE_COMMAND,
+  "assistant.newChat",
+  "assistant.previousChat",
 ];
 export const ASSISTANT_TOGGLE_DEFAULT_KEY = "mod+shift+.";
 
@@ -76,16 +78,19 @@ export function shellDefaultKeybindings(input: {
   }
   if (input.kind !== "code") {
     rules.push({ key: ASSISTANT_TOGGLE_DEFAULT_KEY, command: ASSISTANT_TOGGLE_COMMAND });
+    rules.push({ key: "mod+shift+o", command: "assistant.newChat" });
+    rules.push({ key: "ctrl+tab", command: "assistant.previousChat" });
   }
   for (const module of input.modules) {
     for (const command of module.commands) {
-      if (command.defaultKey === undefined || !isKeybindingCommand(command.id)) continue;
+      if (!isKeybindingCommand(command.id)) continue;
       const app = appWhenVariable(module.id);
-      rules.push({
-        key: command.defaultKey,
-        command: command.id,
-        when: command.when ? `${app} && (${command.when})` : app,
-      });
+      for (const key of command.defaultKeys ?? (command.defaultKey ? [command.defaultKey] : []))
+        rules.push({
+          key,
+          command: command.id,
+          when: command.when ? `${app} && (${command.when})` : app,
+        });
     }
   }
   return rules;

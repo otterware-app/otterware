@@ -60,6 +60,11 @@ export interface ModuleSidebarRow {
   readonly href?: string;
   readonly actions?: ReadonlyArray<ModuleRowAction>;
   readonly children?: ReadonlyArray<ModuleSidebarRow>;
+  /** Optional native drag interactions, rendered by the host row. */
+  readonly drag?: Pick<
+    import("react").HTMLAttributes<HTMLElement>,
+    "draggable" | "onDragStart" | "onDragOver" | "onDrop"
+  >;
 }
 
 export interface ModuleSidebarSection {
@@ -150,6 +155,7 @@ export interface WebModuleCommand {
   readonly subpath?: string;
   readonly run?: () => void | Promise<void>;
   readonly defaultKey?: string;
+  readonly defaultKeys?: ReadonlyArray<string>;
   readonly when?: string;
 }
 
@@ -181,9 +187,13 @@ export interface WebModule {
   readonly useHeaderActions?: () => ReadonlyArray<ModuleHeaderAction>;
   readonly stores?: ReadonlyArray<WebModuleStore>;
   readonly settings: ReadonlyArray<WebModuleSettingsPage>;
+  /** Data-backed palette entries (mailboxes, saved views, labels), read when the palette renders. */
+  readonly paletteCommands?: () => ReadonlyArray<WebModuleCommand>;
   readonly commands: ReadonlyArray<WebModuleCommand>;
   /** Old command ids this module's commands were known by (`go.inbox` → `mail.go.inbox`). */
   readonly keybindingAliases?: Readonly<Record<string, string>>;
+  /** Dynamic commands, such as a saved move-to-label binding. */
+  readonly runCommand?: (command: string) => void | Promise<void>;
   readonly searchTerms: ReadonlyArray<string>;
   /** The server module (`modules.list`) the page needs; null for client-only pages. */
   readonly serverModule: string | null;

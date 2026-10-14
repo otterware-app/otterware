@@ -1,65 +1,29 @@
+import { useMailStore } from "./mailStore";
 import { BrowserAccountBridge } from "../browser/BrowserAccountBridge";
 import { BrowserEnvironmentNotice } from "../browser/BrowserEnvironmentNotice";
-import { BrowserChat } from "../browser/chat/BrowserChat";
+
 import { useModuleTarget } from "../browser/runtime";
-import {
-  browserMailTransport,
-  useBrowserMailAvailability,
-  useBrowserMailIdentity,
-  useMailPageCapabilities,
-} from "./browserClient";
-import { useMailDesktopCapabilities } from "./desktop";
-import {
-  useModulePageContext,
-  useShellSelection,
-  type ModulePageProps,
-} from "@otterware/module-kit/web";
-import { MailSurface, type MailPageSelection } from "@otterware/mail-web";
-import { useLocation, useNavigate } from "@tanstack/react-router";
-import { useCallback, useMemo, useState } from "react";
+import { useBrowserMailAvailability } from "./browserClient";
+
+import { useModulePageContext, type ModulePageProps } from "@otterware/module-kit/web";
+import { MailSurface } from "./content/host/surface";
+import { useLocation } from "@tanstack/react-router";
+import { useMemo } from "react";
 import { useModulePageFrameOverrides } from "../ModulePageLayout";
 import { useServerModuleAvailability } from "../moduleState";
-import { createMailHost } from "./rpc/host";
-import { mailSession } from "./sessions";
 
-export default function MailPage({ subpath, active }: ModulePageProps) {
+export default function MailPage({ subpath, active, projectId }: ModulePageProps) {
   const target = useModuleTarget();
-  const environmentId = target._tag === "environment" ? target.environmentId : null;
+
   const inBrowser = target._tag === "browser";
   const browserAvailability = useBrowserMailAvailability(inBrowser);
-  const browserIdentity = useBrowserMailIdentity(inBrowser);
+
   const serverAvailability = useServerModuleAvailability("mail");
   const availability = inBrowser ? browserAvailability : serverAvailability;
   const available = availability === "on";
-  const navigate = useNavigate();
-  const desktop = useMailDesktopCapabilities();
-  const navigateMail = useCallback(
-    (path: string) => {
-      void navigate({ to: path });
-    },
-    [navigate],
-  );
-  useMailPageCapabilities(inBrowser && active, navigateMail);
+  const { current, selection } = useMailStore();
+  const host = current?.host;
   const search = useLocation({ select: (location) => location.searchStr });
-  const [selection, setSelection] = useState<MailPageSelection | null>(null);
-  const host = useMemo(
-    () =>
-      environmentId || inBrowser
-        ? createMailHost(
-            environmentId,
-            {
-              navigate: (path) => {
-                void navigate({ to: path });
-              },
-              openAssistant: () => useShellSelection.getState().setAssistantOpen("mail", true),
-              publishSelection: setSelection,
-            },
-            desktop,
-            inBrowser ? { ...browserMailTransport, id: `browser:${browserIdentity}` } : undefined,
-          )
-        : null,
-    [environmentId, inBrowser, browserIdentity, navigate, desktop],
-  );
   useModulePageContext(
     {
       module: "mail",
@@ -85,20 +49,7 @@ export default function MailPage({ subpath, active }: ModulePageProps) {
     },
     active && available,
   );
-  // This browser's Mail reports its own state and chats with the light agent.
-  const assistantContent = useMemo(
-    () =>
-      inBrowser ? (
-        <BrowserChat
-          context={JSON.stringify({ module: "mail", path: `/mail/${subpath}`, selection })}
-        />
-      ) : undefined,
-    [inBrowser, subpath, selection],
-  );
-  const overrides = useMemo(
-    () => (inBrowser ? { availability, assistantContent } : null),
-    [inBrowser, availability, assistantContent],
-  );
+  const overrides = useMemo(() => (inBrowser ? { availability } : null), [inBrowser, availability]);
   useModulePageFrameOverrides(overrides, active);
   return (
     <>
@@ -110,8 +61,8 @@ export default function MailPage({ subpath, active }: ModulePageProps) {
       ) : null}
       {active && available && host ? (
         <MailSurface
-          host={host}
-          session={mailSession(host.environmentId)}
+          session={current!.session}
+          projectId={projectId}
           path={`/${subpath}${search}`}
         />
       ) : null}

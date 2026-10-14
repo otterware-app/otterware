@@ -4,6 +4,7 @@
  * without an environment show it where the assistant would be (Home, module
  * side chats); `context` is the page's context, sent with each message.
  */
+import { useShellSelection } from "@otterware/module-kit/web";
 import type {
   BrowserAgentAccess,
   BrowserAgentKind,
@@ -89,12 +90,27 @@ function Message({ message }: { readonly message: BrowserAgentMessage }) {
   }
 }
 
-export function BrowserChat(props: { readonly context?: string; readonly className?: string }) {
+export function BrowserChat(props: {
+  readonly context?: string;
+  readonly className?: string;
+  readonly moduleId?: string;
+}) {
   const { threads, reload } = useAgentThreads();
   // null follows the most recent chat; "new" is an empty one until its first message.
   const [selected, setSelected] = useState<string | null>(null);
   const threadId = selected === "new" ? null : (selected ?? threads[0]?.id ?? null);
   const setThreadId = setSelected;
+  const assistantRequest = useShellSelection((state) => state.assistantRequest);
+  useEffect(() => {
+    if (!props.moduleId || assistantRequest?.moduleId !== props.moduleId) return;
+    useShellSelection.setState({ assistantRequest: null });
+    if (assistantRequest.command === "newChat") setSelected("new");
+    else {
+      const index = threads.findIndex((thread) => thread.id === threadId);
+      const previous = threads[(index + 1) % threads.length];
+      if (previous) setSelected(previous.id);
+    }
+  }, [assistantRequest, props.moduleId, threadId, threads]);
   const thread = threads.find((candidate) => candidate.id === threadId) ?? null;
   const [agent, setAgent] = useState<BrowserAgentKind>("openrouter");
   const [access, setAccess] = useState<BrowserAgentAccess>("approval-required");

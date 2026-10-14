@@ -4,14 +4,13 @@ import * as Schema from "effect/Schema";
 const decodeTranslation = Schema.decodeUnknownSync(
   MailOperations["translation:translate"].payloadSchema,
 );
-import { createMailBrowser } from "../browser";
 import {
   mailDesktop,
   dockBadgeEnabled,
   setDockBadgeEnabled,
   type MailDesktopCapabilities,
 } from "../desktop";
-import type { MailWebHost } from "@otterware/mail-web";
+import type { MailWebHost } from "../content/host/bridge";
 import type { ThemeSource, UpdateState } from "@otterware/mail-contracts";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { ensureLocalApi } from "../../../localApi";
@@ -99,15 +98,11 @@ export function createMailHost(
   };
   const listeners = new Map<string, Set<(payload: unknown) => void>>();
   let stopEvents: (() => void) | undefined;
-  let stopBrowser: (() => void) | undefined;
   let themeSource: ThemeSource = "system";
   const publish = (channel: string, payload: unknown) => {
     for (const listener of listeners.get(channel) ?? []) listener(payload);
   };
-  const browser =
-    desktopCapabilities && environmentId ? createMailBrowser(environmentId, publish) : null;
   const invoke = async (channel: string, input: unknown): Promise<unknown> => {
-    if (browser?.methods[channel]) return browser.methods[channel](input);
     const params = record(input);
     const desktop = desktopCapabilities && mailDesktop();
     if (
@@ -179,7 +174,14 @@ export function createMailHost(
         return null;
       case "window:openSettings":
         callbacks.navigate(
-          `/settings/mail?pane=${encodeURIComponent(text(params.pane) || "general")}`,
+          (
+            {
+              accounts: "/settings/mail/mailboxes",
+              agents: "/settings/providers",
+              browser: "/settings/extensions",
+              otter: "/settings/account",
+            } as Record<string, string>
+          )[text(params.pane)] ?? `/settings/${encodeURIComponent(text(params.pane) || "general")}`,
         );
         return;
       case "gmail:pickAttachments":
@@ -230,7 +232,7 @@ export function createMailHost(
       openFiles: desktopCapabilities?.openFiles ?? false,
       externalAgent: false,
       localAgents: false,
-      browser: browser !== null,
+      browser: false,
     },
     invoke: <T>(channel: string, input?: unknown) => invoke(channel, input) as Promise<T>,
     on(channel, listener) {
@@ -249,7 +251,6 @@ export function createMailHost(
           : environmentId
             ? subscribeMailEvents(environmentId, publish)
             : undefined;
-      if (!stopBrowser && browser) stopBrowser = browser.subscribe();
       return () => {
         stopDesktop?.();
         channelListeners.delete(listener);
@@ -257,8 +258,6 @@ export function createMailHost(
         if (listeners.size === 0) {
           stopEvents?.();
           stopEvents = undefined;
-          stopBrowser?.();
-          stopBrowser = undefined;
         }
       };
     },
