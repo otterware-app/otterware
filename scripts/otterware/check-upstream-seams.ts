@@ -96,8 +96,13 @@ function resolveRef(candidates: ReadonlyArray<string>, cwd: string): string {
 function mergeBase(base: string, cwd: string): string {
   if (gitQuietly(["merge-base", base, "HEAD"], cwd))
     return git(["merge-base", base, "HEAD"], cwd).trim();
-  // A shallow PR checkout: deepen until the branch point is reachable.
+  // A shallow PR checkout: deepen until the branch point is reachable. HEAD is often a
+  // detached merge commit whose own history deepening origin's refs does not reach, so
+  // fall back to the full history.
   gitQuietly(["fetch", "--quiet", "--no-tags", "--deepen=2000", "origin"], cwd);
+  if (gitQuietly(["merge-base", base, "HEAD"], cwd))
+    return git(["merge-base", base, "HEAD"], cwd).trim();
+  gitQuietly(["fetch", "--quiet", "--no-tags", "--unshallow", "origin"], cwd);
   return git(["merge-base", base, "HEAD"], cwd).trim();
 }
 
