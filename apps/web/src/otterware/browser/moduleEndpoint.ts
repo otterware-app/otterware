@@ -21,7 +21,7 @@ import { useCallback, useContext } from "react";
 import { browserClient, runInBrowser, useModuleTarget } from "./runtime";
 
 /** The in-browser environment, where shell code expects an environment id. Never routed to. */
-export const THIS_BROWSER = EnvironmentId.make("this-browser");
+const THIS_BROWSER = EnvironmentId.make("this-browser");
 
 export const isThisBrowser = (environmentId: EnvironmentId | null | undefined) =>
   environmentId === THIS_BROWSER;
