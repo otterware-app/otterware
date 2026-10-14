@@ -27,7 +27,7 @@ const statusAtom = browserAtomRuntime.atom(
   ),
 );
 
-export function useBrowserEnvironmentStatus(): BrowserEnvironmentStatus {
+function useBrowserEnvironmentStatus(): BrowserEnvironmentStatus {
   return Option.getOrElse(AsyncResult.value(useAtomValue(statusAtom)), () => "idle" as const);
 }
 
