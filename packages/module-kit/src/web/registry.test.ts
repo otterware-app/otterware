@@ -40,5 +40,12 @@ describe("createModuleRegistry", () => {
     expect(registry.isModulePath("/usage")).toBe(false);
     expect(registry.rail("start").map((module) => module.id)).toEqual(["home"]);
     expect(registry.settings.map((module) => module.id)).toEqual(["mail"]);
+    expect(registry.threadAccessories).toEqual([]);
+  });
+
+  it("lists the modules that show something on Code threads", () => {
+    const drive = defineWebModule({ ...mail, id: "drive", threadAccessory: page });
+    const registry = createModuleRegistry([home, mail, drive]);
+    expect(registry.threadAccessories.map((module) => module.id)).toEqual(["drive"]);
   });
 });

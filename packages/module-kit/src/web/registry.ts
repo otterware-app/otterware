@@ -7,6 +7,8 @@
 import type { LucideIcon } from "lucide-react";
 import type { ComponentType, LazyExoticComponent } from "react";
 
+import type { ModulePageContext } from "./pageContext.ts";
+
 export type RailPosition = "start" | "end";
 
 export interface ModulePageProps {
@@ -32,6 +34,21 @@ export interface WebModuleCommand {
   readonly subpath: string;
 }
 
+/**
+ * What a module shows about one Code thread (Drive: the documents linked to
+ * it). Rendered over a full thread's conversation and in a side chat's
+ * header, only while the module (its `serverModule`, else its id) is on for
+ * the thread's environment; it renders nothing when it has nothing to show.
+ */
+export interface ModuleThreadAccessoryProps {
+  readonly environmentId: string;
+  readonly threadId: string;
+  /** In a module page's side chat rather than a full thread. */
+  readonly sideChat: boolean;
+  /** What the page beside the side chat shows; null in a full thread. */
+  readonly pageContext: ModulePageContext | null;
+}
+
 export interface WebModule {
   readonly id: string;
   readonly label: string;
@@ -48,6 +65,7 @@ export interface WebModule {
   readonly serverModule: string | null;
   /** The page owns its right-hand side chat slot; false for pages with their own composer. */
   readonly sideChat: boolean;
+  readonly threadAccessory?: LazyExoticComponent<ComponentType<ModuleThreadAccessoryProps>>;
 }
 
 export const defineWebModule = <const M extends WebModule>(module: M): M => module;
@@ -69,6 +87,10 @@ export interface ModuleRegistry {
   readonly rail: (position: RailPosition) => ReadonlyArray<WebModule>;
   /** Modules with a settings section, in rail order. */
   readonly settings: ReadonlyArray<WebModule & { readonly settings: WebModuleSettingsSection }>;
+  /** Modules that show something on Code threads. */
+  readonly threadAccessories: ReadonlyArray<
+    WebModule & { readonly threadAccessory: NonNullable<WebModule["threadAccessory"]> }
+  >;
 }
 
 export const createModuleRegistry = (modules: ReadonlyArray<WebModule>): ModuleRegistry => {
@@ -91,6 +113,13 @@ export const createModuleRegistry = (modules: ReadonlyArray<WebModule>): ModuleR
     settings: modules.filter(
       (module): module is WebModule & { readonly settings: WebModuleSettingsSection } =>
         module.settings !== null,
+    ),
+    threadAccessories: modules.filter(
+      (
+        module,
+      ): module is WebModule & {
+        readonly threadAccessory: NonNullable<WebModule["threadAccessory"]>;
+      } => module.threadAccessory !== undefined,
     ),
   };
 };

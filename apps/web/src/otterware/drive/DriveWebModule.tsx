@@ -152,4 +152,5 @@ export const DriveWebModule = createDriveWebModule(
   lazy(async () => ({
     default: makeSettings(await import("@otterware/composition/web/drive")),
   })),
+  lazy(() => import("./ThreadDriveDocuments")),
 );

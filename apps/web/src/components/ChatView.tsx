@@ -462,6 +462,7 @@ import {
   resolveScrollToEndClearance,
 } from "./composerFooterLayout";
 import { ChatHeader } from "./chat/ChatHeader";
+import { ModuleThreadAccessories } from "../otterware/ModuleThreadAccessories";
 import { useRemoteOpenState } from "~/remoteOpen";
 import { shouldShowOpenInPicker } from "./chat/OpenInPicker.logic";
 import { useOpenFavoriteEditorShortcut } from "./chat/OpenInPickerShortcut";
@@ -11596,6 +11597,16 @@ export default function ChatView(props: ChatViewProps) {
                   setThreadErrorBannerDismissTick((tick) => tick + 1);
                 }}
               />
+              {/* Otterware seam: what modules show about this thread (Drive's linked documents). */}
+              {isServerThread && !compact ? (
+                <ModuleThreadAccessories
+                  className="pointer-events-auto mt-2 mr-3 self-end"
+                  environmentId={activeThread.environmentId}
+                  threadId={activeThread.id}
+                  sideChat={false}
+                  pageContext={null}
+                />
+              ) : null}
             </div>
             {/* Messages Wrapper */}
             <div className="relative flex min-h-0 flex-1 flex-col bg-background">
