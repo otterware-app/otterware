@@ -82,14 +82,3 @@ apps/web/src/components/ui/scroll-area.tsx
 
 # Mail editor keys reuse the host predicate evaluator.
 apps/web/src/keybindings.ts
-
-# Mechanical UI rebrand after the shell rebuild; no behavior changes or protocol text.
-apps/desktop/src/backend/DesktopBackendPool.ts
-apps/desktop/src/wsl/DesktopWslBackend.ts
-apps/desktop/src/wsl/DesktopWslBackend.test.ts
-apps/web/src/components/settings/ConnectionsSettings.tsx
-apps/web/src/components/settings/scopedSettings.ts
-apps/web/src/components/settings/scopedSettings.test.ts
-apps/web/src/components/sidebar/updateEverythingRun.tsx
-packages/client-runtime/src/connection/errors.test.ts
-packages/client-runtime/src/relay/errorPresentation.ts

@@ -43,7 +43,9 @@ git merge --no-ff --no-commit upstream/main
 Resolve every conflict with upstream's current behavior, keeping only the additional Otterware
 functionality. Do not hand-resolve generated files: run `vp i` for `pnpm-lock.yaml`, regenerate
 `apps/web/src/routeTree.gen.ts` when routes changed, and rerun
-`.github/scripts/otter-adapt-upstream.sh` so its output matches the new upstream. If upstream added
+`.github/scripts/otter-adapt-upstream.sh` so its output matches the new upstream. Run
+`scripts/otter/rebrand-ui-text.sh` for user-facing text upstream added; a sync is where one-off
+rebrands of upstream files belong, so they never enter the seam list. If upstream added
 relay migrations that branch from the fork's chain, add a merge migration that records both heads as
 parents without changing the schema:
 
@@ -85,8 +87,8 @@ onto the new `origin/main`, using their previous base explicitly (`git rebase --
 
 **Keep the diff small:** prefer repository variables and secrets over code, and new files over
 edits to upstream files. Leave internal names (`@t3tools/*`, `T3CODE_*`, code identifiers) alone.
-`scripts/otter/rebrand-ui-text.sh` renames client UI text; it runs only by hand, and its exclusions
-list text that must keep matching what the server or agents emit.
+`scripts/otter/rebrand-ui-text.sh` renames client UI text; it runs by hand during a sync, and its
+exclusions list text that must keep matching what the server or agents emit.
 
 ## Identities and infrastructure
 
