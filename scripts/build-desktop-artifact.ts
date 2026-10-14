@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { releaseFeed } from "../profiles/release-feed.ts";
+import { stageMailTranslator } from "./otterware/mail-translator.ts";
 import { activeProfile } from "@otterware/profiles/active";
 import { profileUpdateChannel } from "@otterware/profiles";
 // @effect-diagnostics nodeBuiltinImport:off - Node's typed junction API avoids Windows symlink privileges while keeping the probe isolated.
@@ -959,6 +960,8 @@ interface StagePackageJson {
 export const STAGE_INSTALL_ARGS = ["install", "--prod"] as const;
 export const DESKTOP_ELECTRON_LANGUAGES = ["en-US"] as const;
 export const DESKTOP_FILE_EXCLUSIONS = [
+  "!apps/desktop/prod-resources/bin/mail-translator",
+  "!apps/desktop/resources/bin/mail-translator",
   // Cursor finds platform assets by walking up from argv[1]. Keep them outside
   // asar so spawning helpers and loading native addons both use real paths.
   "!**/node_modules/@cursor/sdk-*/**/*",
@@ -2478,6 +2481,9 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     protocols: activeProfile.id === "mail" ? [{ name: "Email", schemes: ["mailto"] }] : [],
     extraResources: [
       ...DESKTOP_EXTRA_RESOURCES,
+      ...(platform === "mac" && activeProfile.modules.includes("mail")
+        ? [{ from: "apps/desktop/prod-resources/bin/mail-translator", to: "bin/mail-translator" }]
+        : []),
       ...(platform === "win" ? [] : TSSERVER_EXTRA_RESOURCES),
       ...(platform === "linux" ? LINUX_CAPTURE_EXTRA_RESOURCES : []),
       ...(platform === "linux" ? LINUX_BROWSER_SECRET_EXTRA_RESOURCES : []),
@@ -3425,6 +3431,9 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
   yield* Effect.log("[desktop-artifact] Staging release app...");
   yield* fs.copy(distDirs.desktopDist, path.join(stageAppDir, "apps/desktop/dist-electron"));
   yield* fs.copy(distDirs.desktopResources, stageResourcesDir);
+  if (options.platform === "mac" && activeProfile.modules.includes("mail")) {
+    yield* Effect.tryPromise(() => stageMailTranslator(repoRoot, stageResourcesDir, options.arch));
+  }
   if (options.platform === "linux") {
     const extensionDir = path.join(stageAppDir, "apps/desktop/gnome-extension");
     yield* fs.makeDirectory(extensionDir, { recursive: true });

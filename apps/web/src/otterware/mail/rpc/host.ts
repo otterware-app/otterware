@@ -86,6 +86,24 @@ export function createMailHost(
   const invoke = async (channel: string, input: unknown): Promise<unknown> => {
     const params = record(input);
     const desktop = desktopCapabilities && mailDesktop();
+    if (desktop && (channel === "translation:detect" || channel === "translation:translate"))
+      return desktop.invoke("mail", channel, input);
+    if (
+      desktop &&
+      (channel === "gmail:openAttachment" ||
+        channel === "gmail:dragAttachment" ||
+        channel === "gmail:openComposeAttachment")
+    ) {
+      const bytes =
+        channel === "gmail:openComposeAttachment"
+          ? params
+          : record(await mailOperations["gmail:getAttachmentData"]!(environmentId, params));
+      return desktop.invoke("mail", "file:open", {
+        name: text(params.filename) || text(params.name),
+        base64: text(bytes.base64),
+        drag: channel === "gmail:dragAttachment",
+      });
+    }
     if (
       desktop &&
       [
@@ -158,9 +176,9 @@ export function createMailHost(
       launchAtLogin: desktopCapabilities?.launchAtLogin ?? false,
       dockBadge: desktopCapabilities?.dockBadge ?? false,
       defaultMailApp: desktopCapabilities?.defaultMailApp ?? false,
-      translation: false,
-      dragOut: false,
-      openFiles: false,
+      translation: desktopCapabilities?.translation ?? false,
+      dragOut: desktopCapabilities?.dragOut ?? false,
+      openFiles: desktopCapabilities?.openFiles ?? false,
       externalAgent: false,
       localAgents: false,
       browser: false,

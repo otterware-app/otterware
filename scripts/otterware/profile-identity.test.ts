@@ -20,13 +20,16 @@ import { resolveDesktopBaseDir, resolveDesktopClientBaseDir } from "../apps/desk
 import { resolveDesktopAppBranding } from "../apps/desktop/src/app/DesktopEnvironment.ts";
 import { getDesktopScheme } from "../apps/desktop/src/electron/ElectronProtocol.ts";
 import { resolveLinuxDesktopEntryName } from "../apps/desktop/src/app/DesktopEarlyElectronStartup.ts";
-import { resolveDesktopProductName } from "./build-desktop-artifact.ts";
+import { createBuildConfig, resolveDesktopProductName } from "./build-desktop-artifact.ts";
 const paths = { homeDirectory: "/sandbox", joinPath: NodePath.posix.join, t3Home: Option.none() };
 const environment = await Effect.runPromise(DesktopEnvironment.DesktopEnvironment.pipe(Effect.provide(DesktopEnvironment.layer({
   dirname: "/sandbox/repo/apps/desktop/dist-electron", homeDirectory: "/sandbox", platform: "linux", processArch: "x64", appVersion: "1.0.0", appPath: "/sandbox/app.asar", isPackaged: true, resourcesPath: "/sandbox/resources", runningUnderArm64Translation: false,
 }).pipe(Layer.provide(Layer.mergeAll(NodeServices.layer, DesktopConfig.layerTest({})))))));
 const userData = await Effect.runPromise(resolveUserDataPath(environment).pipe(Effect.provide(NodeServices.layer)));
+const macBuild = await Effect.runPromise(createBuildConfig("mac", "dmg", "1.0.0", false, false, undefined, undefined).pipe(Effect.provide(NodeServices.layer)));
 console.log("OTTERWARE_IDENTITY_JSON=" + JSON.stringify({
+mailTranslator: macBuild.extraResources.some(resource => resource.to === "bin/mail-translator"),
+mailto: macBuild.mac.protocols.some(protocol => protocol.schemes.includes("mailto")),
 stateDir: environment.stateDir, serverSettings: environment.serverSettingsPath, userData,
 identity: profileAppIdentity(activeProfile, false), devIdentity: profileAppIdentity(activeProfile, true),
 serverHome: resolveDesktopBaseDir(paths), clientHome: resolveDesktopClientBaseDir(paths),
@@ -71,6 +74,8 @@ describe("profile identity at runtime and in build scripts", () => {
       expect(line).toBeDefined();
       const output = JSON.parse(line!.slice("OTTERWARE_IDENTITY_JSON=".length));
       expect(output).toMatchObject({
+        mailTranslator: profile === "mail" || profile === "otterware",
+        mailto: profile === "mail",
         identity: { displayName: label, appId, urlScheme: scheme },
         devIdentity: {
           displayName: `${label} (Dev)`,

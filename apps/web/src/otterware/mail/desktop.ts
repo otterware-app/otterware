@@ -5,6 +5,9 @@ export interface MailDesktopCapabilities {
   launchAtLogin: boolean;
   defaultMailApp: boolean;
   dockBadge: boolean;
+  translation: boolean;
+  dragOut: boolean;
+  openFiles: boolean;
 }
 export const mailDesktop = () => moduleDesktopBridge();
 export function useMailDesktopCapabilities() {
