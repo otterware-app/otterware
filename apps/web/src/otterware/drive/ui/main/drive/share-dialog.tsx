@@ -1,3 +1,16 @@
+import { Checkbox } from "~/components/ui/checkbox";
+import { Textarea } from "~/components/ui/textarea";
+import { MenuTrigger, MenuItem, MenuSeparator, MenuPopup, Menu } from "~/components/ui/menu";
+import { toastManager } from "~/components/ui/toast";
+import {
+  Dialog,
+  DialogPopup,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "~/components/ui/dialog";
+import { Button } from "~/components/ui/button";
 import {
   useEffect,
   useId,
@@ -26,24 +39,8 @@ import {
   type Sharing,
 } from "@otterware/drive-contracts/api";
 import { api } from "../../lib/api";
-import { Button } from "../../components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "../../components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "../../components/ui/menu";
-import { toast } from "../../components/ui/toast";
-import { cn } from "../../lib/utils";
+
+import { cn } from "~/lib/utils";
 import { announceSharingChanged } from "../folders";
 import { useDriveUserId } from "../folder-role";
 import { folderUrl } from "../../lib/links";
@@ -117,9 +114,9 @@ function sharingPath(target: ShareTarget) {
 async function copy(value: string, message = "Link copied") {
   try {
     await navigator.clipboard.writeText(value);
-    toast.success(message);
+    toastManager.add({ type: "success", title: message });
   } catch {
-    toast.error("Could not copy to the clipboard");
+    toastManager.add({ type: "error", title: "Could not copy to the clipboard" });
   }
 }
 
@@ -167,7 +164,9 @@ function ShareDialogContent({ target, onDone }: { target: ShareTarget; onDone: (
       void queryClient.invalidateQueries({ queryKey: ["artifacts"] });
       return response;
     } catch (reason) {
-      toast.error("Couldn’t change sharing", {
+      toastManager.add({
+        type: "error",
+        title: "Couldn’t change sharing",
         description: reason instanceof Error ? reason.message : String(reason),
       });
       return null;
@@ -196,14 +195,17 @@ function ShareDialogContent({ target, onDone }: { target: ShareTarget; onDone: (
     setDraft("");
     setMessage("");
     const names = listNames(added);
-    if (isDrive) toast.success(`Added ${names} to ${data.resource.name}`);
-    else if (result.notified) toast.success(`Shared with ${names}`);
+    if (isDrive)
+      toastManager.add({ type: "success", title: `Added ${names} to ${data.resource.name}` });
+    else if (result.notified) toastManager.add({ type: "success", title: `Shared with ${names}` });
     else
-      toast.success(`Shared with ${names}`, {
+      toastManager.add({
+        type: "success",
+        title: `Shared with ${names}`,
         description: notify
           ? "They weren’t emailed, so send them the link."
           : "Send them the link to open it.",
-        action: { label: "Copy link", onClick: () => void copyLink() },
+        actionProps: { children: "Copy link", onClick: () => void copyLink() },
       });
   }
 
@@ -234,10 +236,15 @@ function ShareDialogContent({ target, onDone }: { target: ShareTarget; onDone: (
           folderId,
         });
         announceSharingChanged();
-        toast.success(`Removed “${target.name}” from Shared with me`);
+        toastManager.add({
+          type: "success",
+          title: `Removed “${target.name}” from Shared with me`,
+        });
         onDone();
       } catch (reason) {
-        toast.error("Couldn’t remove your access", {
+        toastManager.add({
+          type: "error",
+          title: "Couldn’t remove your access",
           description: reason instanceof Error ? reason.message : String(reason),
         });
       } finally {
@@ -266,7 +273,7 @@ function ShareDialogContent({ target, onDone }: { target: ShareTarget; onDone: (
   const title = isDrive ? `Manage members of “${target.name}”` : `Share “${target.name}”`;
 
   return (
-    <DialogContent size="large" className="max-h-[min(85vh,44rem)]">
+    <DialogPopup>
       <DialogHeader>
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription>
@@ -281,7 +288,6 @@ function ShareDialogContent({ target, onDone }: { target: ShareTarget; onDone: (
                   : "People get access to this document."}
         </DialogDescription>
       </DialogHeader>
-
       <div className="flex min-h-0 flex-col gap-5 overflow-y-auto px-6 pb-1">
         {data?.canShare ? (
           <div className="flex flex-col gap-2.5">
@@ -295,33 +301,22 @@ function ShareDialogContent({ target, onDone }: { target: ShareTarget; onDone: (
                 disabled={busy}
                 onSubmit={() => void share()}
               />
-              <RoleMenu
-                value={role}
-                onChange={(next) => next && setRole(next)}
-                disabled={busy}
-                className="h-9"
-              />
+              <RoleMenu value={role} onChange={(next) => next && setRole(next)} disabled={busy} />
             </div>
             {adding.length && !isDrive ? (
               <div className="flex flex-col gap-2 ">
                 <label className="flex w-fit items-center gap-2 text-sm text-foreground select-none">
-                  <input
-                    type="checkbox"
-                    checked={notify}
-                    onChange={(event) => setNotify(event.target.checked)}
-                    className="size-3.5 accent-(--drive-primary)"
-                  />
+                  <Checkbox checked={notify} onCheckedChange={setNotify} />
                   Notify people
                 </label>
                 {notify ? (
-                  <textarea
+                  <Textarea
                     value={message}
                     onChange={(event) => setMessage(event.target.value)}
                     placeholder="Message"
                     rows={2}
                     maxLength={1000}
                     aria-label="Message"
-                    className="w-full resize-none rounded-lg border border-border/70 bg-surface-raised/60 px-2.75 py-2 text-sm text-foreground outline-none placeholder:text-placeholder focus-visible:border-ring/60 focus-visible:bg-background focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/16"
                   />
                 ) : null}
               </div>
@@ -415,34 +410,34 @@ function ShareDialogContent({ target, onDone }: { target: ShareTarget; onDone: (
           </section>
         ) : null}
       </div>
-
-      <DialogFooter className="flex-row items-center justify-between sm:justify-between">
-        <Button variant="outline" disabled={!data || isMyDrive} onClick={() => void copyLink()}>
-          <LinkIcon className="size-4" /> Copy link
+      <DialogFooter>
+        <Button disabled={!data || isMyDrive} onClick={() => void copyLink()} variant="outline">
+          <LinkIcon className="size-4" />
+          Copy link
         </Button>
         {adding.length ? (
           <div className="flex gap-2">
             <Button
-              variant="ghost"
               disabled={busy}
               onClick={() => {
                 setEmails([]);
                 setDraft("");
               }}
+              variant={"ghost"}
             >
               Cancel
             </Button>
-            <Button variant="accent" disabled={busy} onClick={() => void share()}>
+            <Button disabled={busy} onClick={() => void share()} variant="default">
               {isDrive ? "Add" : notify ? "Send" : "Share"}
             </Button>
           </div>
         ) : (
-          <Button variant="accent" onClick={onDone}>
+          <Button onClick={onDone} variant="default">
             Done
           </Button>
         )}
       </DialogFooter>
-    </DialogContent>
+    </DialogPopup>
   );
 }
 
@@ -507,7 +502,6 @@ function RoleMenu({
   ghost = false,
   roles = ["viewer", "editor"],
   removeLabel,
-  className,
 }: {
   value: ShareRole;
   /** null removes. */
@@ -516,64 +510,43 @@ function RoleMenu({
   ghost?: boolean;
   roles?: ShareRole[] | undefined;
   removeLabel?: string;
-  className?: string;
 }) {
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
+    <Menu>
+      <MenuTrigger
         disabled={disabled}
-        render={
-          <button
-            type="button"
-            className={cn(
-              "flex h-8 shrink-0 items-center gap-1 rounded-lg px-2.5 text-sm text-foreground outline-none transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:opacity-64 data-popup-open:bg-accent",
-              ghost
-                ? "hover:bg-accent"
-                : "border border-border/70 bg-surface-raised/60 hover:bg-surface-raised",
-              className,
-            )}
-          />
-        }
+        render={<Button variant={ghost ? "ghost" : "outline"} size="sm" disabled={disabled} />}
       >
         {ROLE_LABEL[value]}
         <ChevronDownIcon className="size-3.5 text-muted-foreground" />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-52">
+      </MenuTrigger>
+      <MenuPopup align="end">
         {roles.map((role) => (
-          <DropdownMenuItem
-            key={role}
-            icon={
-              role === value ? (
-                <CheckIcon className="text-foreground" />
-              ) : (
-                <span className="size-4" />
-              )
-            }
-            onClick={() => onChange(role)}
-            className="h-auto"
-          >
+          <MenuItem key={role} onClick={() => onChange(role)}>
+            {role === value ? (
+              <CheckIcon className="text-foreground" />
+            ) : (
+              <span className="size-4" />
+            )}
             <span className="block">{ROLE_LABEL[role]}</span>
             <span className="block text-xs text-muted-foreground">
               {role === "viewer"
                 ? "Opens and downloads"
                 : "Also edits, uploads versions and shares"}
             </span>
-          </DropdownMenuItem>
+          </MenuItem>
         ))}
         {removeLabel ? (
           <>
-            {roles.length ? <DropdownMenuSeparator /> : null}
-            <DropdownMenuItem
-              variant="destructive"
-              icon={<span className="size-4" />}
-              onClick={() => onChange(null)}
-            >
+            {roles.length ? <MenuSeparator></MenuSeparator> : null}
+            <MenuItem variant="destructive" onClick={() => onChange(null)}>
+              {<span className="size-4" />}
               {removeLabel}
-            </DropdownMenuItem>
+            </MenuItem>
           </>
         ) : null}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </MenuPopup>
+    </Menu>
   );
 }
 
@@ -606,42 +579,28 @@ function GeneralAccess({
         </span>
         <div className="min-w-0 flex-1">
           {sharing.canShare ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger
-                disabled={busy}
-                render={
-                  <button
-                    type="button"
-                    className="-ms-1.5 flex h-6 items-center gap-1 rounded-md px-1.5 text-sm font-medium text-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring data-popup-open:bg-accent"
-                  />
-                }
-              >
+            <Menu>
+              <MenuTrigger disabled={busy} render={<Button variant="ghost" size="sm" />}>
                 {link ? "Anyone with the link" : "Restricted"}
                 <ChevronDownIcon className="size-3.5 text-muted-foreground" />
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="min-w-64">
-                <DropdownMenuItem
-                  icon={<LockIcon />}
-                  onClick={() => link && onChange(null)}
-                  className="h-auto"
-                >
+              </MenuTrigger>
+              <MenuPopup>
+                <MenuItem onClick={() => link && onChange(null)}>
+                  {<LockIcon />}
                   <span className="block">Restricted</span>
                   <span className="block text-xs text-muted-foreground">
                     Only people with access can open it
                   </span>
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  icon={<GlobeIcon />}
-                  onClick={() => !link && onChange("viewer")}
-                  className="h-auto"
-                >
+                </MenuItem>
+                <MenuItem onClick={() => !link && onChange("viewer")}>
+                  {<GlobeIcon />}
                   <span className="block">Anyone with the link</span>
                   <span className="block text-xs text-muted-foreground">
                     Anyone who signs in with the link can open it
                   </span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                </MenuItem>
+              </MenuPopup>
+            </Menu>
           ) : (
             <div className="text-sm font-medium text-foreground">
               {link ? "Anyone with the link" : "Restricted"}

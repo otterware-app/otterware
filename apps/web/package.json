@@ -46,7 +46,6 @@
     "@t3tools/provider-opencode": "workspace:*",
     "@t3tools/provider-pi": "workspace:*",
     "@t3tools/shared": "workspace:*",
-    "@tanstack/history": "^1.161.0",
     "@tanstack/react-pacer": "^0.19.4",
     "@tanstack/react-query": "^5.87.4",
     "@tanstack/react-router": "^1.160.2",
@@ -67,7 +66,6 @@
     "@univerjs/preset-sheets-core": "0.25.1",
     "@univerjs/themes": "0.25.1",
     "class-variance-authority": "^0.7.1",
-    "clsx": "2.1.1",
     "culori": "^4.0.2",
     "dompurify": "^3.4.16",
     "effect": "catalog:",
@@ -88,7 +86,6 @@
     "remark-gfm": "catalog:",
     "tailwind-merge": "^3.4.0",
     "unbash": "^5.0.0",
-    "zod": "4.6.5",
     "zustand": "^5.0.11"
   },
   "devDependencies": {

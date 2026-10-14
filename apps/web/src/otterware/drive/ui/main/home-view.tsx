@@ -1,3 +1,12 @@
+import { withDriveSearch } from "~/otterware/drive/drivePaths";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from "~/components/ui/empty";
+import { toastManager } from "~/components/ui/toast";
 import {
   createContext,
   useContext,
@@ -7,11 +16,10 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useNavigate } from "../lib/router";
+import { useNavigate } from "@tanstack/react-router";
 import type { Artifact, SharedItem } from "@otterware/drive-contracts/api";
-import { EmptyState } from "../components/ui/empty-state";
-import { toast } from "../components/ui/toast";
-import { cn } from "../lib/utils";
+
+import { cn } from "~/lib/utils";
 import { useShellSelection, useModulePageContext } from "@otterware/module-kit/web";
 import { useDriveHost } from "../host";
 import { folderUrl } from "../lib/links";
@@ -37,7 +45,9 @@ import { NewFolderDialog, NewFolderDialogHost } from "./drive/new-folder-dialog"
 import { ShareDialogHost } from "./drive/share-dialog";
 import { UploadDialogHost, requestUpload } from "./drive/upload-dialog";
 import { useCommandHandlers } from "./keybindings/dispatch";
-import { PaneResizer, useIsNarrow, useStoredBoolean, useStoredWidth } from "./panes";
+import { DocumentListResizer, useDocumentListWidth } from "./drive/document-split";
+import { useIsMobile } from "~/hooks/useMediaQuery";
+import { useDriveStore } from "../driveStore";
 import { useFolderRole } from "./folder-role";
 import {
   driveForFolder,
@@ -108,7 +118,7 @@ export function DriveHome({
   children: ReactNode;
 }) {
   const navigate = useNavigate();
-  const narrow = useIsNarrow();
+  const narrow = useIsMobile();
   const { activeFolder, loaded, folders, selectFolder } = useFolders();
   const shared = useSharedWithMe();
 
@@ -259,8 +269,9 @@ export function DriveHome({
     };
   }, [sharedView, shared.listed, folder, folders, listSource.documents, search]);
 
-  const [expanded, setExpanded] = useStoredBoolean("otterdrive:viewer-expanded", false);
-  const listPane = useStoredWidth("otterdrive:list-width", 360, 280, 560);
+  const expanded = useDriveStore((state) => state.viewerExpanded);
+  const setExpanded = (value: boolean) => useDriveStore.setState({ viewerExpanded: value });
+  const listPane = useDocumentListWidth();
   const settingsOpen = place.kind === "settings";
   const documentOpen = place.kind === "document";
   const viewerExpanded = documentOpen && expanded && !narrow;
@@ -270,21 +281,13 @@ export function DriveHome({
   const searchRef = useRef<HTMLInputElement>(null);
 
   const goHome = (update: Partial<DriveSearch> = {}) =>
-    void navigate({
-      to: "/home",
-      search: (current) => ({
-        folder: current.folder,
-        q: current.q,
-        sort: current.sort,
-        view: current.view,
-        kind: current.kind,
-        ...update,
-      }),
-    });
+    void navigate({ href: withDriveSearch(host.href("/home"), { ...search, ...update }) });
 
   const openFolder = (next: Folder) => {
     void selectFolder(next.id).catch((reason: unknown) =>
-      toast.error("Could not open the folder", {
+      toastManager.add({
+        type: "error",
+        title: "Could not open the folder",
         description: reason instanceof Error ? reason.message : String(reason),
       }),
     );
@@ -306,7 +309,9 @@ export function DriveHome({
 
   const drives = folders.filter((item) => !item.parentId);
   useCommandHandlers({
-    "folder.new": () => setNewFolderOpen(true),
+    "folder.new": () => {
+      if (folder && folder.role !== "viewer") setNewFolderOpen(true);
+    },
     "search.focus": () => focusSearch(),
     "document.upload": () => {
       if (!folder || folder.role === "viewer") return false;
@@ -338,7 +343,7 @@ export function DriveHome({
     openShared,
     narrow,
     expanded: viewerExpanded,
-    toggleExpanded: () => setExpanded((current) => !current),
+    toggleExpanded: () => setExpanded(!expanded),
     mainIsLeftmost: !showList,
   };
 
@@ -396,19 +401,30 @@ export function DriveHome({
                 searchRef={searchRef}
                 emptyState={
                   sharedView && !search.q && !search.kind ? (
-                    <EmptyState
-                      className="h-full px-6"
-                      icon={UsersIcon}
-                      title="Nothing shared with you yet"
-                      description="When someone shares a folder or a document with you, it shows up here."
-                    />
+                    <div className={"h-full px-6"}>
+                      <Empty size="compact">
+                        <EmptyMedia variant="icon">
+                          <UsersIcon />
+                        </EmptyMedia>
+                        <EmptyHeader>
+                          <EmptyTitle>{"Nothing shared with you yet"}</EmptyTitle>
+                          <EmptyDescription>
+                            {
+                              "When someone shares a folder or a document with you, it shows up here."
+                            }
+                          </EmptyDescription>
+                        </EmptyHeader>
+                      </Empty>
+                    </div>
                   ) : undefined
                 }
                 onOpenFolder={openFolder}
                 onSearchChange={(update) => onSearchChange(update, "q" in update)}
               />
             </div>
-            {narrow ? null : <PaneResizer label="Resize list" onPointerDown={listPane.start} />}
+            {narrow ? null : (
+              <DocumentListResizer label="Resize list" onPointerDown={listPane.start} />
+            )}
           </>
         ) : null}
         {showMain ? (
@@ -427,8 +443,9 @@ export function DriveHome({
           put(uploaded);
           if (folder)
             void navigate({
-              to: "/$folderSlug/a/$slug",
-              params: { folderSlug: folder.slug, slug: uploaded.slug },
+              to: host.href(
+                "/" + encodeURIComponent(folder.slug) + "/a/" + encodeURIComponent(uploaded.slug),
+              ),
             });
         }}
       />

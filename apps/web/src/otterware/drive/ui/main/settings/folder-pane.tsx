@@ -1,10 +1,17 @@
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectPopup,
+  SelectItem,
+} from "~/components/ui/select";
+import { toastManager } from "~/components/ui/toast";
+import { Input } from "~/components/ui/input";
+import { Button } from "~/components/ui/button";
 import { folderUrl } from "../../lib/links";
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { RowSelect } from "../../components/ui/select";
-import { toast } from "../../components/ui/toast";
+
 import { NewFolderDialog } from "../drive/new-folder-dialog";
 import { announceFoldersChanged, driveForFolder, folderLabel, useFolders } from "../folders";
 import { SettingsPageContainer, SettingsRow, SettingsSection } from "./settings-ui";
@@ -21,9 +28,9 @@ export function FolderPane() {
         body: JSON.stringify(body),
       });
       announceFoldersChanged();
-      toast.success("Saved");
+      toastManager.add({ type: "success", title: "Saved" });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      toastManager.add({ type: "error", title: e instanceof Error ? e.message : String(e) });
     }
   }
   return (
@@ -55,7 +62,9 @@ export function FolderPane() {
                   maxLength={80}
                   onChange={(e) => setName(e.target.value)}
                 />
-                <Button type="submit">Save</Button>
+                <Button type="submit" variant="outline">
+                  Save
+                </Button>
               </form>
             ) : (
               <span>{folder ? folderLabel(folder) : null}</span>
@@ -68,14 +77,32 @@ export function FolderPane() {
             title="Move folder"
             description="Its subfolders move with it. Access follows the drive."
             control={
-              <RowSelect
-                ariaLabel="Parent folder"
-                value={folder.parentId ?? undefined}
-                options={folders
+              <Select
+                value={folder.parentId ?? undefined ?? null}
+                items={folders
                   .filter((f) => f.id !== folder.id && driveForFolder(folders, f)?.id === drive?.id)
                   .map((f) => ({ value: f.id, label: f.name }))}
-                onValueChange={(id) => void change({ parentId: id })}
-              />
+                disabled={undefined}
+                onValueChange={(value) => {
+                  if (typeof value === "string") void change({ parentId: value });
+                }}
+              >
+                <SelectTrigger size="sm" aria-label={"Parent folder"}>
+                  <SelectValue placeholder={"Select…"} />
+                </SelectTrigger>
+                <SelectPopup>
+                  {folders
+                    .filter(
+                      (f) => f.id !== folder.id && driveForFolder(folders, f)?.id === drive?.id,
+                    )
+                    .map((f) => ({ value: f.id, label: f.name }))
+                    .map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                </SelectPopup>
+              </Select>
             }
           />
         ) : null}
@@ -86,7 +113,6 @@ export function FolderPane() {
             description="Remove documents and subfolders first."
             control={
               <Button
-                variant="ghost-destructive"
                 onClick={() => {
                   if (!confirm(`Delete “${folder.name}”?`)) return;
                   void api(`/api/v1/folders/${folder.id}`, { method: "DELETE" })
@@ -94,8 +120,9 @@ export function FolderPane() {
                       announceFoldersChanged();
                       if (folder.parentId) await selectFolder(folder.parentId);
                     })
-                    .catch((e) => toast.error(e.message));
+                    .catch((e) => toastManager.add({ type: "error", title: e.message }));
                 }}
+                variant={"ghost-destructive"}
               >
                 Delete
               </Button>
@@ -112,10 +139,11 @@ export function FolderPane() {
             <Button
               onClick={() =>
                 void navigator.clipboard.writeText(folderUrl(folder.id)).then(
-                  () => toast.success("Link copied"),
-                  () => toast.error("Could not copy the link"),
+                  () => toastManager.add({ type: "success", title: "Link copied" }),
+                  () => toastManager.add({ type: "error", title: "Could not copy the link" }),
                 )
               }
+              variant="outline"
             >
               Copy link
             </Button>
@@ -127,7 +155,11 @@ export function FolderPane() {
           id="drive-new-drive"
           title="New shared drive"
           description="A separate drive you can invite people to."
-          control={<Button onClick={() => setCreating(true)}>Create shared drive</Button>}
+          control={
+            <Button onClick={() => setCreating(true)} variant="outline">
+              Create shared drive
+            </Button>
+          }
         />
       </SettingsSection>
       <NewFolderDialog kind="shared" open={creating} onOpenChange={setCreating} />

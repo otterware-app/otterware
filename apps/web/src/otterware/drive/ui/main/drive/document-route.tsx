@@ -1,9 +1,18 @@
-import { useNavigate } from "../../lib/router";
-import { ChevronLeftIcon, LockIcon } from "lucide-react";
-import { IconButton } from "../../components/ui/button";
-import { EmptyState } from "../../components/ui/empty-state";
+import { withDriveSearch } from "~/otterware/drive/drivePaths";
+import { useDriveHost } from "../../host";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from "~/components/ui/empty";
+
+import { useNavigate } from "@tanstack/react-router";
+import { LockIcon } from "lucide-react";
+
 import { useDrive } from "../home-view";
-import { TitleBand } from "../top-bar";
+
 import { ContentLoading } from "./content-loading";
 import { DocumentViewer, type DocumentLocation } from "./document-viewer";
 
@@ -24,6 +33,7 @@ export function DocumentRoute({
   version?: number | undefined;
   sheet?: string | undefined;
 }) {
+  const host = useDriveHost();
   const {
     folders,
     foldersLoaded,
@@ -53,14 +63,23 @@ export function DocumentRoute({
   if (!location) {
     return (
       <>
-        <TitleBand />
         {foldersLoaded && !sharedLoading ? (
           <div className="flex h-full items-center justify-center">
-            <EmptyState
-              icon={LockIcon}
-              title="You need access"
-              description="This document hasn’t been shared with you. Ask its owner to share it, or open the link they sent you."
-            />
+            <div>
+              <Empty size="compact">
+                <EmptyMedia variant="icon">
+                  <LockIcon />
+                </EmptyMedia>
+                <EmptyHeader>
+                  <EmptyTitle>{"You need access"}</EmptyTitle>
+                  <EmptyDescription>
+                    {
+                      "This document hasn’t been shared with you. Ask its owner to share it, or open the link they sent you."
+                    }
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            </div>
           </div>
         ) : (
           <ContentLoading />
@@ -78,26 +97,12 @@ export function DocumentRoute({
       sheet={sheet}
       onSheetChange={(next) =>
         void navigate({
-          to: ".",
-          search: (current) => ({ ...current, sheet: next }),
+          href: withDriveSearch(host.href(host.location.pathname), {
+            ...Object.fromEntries(new URLSearchParams(host.location.search)),
+            sheet: next,
+          }),
           replace: true,
         })
-      }
-      headerLeading={
-        narrow ? (
-          <IconButton
-            label="Back to documents"
-            className="-ms-2"
-            onClick={() =>
-              void navigate({
-                to: "/home",
-                search: (current) => ({ ...current, sheet: undefined }),
-              })
-            }
-          >
-            <ChevronLeftIcon className="size-4" />
-          </IconButton>
-        ) : null
       }
       expanded={expanded}
       onToggleExpanded={narrow ? undefined : toggleExpanded}

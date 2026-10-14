@@ -1,1 +1,1 @@
-export { clsx as cn } from "clsx";
+export { cn } from "~/lib/utils";

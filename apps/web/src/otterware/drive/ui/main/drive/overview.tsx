@@ -1,9 +1,18 @@
+import { useDriveHost } from "../../host";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+  EmptyContent,
+} from "~/components/ui/empty";
+import { Button } from "~/components/ui/button";
 import { useMemo, useState } from "react";
-import { Link } from "../../lib/router";
+import { Link } from "@tanstack/react-router";
 import { FilesIcon, FolderIcon, UploadIcon, UserPlusIcon, UsersIcon } from "lucide-react";
 import type { Artifact, SharedItem } from "@otterware/drive-contracts/api";
-import { Button } from "../../components/ui/button";
-import { EmptyState } from "../../components/ui/empty-state";
+
 import { shortcutLabel } from "../keybindings/commands";
 import { folderLabel, type Folder } from "../folders";
 import { DocumentThumb } from "./document-list";
@@ -36,25 +45,34 @@ export function Overview({
   if (active.length === 0) {
     return (
       <div className="flex h-full items-center justify-center">
-        <EmptyState
-          icon={FilesIcon}
-          title={`${folderLabel(folder)} has no documents yet`}
-          description={
-            folder.role === "viewer"
-              ? "You can view this folder. Its editors add documents."
-              : "Drop files or folders anywhere in the window, or upload them. Agents can publish here too, with the otterdrive CLI."
-          }
-          actions={
-            <>
-              {folder.role === "viewer" ? null : (
-                <Button variant="accent" onClick={requestUpload}>
-                  <UploadIcon /> Upload
-                </Button>
-              )}
-              <ShareFolderButton folder={folder} />
-            </>
-          }
-        />
+        <div>
+          <Empty size="compact">
+            <EmptyMedia variant="icon">
+              <FilesIcon />
+            </EmptyMedia>
+            <EmptyHeader>
+              <EmptyTitle>{`${folderLabel(folder)} has no documents yet`}</EmptyTitle>
+              <EmptyDescription>
+                {folder.role === "viewer"
+                  ? "You can view this folder. Its editors add documents."
+                  : "Drop files or folders anywhere in the window, or upload them. Agents can publish here too, with the otterdrive CLI."}
+              </EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              {
+                <>
+                  {folder.role === "viewer" ? null : (
+                    <Button onClick={requestUpload} variant="default">
+                      <UploadIcon />
+                      Upload
+                    </Button>
+                  )}
+                  <ShareFolderButton folder={folder} />
+                </>
+              }
+            </EmptyContent>
+          </Empty>
+        </div>
       </div>
     );
   }
@@ -149,11 +167,14 @@ function RecentCard({
   folderSlug: string;
   subtitle?: string;
 }) {
+  const host = useDriveHost();
   const kind = KIND_META[documentKind(artifact)].one;
   return (
     <Link
-      to="/$folderSlug/a/$slug"
-      params={{ folderSlug, slug: artifact.slug }}
+      to={host.href(
+        "/" + encodeURIComponent(folderSlug) + "/a/" + encodeURIComponent(artifact.slug),
+      )}
+
       search={(current) => ({ ...current, sheet: undefined })}
       className="group flex flex-col gap-1.5 rounded-xl border border-border/60 bg-card p-1.5 pb-2.5 outline-none transition-colors hover:border-input focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
     >
@@ -176,22 +197,28 @@ function NoFolder() {
   const [open, setOpen] = useState(false);
   return (
     <div className="flex h-full items-center justify-center">
-      <EmptyState
-        icon={UsersIcon}
-        title="You’re not in a folder yet"
-        description={
-          canCreate
-            ? "Documents live in folders. Create one to start."
-            : "Documents live in folders. Ask an administrator to invite you to one."
-        }
-        actions={
-          canCreate ? (
-            <Button variant="accent" onClick={() => setOpen(true)}>
-              New folder
-            </Button>
-          ) : null
-        }
-      />
+      <div>
+        <Empty size="compact">
+          <EmptyMedia variant="icon">
+            <UsersIcon />
+          </EmptyMedia>
+          <EmptyHeader>
+            <EmptyTitle>{"You’re not in a folder yet"}</EmptyTitle>
+            <EmptyDescription>
+              {canCreate
+                ? "Documents live in folders. Create one to start."
+                : "Documents live in folders. Ask an administrator to invite you to one."}
+            </EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            {canCreate ? (
+              <Button onClick={() => setOpen(true)} variant="default">
+                New folder
+              </Button>
+            ) : null}
+          </EmptyContent>
+        </Empty>
+      </div>
       <NewFolderDialog open={open} onOpenChange={setOpen} />
     </div>
   );
@@ -205,7 +232,7 @@ function ShareFolderButton({ folder }: { folder: Folder }) {
   if (folder.kind === "personal") return null;
   const drive = folder.kind === "shared";
   return (
-    <Button variant="outline" onClick={() => shareFolder(folder)}>
+    <Button onClick={() => shareFolder(folder)} variant="outline">
       {drive ? <UsersIcon /> : <UserPlusIcon />}
       {drive ? (folder.role === "owner" ? "Manage members" : "Members") : "Share"}
     </Button>
@@ -221,11 +248,21 @@ export function SharedOverview({ items, loading }: { items: SharedItem[]; loadin
   if (items.length === 0)
     return (
       <div className="flex h-full items-center justify-center">
-        <EmptyState
-          icon={UsersIcon}
-          title="Nothing shared with you yet"
-          description="When someone shares a folder or a document with you, it shows up here, wherever it lives."
-        />
+        <div>
+          <Empty size="compact">
+            <EmptyMedia variant="icon">
+              <UsersIcon />
+            </EmptyMedia>
+            <EmptyHeader>
+              <EmptyTitle>{"Nothing shared with you yet"}</EmptyTitle>
+              <EmptyDescription>
+                {
+                  "When someone shares a folder or a document with you, it shows up here, wherever it lives."
+                }
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        </div>
       </div>
     );
   const documents = items.filter((item) => item.artifact).slice(0, 6);
@@ -282,11 +319,19 @@ export function SharedOverview({ items, loading }: { items: SharedItem[]; loadin
 }
 
 function SharedFolderCard({ item }: { item: SharedItem }) {
+  const host = useDriveHost();
   const folder = item.folder!;
   return (
     <Link
-      to="/home"
-      search={{ folder: folder.id }}
+      to={host.href("/home")}
+      search={(current) => ({
+        ...current,
+        folder: folder.id,
+        view: undefined,
+        kind: undefined,
+        q: undefined,
+        sheet: undefined,
+      })}
       className="flex items-center gap-3 rounded-xl border border-border/60 bg-card p-3 outline-none transition-colors hover:border-input focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
     >
       <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent text-icon-muted">

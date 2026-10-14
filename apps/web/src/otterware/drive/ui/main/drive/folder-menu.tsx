@@ -1,3 +1,5 @@
+import { MenuItem, MenuSeparator } from "~/components/ui/menu";
+import { toastManager } from "~/components/ui/toast";
 import {
   FolderOpenIcon,
   FolderPlusIcon,
@@ -7,8 +9,7 @@ import {
   UserPlusIcon,
   UsersIcon,
 } from "lucide-react";
-import { DropdownMenuItem, DropdownMenuSeparator } from "../../components/ui/menu";
-import { toast } from "../../components/ui/toast";
+
 import { folderUrl } from "../../lib/links";
 import { folderLabel, type Folder } from "../folders";
 import { requestFolderDialog } from "./folder-dialogs";
@@ -43,49 +44,38 @@ export function FolderMenuItems({
   const canRename = isDrive ? folder.kind === "shared" && folder.role === "owner" : canEdit;
   return (
     <>
-      {onOpen ? (
-        <DropdownMenuItem icon={<FolderOpenIcon />} onClick={onOpen}>
-          Open
-        </DropdownMenuItem>
-      ) : null}
+      {onOpen ? <MenuItem onClick={onOpen}>{<FolderOpenIcon />}Open</MenuItem> : null}
       {folder.kind !== "personal" ? (
-        <DropdownMenuItem
-          icon={isDrive ? <UsersIcon /> : <UserPlusIcon />}
-          onClick={() => shareFolder(folder)}
-        >
+        <MenuItem onClick={() => shareFolder(folder)}>
+          {isDrive ? <UsersIcon /> : <UserPlusIcon />}
           {isDrive ? (folder.role === "owner" ? "Manage members…" : "Members…") : "Share…"}
-        </DropdownMenuItem>
+        </MenuItem>
       ) : null}
-      <DropdownMenuItem
-        icon={<LinkIcon />}
+      <MenuItem
         onClick={() =>
           void navigator.clipboard.writeText(folderLink(folder)).then(
-            () => toast.success("Link copied"),
-            () => toast.error("Could not copy to the clipboard"),
+            () => toastManager.add({ type: "success", title: "Link copied" }),
+            () => toastManager.add({ type: "error", title: "Could not copy to the clipboard" }),
           )
         }
       >
-        Copy link
-      </DropdownMenuItem>
+        {<LinkIcon />}Copy link
+      </MenuItem>
       {canEdit ? (
-        <DropdownMenuItem icon={<FolderPlusIcon />} onClick={() => requestNewFolder(folder)}>
-          New folder inside
-        </DropdownMenuItem>
+        <MenuItem onClick={() => requestNewFolder(folder)}>
+          {<FolderPlusIcon />}New folder inside
+        </MenuItem>
       ) : null}
       {canRename ? (
-        <DropdownMenuItem
-          icon={<PencilIcon />}
-          onClick={() => requestFolderDialog({ action: "rename", folder })}
-        >
-          Rename…
-        </DropdownMenuItem>
+        <MenuItem onClick={() => requestFolderDialog({ action: "rename", folder })}>
+          {<PencilIcon />}Rename…
+        </MenuItem>
       ) : null}
       {folder.role === "owner" && folder.kind !== "personal" ? (
         <>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
+          <MenuSeparator></MenuSeparator>
+          <MenuItem
             variant="destructive"
-            icon={<Trash2Icon />}
             onClick={() =>
               requestFolderDialog({
                 action: "delete",
@@ -94,8 +84,8 @@ export function FolderMenuItems({
               })
             }
           >
-            Delete…
-          </DropdownMenuItem>
+            {<Trash2Icon />}Delete…
+          </MenuItem>
         </>
       ) : null}
     </>

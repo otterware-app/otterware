@@ -1,18 +1,26 @@
+import { withDriveSearch } from "~/otterware/drive/drivePaths";
+import { parsePlace, readSearch } from "../drivePaths";
+import { Button } from "~/components/ui/button";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyContent,
+} from "~/components/ui/empty";
+import { RenderErrorBoundary } from "~/components/RenderErrorBoundary";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useDriveStore } from "./driveStore";
 import { useEffect, useEffectEvent, useState } from "react";
 import { DriveClient } from "@otterware/otter-cloud-client/drive";
 import { QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { LoaderIcon } from "lucide-react";
 import { acceptLinkResponseSchema } from "@otterware/drive-contracts/api";
-import { DriveErrorBoundary } from "./components/ui/error-boundary-view";
-import { ToastProvider } from "./components/ui/toast";
+
 import { DriveHostProvider, useDriveHost, type DriveHost } from "./host";
 import { api, setDriveClient } from "./lib/api";
-import { parsePlace, readSearch, useNavigate } from "./lib/router";
-import { AuthGate } from "./main/auth/auth-gate";
-import { AuthShell } from "./main/auth/auth-shell";
 import { DocumentRoute } from "./main/drive/document-route";
-import { driveSearchSchema, type DriveSearch } from "./main/drive/documents";
+import { parseDriveSearch, type DriveSearch } from "./main/drive/documents";
 import { Overview, SharedOverview } from "./main/drive/overview";
 import { DriveHome, useDrive, type Place } from "./main/home-view";
 
@@ -28,32 +36,72 @@ export const createDriveCloudClient = (getAccountToken: () => Promise<string | n
 export function DriveApp({ host }: { host: DriveHost }) {
   setDriveClient(host.transport);
   const queryClient = useDriveStore((state) => state.queryClient);
+  const [retry, setRetry] = useState(0);
   return (
     <DriveHostProvider host={host}>
       <QueryClientProvider client={queryClient}>
-        <ToastProvider visible={host.active}>
-          <div className="relative flex h-full min-h-0 w-full min-w-0 flex-1 flex-col bg-sidebar text-foreground">
-            <DriveErrorBoundary>
-              <AuthGate fallback={<p className="p-6">Loading Drive…</p>}>
-                <DriveRoutes />
-              </AuthGate>
-            </DriveErrorBoundary>
-          </div>
-        </ToastProvider>
+        <RenderErrorBoundary
+          resetKeys={[host.account?.id, retry]}
+          fallback={
+            <Empty>
+              <EmptyHeader>
+                <EmptyTitle>Drive couldn’t render this page</EmptyTitle>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button variant="outline" onClick={() => setRetry((value) => value + 1)}>
+                  Try again
+                </Button>
+                <Button variant="outline" onClick={() => window.location.reload()}>
+                  Reload
+                </Button>
+              </EmptyContent>
+            </Empty>
+          }
+        >
+          {host.accountPending ? (
+            <p className="p-6">Loading Drive…</p>
+          ) : !host.account ? (
+            <Empty>
+              <EmptyHeader>
+                <EmptyTitle>Sign in to use Drive</EmptyTitle>
+                <EmptyDescription>
+                  Your drives use the Otter Account in App › Account.
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button render={<Link to="/settings/account" />}>Open App › Account</Button>
+              </EmptyContent>
+            </Empty>
+          ) : (
+            <DriveRoutes />
+          )}
+        </RenderErrorBoundary>
       </QueryClientProvider>
     </DriveHostProvider>
   );
 }
 
 function DriveRoutes() {
+  const navigate = useNavigate();
   const host = useDriveHost();
   const route = parsePlace(host.location.pathname);
-  const search = driveSearchSchema.parse(readSearch(host.location.search));
+  const search = parseDriveSearch(readSearch(host.location.search));
   const sheet = readSearch(host.location.search).sheet;
-  const settingsPath = route.kind === "settings" ? `/settings/${route.pane}` : null;
+  const settingsPath =
+    route.kind === "settings"
+      ? route.pane === "members"
+        ? "/settings/drive/access"
+        : route.pane === "account"
+          ? "/settings/account"
+          : route.pane === "appearance"
+            ? "/settings/appearance"
+            : route.pane === "agents"
+              ? "/settings/providers"
+              : "/settings/drive/drives"
+      : null;
   useEffect(() => {
-    if (host.active && settingsPath) host.navigate(settingsPath, { replace: true });
-  }, [host, settingsPath]);
+    if (host.active && settingsPath) void navigate({ href: settingsPath, replace: true });
+  }, [host.active, navigate, settingsPath]);
   if (settingsPath) return null;
   if (route.kind === "shared-link") return <AcceptLink token={route.token} />;
 
@@ -67,7 +115,8 @@ function DriveRoutes() {
       if (value === undefined || value === "") next.delete(key);
       else next.set(key, value);
     const query = next.toString();
-    host.navigate(`${host.location.pathname}${query ? `?${query}` : ""}`, {
+    void navigate({
+      href: `${host.href(host.location.pathname)}${query ? `?${query}` : ""}`,
       replace,
     });
   };
@@ -111,9 +160,18 @@ function HomeRoute() {
  * folder or document it shares, then opens it.
  */
 function AcceptLink({ token }: { token: string }) {
+  const host = useDriveHost();
   const navigate = useNavigate();
   // Accepting a link adds access, so it runs once per token.
-  const open = useEffectEvent((target: Parameters<typeof navigate>[0]) => navigate(target));
+  const open = useEffectEvent((data: ReturnType<typeof acceptLinkResponseSchema.parse>["data"]) =>
+    navigate({
+      href:
+        data.type === "artifact" && data.slug
+          ? host.href(`/${encodeURIComponent(data.folderSlug)}/a/${encodeURIComponent(data.slug)}`)
+          : withDriveSearch(host.href("/home"), { folder: data.folderId }),
+      replace: true,
+    }),
+  );
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
@@ -128,18 +186,7 @@ function AcceptLink({ token }: { token: string }) {
         // The new access shows in the folders and Shared with me at once.
         queryClient.removeQueries({ queryKey: ["folders"] });
         queryClient.removeQueries({ queryKey: ["shared-with-me"] });
-        if (data.type === "artifact" && data.slug)
-          await open({
-            to: "/$folderSlug/a/$slug",
-            params: { folderSlug: data.folderSlug, slug: data.slug },
-            replace: true,
-          });
-        else
-          await open({
-            to: "/home",
-            search: { folder: data.folderId },
-            replace: true,
-          });
+        await open(data);
       })
       .catch((reason: unknown) => {
         if (active)
@@ -151,15 +198,12 @@ function AcceptLink({ token }: { token: string }) {
   }, [queryClient, token]);
 
   return (
-    <AuthShell
-      title={error ? "This link doesn’t work" : "Opening a shared link"}
-      description={error ?? "Adding it to Shared with me…"}
-    >
-      {error ? null : (
-        <div className="flex justify-center text-muted-foreground">
-          <LoaderIcon className="size-4 animate-spin" />
-        </div>
-      )}
-    </AuthShell>
+    <Empty>
+      <EmptyHeader>
+        <EmptyTitle>{error ? "This link doesn’t work" : "Opening a shared link"}</EmptyTitle>
+        <EmptyDescription>{error ?? "Adding it to Shared with me…"}</EmptyDescription>
+      </EmptyHeader>
+      {error ? null : <LoaderIcon className="size-4 animate-spin" />}
+    </Empty>
   );
 }

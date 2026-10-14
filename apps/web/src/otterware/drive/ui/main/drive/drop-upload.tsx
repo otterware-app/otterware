@@ -1,10 +1,12 @@
+import { useDriveHost } from "../../host";
+import { toastManager } from "~/components/ui/toast";
 import { useRef, useState, type DragEvent } from "react";
-import { useNavigate } from "../../lib/router";
+import { useNavigate } from "@tanstack/react-router";
 import { UploadIcon } from "lucide-react";
 import type { Artifact } from "@otterware/drive-contracts/api";
 import { hasDraggedFiles, readDroppedItems, type DroppedItem } from "../../lib/dropped-files";
 import { slugify, titleFromName, uploadDocument } from "../../lib/upload-document";
-import { toast } from "../../components/ui/toast";
+
 import { isOverlayOpen } from "../keybindings/dispatch";
 import type { Folder } from "../folders";
 
@@ -14,6 +16,7 @@ import type { Folder } from "../folders";
  * in a toast that turns into "Uploaded", with Open.
  */
 export function useDropUpload(folder: Folder | null, onUploaded: (artifact: Artifact) => void) {
+  const host = useDriveHost();
   const [dragging, setDragging] = useState(false);
   const depth = useRef(0);
   const navigate = useNavigate();
@@ -28,7 +31,12 @@ export function useDropUpload(folder: Folder | null, onUploaded: (artifact: Arti
   async function upload(item: DroppedItem, target: Folder) {
     const title = titleFromName(item.name) || item.name;
     const heading = `Uploading ${title}`;
-    const id = toast.loading(heading, { description: "Preparing files…" });
+    const id = toastManager.add({
+      type: "loading",
+      title: heading,
+      timeout: 0,
+      description: "Preparing files…",
+    });
     try {
       const uploaded = await uploadDocument({
         folderId: target.id,
@@ -37,21 +45,26 @@ export function useDropUpload(folder: Folder | null, onUploaded: (artifact: Arti
         slug: slugify(title) || "document",
         retryTakenSlug: true,
         onStatus: (description) =>
-          toast.update(id, "loading", heading, { description, timeout: 0 }),
+          toastManager.update(id, { type: "loading", title: heading, description, timeout: 0 }),
       });
       onUploaded(uploaded);
-      toast.update(id, "success", `Uploaded ${uploaded.title}`, {
-        action: {
-          label: "Open",
+      toastManager.update(id, {
+        type: "success",
+        title: `Uploaded ${uploaded.title}`,
+        actionProps: {
+          children: "Open",
           onClick: () =>
             void navigate({
-              to: "/$folderSlug/a/$slug",
-              params: { folderSlug: target.slug, slug: uploaded.slug },
+              to: host.href(
+                "/" + encodeURIComponent(target.slug) + "/a/" + encodeURIComponent(uploaded.slug),
+              ),
             }),
         },
       });
     } catch (reason) {
-      toast.update(id, "error", `Could not upload ${title}`, {
+      toastManager.update(id, {
+        type: "error",
+        title: `Could not upload ${title}`,
         description: reason instanceof Error ? reason.message : String(reason),
       });
     }
@@ -82,7 +95,9 @@ export function useDropUpload(folder: Folder | null, onUploaded: (artifact: Arti
       const target = folder;
       void readDroppedItems(event.dataTransfer).then((items) => {
         if (items.length === 0) {
-          toast.error("Nothing to upload", {
+          toastManager.add({
+            type: "error",
+            title: "Nothing to upload",
             description: "The dropped folders were empty.",
           });
           return;

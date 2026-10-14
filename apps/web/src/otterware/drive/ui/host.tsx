@@ -15,11 +15,7 @@ export interface DriveLocation {
   readonly search: string;
 }
 
-/**
- * What the app around Drive supplies. The Otterware shell and the standalone
- * web app (`standalone.tsx`) each build one; Drive's components never reach
- * past it for routing, sign-in or the Cloud client.
- */
+/** The host account, transport and cached module location. */
 export interface DriveHost {
   /** Calls Otter Cloud directly with the account's token (ADR 0008). */
   readonly transport: DriveClient;
@@ -27,12 +23,7 @@ export interface DriveHost {
   readonly account: DriveAccount | null;
   /** The account is still being restored. */
   readonly accountPending: boolean;
-  readonly signIn: () => void;
-  /** Null where the surrounding app owns signing out (the Otterware shell). */
-  readonly signOut: (() => Promise<void>) | null;
   readonly location: DriveLocation;
-  /** `to` is a Drive path with an optional query, e.g. `/home?folder=x`. */
-  readonly navigate: (to: string, options?: { readonly replace?: boolean }) => void;
   /** The href an anchor uses for a Drive path. */
   readonly href: (to: string) => string;
   /**
@@ -40,17 +31,6 @@ export interface DriveHost {
    * from the desktop app, of drive.otterware.app.
    */
   readonly openInNewTab: (to: string) => void;
-  /**
-   * Holds navigations, the browser's Back and Forward included, while
-   * `shouldBlock` resolves true for the Drive path they lead to; leaving Drive
-   * for another page of the surrounding app is never held. Returns the release.
-   */
-  readonly blockNavigation: (blocker: {
-    readonly shouldBlock: (next: DriveLocation) => boolean | Promise<boolean>;
-    readonly beforeUnload: () => boolean;
-  }) => () => void;
-  /** Inside the Otterware shell: the shell owns the window, its palette, theme and account. */
-  readonly embedded: boolean;
   /** The page is showing; shortcuts and page context pause while it is not. */
   readonly active: boolean;
   /**

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { HardDriveIcon } from "lucide-react";
-import { cn } from "../../lib/utils";
+import { cn } from "~/lib/utils";
 import { folderColor, folderInitials, type Folder } from "../folders";
 
 /**

@@ -1,7 +1,19 @@
 // @effect-diagnostics cryptoRandomUUID:off -- Browser file/editor identities use native Web Crypto.
+import { withDriveSearch } from "~/otterware/drive/drivePaths";
+import { useDriveHost } from "../../host";
+import { toastManager } from "~/components/ui/toast";
+import {
+  Dialog,
+  DialogPopup,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "~/components/ui/dialog";
+import { Button } from "~/components/ui/button";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useBlocker, useNavigate, type ShouldBlockFn } from "../../lib/router";
+import { useBlocker, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTheme } from "~/hooks/useTheme";
 import { LocaleType, mergeLocales } from "@univerjs/core";
@@ -11,9 +23,7 @@ import { createUniver } from "./univer";
 import { publishDocumentVersion } from "../../lib/publish-document-version";
 import type { DocumentSheet } from "./use-document-content";
 import { removeSessionCachePrefix } from "../../lib/session-cache";
-import { Button } from "../../components/ui/button";
-import { Dialog } from "../../components/ui/dialog";
-import { toast } from "../../components/ui/toast";
+
 import { changesSnapshot } from "./univer-change-tracking";
 
 import "@univerjs/preset-sheets-core/lib/index.css";
@@ -151,6 +161,8 @@ async function spreadsheetBlob(snapshot: IWorkbookData, entryPath: string): Prom
 }
 
 export function UniverEditor(props: EditorProps) {
+  const host = useDriveHost();
+  const [dialogPending, setDialogPending] = useState(false);
   const container = useRef<HTMLDivElement>(null);
   const containerId = `univer-${props.slug}-${props.expectedCurrentVersion}`;
   const handle = useRef<UniverHandle | null>(null);
@@ -174,9 +186,12 @@ export function UniverEditor(props: EditorProps) {
   // ours. Switching sheets stays on the document, so it passes.
   const dirtyRef = useRef(false);
   dirtyRef.current = dirty;
-  const shouldBlockFn = useCallback<ShouldBlockFn>(
-    ({ current, next }) => dirtyRef.current && current.pathname !== next.pathname,
-    [],
+  const shouldBlockFn = useCallback(
+    ({ current, next }: { current: { pathname: string }; next: { pathname: string } }) =>
+      dirtyRef.current &&
+      current.pathname !== next.pathname &&
+      (next.pathname === host.href("") || next.pathname.startsWith(host.href("/"))),
+    [host],
   );
   const enableBeforeUnload = useCallback(() => dirtyRef.current, []);
   const blocker = useBlocker({
@@ -305,7 +320,9 @@ export function UniverEditor(props: EditorProps) {
       cleanup = () => handle.current?.dispose();
     }
     void mount().catch((reason: unknown) =>
-      toast.error("The editor didn’t start", {
+      toastManager.add({
+        type: "error",
+        title: "The editor didn’t start",
         description: reason instanceof Error ? reason.message : String(reason),
       }),
     );
@@ -347,18 +364,24 @@ export function UniverEditor(props: EditorProps) {
       void queryClient.invalidateQueries({
         queryKey: props.folderId ? ["artifacts", props.folderId] : ["shared-with-me"],
       });
-      toast.success(`Saved version ${nextVersion}`);
+      toastManager.add({ type: "success", title: `Saved version ${nextVersion}` });
       await navigate({
-        to: "/$folderSlug/a/$slug/$version",
-        params: {
-          folderSlug: props.folderSlug,
-          slug: props.slug,
-          version: `v${nextVersion}`,
-        },
-        search: (current) => current,
+        href: withDriveSearch(
+          host.href(
+            "/" +
+              encodeURIComponent(props.folderSlug) +
+              "/a/" +
+              encodeURIComponent(props.slug) +
+              "/" +
+              encodeURIComponent(`v${nextVersion}`),
+          ),
+          Object.fromEntries(new URLSearchParams(host.location.search)),
+        ),
       });
     } catch (reason) {
-      toast.error("Couldn’t save a new version", {
+      toastManager.add({
+        type: "error",
+        title: "Couldn’t save a new version",
         description: reason instanceof Error ? reason.message : String(reason),
       });
     } finally {
@@ -376,22 +399,22 @@ export function UniverEditor(props: EditorProps) {
       {props.onPreview ? (
         <Button
           size="sm"
-          variant="ghost"
           disabled={saving}
           onClick={() => {
             if (dirty) setPreviewRequested(true);
             else props.onPreview?.();
           }}
+          variant={"ghost"}
         >
           Preview
         </Button>
       ) : null}
       <Button
         size="sm"
-        variant={dirty ? "accent" : "outline"}
         disabled={!dirty || saving}
         aria-label={saving ? "Saving new version" : "Save new version"}
         onClick={() => void save()}
+        variant={dirty ? "default" : "outline"}
       >
         {saving ? "Saving…" : "Save version"}
       </Button>
@@ -413,22 +436,67 @@ export function UniverEditor(props: EditorProps) {
       />
       <Dialog
         open={previewRequested || blocker.status === "blocked"}
-        onOpenChange={(open) => {
-          if (!open) {
-            setPreviewRequested(false);
-            if (blocker.status === "blocked") blocker.reset();
+        onOpenChange={(next) => {
+          if (!dialogPending) {
+            if (!next) {
+              setPreviewRequested(false);
+              if (blocker.status === "blocked") blocker.reset();
+            }
           }
         }}
-        title="Leave without saving?"
-        description="Your changes to this document aren’t saved as a version yet."
-        confirmLabel="Discard changes"
-        confirmVariant="destructive"
-        onConfirm={() => {
-          if (previewRequested) props.onPreview?.();
-          else if (blocker.status === "blocked") blocker.proceed();
-        }}
-        size="small"
-      />
+      >
+        <DialogPopup>
+          <form
+            onSubmit={async (event) => {
+              event.preventDefault();
+              if (dialogPending) return;
+              setDialogPending(true);
+              try {
+                await (() => {
+                  if (previewRequested) props.onPreview?.();
+                  else if (blocker.status === "blocked") blocker.proceed();
+                })();
+                {
+                  {
+                    setPreviewRequested(false);
+                    if (blocker.status === "blocked") blocker.reset();
+                  }
+                }
+              } catch {
+                /* The operation reports its error and keeps the dialog open. */
+              } finally {
+                setDialogPending(false);
+              }
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>{"Leave without saving?"}</DialogTitle>
+              <DialogDescription>
+                {"Your changes to this document aren’t saved as a version yet."}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                disabled={dialogPending}
+                onClick={() => {
+                  {
+                    {
+                      setPreviewRequested(false);
+                      if (blocker.status === "blocked") blocker.reset();
+                    }
+                  }
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" variant={"destructive"} disabled={dialogPending}>
+                {"Discard changes"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogPopup>
+      </Dialog>
     </>
   );
 }

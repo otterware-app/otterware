@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import type { Artifact } from "@otterware/drive-contracts/api";
-import { documentKind, driveSearchSchema, inView, visibleDocuments } from "./documents";
+import { documentKind, parseDriveSearch, inView, visibleDocuments } from "./documents";
 
 function artifact(overrides: Partial<Artifact> & { entryPath?: string }): Artifact {
   const { entryPath = "index.html", ...rest } = overrides;
@@ -34,7 +34,7 @@ function artifact(overrides: Partial<Artifact> & { entryPath?: string }): Artifa
 describe("drive URL state", () => {
   it("accepts shareable list controls", () => {
     expect(
-      driveSearchSchema.parse({
+      parseDriveSearch({
         q: " roadmap ",
         sort: "az",
         view: "archived",
@@ -49,7 +49,7 @@ describe("drive URL state", () => {
   });
 
   it("drops invalid enumerated URL state", () => {
-    expect(driveSearchSchema.parse({ sort: "oldest", view: "grid", kind: "audio" })).toEqual({
+    expect(parseDriveSearch({ sort: "oldest", view: "grid", kind: "audio" })).toEqual({
       sort: undefined,
       view: undefined,
       kind: undefined,

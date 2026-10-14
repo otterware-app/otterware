@@ -1,3 +1,14 @@
+import { Input } from "~/components/ui/input";
+import {
+  Dialog,
+  DialogPopup,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogPanel,
+} from "~/components/ui/dialog";
+import { Button } from "~/components/ui/button";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { FolderOpenIcon, UploadIcon, XIcon } from "lucide-react";
 import type { Artifact } from "@otterware/drive-contracts/api";
@@ -9,11 +20,8 @@ import {
   uploadDocument,
   type PickedFile,
 } from "../../lib/upload-document";
-import { Button } from "../../components/ui/button";
-import { Dialog } from "../../components/ui/dialog";
-import { Field } from "../../components/ui/field";
-import { Input } from "../../components/ui/input";
-import { cn } from "../../lib/utils";
+
+import { cn } from "~/lib/utils";
 import { formatBytes } from "./documents";
 
 /**
@@ -62,6 +70,7 @@ function UploadDialog({
   onOpenChange: (open: boolean) => void;
   onUploaded: (artifact: Artifact) => void;
 }) {
+  const [dialogPending, setDialogPending] = useState(false);
   const [files, setFiles] = useState<PickedFile[]>([]);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
@@ -128,113 +137,175 @@ function UploadDialog({
   return (
     <Dialog
       open={open}
-      onOpenChange={onOpenChange}
-      title="Upload"
-      description={
-        <>
-          A file or a folder becomes version 1 of a new document in{" "}
-          <span className="text-foreground">{folder?.name}</span>.
-        </>
-      }
-      confirmLabel={status ? "Uploading…" : "Upload"}
-      confirmDisabled={files.length === 0 || !title.trim()}
-      busy={status !== null}
-      onConfirm={upload}
-      size="large"
+      onOpenChange={(next) => {
+        if (!(dialogPending || status !== null)) onOpenChange(next);
+      }}
     >
-      <input
-        ref={fileInput}
-        type="file"
-        multiple
-        hidden
-        onChange={(event) => pick(event.target.files)}
-      />
-      <input
-        ref={folderInput}
-        type="file"
-        hidden
-        // @ts-expect-error non-standard attribute understood by browsers
-        webkitdirectory=""
-        onChange={(event) => pick(event.target.files)}
-      />
-      <div
-        onDragOver={(event) => {
-          event.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(event) => {
-          event.preventDefault();
-          setDragging(false);
-          pick(event.dataTransfer.files);
-        }}
-        className={cn(
-          "flex min-h-32 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-input bg-surface-raised/40 px-4 py-5 text-center transition-colors",
-          dragging && "border-ring bg-ring/5",
-        )}
-      >
-        {files.length === 0 ? (
-          <>
-            <p className="text-sm text-muted-foreground">Drop files or a folder here, or</p>
-            <div className="flex flex-wrap justify-center gap-2">
-              <Button size="sm" onClick={() => fileInput.current?.click()}>
-                <UploadIcon /> Choose files
-              </Button>
-              <Button size="sm" onClick={() => folderInput.current?.click()}>
-                <FolderOpenIcon /> Choose folder
-              </Button>
+      <DialogPopup>
+        <form
+          onSubmit={async (event) => {
+            event.preventDefault();
+            if (dialogPending || status !== null || files.length === 0 || !title.trim()) return;
+            setDialogPending(true);
+            try {
+              await upload();
+              onOpenChange(false);
+            } catch {
+              /* The operation reports its error and keeps the dialog open. */
+            } finally {
+              setDialogPending(false);
+            }
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>{"Upload"}</DialogTitle>
+            <DialogDescription>
+              {
+                <>
+                  A file or a folder becomes version 1 of a new document in{" "}
+                  <span className="text-foreground">{folder?.name}</span>.
+                </>
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <DialogPanel>
+            <div className="flex flex-col gap-3">
+              <input
+                ref={fileInput}
+                type="file"
+                multiple
+                hidden
+                onChange={(event) => pick(event.target.files)}
+              />
+              <input
+                ref={folderInput}
+                type="file"
+                hidden
+                // @ts-expect-error non-standard attribute understood by browsers
+                webkitdirectory=""
+                onChange={(event) => pick(event.target.files)}
+              />
+              <div
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setDragging(true);
+                }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  setDragging(false);
+                  pick(event.dataTransfer.files);
+                }}
+                className={cn(
+                  "flex min-h-32 flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-input bg-surface-raised/40 px-4 py-5 text-center transition-colors",
+                  dragging && "border-ring bg-ring/5",
+                )}
+              >
+                {files.length === 0 ? (
+                  <>
+                    <p className="text-sm text-muted-foreground">Drop files or a folder here, or</p>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => fileInput.current?.click()}
+                        variant="outline"
+                      >
+                        <UploadIcon />
+                        Choose files
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => folderInput.current?.click()}
+                        variant="outline"
+                      >
+                        <FolderOpenIcon />
+                        Choose folder
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex w-full items-center gap-3 text-left">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm text-foreground">
+                        {files.length} {files.length === 1 ? "file" : "files"} ·{" "}
+                        {formatBytes(totalBytes)}
+                      </p>
+                      <p className="truncate text-sm text-muted-foreground">
+                        Opens <code className="font-mono">{entryPath}</code>
+                      </p>
+                    </div>
+                    <Button
+                      size="icon-sm"
+                      aria-label="Change selection"
+                      disabled={status !== null}
+                      onClick={() => setFiles([])}
+                      variant={"ghost-muted"}
+                    >
+                      <XIcon />
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm text-muted-foreground">{"Title"}</span>
+                <Input
+                  value={title}
+                  disabled={status !== null}
+                  onChange={(event) => {
+                    setTitle(event.target.value);
+                    if (!slugEdited) setSlug(slugify(event.target.value));
+                  }}
+                  placeholder="Quarterly report"
+                />
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm text-muted-foreground">{"Slug"}</span>
+                <span className="text-xs text-muted-foreground">
+                  {"The last part of the document's link."}
+                </span>
+                <Input
+                  font="mono"
+                  value={slug}
+                  disabled={status !== null}
+                  onChange={(event) => {
+                    setSlugEdited(true);
+                    setSlug(slugify(event.target.value));
+                  }}
+                  placeholder="quarterly-report"
+                />
+                {error ? (
+                  <span role="alert" className="text-xs text-destructive-foreground">
+                    {error}
+                  </span>
+                ) : null}
+              </label>
+              {status ? (
+                <p role="status" className="text-sm text-muted-foreground">
+                  {status}
+                </p>
+              ) : null}
             </div>
-          </>
-        ) : (
-          <div className="flex w-full items-center gap-3 text-left">
-            <div className="min-w-0 flex-1">
-              <p className="text-sm text-foreground">
-                {files.length} {files.length === 1 ? "file" : "files"} · {formatBytes(totalBytes)}
-              </p>
-              <p className="truncate text-sm text-muted-foreground">
-                Opens <code className="font-mono">{entryPath}</code>
-              </p>
-            </div>
+          </DialogPanel>
+          <DialogFooter>
             <Button
-              size="icon-sm"
-              variant="ghost-muted"
-              aria-label="Change selection"
-              disabled={status !== null}
-              onClick={() => setFiles([])}
+              variant="outline"
+              disabled={dialogPending || status !== null}
+              onClick={() => {
+                onOpenChange(false);
+              }}
             >
-              <XIcon />
+              Cancel
             </Button>
-          </div>
-        )}
-      </div>
-      <Field label="Title">
-        <Input
-          value={title}
-          disabled={status !== null}
-          onChange={(event) => {
-            setTitle(event.target.value);
-            if (!slugEdited) setSlug(slugify(event.target.value));
-          }}
-          placeholder="Quarterly report"
-        />
-      </Field>
-      <Field label="Slug" description="The last part of the document's link." error={error}>
-        <Input
-          font="mono"
-          value={slug}
-          disabled={status !== null}
-          onChange={(event) => {
-            setSlugEdited(true);
-            setSlug(slugify(event.target.value));
-          }}
-          placeholder="quarterly-report"
-        />
-      </Field>
-      {status ? (
-        <p role="status" className="text-sm text-muted-foreground">
-          {status}
-        </p>
-      ) : null}
+            <Button
+              type="submit"
+              variant="default"
+              disabled={dialogPending || status !== null || files.length === 0 || !title.trim()}
+            >
+              {status ? "Uploading…" : "Upload"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogPopup>
     </Dialog>
   );
 }

@@ -1,10 +1,21 @@
+import { withDriveSearch } from "~/otterware/drive/drivePaths";
+import { useDriveHost } from "../../host";
+import { Button } from "~/components/ui/button";
+import { toastManager } from "~/components/ui/toast";
+import { Input } from "~/components/ui/input";
+import {
+  Dialog,
+  DialogPopup,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogPanel,
+} from "~/components/ui/dialog";
 import { useEffect, useState } from "react";
-import { useNavigate } from "../../lib/router";
+import { useNavigate } from "@tanstack/react-router";
 import { api } from "../../lib/api";
-import { Dialog } from "../../components/ui/dialog";
-import { Field } from "../../components/ui/field";
-import { Input } from "../../components/ui/input";
-import { toast } from "../../components/ui/toast";
+
 import { announceFoldersChanged, folderLabel, useFolders, type Folder } from "../folders";
 
 /**
@@ -22,6 +33,8 @@ export function NewFolderDialog({
   kind?: "folder" | "shared";
   parent?: Folder | null;
 }) {
+  const host = useDriveHost();
+  const [dialogPending, setDialogPending] = useState(false);
   const { activeFolder, selectFolder } = useFolders(),
     navigate = useNavigate();
   const inside = parent ?? activeFolder;
@@ -41,8 +54,8 @@ export function NewFolderDialog({
       setName("");
       if (kind === "shared") {
         await selectFolder(result.data.id);
-        await navigate({ to: "/home", search: {} });
-      } else toast.success(`Created “${result.data.name}”`);
+        await navigate({ href: withDriveSearch(host.href("/home"), {}) });
+      } else toastManager.add({ type: "success", title: `Created “${result.data.name}”` });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
       throw e;
@@ -52,29 +65,77 @@ export function NewFolderDialog({
     <Dialog
       open={open}
       onOpenChange={(next) => {
-        if (!next) setError(null);
-        onOpenChange(next);
+        if (!dialogPending) {
+          if (!next) setError(null);
+          onOpenChange(next);
+        }
       }}
-      title={kind === "shared" ? "New shared drive" : "New folder"}
-      description={
-        kind === "shared"
-          ? "A drive you share with a team: its members open everything in it."
-          : `Inside ${inside ? folderLabel(inside) : "your drive"}.`
-      }
-      confirmLabel="Create"
-      confirmDisabled={!name.trim()}
-      onConfirm={create}
-      size="small"
     >
-      <Field label="Name" error={error}>
-        <Input
-          required
-          maxLength={80}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={kind === "shared" ? "Project" : "Untitled folder"}
-        />
-      </Field>
+      <DialogPopup>
+        <form
+          onSubmit={async (event) => {
+            event.preventDefault();
+            if (dialogPending || !name.trim()) return;
+            setDialogPending(true);
+            try {
+              await create();
+              {
+                setError(null);
+                onOpenChange(false);
+              }
+            } catch {
+              /* The operation reports its error and keeps the dialog open. */
+            } finally {
+              setDialogPending(false);
+            }
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>{kind === "shared" ? "New shared drive" : "New folder"}</DialogTitle>
+            <DialogDescription>
+              {kind === "shared"
+                ? "A drive you share with a team: its members open everything in it."
+                : `Inside ${inside ? folderLabel(inside) : "your drive"}.`}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogPanel>
+            <div className="flex flex-col gap-3">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm text-muted-foreground">{"Name"}</span>
+                <Input
+                  required
+                  maxLength={80}
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={kind === "shared" ? "Project" : "Untitled folder"}
+                />
+                {error ? (
+                  <span role="alert" className="text-xs text-destructive-foreground">
+                    {error}
+                  </span>
+                ) : null}
+              </label>
+            </div>
+          </DialogPanel>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={dialogPending}
+              onClick={() => {
+                {
+                  setError(null);
+                  onOpenChange(false);
+                }
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" variant="default" disabled={dialogPending || !name.trim()}>
+              {"Create"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogPopup>
     </Dialog>
   );
 }

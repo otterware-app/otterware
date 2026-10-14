@@ -9,11 +9,15 @@ import { useDriveStore, runDriveCommand } from "./ui/driveStore";
  */
 import { createDriveWebModule } from "@otterware/composition/web";
 import type { DriveHost } from "./ui";
-import type { ModulePageProps } from "@otterware/module-kit/web";
+import {
+  modulePath,
+  projectScopedModulePath,
+  type ModulePageProps,
+} from "@otterware/module-kit/web";
 import { EnvironmentRegistry } from "@t3tools/client-runtime/connection";
 import { request } from "@t3tools/client-runtime/rpc";
 import type { EnvironmentId } from "@t3tools/contracts";
-import { useLocation, useNavigate, useRouter } from "@tanstack/react-router";
+import { useLocation } from "@tanstack/react-router";
 import * as Effect from "effect/Effect";
 import { AtomRegistry } from "effect/reactivity";
 import { lazy, useCallback, useMemo, useState } from "react";
@@ -54,9 +58,7 @@ function useShellDriveHost(
   }: { readonly active: boolean; readonly subpath: string; readonly projectId?: string | null },
 ): DriveHost {
   const auth = useAuth();
-  const basePath = projectId ? `/home/projects/${projectId}/drive` : "/drive";
-  const navigate = useNavigate();
-  const { history } = useRouter();
+  const basePath = projectId ? projectScopedModulePath(projectId, "drive") : modulePath("drive");
   const environmentId = usePrimaryEnvironmentId();
   const searchStr = useLocation({ select: (location) => location.searchStr });
   // A hidden page keeps its own query while another page owns the URL.
@@ -71,23 +73,6 @@ function useShellDriveHost(
       if (environmentId) void markViewed(environmentId, artifactId, version).catch(() => {});
     },
     [environmentId],
-  );
-  // Held through the router's history, so Back and Forward ask too. Leaving
-  // Drive is never held: its page stays mounted, unsaved edits included.
-  const blockNavigation = useCallback<DriveHost["blockNavigation"]>(
-    ({ shouldBlock, beforeUnload }) =>
-      history.block({
-        blockerFn: ({ nextLocation }) => {
-          const path = nextLocation.pathname;
-          if (path !== basePath && !path.startsWith(`${basePath}/`)) return false;
-          return shouldBlock({
-            pathname: path.slice(basePath.length) || "/",
-            search: nextLocation.search,
-          });
-        },
-        enableBeforeUnload: beforeUnload,
-      }),
-    [history, basePath],
   );
   // The desktop app's own origin opens nowhere else, so its tabs open Drive's site.
   const openInNewTab = useCallback(
@@ -108,44 +93,13 @@ function useShellDriveHost(
         ? { id: user.id, name: user.name ?? user.email, email: user.email, image: user.image }
         : null,
       accountPending: !auth.isLoaded,
-      signIn: () => void auth.signIn(),
-      signOut: null,
       location: { pathname: `/${subpath}`, search: location },
-      navigate: (to, options) =>
-        void navigate({
-          href: to.startsWith("/settings")
-            ? to.includes("members")
-              ? "/settings/drive/access"
-              : to.includes("account")
-                ? "/settings/account"
-                : to.includes("appearance")
-                  ? "/settings/appearance"
-                  : to.includes("agents")
-                    ? "/settings/providers"
-                    : "/settings/drive/drives"
-            : `${basePath}${to}`,
-          replace: options?.replace ?? false,
-        }),
       href: (to) => `${basePath}${to}`,
       openInNewTab,
-      blockNavigation,
-      embedded: true,
       active,
       onDocumentViewed,
     }),
-    [
-      client,
-      user,
-      auth,
-      subpath,
-      location,
-      navigate,
-      basePath,
-      openInNewTab,
-      blockNavigation,
-      active,
-      onDocumentViewed,
-    ],
+    [client, user, auth, subpath, location, basePath, openInNewTab, active, onDocumentViewed],
   );
 }
 
@@ -186,6 +140,12 @@ export const DriveWebModule = createDriveWebModule({
         rows: ["People with access", "Invite"],
       },
       { id: "appearance", label: "Drive display", placement: "appearance", rows: ["List density"] },
+      {
+        id: "command-line",
+        label: "Drive command line",
+        placement: "account",
+        rows: ["Command line"],
+      },
     ] as const
   ).map((page) => ({
     id: page.id,

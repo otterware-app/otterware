@@ -1,38 +1,45 @@
+import { withDriveSearch } from "~/otterware/drive/drivePaths";
+import {
+  Dialog,
+  DialogPopup,
+  DialogHeader,
+  DialogTitle,
+  DialogPanel,
+} from "~/components/ui/dialog";
+import { Input } from "~/components/ui/input";
+import { useDriveHost } from "../../host";
+import { ContextMenu } from "@base-ui/react/context-menu";
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+  EmptyContent,
+} from "~/components/ui/empty";
+import { MenuTrigger, MenuPopup, Menu } from "~/components/ui/menu";
+
+import { Button } from "~/components/ui/button";
 import { Fragment, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
-import { Link, useNavigate } from "../../lib/router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   ArchiveIcon,
-  ArrowDownUpIcon,
   ChevronRightIcon,
   EllipsisIcon,
   FilesIcon,
   FolderIcon,
-  SearchIcon,
   SearchXIcon,
   UsersIcon,
-  XIcon,
 } from "lucide-react";
 import type { Artifact, Person } from "@otterware/drive-contracts/api";
 import { artifactBootstrapQuery } from "../../lib/artifact-query";
-import { Button, IconButton } from "../../components/ui/button";
-import { EmptyState } from "../../components/ui/empty-state";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuTrigger,
-  DropdownMenu,
-  DropdownMenuCheckItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "../../components/ui/menu";
-import { HintTooltip } from "../../components/ui/tooltip";
-import { cn } from "../../lib/utils";
+
+import { cn } from "~/lib/utils";
 import { useListDensity } from "../../lib/density";
-import { shortcutLabel } from "../keybindings/commands";
+
 import { useCommandHandlers } from "../keybindings/dispatch";
-import { TitleBand } from "../top-bar";
+
 import { folderLabel, type Folder } from "../folders";
 import { DocumentMenuItems } from "./document-menu";
 import { KIND_META, documentKind, formatListDate, type DriveSearch } from "./documents";
@@ -80,9 +87,8 @@ export type ListEntry =
 type DocumentEntry = Extract<ListEntry, { type: "document" }>;
 
 /**
- * The list pane (Otter Mail's message list): a title band with where you are
- * (Google Drive's breadcrumbs), search and sort, then the folder's folders and
- * its documents. The open document stays lit; ↑↓ (or J/K) walk the
+ * Folder contents with breadcrumbs and a search field. The host owns search
+ * and sort actions. The open document stays lit; ↑↓ (or J/K) walk the
  * documents, opening as they go.
  */
 export function DocumentList({
@@ -94,7 +100,6 @@ export function DocumentList({
   error,
   search,
   selectedSlug,
-  headerLeading,
   searchRef,
   emptyState,
   onOpenFolder,
@@ -111,16 +116,17 @@ export function DocumentList({
   error: string | null;
   search: DriveSearch;
   selectedSlug: string | null;
-  headerLeading?: ReactNode;
   searchRef: RefObject<HTMLInputElement | null>;
   /** Replaces the default empty state (Shared with me's). */
   emptyState?: ReactNode;
   onOpenFolder: (folder: Folder) => void;
   onSearchChange: (update: Partial<DriveSearch>) => void;
 }) {
+  const host = useDriveHost();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [sortOpen, setSortOpen] = useState(false);
   const [searching, setSearching] = useState(Boolean(search.q));
   const query = search.q ?? "";
   const showSearch = searching || Boolean(query);
@@ -147,9 +153,18 @@ export function DocumentList({
 
   const open = (entry: DocumentEntry, replace = false) => {
     void navigate({
-      to: "/$folderSlug/a/$slug",
-      params: { folderSlug: entry.folderSlug, slug: entry.artifact.slug },
-      search: (current) => ({ ...current, sheet: undefined }),
+      href: withDriveSearch(
+        host.href(
+          "/" +
+            encodeURIComponent(entry.folderSlug) +
+            "/a/" +
+            encodeURIComponent(entry.artifact.slug),
+        ),
+        {
+          ...Object.fromEntries(new URLSearchParams(host.location.search)),
+          sheet: undefined,
+        },
+      ),
       replace,
     });
   };
@@ -177,6 +192,7 @@ export function DocumentList({
   };
 
   useCommandHandlers({
+    "list.sort": () => setSortOpen(true),
     "list.next": () => step(1),
     "list.previous": () => step(-1),
   });
@@ -191,105 +207,58 @@ export function DocumentList({
 
   return (
     <div className="relative flex h-full min-w-0 flex-col">
-      <TitleBand>
-        {headerLeading}
+      <div className="flex flex-col gap-2 px-4 pt-3">
+        <div className="text-sm text-muted-foreground">{loading ? " " : heading}</div>
         {showSearch ? (
-          <div className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-full bg-foreground/[0.06] ps-3 pe-2 transition-colors focus-within:bg-foreground/[0.08]">
-            <SearchIcon className="size-4 shrink-0 text-muted-foreground" />
-            <input
-              ref={searchRef}
-              type="text"
-              autoFocus={!query}
-              value={query}
-              placeholder={searchPlaceholder}
-              aria-label="Search documents"
-              spellCheck={false}
-              onChange={(event) => onSearchChange({ q: event.target.value || undefined })}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  if (query) onSearchChange({ q: undefined });
-                  else setSearching(false);
-                  event.currentTarget.blur();
-                }
-                if (event.key === "ArrowDown" || event.key === "Enter") {
-                  const first = documents[0];
-                  if (first) {
-                    event.preventDefault();
-                    event.currentTarget.blur();
-                    if (event.key === "Enter" || !selectedSlug) open(first);
-                  }
-                }
-              }}
-              onBlur={(event) => {
-                if (!event.currentTarget.value) setSearching(false);
-              }}
-              className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-placeholder"
-            />
-            {query ? (
-              <button
-                type="button"
-                aria-label="Clear search"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  onSearchChange({ q: undefined });
-                  searchRef.current?.focus();
-                }}
-                className="flex size-4 shrink-0 items-center justify-center rounded-full bg-muted-foreground text-background outline-none transition-colors hover:bg-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-              >
-                <XIcon className="size-2.5" strokeWidth={3} />
-              </button>
-            ) : null}
-          </div>
-        ) : (
-          <>
-            <div className="flex min-w-0 flex-1 items-center text-sm text-muted-foreground">
-              {loading ? " " : heading}
-            </div>
-            <HintTooltip label="Search" hint={shortcutLabel("search.focus")} side="bottom">
-              <IconButton
-                label={searchPlaceholder}
-                onClick={() => {
-                  setSearching(true);
-                  requestAnimationFrame(() => searchRef.current?.focus());
-                }}
-              >
-                <SearchIcon className="size-4" />
-              </IconButton>
-            </HintTooltip>
-          </>
-        )}
-        <DropdownMenu>
-          <HintTooltip label="Sort" side="bottom">
-            <DropdownMenuTrigger
-              render={
-                <IconButton
-                  label="Sort documents"
-                  active={Boolean(search.sort && search.sort !== "updated")}
-                />
+          <Input
+            ref={searchRef}
+            type="search"
+            autoFocus
+            value={query}
+            placeholder={searchPlaceholder}
+            aria-label="Search documents"
+            onChange={(event) => onSearchChange({ q: event.target.value || undefined })}
+            onKeyDown={(event) => {
+              if (event.key === "Escape") {
+                event.preventDefault();
+                onSearchChange({ q: undefined });
+                setSearching(false);
               }
-            >
-              <ArrowDownUpIcon className="size-4" />
-            </DropdownMenuTrigger>
-          </HintTooltip>
-          <DropdownMenuContent align="end" className="min-w-48">
-            <DropdownMenuLabel>Sort by</DropdownMenuLabel>
-            {SORTS.map((sort) => (
-              <DropdownMenuCheckItem
-                key={sort.value}
-                checked={(search.sort ?? "updated") === sort.value}
-                onClick={() =>
-                  onSearchChange({
-                    sort: sort.value === "updated" ? undefined : sort.value,
-                  })
+              if (event.key === "Enter" || event.key === "ArrowDown") {
+                const first = documents[0];
+                if (first) {
+                  event.preventDefault();
+                  event.currentTarget.blur();
+                  open(first);
                 }
-              >
-                {sort.label}
-              </DropdownMenuCheckItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </TitleBand>
+              }
+            }}
+          />
+        ) : null}
+      </div>
+      <Dialog open={sortOpen} onOpenChange={setSortOpen}>
+        <DialogPopup>
+          <DialogHeader>
+            <DialogTitle>Sort documents</DialogTitle>
+          </DialogHeader>
+          <DialogPanel>
+            <div className="flex flex-col gap-2">
+              {SORTS.map((sort) => (
+                <Button
+                  key={sort.value}
+                  variant={(search.sort ?? "updated") === sort.value ? "secondary" : "outline"}
+                  onClick={() => {
+                    onSearchChange({ sort: sort.value === "updated" ? undefined : sort.value });
+                    setSortOpen(false);
+                  }}
+                >
+                  {sort.label}
+                </Button>
+              ))}
+            </div>
+          </DialogPanel>
+        </DialogPopup>
+      </Dialog>
 
       <div
         ref={scrollRef}
@@ -298,12 +267,17 @@ export function DocumentList({
         className="min-h-0 flex-1 overflow-y-auto pt-2.25 pb-1 [scrollbar-gutter:stable_both-edges]"
       >
         {error ? (
-          <EmptyState
-            className="h-full px-6"
-            icon={SearchXIcon}
-            title="Couldn’t load documents"
-            description={error}
-          />
+          <div className={"h-full px-6"}>
+            <Empty size="compact">
+              <EmptyMedia variant="icon">
+                <SearchXIcon />
+              </EmptyMedia>
+              <EmptyHeader>
+                <EmptyTitle>{"Couldn’t load documents"}</EmptyTitle>
+                <EmptyDescription>{error}</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          </div>
         ) : loading ? (
           <DocumentListSkeleton />
         ) : entries.length === 0 ? (
@@ -389,34 +363,51 @@ export function Breadcrumbs({
 function EmptyList({ search, total }: { search: DriveSearch; total: number }) {
   if (search.q || (search.kind && total > 0)) {
     return (
-      <EmptyState
-        className="h-full px-6"
-        icon={SearchXIcon}
-        title="No matches"
-        description={
-          search.q ? `Nothing here matches “${search.q}”.` : "Nothing of that kind here."
-        }
-      />
+      <div className={"h-full px-6"}>
+        <Empty size="compact">
+          <EmptyMedia variant="icon">
+            <SearchXIcon />
+          </EmptyMedia>
+          <EmptyHeader>
+            <EmptyTitle>{"No matches"}</EmptyTitle>
+            <EmptyDescription>
+              {search.q ? `Nothing here matches “${search.q}”.` : "Nothing of that kind here."}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </div>
     );
   }
   if (search.view === "archived") {
     return (
-      <EmptyState
-        className="h-full px-6"
-        icon={ArchiveIcon}
-        title="Nothing archived"
-        description="Archived documents wait here until you restore or delete them."
-      />
+      <div className={"h-full px-6"}>
+        <Empty size="compact">
+          <EmptyMedia variant="icon">
+            <ArchiveIcon />
+          </EmptyMedia>
+          <EmptyHeader>
+            <EmptyTitle>{"Nothing archived"}</EmptyTitle>
+            <EmptyDescription>
+              {"Archived documents wait here until you restore or delete them."}
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </div>
     );
   }
   if (search.view === "recent") {
     return (
-      <EmptyState
-        className="h-full px-6"
-        icon={FilesIcon}
-        title="A quiet week"
-        description="Nothing changed in the last seven days."
-      />
+      <div className={"h-full px-6"}>
+        <Empty size="compact">
+          <EmptyMedia variant="icon">
+            <FilesIcon />
+          </EmptyMedia>
+          <EmptyHeader>
+            <EmptyTitle>{"A quiet week"}</EmptyTitle>
+            <EmptyDescription>{"Nothing changed in the last seven days."}</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </div>
     );
   }
   // Beside the main pane (which invites the first upload), one quiet line;
@@ -426,17 +417,24 @@ function EmptyList({ search, total }: { search: DriveSearch; total: number }) {
       <p className="hidden px-6 pt-4 text-center text-sm text-muted-foreground md:block">
         This folder is empty
       </p>
-      <EmptyState
-        className="h-full px-6 md:hidden"
-        icon={FilesIcon}
-        title="This folder is empty"
-        description="Upload a file or a folder to start."
-        actions={
-          <Button variant="accent" onClick={requestUpload}>
-            Upload
-          </Button>
-        }
-      />
+      <div className={"h-full px-6 md:hidden"}>
+        <Empty size="compact">
+          <EmptyMedia variant="icon">
+            <FilesIcon />
+          </EmptyMedia>
+          <EmptyHeader>
+            <EmptyTitle>{"This folder is empty"}</EmptyTitle>
+            <EmptyDescription>{"Upload a file or a folder to start."}</EmptyDescription>
+          </EmptyHeader>
+          <EmptyContent>
+            {
+              <Button onClick={requestUpload} variant="default">
+                Upload
+              </Button>
+            }
+          </EmptyContent>
+        </Empty>
+      </div>
     </>
   );
 }
@@ -502,8 +500,8 @@ function FolderRow({
   ].filter(Boolean);
   return (
     <div role="listitem" className="group/row relative px-1 py-px">
-      <ContextMenu>
-        <ContextMenuTrigger
+      <ContextMenu.Root>
+        <ContextMenu.Trigger
           render={
             <button type="button" onClick={onOpen} data-folder={folder.id} draggable={false} />
           }
@@ -539,13 +537,13 @@ function FolderRow({
               </span>
             )}
           </div>
-        </ContextMenuTrigger>
-        <ContextMenuContent>
+        </ContextMenu.Trigger>
+        <MenuPopup>
           <FolderMenuItems folder={folder} onOpen={onOpen} />
-        </ContextMenuContent>
-      </ContextMenu>
-      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-        <DropdownMenuTrigger
+        </MenuPopup>
+      </ContextMenu.Root>
+      <Menu open={menuOpen} onOpenChange={setMenuOpen}>
+        <MenuTrigger
           render={
             <button
               type="button"
@@ -561,11 +559,11 @@ function FolderRow({
           }
         >
           <EllipsisIcon className="size-4" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        </MenuTrigger>
+        <MenuPopup align="end">
           <FolderMenuItems folder={folder} onOpen={onOpen} />
-        </DropdownMenuContent>
-      </DropdownMenu>
+        </MenuPopup>
+      </Menu>
     </div>
   );
 }
@@ -579,6 +577,7 @@ function DocumentRow({
   selected: boolean;
   onPrefetch: () => void;
 }) {
+  const host = useDriveHost();
   const { artifact, folderSlug, folderId, sharedBy } = entry;
   const [menuOpen, setMenuOpen] = useState(false);
   const compact = useListDensity() === "compact";
@@ -604,12 +603,14 @@ function DocumentRow({
         compact ? "[contain-intrinsic-size:auto_38px]" : "[contain-intrinsic-size:auto_68px]",
       )}
     >
-      <ContextMenu>
-        <ContextMenuTrigger
+      <ContextMenu.Root>
+        <ContextMenu.Trigger
           render={
             <Link
-              to="/$folderSlug/a/$slug"
-              params={{ folderSlug, slug: artifact.slug }}
+              to={host.href(
+                "/" + encodeURIComponent(folderSlug) + "/a/" + encodeURIComponent(artifact.slug),
+              )}
+
               search={(current) => ({ ...current, sheet: undefined })}
               data-slug={artifact.slug}
               aria-current={selected ? "page" : undefined}
@@ -667,11 +668,11 @@ function DocumentRow({
               </>
             )}
           </div>
-        </ContextMenuTrigger>
-        <ContextMenuContent>{menu}</ContextMenuContent>
-      </ContextMenu>
-      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
-        <DropdownMenuTrigger
+        </ContextMenu.Trigger>
+        <MenuPopup>{menu}</MenuPopup>
+      </ContextMenu.Root>
+      <Menu open={menuOpen} onOpenChange={setMenuOpen}>
+        <MenuTrigger
           render={
             <button
               type="button"
@@ -686,9 +687,9 @@ function DocumentRow({
           }
         >
           <EllipsisIcon className="size-4" />
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">{menu}</DropdownMenuContent>
-      </DropdownMenu>
+        </MenuTrigger>
+        <MenuPopup align="end">{menu}</MenuPopup>
+      </Menu>
     </div>
   );
 }

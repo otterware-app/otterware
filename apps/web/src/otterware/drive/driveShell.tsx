@@ -1,5 +1,6 @@
+import { toastManager } from "~/components/ui/toast";
 import { folderUrl } from "./ui/lib/links";
-import { toast } from "./ui/components/ui/toast";
+
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import {
   FolderIcon,
@@ -9,6 +10,9 @@ import {
   ArchiveIcon,
   PlusIcon,
   UploadIcon,
+  SearchIcon,
+  ArrowDownUpIcon,
+  EllipsisIcon,
 } from "lucide-react";
 import {
   useShellSelection,
@@ -62,8 +66,8 @@ export function useDriveSidebar(): readonly ModuleSidebarSection[] {
         label: "Copy link",
         onSelect: () => {
           void navigator.clipboard.writeText(folderUrl(folder.id)).then(
-            () => toast.success("Link copied"),
-            () => toast.error("Could not copy the link"),
+            () => toastManager.add({ type: "success", title: "Link copied" }),
+            () => toastManager.add({ type: "error", title: "Could not copy the link" }),
           );
         },
       },
@@ -155,7 +159,7 @@ export function useDriveSidebar(): readonly ModuleSidebarSection[] {
   ];
 }
 export function useDriveHeaderActions(): readonly ModuleHeaderAction[] {
-  const { folderId, folders, accountId } = useDriveStore();
+  const { folderId, folders, accountId, documentActions, viewerExpanded } = useDriveStore();
   const folder = folders.find((entry) => entry.id === folderId);
   const disabled = !accountId || !folder || folder.role === "viewer";
   return [
@@ -175,5 +179,30 @@ export function useDriveHeaderActions(): readonly ModuleHeaderAction[] {
       disabled,
       onSelect: () => runDriveCommand("document.upload"),
     },
+    {
+      id: "search",
+      label: "Search documents",
+      icon: SearchIcon,
+      disabled: !accountId,
+      onSelect: () => runDriveCommand("search.focus"),
+    },
+    {
+      id: "sort",
+      label: "Sort documents",
+      icon: ArrowDownUpIcon,
+      disabled: !accountId || viewerExpanded,
+      onSelect: () => runDriveCommand("list.sort"),
+    },
+    ...documentActions.filter((action) => ["close", "versions", "share"].includes(action.id)),
+    ...(documentActions.length
+      ? [
+          {
+            id: "document-actions",
+            label: "Document actions",
+            icon: EllipsisIcon,
+            onSelect: () => runDriveCommand("document.actions"),
+          },
+        ]
+      : []),
   ];
 }

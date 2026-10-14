@@ -1,4 +1,12 @@
 import {
+  MenuItem,
+  MenuSub,
+  MenuSubTrigger,
+  MenuSubPopup,
+  MenuSeparator,
+} from "~/components/ui/menu";
+import { toastManager } from "~/components/ui/toast";
+import {
   ArchiveIcon,
   ArchiveRestoreIcon,
   DownloadIcon,
@@ -11,8 +19,7 @@ import {
   UserPlusIcon,
 } from "lucide-react";
 import type { Artifact } from "@otterware/drive-contracts/api";
-import { DropdownMenuItem, DropdownMenuSeparator, DropdownMenuSub } from "../../components/ui/menu";
-import { toast } from "../../components/ui/toast";
+
 import { apiFetch } from "../../lib/api";
 import { useDriveHost } from "../../host";
 import { useFolderRole } from "../folder-role";
@@ -47,9 +54,9 @@ export function shareDocument(artifact: Artifact, folderId?: string) {
 async function copy(value: string, message: string) {
   try {
     await navigator.clipboard.writeText(value);
-    toast.success(message);
+    toastManager.add({ type: "success", title: message });
   } catch {
-    toast.error("Could not copy to the clipboard");
+    toastManager.add({ type: "error", title: "Could not copy to the clipboard" });
   }
 }
 
@@ -58,7 +65,7 @@ export function copyLink(artifact: Artifact) {
 }
 
 /** What to paste into an agent so it edits the document with the CLI. */
-function copyAgentPrompt(artifact: Artifact) {
+export function copyAgentPrompt(artifact: Artifact) {
   return copy(
     `Edit my Otter Drive document at ${artifact.url}. Read the current version first and publish a new immutable version with Otter Drive's tools or CLI.`,
     "Prompt copied: paste it into your agent",
@@ -88,29 +95,32 @@ export async function downloadDocument(
     link.click();
     URL.revokeObjectURL(url);
   } catch (reason) {
-    toast.error("Could not download", {
+    toastManager.add({
+      type: "error",
+      title: "Could not download",
       description: reason instanceof Error ? reason.message : String(reason),
     });
   }
 }
 
 /** Archive or restore, with Undo on the toast (Otter Mail's). */
-function useArchiveDocument(folderId: string | undefined) {
+export function useArchiveDocument(folderId: string | undefined) {
   const { setArchived } = useDocumentActions(folderId);
   return async (artifact: Artifact, archived: boolean) => {
     try {
       const result = await setArchived(artifact, archived);
       // A shared document leaves (or rejoins) Shared with me.
       if (!folderId) announceSharingChanged();
-      toast.success(`${archived ? "Archived" : "Restored"} “${artifact.title}”`, {
-        action: {
-          label: "Undo",
-          onClick: () => void setArchived(result, !archived),
-        },
+      toastManager.add({
+        type: "success",
+        title: `${archived ? "Archived" : "Restored"} “${artifact.title}”`,
+        actionProps: { children: "Undo", onClick: () => void setArchived(result, !archived) },
       });
       return result;
     } catch (reason) {
-      toast.error(`Could not ${archived ? "archive" : "restore"}`, {
+      toastManager.add({
+        type: "error",
+        title: `Could not ${archived ? "archive" : "restore"}`,
         description: reason instanceof Error ? reason.message : String(reason),
       });
       return null;
@@ -157,10 +167,15 @@ export function DocumentMenuItems({
   async function moveTo(destination: Folder) {
     try {
       const moved = await move(artifact, destination.id);
-      toast.success(`Moved “${artifact.title}” to ${folderLabel(destination)}`);
+      toastManager.add({
+        type: "success",
+        title: `Moved “${artifact.title}” to ${folderLabel(destination)}`,
+      });
       onMoved?.(moved, destination);
     } catch (reason) {
-      toast.error("Could not move the document", {
+      toastManager.add({
+        type: "error",
+        title: "Could not move the document",
         description: reason instanceof Error ? reason.message : String(reason),
       });
     }
@@ -169,65 +184,57 @@ export function DocumentMenuItems({
   return (
     <>
       {href ? (
-        <DropdownMenuItem icon={<ExternalLinkIcon />} onClick={() => host.openInNewTab(href)}>
-          Open in new tab
-        </DropdownMenuItem>
+        <MenuItem onClick={() => host.openInNewTab(href)}>
+          {<ExternalLinkIcon />}Open in new tab
+        </MenuItem>
       ) : null}
-      <DropdownMenuItem icon={<UserPlusIcon />} onClick={() => shareDocument(artifact, folderId)}>
-        Share…
-      </DropdownMenuItem>
-      <DropdownMenuItem icon={<LinkIcon />} onClick={() => void copyLink(artifact)}>
-        Copy link
-      </DropdownMenuItem>
-      <DropdownMenuItem icon={<SparklesIcon />} onClick={() => void copyAgentPrompt(artifact)}>
-        Copy prompt for an agent
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        icon={<DownloadIcon />}
-        onClick={() => void downloadDocument(artifact, folderId, version)}
-      >
-        Download
-      </DropdownMenuItem>
+      <MenuItem onClick={() => shareDocument(artifact, folderId)}>
+        {<UserPlusIcon />}Share…
+      </MenuItem>
+      <MenuItem onClick={() => void copyLink(artifact)}>{<LinkIcon />}Copy link</MenuItem>
+      <MenuItem onClick={() => void copyAgentPrompt(artifact)}>
+        {<SparklesIcon />}Copy prompt for an agent
+      </MenuItem>
+      <MenuItem onClick={() => void downloadDocument(artifact, folderId, version)}>
+        {<DownloadIcon />}Download
+      </MenuItem>
       {isOwner && destinations.length > 0 ? (
-        <DropdownMenuSub label="Move to" icon={<MoveRightIcon />}>
-          {destinations.map((destination) => (
-            <DropdownMenuItem
-              key={destination.id}
-              icon={
-                destination.parentId ? (
+        <MenuSub>
+          <MenuSubTrigger>
+            {<MoveRightIcon />}
+            {"Move to"}
+          </MenuSubTrigger>
+          <MenuSubPopup>
+            {destinations.map((destination) => (
+              <MenuItem key={destination.id} onClick={() => void moveTo(destination)}>
+                {destination.parentId ? (
                   <FolderIcon />
                 ) : (
                   <FolderMark folder={destination} className="size-4 text-5xs" />
-                )
-              }
-              onClick={() => void moveTo(destination)}
-            >
-              {folderPath(folders, destination).map(folderLabel).join(" › ")}
-            </DropdownMenuItem>
-          ))}
-        </DropdownMenuSub>
+                )}
+                {folderPath(folders, destination).map(folderLabel).join(" › ")}
+              </MenuItem>
+            ))}
+          </MenuSubPopup>
+        </MenuSub>
       ) : null}
       {canEdit ? (
         <>
-          <DropdownMenuSeparator />
+          <MenuSeparator></MenuSeparator>
           {artifact.archivedAt ? (
-            <DropdownMenuItem
-              icon={<ArchiveRestoreIcon />}
-              onClick={() => void archive(artifact, false)}
-            >
-              Restore
-            </DropdownMenuItem>
+            <MenuItem onClick={() => void archive(artifact, false)}>
+              {<ArchiveRestoreIcon />}Restore
+            </MenuItem>
           ) : (
-            <DropdownMenuItem icon={<ArchiveIcon />} onClick={() => void archive(artifact, true)}>
-              Archive
-            </DropdownMenuItem>
+            <MenuItem onClick={() => void archive(artifact, true)}>
+              {<ArchiveIcon />}Archive
+            </MenuItem>
           )}
         </>
       ) : null}
       {artifact.archivedAt && isOwner ? (
-        <DropdownMenuItem
+        <MenuItem
           variant="destructive"
-          icon={<Trash2Icon />}
           onClick={() =>
             requestDeleteDocument({
               artifact,
@@ -236,8 +243,8 @@ export function DocumentMenuItems({
             })
           }
         >
-          Delete permanently…
-        </DropdownMenuItem>
+          {<Trash2Icon />}Delete permanently…
+        </MenuItem>
       ) : null}
     </>
   );

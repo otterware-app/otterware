@@ -1,10 +1,17 @@
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectPopup,
+  SelectItem,
+} from "~/components/ui/select";
+import { toastManager } from "~/components/ui/toast";
+import { Input } from "~/components/ui/input";
+import { Button } from "~/components/ui/button";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../lib/api";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { RowSelect } from "../../components/ui/select";
-import { toast } from "../../components/ui/toast";
+
 import { announceFoldersChanged, driveForFolder, useFolders } from "../folders";
 import { folderUrl } from "../../lib/links";
 import { SettingsPageContainer, SettingsRow, SettingsSection } from "./settings-ui";
@@ -37,9 +44,12 @@ export function MembersPane() {
       });
       setEmail("");
       await qc.invalidateQueries({ queryKey: ["drive-members", drive?.id] });
-      toast.success("Access granted. Share a link to this drive with them.");
+      toastManager.add({
+        type: "success",
+        title: "Access granted. Share a link to this drive with them.",
+      });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      toastManager.add({ type: "error", title: e instanceof Error ? e.message : String(e) });
     } finally {
       setSaving(false);
     }
@@ -51,7 +61,7 @@ export function MembersPane() {
       });
       await qc.invalidateQueries({ queryKey: ["drive-members", drive?.id] });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      toastManager.add({ type: "error", title: e instanceof Error ? e.message : String(e) });
     }
   }
   return (
@@ -78,16 +88,32 @@ export function MembersPane() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
-                <RowSelect
-                  ariaLabel="Access"
-                  value={role}
-                  options={[
+                <Select
+                  value={role ?? null}
+                  items={[
                     { value: "editor", label: "Can edit" },
                     { value: "viewer", label: "Can view" },
                   ]}
-                  onValueChange={(v) => setRole(v as typeof role)}
-                />
-                <Button type="submit" disabled={saving}>
+                  disabled={undefined}
+                  onValueChange={(value) => {
+                    if (typeof value === "string") setRole(value as typeof role);
+                  }}
+                >
+                  <SelectTrigger size="sm" aria-label={"Access"}>
+                    <SelectValue placeholder={"Select…"} />
+                  </SelectTrigger>
+                  <SelectPopup>
+                    {[
+                      { value: "editor", label: "Can edit" },
+                      { value: "viewer", label: "Can view" },
+                    ].map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectPopup>
+                </Select>
+                <Button type="submit" disabled={saving} variant="outline">
                   Invite
                 </Button>
               </form>
@@ -99,8 +125,9 @@ export function MembersPane() {
                   onClick={() =>
                     void navigator.clipboard
                       .writeText(folderUrl(drive!.id))
-                      .then(() => toast.success("Link copied"))
+                      .then(() => toastManager.add({ type: "success", title: "Link copied" }))
                   }
+                  variant="outline"
                 >
                   Copy link
                 </Button>
@@ -131,15 +158,16 @@ export function MembersPane() {
                             .then(() => {
                               announceFoldersChanged();
                               void qc.invalidateQueries({ queryKey: ["actor"] });
-                              toast.success("Ownership transferred");
+                              toastManager.add({ type: "success", title: "Ownership transferred" });
                             })
-                            .catch((e) => toast.error(e.message));
+                            .catch((e) => toastManager.add({ type: "error", title: e.message }));
                         }}
+                        variant="outline"
                       >
                         Make owner
                       </Button>
                     ) : null}
-                    <Button variant="ghost-destructive" onClick={() => void remove(m.id)}>
+                    <Button onClick={() => void remove(m.id)} variant={"ghost-destructive"}>
                       Remove
                     </Button>
                   </div>

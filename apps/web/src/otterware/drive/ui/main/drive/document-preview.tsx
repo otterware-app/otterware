@@ -1,9 +1,16 @@
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+  EmptyDescription,
+  EmptyMedia,
+} from "~/components/ui/empty";
+import { Button } from "~/components/ui/button";
 import { lazy, Suspense, useState } from "react";
 import { createPortal } from "react-dom";
 import { FileWarningIcon, PencilIcon } from "lucide-react";
 import type { NativeDocumentKind } from "../../lib/document-kind";
-import { Button } from "../../components/ui/button";
-import { EmptyState } from "../../components/ui/empty-state";
+
 import { ContentLoading } from "./content-loading";
 import { MarkdownPreview } from "./markdown-preview";
 import { useDocumentContent } from "./use-document-content";
@@ -54,19 +61,24 @@ function DocumentPreviewContent(props: DocumentPreviewProps) {
   const error = content.error ?? (markdownPreview ? session.error : null);
   if (error)
     return (
-      <EmptyState
-        className="h-full"
-        icon={FileWarningIcon}
-        title="Couldn’t open this document"
-        description={error.message}
-      />
+      <div className={"h-full"}>
+        <Empty size="compact">
+          <EmptyMedia variant="icon">
+            <FileWarningIcon />
+          </EmptyMedia>
+          <EmptyHeader>
+            <EmptyTitle>{"Couldn’t open this document"}</EmptyTitle>
+            <EmptyDescription>{error.message}</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </div>
     );
   if (!content.data || (markdownPreview && (session.isPending || session.isFetching)))
     return <ContentLoading />;
 
   if (content.data.kind === "text" && !editing) {
     const actions = props.readOnly ? null : (
-      <Button size="sm" onClick={() => setEditing(true)}>
+      <Button size="sm" onClick={() => setEditing(true)} variant="outline">
         <PencilIcon />
         Edit
       </Button>

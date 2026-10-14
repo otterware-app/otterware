@@ -1,9 +1,18 @@
+import { Button } from "~/components/ui/button";
+import { toastManager } from "~/components/ui/toast";
+import { Input } from "~/components/ui/input";
+import {
+  Dialog,
+  DialogPopup,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogPanel,
+} from "~/components/ui/dialog";
 import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
-import { Dialog } from "../../components/ui/dialog";
-import { Field } from "../../components/ui/field";
-import { Input } from "../../components/ui/input";
-import { toast } from "../../components/ui/toast";
+
 import { announceFoldersChanged, folderLabel, type Folder } from "../folders";
 
 /**
@@ -24,6 +33,7 @@ export function requestFolderDialog(request: FolderDialogRequest) {
 }
 
 export function FolderDialogsHost() {
+  const [dialogPending, setDialogPending] = useState(false);
   const [request, setRequest] = useState<FolderDialogRequest | null>(null);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -66,7 +76,7 @@ export function FolderDialogsHost() {
         method: "DELETE",
       });
       announceFoldersChanged();
-      toast.success(`Deleted “${folder.name}”`);
+      toastManager.add({ type: "success", title: `Deleted “${folder.name}”` });
       request?.onDeleted?.(folder);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
@@ -78,44 +88,126 @@ export function FolderDialogsHost() {
     return (
       <Dialog
         open={open}
-        onOpenChange={setOpen}
-        title={`Delete “${folder ? folderLabel(folder) : ""}”?`}
-        description={
-          isDrive
-            ? "The shared drive goes for good, and its members lose it. It must be empty."
-            : "The folder goes for good, and anyone it was shared with loses it. It must be empty."
-        }
-        confirmLabel="Delete"
-        confirmVariant="destructive"
-        onConfirm={remove}
-        size="small"
+        onOpenChange={(next) => {
+          if (!dialogPending) setOpen(next);
+        }}
       >
-        {error ? (
-          <p role="alert" className="text-sm text-destructive-foreground">
-            {error}
-          </p>
-        ) : null}
+        <DialogPopup>
+          <form
+            onSubmit={async (event) => {
+              event.preventDefault();
+              if (dialogPending) return;
+              setDialogPending(true);
+              try {
+                await remove();
+                setOpen(false);
+              } catch {
+                /* The operation reports its error and keeps the dialog open. */
+              } finally {
+                setDialogPending(false);
+              }
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>{`Delete “${folder ? folderLabel(folder) : ""}”?`}</DialogTitle>
+              <DialogDescription>
+                {isDrive
+                  ? "The shared drive goes for good, and its members lose it. It must be empty."
+                  : "The folder goes for good, and anyone it was shared with loses it. It must be empty."}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogPanel>
+              <div className="flex flex-col gap-3">
+                {error ? (
+                  <p role="alert" className="text-sm text-destructive-foreground">
+                    {error}
+                  </p>
+                ) : null}
+              </div>
+            </DialogPanel>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                disabled={dialogPending}
+                onClick={() => {
+                  setOpen(false);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" variant={"destructive"} disabled={dialogPending}>
+                {"Delete"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogPopup>
       </Dialog>
     );
   return (
     <Dialog
       open={open}
-      onOpenChange={setOpen}
-      title={isDrive ? "Rename shared drive" : "Rename folder"}
-      confirmLabel="Rename"
-      confirmDisabled={!name.trim() || name.trim() === folder?.name}
-      onConfirm={rename}
-      size="small"
+      onOpenChange={(next) => {
+        if (!dialogPending) setOpen(next);
+      }}
     >
-      <Field label="Name" error={error}>
-        <Input
-          required
-          maxLength={80}
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          onFocus={(event) => event.currentTarget.select()}
-        />
-      </Field>
+      <DialogPopup>
+        <form
+          onSubmit={async (event) => {
+            event.preventDefault();
+            if (dialogPending || !name.trim() || name.trim() === folder?.name) return;
+            setDialogPending(true);
+            try {
+              await rename();
+              setOpen(false);
+            } catch {
+              /* The operation reports its error and keeps the dialog open. */
+            } finally {
+              setDialogPending(false);
+            }
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>{isDrive ? "Rename shared drive" : "Rename folder"}</DialogTitle>
+          </DialogHeader>
+          <DialogPanel>
+            <div className="flex flex-col gap-3">
+              <label className="flex flex-col gap-1.5">
+                <span className="text-sm text-muted-foreground">{"Name"}</span>
+                <Input
+                  required
+                  maxLength={80}
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  onFocus={(event) => event.currentTarget.select()}
+                />
+                {error ? (
+                  <span role="alert" className="text-xs text-destructive-foreground">
+                    {error}
+                  </span>
+                ) : null}
+              </label>
+            </div>
+          </DialogPanel>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              disabled={dialogPending}
+              onClick={() => {
+                setOpen(false);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="default"
+              disabled={dialogPending || !name.trim() || name.trim() === folder?.name}
+            >
+              {"Rename"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogPopup>
     </Dialog>
   );
 }

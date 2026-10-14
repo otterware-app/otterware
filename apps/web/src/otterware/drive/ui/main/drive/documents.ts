@@ -10,7 +10,6 @@ import {
   PackageIcon,
   type LucideIcon,
 } from "lucide-react";
-import { z } from "zod";
 import {
   artifactListResponseSchema,
   artifactResponseSchema,
@@ -127,16 +126,21 @@ export function documentKind(artifact: Artifact): DocumentKind {
   return KIND_BY_EXTENSION[extension ?? ""] ?? "other";
 }
 
-export const driveSearchSchema = z.object({
-  /** The open folder, so Back walks folders and links open them. */
-  folder: z.string().max(256).optional().catch(undefined),
-  q: z.string().max(200).optional().catch(undefined),
-  sort: z.enum(["updated", "az", "za"]).optional().catch(undefined),
-  /** `shared` is "Shared with me"; the others filter the open folder. */
-  view: z.enum(["recent", "archived", "shared"]).optional().catch(undefined),
-  kind: z.enum(DOCUMENT_KINDS).optional().catch(undefined),
-});
-export type DriveSearch = z.infer<typeof driveSearchSchema>;
+/** Invalid URL filters are ignored; they never prevent opening a shared document. */
+export function parseDriveSearch(search: Record<string, string | undefined>) {
+  const member = <T extends string>(
+    value: string | undefined,
+    choices: readonly T[],
+  ): T | undefined => choices.find((choice) => choice === value);
+  return {
+    folder: search.folder && search.folder.length <= 256 ? search.folder : undefined,
+    q: search.q && search.q.length <= 200 ? search.q : undefined,
+    sort: member(search.sort, ["updated", "az", "za"] as const),
+    view: member(search.view, ["recent", "archived", "shared"] as const),
+    kind: member(search.kind, DOCUMENT_KINDS),
+  };
+}
+export type DriveSearch = Partial<ReturnType<typeof parseDriveSearch>>;
 export type DriveView = NonNullable<DriveSearch["view"]> | "all";
 
 export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
