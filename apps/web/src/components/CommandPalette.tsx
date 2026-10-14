@@ -1,3 +1,5 @@
+// Otterware seam: palette shortcut labels include module defaults and migrated aliases.
+import { useShellKeybindings } from "../otterware/shellKeybindings";
 import { profilePaletteItems, codeSurfaceItems } from "../otterware/profileVisibility";
 ("use client");
 
@@ -392,7 +394,7 @@ export function CommandPalette({ children }: { children: ReactNode }) {
   const openAddProject = useCallback(() => dispatch({ _tag: "OpenAddProject" }), []);
   const openNewThreadIn = useCallback(() => dispatch({ _tag: "OpenNewThreadIn" }), []);
   const clearOpenIntent = useCallback(() => dispatch({ _tag: "ClearOpenIntent" }), []);
-  const keybindings = useAtomValue(primaryServerKeybindingsAtom);
+  const keybindings = useShellKeybindings();
   const { theme, themeHalves, resolvedTheme, appearanceMode, setAppearanceMode } = useTheme();
   const composerHandleRef = useRef<ChatComposerHandle | null>(null);
   const routeTarget = useParams({
@@ -706,7 +708,7 @@ function OpenCommandPaletteDialog(props: {
   }, [activeThreadReferenceCopyTarget]);
   const projectOrder = useUiStateStore((store) => store.projectOrder);
   const threads = useThreadShells();
-  const keybindings = useAtomValue(primaryServerKeybindingsAtom);
+  const keybindings = useShellKeybindings();
   const {
     theme,
     themeHalves,

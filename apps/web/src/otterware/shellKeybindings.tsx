@@ -17,6 +17,7 @@ import {
   modulePath,
   shellDefaultKeybindings,
   useShellSelection,
+  useModuleCommandContext,
   type WebModuleCommand,
 } from "@otterware/module-kit/web";
 import { useAtomValue } from "@effect/atom-react";
@@ -53,10 +54,16 @@ const MODULE_COMMANDS = new Map<string, { module: string; command: WebModuleComm
 export function withShellKeybindings(
   resolved: ResolvedKeybindingsConfig,
 ): ResolvedKeybindingsConfig {
-  return mergeShellKeybindings(
-    applyKeybindingCommandAliases(resolved, COMMAND_ALIASES),
-    SHELL_DEFAULT_KEYBINDINGS,
-  );
+  const scoped = applyKeybindingCommandAliases(resolved, COMMAND_ALIASES).map((binding) => {
+    const module = moduleRegistry.byId(binding.command.split(".")[0] ?? "");
+    if (!module) return binding;
+    const app = { type: "identifier", name: `app.${module.id}` } as const;
+    return {
+      ...binding,
+      whenAst: binding.whenAst ? { type: "and" as const, left: app, right: binding.whenAst } : app,
+    };
+  });
+  return mergeShellKeybindings(scoped, SHELL_DEFAULT_KEYBINDINGS);
 }
 
 export const shellKeybindingsAtom = Atom.make((get) =>
@@ -86,6 +93,7 @@ export function ShellKeybindings() {
   const activeApp = useShellApp();
 
   useEffect(() => {
+    let pending: { bindings: ResolvedKeybindingsConfig; at: number } | null = null;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.repeat) return;
       const target = event.target instanceof HTMLElement ? event.target : null;
@@ -93,9 +101,54 @@ export function ShellKeybindings() {
       if (isTerminalFocused()) return;
       const editableFocus = isEditableFocused(event.target);
       if (editableFocus && !hasModifier(event)) return;
-      const command = resolveShortcutCommand(event, keybindings, {
-        context: { ...appWhenContext(activeApp, SHELL_APPS), editableFocus },
-      });
+      const options = {
+        context: {
+          ...appWhenContext(activeApp, SHELL_APPS),
+          ...useModuleCommandContext.getState().contexts[activeApp],
+          editableFocus,
+          dialogOpen: Array.from(
+            document.querySelectorAll(
+              '[role="dialog"], [role="menu"], [data-slot="popover-popup"]',
+            ),
+          ).some((element) => !element.closest('[data-slot="toast-viewport"]')),
+        },
+      };
+      const continuation = pending && Date.now() - pending.at < 1500 ? pending.bindings : [];
+      pending = null;
+      let command =
+        resolveShortcutCommand(event, continuation, options) ??
+        resolveShortcutCommand(event, keybindings, options);
+      if (command === null && !editableFocus) {
+        const sequences = keybindings.filter(
+          (binding) =>
+            MODULE_COMMANDS.has(binding.command) && /^\S+ \S+$/.test(binding.shortcut.key),
+        );
+        const candidates = sequences.filter(
+          (binding) =>
+            resolveShortcutCommand(
+              event,
+              [
+                {
+                  ...binding,
+                  shortcut: { ...binding.shortcut, key: binding.shortcut.key.split(" ")[0]! },
+                },
+              ],
+              options,
+            ) !== null,
+        );
+        if (candidates.length) {
+          pending = {
+            at: Date.now(),
+            bindings: candidates.map((binding) => ({
+              ...binding,
+              shortcut: { ...binding.shortcut, key: binding.shortcut.key.split(" ")[1]! },
+            })),
+          };
+          event.preventDefault();
+          return;
+        }
+      }
+
       if (command === null) return;
       const run = shellCommandRunner(command);
       if (run === null) return;
@@ -120,8 +173,27 @@ export function ShellKeybindings() {
           );
         };
       }
+      if (command === "assistant.newChat" || command === "assistant.previousChat") {
+        const module = moduleRegistry.byId(activeApp);
+        return module?.sideChat
+          ? () =>
+              useShellSelection
+                .getState()
+                .requestAssistant(
+                  module.id,
+                  command === "assistant.newChat" ? "newChat" : "previousChat",
+                )
+          : null;
+      }
       const entry = MODULE_COMMANDS.get(command);
-      if (entry === undefined) return null;
+      if (entry === undefined) {
+        const module = moduleRegistry.byId(command.split(".")[0] ?? "");
+        return module?.runCommand
+          ? () => {
+              void module.runCommand?.(command);
+            }
+          : null;
+      }
       return () => void runModuleCommand(entry.module, entry.command, navigate);
     };
     window.addEventListener("keydown", onKeyDown);
@@ -137,6 +209,8 @@ export async function runModuleCommand(
   navigate: ReturnType<typeof useNavigate>,
 ): Promise<void> {
   if (command.run) {
+    if (useShellAppStore.getState().activeApp !== moduleId)
+      await navigate({ href: modulePath(moduleId) });
     await command.run();
     return;
   }

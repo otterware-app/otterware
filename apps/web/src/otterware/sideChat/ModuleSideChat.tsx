@@ -60,7 +60,7 @@ import {
 import { moduleRegistry } from "../registry";
 import { ASSISTANT_LABEL } from "../ModulePageLayout";
 import { ModuleThreadAccessories } from "../ModuleThreadAccessories";
-import { useCurrentModulePageContext } from "@otterware/module-kit/web";
+import { useShellSelection, useCurrentModulePageContext } from "@otterware/module-kit/web";
 import { BrowserChat } from "../browser/chat/BrowserChat";
 import { BrowserEnvironmentNotice } from "../browser/BrowserEnvironmentNotice";
 import { useModuleTarget } from "../browser/runtime";
@@ -170,6 +170,7 @@ function BrowserSideChat({ moduleId, onHide, hideShortcutLabel }: SideChatProps)
       ) : null}
       <BrowserEnvironmentNotice />
       <BrowserChat
+        moduleId={moduleId}
         className="min-h-0 flex-1 p-3"
         {...(includeContext && pageContext ? { context: modulePageContextText(pageContext) } : {})}
       />
@@ -245,6 +246,34 @@ function EnvironmentSideChat({ moduleId, onHide, hideShortcutLabel }: SideChatPr
       setStarting(false);
     }
   }, [ensureAssistant, environmentId, moduleId, ready, setTarget, starting]);
+
+  const assistantRequest = useShellSelection((state) => state.assistantRequest);
+  useEffect(() => {
+    if (assistantRequest?.moduleId !== moduleId || !ready || starting) return;
+    useShellSelection.setState({ assistantRequest: null });
+    if (assistantRequest.command === "newChat") {
+      void startNewChat();
+      return;
+    }
+    const index = recentChats.findIndex((chat) => chat.id === activeTarget?.threadId);
+    const chat = recentChats[(index + 1) % recentChats.length];
+    if (chat)
+      setTarget({
+        kind: "server",
+        environmentId: chat.environmentId,
+        threadId: chat.id,
+        viewKey: chat.id,
+      });
+  }, [
+    assistantRequest,
+    moduleId,
+    ready,
+    starting,
+    startNewChat,
+    recentChats,
+    activeTarget?.threadId,
+    setTarget,
+  ]);
 
   // Capture the current page on every send, including unchanged context on later messages.
   const decorateOutgoingMessage = useCallback(

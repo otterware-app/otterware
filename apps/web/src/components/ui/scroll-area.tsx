@@ -31,6 +31,7 @@ function ScrollArea({
   chainVerticalScroll = false,
   radius = "inherit",
   viewportTabIndex,
+  viewportProps,
   ...props
 }: ScrollAreaPrimitive.Root.Props & {
   scrollFade?: boolean;
@@ -44,6 +45,8 @@ function ScrollArea({
   radius?: "inherit" | "none";
   /** Override Base UI's focusable viewport when focusable descendants provide scroll access. */
   viewportTabIndex?: number;
+  /** Otterware seam: content adapters retain viewport refs and scroll handlers. */
+  viewportProps?: ScrollAreaPrimitive.Viewport.Props;
 }) {
   return (
     <ScrollAreaPrimitive.Root
@@ -55,8 +58,10 @@ function ScrollArea({
       {...props}
     >
       <ScrollAreaPrimitive.Viewport
+        {...viewportProps}
         {...(viewportTabIndex === undefined ? {} : { tabIndex: viewportTabIndex })}
         className={cn(
+          viewportProps?.className,
           "h-full max-h-[inherit] overflow-auto overscroll-contain rounded-[inherit] outline-none transition-shadow focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-offset-1 focus-visible:ring-offset-background data-has-overflow-x:overscroll-x-contain",
           chainVerticalScroll && "overscroll-y-auto",
           scrollFade &&

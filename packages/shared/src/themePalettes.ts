@@ -1,4 +1,7 @@
+// Otterware seam: modules contribute built-in palettes to the host theme library.
+import { OTTERWARE_THEME_IDS, otterwareThemePresets } from "./otterware/themePresets.ts";
 export const BUILT_IN_THEME_IDS = [
+  ...OTTERWARE_THEME_IDS,
   "chatgpt",
   "t3-chat",
   "grove",
@@ -1082,6 +1085,7 @@ export const IRIS_THEME: ThemeDefinition = {
 };
 
 export const BUILT_IN_THEMES: ReadonlyArray<ThemeDefinition> = [
+  ...otterwareThemePresets(T3_CODE_LIGHT_THEME_COLORS, T3_CODE_DARK_THEME_COLORS),
   CHATGPT_THEME,
   T3_CHAT_THEME,
   GROVE_THEME,

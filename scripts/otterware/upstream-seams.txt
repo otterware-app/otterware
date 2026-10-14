@@ -72,3 +72,12 @@ third-party-licenses.config.json
 # Rebrand: upstream tests that assert the product name or the renamed account token field
 apps/mobile/src/features/connection/environmentStatusText.test.ts
 packages/client-runtime/src/relay/managedRelay.test.ts
+
+# Mail contributes its built-in palette through the shared theme registry.
+packages/shared/src/themePalettes.ts
+
+# Mail content supplies scroll viewport refs and handlers to the host control.
+apps/web/src/components/ui/scroll-area.tsx
+
+# Mail editor keys reuse the host predicate evaluator.
+apps/web/src/keybindings.ts

@@ -33,6 +33,8 @@ export const ACCOUNT_SETTINGS_PATH = "/settings/account";
  */
 export type ModuleSettingsPageId =
   | "mail"
+  | "general"
+  | "integrations"
   | "calendar"
   | "drive"
   | "reading"
@@ -269,7 +271,13 @@ export function settingsNavLayout(input: {
         paths: [
           ...STANDALONE_SETTINGS_PATHS.before,
           ...(moduleId === undefined ? [] : pagesOf(moduleId)),
-          ...STANDALONE_SETTINGS_PATHS.after,
+          ...STANDALONE_SETTINGS_PATHS.after.filter(
+            (path) =>
+              moduleId !== "mail" ||
+              !["/settings/connections", "/settings/scheduled-tasks", "/settings/storage"].includes(
+                path,
+              ),
+          ),
         ],
       },
     ];

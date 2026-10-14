@@ -27,6 +27,8 @@ describe("shell keybindings", () => {
       "app.switch.3",
       "app.switch.4",
       "assistant.toggle",
+      "assistant.newChat",
+      "assistant.previousChat",
       "mail.archive",
       "mail.compose",
     ]);
@@ -49,6 +51,8 @@ describe("shell keybindings", () => {
     );
     expect(merged.map((rule) => rule.command)).toEqual([
       "assistant.toggle",
+      "assistant.newChat",
+      "assistant.previousChat",
       "mail.compose",
       "mail.archive",
     ]);

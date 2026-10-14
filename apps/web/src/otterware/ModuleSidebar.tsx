@@ -110,6 +110,7 @@ function Rows({
       {rows.map((row) => (
         <SidebarMenuItem key={row.id}>
           <SidebarMenuButton
+            {...row.drag}
             isActive={row.active}
             onClick={() => select(row)}
             onContextMenu={contextMenu(row)}
@@ -118,27 +119,46 @@ function Rows({
             <span className="min-w-0 flex-1 truncate">{row.label}</span>
             <RowTrailing row={row} />
           </SidebarMenuButton>
-          {row.children && row.children.length > 0 ? (
-            <SidebarMenuSub>
-              {row.children.map((child) => (
-                <SidebarMenuSubItem key={child.id}>
-                  <SidebarMenuSubButton
-                    size="sm"
-                    isActive={child.active}
-                    onClick={() => select(child)}
-                    onContextMenu={contextMenu(child)}
-                  >
-                    {child.icon}
-                    <span className="min-w-0 flex-1 truncate">{child.label}</span>
-                    <RowTrailing row={child} />
-                  </SidebarMenuSubButton>
-                </SidebarMenuSubItem>
-              ))}
-            </SidebarMenuSub>
+          {row.children?.length ? (
+            <ChildRows module={module} rows={row.children} select={select} />
           ) : null}
         </SidebarMenuItem>
       ))}
     </SidebarMenu>
+  );
+}
+
+function ChildRows({
+  module,
+  rows,
+  select,
+}: {
+  module: WebModule;
+  rows: ReadonlyArray<ModuleSidebarRow>;
+  select: (row: ModuleSidebarRow) => void;
+}) {
+  const contextMenu = useRowContextMenu(module);
+  return (
+    <SidebarMenuSub>
+      {rows.map((row) => (
+        <SidebarMenuSubItem key={row.id}>
+          <SidebarMenuSubButton
+            {...row.drag}
+            size="sm"
+            isActive={row.active}
+            onClick={() => select(row)}
+            onContextMenu={contextMenu(row)}
+          >
+            {row.icon}
+            <span className="min-w-0 flex-1 truncate">{row.label}</span>
+            <RowTrailing row={row} />
+          </SidebarMenuSubButton>
+          {row.children?.length ? (
+            <ChildRows module={module} rows={row.children} select={select} />
+          ) : null}
+        </SidebarMenuSubItem>
+      ))}
+    </SidebarMenuSub>
   );
 }
 

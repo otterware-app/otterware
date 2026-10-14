@@ -1,3 +1,4 @@
+import { useModuleTarget } from "./browser/runtime";
 /**
  * Mounts every module's client stores (`WebModule.stores`) once, above the
  * routes, while the module is on in the environment module pages use. Stores
@@ -12,7 +13,8 @@ import { moduleRegistry } from "./registry";
 
 function ModuleStores({ module }: { readonly module: WebModule }) {
   const availability = useServerModuleAvailability(module.serverModule);
-  if (availability !== "on") return null;
+  const target = useModuleTarget();
+  if (target._tag !== "browser" && availability !== "on") return null;
   return (module.stores ?? []).map((store: WebModuleStore) => {
     const Runtime = store.runtime;
     return (
