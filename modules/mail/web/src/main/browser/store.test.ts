@@ -2,7 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 
 beforeEach(() => {
   vi.resetModules();
-  vi.doMock("../../host/bridge", () => ({ mailBridge: { features: { browser: true } } }));
+  vi.doMock("../../host/bridge", () => ({
+    mailBridge: { features: { browser: true }, on: () => () => {} },
+  }));
   const storage = new Map<string, string>();
   vi.stubGlobal("localStorage", {
     getItem: (key: string) => storage.get(key) ?? null,

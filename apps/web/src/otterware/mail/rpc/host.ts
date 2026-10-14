@@ -1,3 +1,4 @@
+import { createMailBrowser } from "../browser";
 import {
   mailDesktop,
   dockBadgeEnabled,
@@ -79,11 +80,14 @@ export function createMailHost(
 ) {
   const listeners = new Map<string, Set<(payload: unknown) => void>>();
   let stopEvents: (() => void) | undefined;
+  let stopBrowser: (() => void) | undefined;
   let themeSource: ThemeSource = "system";
   const publish = (channel: string, payload: unknown) => {
     for (const listener of listeners.get(channel) ?? []) listener(payload);
   };
+  const browser = desktopCapabilities ? createMailBrowser(environmentId, publish) : null;
   const invoke = async (channel: string, input: unknown): Promise<unknown> => {
+    if (browser?.methods[channel]) return browser.methods[channel](input);
     const params = record(input);
     const desktop = desktopCapabilities && mailDesktop();
     if (desktop && (channel === "translation:detect" || channel === "translation:translate"))
@@ -181,7 +185,7 @@ export function createMailHost(
       openFiles: desktopCapabilities?.openFiles ?? false,
       externalAgent: false,
       localAgents: false,
-      browser: false,
+      browser: browser !== null,
     },
     invoke: <T>(channel: string, input?: unknown) => invoke(channel, input) as Promise<T>,
     on(channel, listener) {
@@ -195,6 +199,7 @@ export function createMailHost(
         if (event.module === "mail" && event.event === channel) listener(event.payload);
       });
       if (!stopEvents) stopEvents = subscribeMailEvents(environmentId, publish);
+      if (!stopBrowser && browser) stopBrowser = browser.subscribe();
       return () => {
         stopDesktop?.();
         channelListeners.delete(listener);
@@ -202,6 +207,8 @@ export function createMailHost(
         if (listeners.size === 0) {
           stopEvents?.();
           stopEvents = undefined;
+          stopBrowser?.();
+          stopBrowser = undefined;
         }
       };
     },

@@ -18,5 +18,10 @@ own extension data, as it keeps its own site logins. Sign in to an extension onc
 Incognito tabs run no extensions.
 
 On Mac and Linux, extensions can connect to installed desktop apps. To connect 1Password on Mac,
-add Otter Code in **1Password → Settings → Browser → Add Browser**. The extension then shares the
+add your installed Otterware app in **1Password → Settings → Browser → Add Browser**. The extension then shares the
 desktop app's unlock, including Touch ID. Each browser profile keeps its own extension connection.
+
+In Mail, **Settings → Mail → Browser** controls where links open and manages the same installed
+extensions. Links opened in Mail use a separate browser profile for the selected environment.
+Pin 1Password from the puzzle menu in a Mail browser tab, then connect it to the installed app
+through 1Password's browser settings. Browser extensions require the desktop app.

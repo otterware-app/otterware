@@ -113,7 +113,7 @@ import { NewProjectDialog } from "./gmail/project-menus";
 import { UpdateCard } from "./updates";
 import { useRecordRecentlyViewed } from "./recently-viewed";
 import { SetupFlow } from "./onboarding/setup";
-import { useBrowser, useBrowserEvents } from "./browser/store";
+import { useBrowser, useBrowserEvents, newTab } from "./browser/store";
 import { Tour } from "./onboarding/tour";
 import {
   endTour,
@@ -577,12 +577,10 @@ function MailHome() {
   const panelExpanded = chatExpanded && chatVisible;
   // A page opening in the browser (a link, ⌘T) shows in the panel, out of Settings.
   const browserRevealed = useBrowser((s) => s.revealed);
-  const openChatForEffect = useLatest(openChat);
   useEffect(() => {
     if (!browserRevealed) return;
     if (settingsRouteRef.current) leaveSettingsRef.current();
-    openChatForEffect.current();
-  }, [browserRevealed, leaveSettingsRef, openChatForEffect, settingsRouteRef]);
+  }, [browserRevealed, leaveSettingsRef, settingsRouteRef]);
   // Getting started. A device whose mail was already here skips the setup,
   // and is offered the tour, once.
   useEffect(() => {
@@ -769,6 +767,8 @@ function MailHome() {
     "commandPalette.toggle": () => setPaletteOpen((o) => !o),
     "sidebar.toggle": () => toggleSidebar(),
     "agent.toggle": () => toggleChat(),
+    "agent.newTab": () => (features.browser ? newTab() : openChat()),
+    "agent.newChat": () => openChat(),
     "search.focus": () => searchFromView(),
     "compose.new": () => setComposeOpen(true),
     "keybindings.show": () => openSettings({ pane: "keybindings" }),

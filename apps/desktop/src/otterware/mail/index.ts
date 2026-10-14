@@ -70,6 +70,24 @@ export function installMailDesktop(
         ? { listMailApps: linux.listMailApps, setDefaultMailApp: linux.setDefaultMailApp }
         : null;
   const stop = registry.register("mail", {
+    "browser:clearSite": desktopMethod(
+      Schema.Struct({ webContentsId: Schema.Int, origin: Schema.String }),
+      async ({ webContentsId, origin }, context) => {
+        const page = webContents.fromId(webContentsId);
+        const owner = webContents.fromId(context.senderId);
+        const url = new URL(origin);
+        if (
+          !page ||
+          !owner ||
+          page.getType() !== "webview" ||
+          page.hostWebContents !== owner ||
+          !["http:", "https:"].includes(url.protocol) ||
+          new URL(page.getURL()).origin !== url.origin
+        )
+          throw new Error("Select the site before clearing its data.");
+        await page.session.clearStorageData({ origin: url.origin });
+      },
+    ),
     "file:open": desktopMethod(attachment, async (input, context) => {
       const saved = await writeAttachment(app.getPath("temp"), input);
       temporaryFiles.add(saved.remove);

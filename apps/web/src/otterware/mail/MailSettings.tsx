@@ -10,7 +10,14 @@ import { useModuleStates } from "../moduleState";
 import { createMailHost } from "./rpc/host";
 import { mailSession } from "./sessions";
 
-const panes = ["general", "accounts", "appearance", "keybindings", "integrations"] as const;
+const allPanes = [
+  "general",
+  "accounts",
+  "appearance",
+  "keybindings",
+  "integrations",
+  "browser",
+] as const;
 export default function MailSettings() {
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const scope = useOptionalSettingsScope();
@@ -21,6 +28,7 @@ export default function MailSettings() {
     modules.modules.some((module) => module.id === "mail" && module.state === "on");
   const navigate = useNavigate();
   const desktop = useMailDesktopCapabilities();
+  const panes = allPanes.filter((pane) => pane !== "browser" || desktop !== null);
   const search = useLocation({ select: (location) => location.searchStr });
   const query = new URLSearchParams(search);
   const pane = panes.find((value) => value === query.get("pane")) ?? "general";

@@ -177,7 +177,7 @@ export function ExtensionToolbar() {
                     {action.optionsUrl ? (
                       <DropdownMenuItem
                         icon={<Settings2Icon className="size-4" />}
-                        onSelect={() => openTab(action.optionsUrl!)}
+                        onSelect={() => void ipc("browser:openOptions", { id: action.id })}
                       >
                         Options
                       </DropdownMenuItem>

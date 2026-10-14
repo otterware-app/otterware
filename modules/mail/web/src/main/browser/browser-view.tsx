@@ -57,8 +57,7 @@ type Webview = HTMLElement & {
   openDevTools(): void;
 };
 
-/** The main process lets tabs into this session only (apps/desktop/src/services/browser.ts). */
-const PARTITION = "persist:browser";
+type BrowserConfig = { partition: string; webPreferences: string; preloadUrl: string };
 
 /**
  * Where a page that isn't showing waits: off to the side, still paintable. A
@@ -154,6 +153,8 @@ function BrowserPage({
   onNewChat: () => void;
 }) {
   const [view, setView] = useState<Webview | null>(null);
+  const [config, setConfig] = useState<BrowserConfig | null>(null);
+
   // The page's webContents id once it's attached: its tab id, to extensions.
   const [pageId, setPageId] = useState<number | null>(null);
   // The address the page opens at; later ones go through loadURL (a new src
@@ -161,6 +162,20 @@ function BrowserPage({
   const [src, setSrc] = useState(tab.url);
   const [history, setHistory] = useState({ back: false, forward: false });
   const [failure, setFailure] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    void mailBridge
+      .invoke<BrowserConfig>("browser:config")
+      .then((value) => {
+        if (active) setConfig(value);
+      })
+      .catch(() => {
+        if (active) setFailure("The host browser could not start.");
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
   const [crashed, setCrashed] = useState(false);
   const addressRequest = useBrowser((s) =>
     s.addressFocus?.tabId === tab.id ? s.addressFocus.seq : 0,
@@ -306,11 +321,13 @@ function BrowserPage({
         <PageMenu url={tab.url} onDevTools={view ? () => view.openDevTools() : undefined} />
       </div>
       <div className="relative flex min-h-0 flex-1 flex-col">
-        {src ? (
+        {src && config ? (
           <webview
             ref={(node) => setView(node as Webview | null)}
             src={src}
-            partition={PARTITION}
+            partition={config.partition}
+            preload={config.preloadUrl}
+            webpreferences={config.webPreferences}
             // An attribute Electron reads as the page attaches; React drops a
             // boolean for it, so it's the string.
             {...({ allowpopups: "true" } as unknown as { allowpopups?: boolean })}
