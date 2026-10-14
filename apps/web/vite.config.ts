@@ -85,7 +85,11 @@ const unitTestProject = {
     // run, those async tests can exceed Vitest's default 5s budget.
     hookTimeout: 15_000,
     testTimeout: 15_000,
-    setupFiles: ["../../packages/shared/src/testing/longTempDir.ts"],
+    setupFiles: [
+      "../../packages/shared/src/testing/longTempDir.ts",
+      // Otterware: upstream tests see the host without modules.
+      "./src/otterware/testing/hostOnlyModuleRegistry.ts",
+    ],
   },
 } satisfies TestProjectInlineConfiguration;
 

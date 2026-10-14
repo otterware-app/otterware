@@ -1,42 +1,79 @@
 /**
  * Command palette entries from the registry: "Go to <module>" for every
- * module page, plus each module's own commands (navigated to below its page).
- * `CommandPalette` adds them with one call.
+ * module page (with its app-switch shortcut in the combined profile), each
+ * module's own commands, and the Otterware Assistant toggle. `CommandPalette`
+ * adds them with one call.
  */
-import { modulePath } from "@otterware/module-kit/web";
+import {
+  APP_SWITCH_COMMANDS,
+  ASSISTANT_TOGGLE_COMMAND,
+  modulePath,
+  useShellSelection,
+} from "@otterware/module-kit/web";
+import type { KeybindingCommand } from "@t3tools/contracts";
 import type { useNavigate } from "@tanstack/react-router";
+import { MessagesSquareIcon } from "lucide-react";
 
 import type { CommandPaletteActionItem } from "../components/CommandPalette.logic";
 import { ITEM_ICON_CLASS } from "../components/CommandPalette.logic";
+import { ASSISTANT_LABEL } from "./ModulePageLayout";
 import { moduleRegistry } from "./registry";
+import { shellKind, SWITCHER_APPS, useShellAppStore } from "./shell";
+import { runModuleCommand } from "./shellKeybindings";
+
+const switchCommandFor = (moduleId: string): KeybindingCommand | undefined => {
+  if (shellKind !== "combined") return undefined;
+  const index = SWITCHER_APPS.indexOf(moduleId);
+  return index === -1 ? undefined : APP_SWITCH_COMMANDS[index];
+};
 
 export function moduleCommandPaletteItems(
   navigate: ReturnType<typeof useNavigate>,
 ): Array<CommandPaletteActionItem> {
-  return moduleRegistry.modules.flatMap((module): Array<CommandPaletteActionItem> => {
+  const items = moduleRegistry.modules.flatMap((module): Array<CommandPaletteActionItem> => {
     const Icon = module.icon;
-    const path = modulePath(module.id);
+    const shortcutCommand = switchCommandFor(module.id);
     return [
       {
         kind: "action",
         value: `action:module:${module.id}`,
-        searchTerms: ["go to", "open", ...module.searchTerms],
+        searchTerms: ["go to", "open", "switch", ...module.searchTerms],
         title: `Go to ${module.label}`,
         icon: <Icon className={ITEM_ICON_CLASS} />,
+        ...(shortcutCommand === undefined ? {} : { shortcutCommand }),
         run: async () => {
-          await navigate({ href: path });
+          await navigate({ href: modulePath(module.id) });
         },
       },
       ...module.commands.map((command): CommandPaletteActionItem => ({
         kind: "action",
-        value: `action:module:${module.id}:${command.id}`,
+        value: `action:module:${command.id}`,
         searchTerms: [module.label.toLowerCase(), ...command.searchTerms],
         title: command.title,
         icon: <Icon className={ITEM_ICON_CLASS} />,
-        run: async () => {
-          await navigate({ href: command.subpath ? `${path}/${command.subpath}` : path });
-        },
+        shortcutCommand: command.id as KeybindingCommand,
+        run: () => runModuleCommand(module.id, command, navigate),
       })),
     ];
   });
+  if (shellKind !== "code") {
+    items.push({
+      kind: "action",
+      value: "action:module:assistant.toggle",
+      searchTerms: ["assistant", "otterware", "chat", "side chat", "agent"],
+      title: `Toggle ${ASSISTANT_LABEL}`,
+      icon: <MessagesSquareIcon className={ITEM_ICON_CLASS} />,
+      shortcutCommand: ASSISTANT_TOGGLE_COMMAND,
+      run: async () => {
+        const module = moduleRegistry.byId(useShellAppStore.getState().activeApp);
+        if (module === null || !module.sideChat) return;
+        const selection = useShellSelection.getState();
+        selection.setAssistantOpen(
+          module.id,
+          !(selection.assistantOpenByModule[module.id] ?? false),
+        );
+      },
+    });
+  }
+  return items;
 }

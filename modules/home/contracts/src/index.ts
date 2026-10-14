@@ -63,6 +63,8 @@ export const HomeProject = Schema.Struct({
   /** A Lucide icon name; clients show a monogram when absent. */
   icon: Schema.optional(Schema.String),
   rules: HomeProjectRules,
+  /** Free-form notes on the project page; Account scope like the rest of the project. */
+  notes: Schema.optional(Schema.String),
   createdAt: IsoDateTime,
   updatedAt: IsoDateTime,
 });
@@ -179,6 +181,7 @@ export const HomeProjectInput = Schema.Struct({
   color: ProjectIconColor,
   icon: Schema.optional(Schema.String),
   rules: HomeProjectRules,
+  notes: Schema.optional(Schema.String.check(Schema.isMaxLength(20_000))),
 });
 export type HomeProjectInput = typeof HomeProjectInput.Type;
 

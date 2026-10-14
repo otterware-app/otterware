@@ -621,7 +621,7 @@ describe("ManagedRelayClient", () => {
       const relayClient = yield* ManagedRelay.ManagedRelayClient;
       const error = yield* relayClient
         .linkEnvironment({
-          clerkToken: "clerk-token",
+          accountToken: "account-token",
           payload: {
             proof: "link-proof",
             notificationsEnabled: true,

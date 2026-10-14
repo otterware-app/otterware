@@ -122,9 +122,20 @@ export const SCRIPT_RUN_COMMAND_PATTERN = Schema.TemplateLiteral([
   Schema.Literal(".run"),
 ]);
 
+// Otterware seam: shell and module commands, `<app>.<command>` (packages/module-kit/src/web/keybindings.ts).
+export const OTTERWARE_KEYBINDING_COMMAND_PATTERN = Schema.TemplateLiteral([
+  Schema.Literals(["app", "assistant", "home", "mail", "calendar", "drive"]),
+  Schema.Literal("."),
+  Schema.NonEmptyString.check(
+    Schema.isMaxLength(MAX_KEYBINDING_VALUE_LENGTH),
+    Schema.isPattern(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/),
+  ),
+]);
+
 export const KeybindingCommand = Schema.Union([
   Schema.Literals(STATIC_KEYBINDING_COMMANDS),
   SCRIPT_RUN_COMMAND_PATTERN,
+  OTTERWARE_KEYBINDING_COMMAND_PATTERN,
 ]);
 export type KeybindingCommand = typeof KeybindingCommand.Type;
 

@@ -2,11 +2,12 @@ import { CalendarWebModule as moduleDefinition } from "@otterware/composition/we
 import type { ModulePageProps } from "@otterware/module-kit/web";
 import { lazy } from "react";
 import { useLocation } from "@tanstack/react-router";
-import { ModulePageLayout } from "../ModulePageLayout";
 
 export const CalendarWebModule = {
   ...moduleDefinition,
-  backgroundRuntime: lazy(() => import("./CalendarBackgroundRuntime")),
+  stores: [
+    { id: "calendar.notifications", runtime: lazy(() => import("./CalendarBackgroundRuntime")) },
+  ],
   page: lazy(async () => {
     const [{ CalendarPage }, { CalendarEnvironmentProvider }] = await Promise.all([
       import("@otterware/composition/web/calendar/page"),
@@ -16,17 +17,15 @@ export const CalendarWebModule = {
       default: function CalendarHostPage(props: ModulePageProps) {
         const search = useLocation({ select: (location) => location.searchStr });
         return (
-          <ModulePageLayout moduleId="calendar">
-            <CalendarEnvironmentProvider>
-              <CalendarPage {...props} search={search} />
-            </CalendarEnvironmentProvider>
-          </ModulePageLayout>
+          <CalendarEnvironmentProvider>
+            <CalendarPage {...props} search={search} />
+          </CalendarEnvironmentProvider>
         );
       },
     };
   }),
-  settings: {
-    ...moduleDefinition.settings,
+  settings: moduleDefinition.settings.map((page) => ({
+    ...page,
     component: lazy(async () => {
       const [{ CalendarSettings }, { CalendarEnvironmentProvider }] = await Promise.all([
         import("@otterware/composition/web/calendar/settings"),
@@ -42,5 +41,5 @@ export const CalendarWebModule = {
         },
       };
     }),
-  },
+  })),
 };

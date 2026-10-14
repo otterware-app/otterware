@@ -42,7 +42,7 @@ import { Route as SettingsConnectionsRouteImport } from './routes/settings.conne
 import { Route as SettingsCodeIntelligenceRouteImport } from './routes/settings.code-intelligence'
 import { Route as SettingsArchivedRouteImport } from './routes/settings.archived'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings.appearance'
-import { Route as SettingsModuleIdRouteImport } from './routes/settings.$moduleId'
+import { Route as SettingsAccountRouteImport } from './routes/settings.account'
 import { Route as ProjectsProjectKeyRouteImport } from './routes/projects.$projectKey'
 import { Route as MailSplatRouteImport } from './routes/mail.$'
 import { Route as HomeSplatRouteImport } from './routes/home.$'
@@ -52,6 +52,7 @@ import { Route as AccountSignOutRouteImport } from './routes/account.sign-out'
 import { Route as AccountCallbackRouteImport } from './routes/account.callback'
 import { Route as ChatPullRequestsRouteImport } from './routes/_chat.pull-requests'
 import { Route as ChatNewRouteImport } from './routes/_chat.new'
+import { Route as SettingsModuleIdPageIdRouteImport } from './routes/settings.$moduleId.$pageId'
 import { Route as ChatDraftDraftIdRouteImport } from './routes/_chat.draft.$draftId'
 import { Route as ChatEnvironmentIdThreadIdRouteImport } from './routes/_chat.$environmentId.$threadId'
 
@@ -221,9 +222,9 @@ const SettingsAppearanceRoute = SettingsAppearanceRouteImport.update({
   path: '/appearance',
   getParentRoute: () => SettingsRoute,
 } as any)
-const SettingsModuleIdRoute = SettingsModuleIdRouteImport.update({
-  id: '/$moduleId',
-  path: '/$moduleId',
+const SettingsAccountRoute = SettingsAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
   getParentRoute: () => SettingsRoute,
 } as any)
 const ProjectsProjectKeyRoute = ProjectsProjectKeyRouteImport.update({
@@ -271,6 +272,11 @@ const ChatNewRoute = ChatNewRouteImport.update({
   path: '/new',
   getParentRoute: () => ChatRoute,
 } as any)
+const SettingsModuleIdPageIdRoute = SettingsModuleIdPageIdRouteImport.update({
+  id: '/$moduleId/$pageId',
+  path: '/$moduleId/$pageId',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const ChatDraftDraftIdRoute = ChatDraftDraftIdRouteImport.update({
   id: '/draft/$draftId',
   path: '/draft/$draftId',
@@ -304,7 +310,7 @@ export interface FileRoutesByFullPath {
   '/home/$': typeof HomeSplatRoute
   '/mail/$': typeof MailSplatRoute
   '/projects/$projectKey': typeof ProjectsProjectKeyRoute
-  '/settings/$moduleId': typeof SettingsModuleIdRoute
+  '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/archived': typeof SettingsArchivedRoute
   '/settings/code-intelligence': typeof SettingsCodeIntelligenceRoute
@@ -328,6 +334,7 @@ export interface FileRoutesByFullPath {
   '/home/': typeof HomeIndexRoute
   '/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
   '/draft/$draftId': typeof ChatDraftDraftIdRoute
+  '/settings/$moduleId/$pageId': typeof SettingsModuleIdPageIdRoute
 }
 export interface FileRoutesByTo {
   '/connect': typeof ConnectRoute
@@ -346,7 +353,7 @@ export interface FileRoutesByTo {
   '/home/$': typeof HomeSplatRoute
   '/mail/$': typeof MailSplatRoute
   '/projects/$projectKey': typeof ProjectsProjectKeyRoute
-  '/settings/$moduleId': typeof SettingsModuleIdRoute
+  '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/archived': typeof SettingsArchivedRoute
   '/settings/code-intelligence': typeof SettingsCodeIntelligenceRoute
@@ -371,6 +378,7 @@ export interface FileRoutesByTo {
   '/home': typeof HomeIndexRoute
   '/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
   '/draft/$draftId': typeof ChatDraftDraftIdRoute
+  '/settings/$moduleId/$pageId': typeof SettingsModuleIdPageIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -394,7 +402,7 @@ export interface FileRoutesById {
   '/home/$': typeof HomeSplatRoute
   '/mail/$': typeof MailSplatRoute
   '/projects/$projectKey': typeof ProjectsProjectKeyRoute
-  '/settings/$moduleId': typeof SettingsModuleIdRoute
+  '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/archived': typeof SettingsArchivedRoute
   '/settings/code-intelligence': typeof SettingsCodeIntelligenceRoute
@@ -419,6 +427,7 @@ export interface FileRoutesById {
   '/home/': typeof HomeIndexRoute
   '/_chat/$environmentId/$threadId': typeof ChatEnvironmentIdThreadIdRoute
   '/_chat/draft/$draftId': typeof ChatDraftDraftIdRoute
+  '/settings/$moduleId/$pageId': typeof SettingsModuleIdPageIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -443,7 +452,7 @@ export interface FileRouteTypes {
     | '/home/$'
     | '/mail/$'
     | '/projects/$projectKey'
-    | '/settings/$moduleId'
+    | '/settings/account'
     | '/settings/appearance'
     | '/settings/archived'
     | '/settings/code-intelligence'
@@ -467,6 +476,7 @@ export interface FileRouteTypes {
     | '/home/'
     | '/$environmentId/$threadId'
     | '/draft/$draftId'
+    | '/settings/$moduleId/$pageId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/connect'
@@ -485,7 +495,7 @@ export interface FileRouteTypes {
     | '/home/$'
     | '/mail/$'
     | '/projects/$projectKey'
-    | '/settings/$moduleId'
+    | '/settings/account'
     | '/settings/appearance'
     | '/settings/archived'
     | '/settings/code-intelligence'
@@ -510,6 +520,7 @@ export interface FileRouteTypes {
     | '/home'
     | '/$environmentId/$threadId'
     | '/draft/$draftId'
+    | '/settings/$moduleId/$pageId'
   id:
     | '__root__'
     | '/_chat'
@@ -532,7 +543,7 @@ export interface FileRouteTypes {
     | '/home/$'
     | '/mail/$'
     | '/projects/$projectKey'
-    | '/settings/$moduleId'
+    | '/settings/account'
     | '/settings/appearance'
     | '/settings/archived'
     | '/settings/code-intelligence'
@@ -557,6 +568,7 @@ export interface FileRouteTypes {
     | '/home/'
     | '/_chat/$environmentId/$threadId'
     | '/_chat/draft/$draftId'
+    | '/settings/$moduleId/$pageId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -809,11 +821,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SettingsAppearanceRouteImport
       parentRoute: typeof SettingsRoute
     }
-    '/settings/$moduleId': {
-      id: '/settings/$moduleId'
-      path: '/$moduleId'
-      fullPath: '/settings/$moduleId'
-      preLoaderRoute: typeof SettingsModuleIdRouteImport
+    '/settings/account': {
+      id: '/settings/account'
+      path: '/account'
+      fullPath: '/settings/account'
+      preLoaderRoute: typeof SettingsAccountRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/projects/$projectKey': {
@@ -878,6 +890,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/new'
       preLoaderRoute: typeof ChatNewRouteImport
       parentRoute: typeof ChatRoute
+    }
+    '/settings/$moduleId/$pageId': {
+      id: '/settings/$moduleId/$pageId'
+      path: '/$moduleId/$pageId'
+      fullPath: '/settings/$moduleId/$pageId'
+      preLoaderRoute: typeof SettingsModuleIdPageIdRouteImport
+      parentRoute: typeof SettingsRoute
     }
     '/_chat/draft/$draftId': {
       id: '/_chat/draft/$draftId'
@@ -963,7 +982,7 @@ const MailRouteChildren: MailRouteChildren = {
 const MailRouteWithChildren = MailRoute._addFileChildren(MailRouteChildren)
 
 interface SettingsRouteChildren {
-  SettingsModuleIdRoute: typeof SettingsModuleIdRoute
+  SettingsAccountRoute: typeof SettingsAccountRoute
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
   SettingsArchivedRoute: typeof SettingsArchivedRoute
   SettingsCodeIntelligenceRoute: typeof SettingsCodeIntelligenceRoute
@@ -982,10 +1001,11 @@ interface SettingsRouteChildren {
   SettingsSnapShotRoute: typeof SettingsSnapShotRoute
   SettingsSourceControlRoute: typeof SettingsSourceControlRoute
   SettingsStorageRoute: typeof SettingsStorageRoute
+  SettingsModuleIdPageIdRoute: typeof SettingsModuleIdPageIdRoute
 }
 
 const SettingsRouteChildren: SettingsRouteChildren = {
-  SettingsModuleIdRoute: SettingsModuleIdRoute,
+  SettingsAccountRoute: SettingsAccountRoute,
   SettingsAppearanceRoute: SettingsAppearanceRoute,
   SettingsArchivedRoute: SettingsArchivedRoute,
   SettingsCodeIntelligenceRoute: SettingsCodeIntelligenceRoute,
@@ -1004,6 +1024,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsSnapShotRoute: SettingsSnapShotRoute,
   SettingsSourceControlRoute: SettingsSourceControlRoute,
   SettingsStorageRoute: SettingsStorageRoute,
+  SettingsModuleIdPageIdRoute: SettingsModuleIdPageIdRoute,
 }
 
 const SettingsRouteWithChildren = SettingsRoute._addFileChildren(

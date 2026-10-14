@@ -1,13 +1,8 @@
 /**
- * Home's pages: the day overview, the full needs-you list, agents, one
- * cross-app project, and one saved view. Each publishes page context, so a
- * thread started from here knows where the user was.
+ * Home's pages: the day overview, the full needs-you list, agents, and one
+ * saved view (the cross-app project page is `HomeProjectPage.tsx`).
  */
-import type {
-  HomeOverview,
-  HomeProject,
-  HomeProjectSummary,
-} from "@otterware/composition/contracts";
+import type { HomeOverview, HomeProjectSummary } from "@otterware/composition/contracts";
 import { useNavigate } from "@tanstack/react-router";
 import * as Schema from "effect/Schema";
 import {
@@ -35,7 +30,7 @@ import { AgentsCard, useAgentEntries } from "./AgentsCard";
 import { isThisBrowser } from "../browser/moduleEndpoint";
 import { BrowserChat } from "../browser/chat/BrowserChat";
 import { HomeComposer } from "./HomeComposer";
-import { useHomeDialogs } from "./HomeSidebar";
+import { useHomeDialogs } from "./homeShell";
 import {
   formatRelativeMinutes,
   HOME_MODULES,
@@ -326,129 +321,6 @@ export function HomeAgentsPage() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 px-6 py-6 lg:px-8">
       <AgentsCard entries={agents} actions={actions} />
     </div>
-  );
-}
-
-function ProjectRuleSummary({ project }: { readonly project: HomeProject }) {
-  const { rules } = project;
-  const parts = [
-    rules.code.projectIds.length > 0 ? `${rules.code.projectIds.length} Code project(s)` : null,
-    ...rules.mail.domains,
-    ...rules.mail.senders,
-    ...rules.mail.labels.map((label) => `label ${label}`),
-    ...rules.calendar.keywords.map((keyword) => `“${keyword}” events`),
-    ...rules.drive.folderSlugs.map((folder) => `/${folder.replace(/^\/+/, "")}`),
-  ].filter((part): part is string => part !== null);
-  return (
-    <p className="text-muted-foreground text-sm">
-      {parts.length === 0
-        ? "No rules yet: edit the project to choose what belongs to it."
-        : parts.join(" · ")}
-    </p>
-  );
-}
-
-export function HomeProjectPage({ projectId }: { readonly projectId: string }) {
-  const state = useHomeOverview({ projectId });
-  const nowMs = useMinuteClock();
-  const actions = useHomeActions(state.environmentId, state.refresh);
-  const dialogs = useHomeDialogs();
-  const summary = state.overview?.projects.find((entry) => entry.project.id === projectId) ?? null;
-
-  return (
-    <HomeFrame state={state}>
-      {(overview) =>
-        summary === null ? (
-          <Empty className="flex-1">
-            <EmptyHeader>
-              <EmptyTitle>Project not found</EmptyTitle>
-              <EmptyDescription>It may have been deleted.</EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        ) : (
-          <div className="flex min-h-full flex-col">
-            <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-5 px-6 pt-6 pb-4 lg:px-8">
-              <div className="flex items-start gap-3">
-                <HomeProjectMonogram project={summary.project} className="mt-1 size-6" />
-                <div className="min-w-0 flex-1">
-                  <h1 className="truncate font-semibold text-xl tracking-tight">
-                    {summary.project.name}
-                  </h1>
-                  <ProjectRuleSummary project={summary.project} />
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => dialogs.openProject({ project: summary.project })}
-                >
-                  <PencilIcon />
-                  Edit
-                </Button>
-              </div>
-              <HomeCard.Root aria-label="Pulse">
-                <PulseTiles summary={summary} />
-              </HomeCard.Root>
-              {overview.today.length > 0 ? (
-                <TodayStrip
-                  events={overview.today}
-                  calendarConnected={calendarConnected(overview)}
-                  nowMs={nowMs}
-                  actions={actions}
-                />
-              ) : null}
-              {HOME_MODULES.map((module) => {
-                const items = overview.items.filter((item) => item.module === module.id);
-                if (items.length === 0) return null;
-                return (
-                  <NeedsYouCard
-                    key={module.id}
-                    title={module.label}
-                    detail={`${items.length} need${items.length === 1 ? "s" : ""} you`}
-                    items={items}
-                    projects={[]}
-                    actions={actions}
-                  />
-                );
-              })}
-              {overview.items.length === 0 ? (
-                <NeedsYouCard
-                  items={[]}
-                  projects={[]}
-                  actions={actions}
-                  emptyTitle="Nothing in this project needs you"
-                  emptyDescription="Items from its Code projects, senders, calendars and folders show up here."
-                />
-              ) : null}
-              {overview.suggestions.length > 0 ? (
-                <SuggestionsCard
-                  suggestions={overview.suggestions}
-                  nowMs={nowMs}
-                  actions={actions}
-                />
-              ) : null}
-            </div>
-            {isThisBrowser(state.environmentId) ? (
-              <div className="mx-auto w-full max-w-5xl px-6 pb-5 lg:px-8">
-                <BrowserChat
-                  className="max-h-[32rem]"
-                  context={`Cross-app project: ${summary?.project.name ?? projectId}`}
-                />
-              </div>
-            ) : state.environmentId !== null ? (
-              <div className="sticky bottom-0 z-10 mx-auto w-full max-w-5xl px-6 pb-5 lg:px-8">
-                <HomeComposer
-                  key={projectId}
-                  environmentId={state.environmentId}
-                  projects={overview.projects.map((entry) => entry.project)}
-                  initialProjectId={projectId}
-                  actions={actions}
-                />
-              </div>
-            ) : null}
-          </div>
-        )
-      }
-    </HomeFrame>
   );
 }
 

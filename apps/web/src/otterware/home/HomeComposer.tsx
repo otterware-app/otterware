@@ -9,7 +9,7 @@ import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId, ModelSelection, ProviderInstanceId } from "@t3tools/contracts";
 import type { HomeItemModule, HomeProject } from "@otterware/composition/contracts";
 import { ArrowUpIcon, CheckIcon, FolderCodeIcon, LayersIcon } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { ComposerControl, ComposerControlChevron } from "../../components/chat/ComposerControl";
 import { ComposerSurface } from "../../components/chat/ComposerSurface";
@@ -38,13 +38,20 @@ export function HomeComposer({
   projects,
   initialProjectId = null,
   actions,
+  focusSignal,
 }: {
   readonly environmentId: EnvironmentId;
   readonly projects: ReadonlyArray<HomeProject>;
   readonly initialProjectId?: string | null;
   readonly actions: ReturnType<typeof useHomeActions>;
+  /** Changes when the page's "New thread" is pressed: the prompt takes focus. */
+  readonly focusSignal?: number;
 }) {
   const [prompt, setPrompt] = useState("");
+  const promptRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (focusSignal) promptRef.current?.focus();
+  }, [focusSignal]);
   const [projectId, setProjectId] = useState<string | null>(initialProjectId);
   const [modules, setModules] = useState<ReadonlySet<HomeItemModule>>(new Set());
   // undefined follows the cross-app project; null explicitly selects the Assistant.
@@ -130,6 +137,7 @@ export function HomeComposer({
             }}
           >
             <textarea
+              ref={promptRef}
               aria-label="Ask Otter or start something"
               className="field-sizing-content max-h-48 min-h-11 w-full resize-none bg-transparent px-1 py-1 text-base outline-none placeholder:text-muted-foreground/70 sm:text-sm"
               placeholder="Ask Otter or start something: “reply to Christophe, then open a thread to add CORS for the desktop origin”"

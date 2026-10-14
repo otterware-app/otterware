@@ -265,9 +265,13 @@ function AppFramePanelEdge() {
   );
 }
 
-// Otterware seam: persistent pages and profile visibility live outside the host.
+// Otterware seam: module pages, their host sidebar, the shell's app tracking
+// and keybindings live outside the host (docs/internals/modules.md).
 import { ModulePagesHost } from "../otterware/ModulePagesHost";
+import { ModuleSidebar } from "../otterware/ModuleSidebar";
 import { moduleRegistry } from "../otterware/registry";
+import { ShellAppTracker, shellOwner } from "../otterware/shell";
+import { ShellKeybindings } from "../otterware/shellKeybindings";
 import { activeProfile } from "@otterware/profiles/active";
 
 export function AppSidebarLayout({ children }: { children: ReactNode }) {
@@ -288,12 +292,19 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
   // with the rail inside it.
   const frame = useAppFrame();
   const railWidth = frame ? SPACE_RAIL_WIDTH : 0;
+  // A module page shows the module's own rows in the host sidebar; a module
+  // without rows yet has no sidebar. Inside a cross-app project, Home owns it.
+  const moduleLocation = moduleRegistry.forPath(pathname);
+  const moduleSidebarOwner =
+    moduleLocation === null ? null : moduleRegistry.byId(shellOwner(moduleLocation));
+  const hasModuleSidebar = moduleSidebarOwner?.useSidebar !== undefined;
   // Full-width pages: the rail is their way out, so phones (rail in the sheet) keep the sidebar.
   const sidebarHidden =
     !isOnSettings &&
-    (!activeProfile.codeVisible ||
-      moduleRegistry.isModulePath(pathname) ||
-      (frame !== null && (pathname === "/usage" || pathname === "/pull-requests")));
+    (moduleLocation !== null
+      ? !hasModuleSidebar
+      : !activeProfile.codeVisible ||
+        (frame !== null && (pathname === "/usage" || pathname === "/pull-requests")));
   const [sidebarWidth, setSidebarWidth] = useState(readInitialThreadSidebarWidth);
   // Subscribed rather than read once: the clamp must track live window size,
   // and a clamped drag ends with an unchanged width, which skips the re-render
@@ -367,12 +378,21 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
           </SidebarChromeHeader>
           <SettingsSidebarNav pathname={pathname} />
         </>
+      ) : moduleLocation !== null && moduleSidebarOwner !== null && hasModuleSidebar ? (
+        <ModuleSidebar owner={moduleSidebarOwner} location={moduleLocation} />
       ) : legacySidebarEnabled ? (
         <LegacyThreadSidebar />
       ) : (
         <ThreadSidebar />
       ),
-    [isOnSettings, legacySidebarEnabled, pathname],
+    [
+      hasModuleSidebar,
+      isOnSettings,
+      legacySidebarEnabled,
+      moduleLocation,
+      moduleSidebarOwner,
+      pathname,
+    ],
   );
 
   useEffect(() => {
@@ -417,7 +437,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
             collapsible="offcanvas"
             data-app-sidebar=""
             role="navigation"
-            aria-label={isOnSettings ? "Settings" : "Threads"}
+            aria-label={isOnSettings ? "Settings" : (moduleSidebarOwner?.label ?? "Threads")}
             resizable={{
               maxWidth: sidebarMaximumWidth,
               minWidth: sidebarMinimumWidth,
@@ -439,6 +459,8 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
         {sidebarHidden ? null : <SidebarControl />}
         <NavigationHistoryShortcuts />
         <MainAppLocationTracker />
+        <ShellAppTracker />
+        <ShellKeybindings />
       </SidebarProvider>
     </PanelAnimationSuppressionProvider>
   );

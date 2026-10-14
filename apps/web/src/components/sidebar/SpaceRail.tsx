@@ -9,7 +9,7 @@ import { ProfileLogo } from "../../otterware/ProfileLogo";
  */
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import { ChartNoAxesColumnIcon, LayersIcon, MessagesSquareIcon, SettingsIcon } from "lucide-react";
-import { memo, type ReactNode } from "react";
+import { memo, type MouseEvent, type ReactNode } from "react";
 
 import { useLegacySidebarEnabled } from "../../hooks/useSettings";
 import { useProjectGroups } from "../../hooks/useProjectSpace";
@@ -31,9 +31,15 @@ const RAIL_BUTTON =
   "relative flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-sidebar-muted-foreground outline-hidden ring-ring hover:bg-sidebar-row-hover hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-inset [-webkit-app-region:no-drag]";
 const RAIL_BUTTON_SELECTED = "bg-sidebar-row-selected text-sidebar-foreground";
 
-// Otterware seam: registry rail entries surround the hide-only Code surfaces.
-import { ModuleRailButtons } from "../../otterware/ModuleRailButtons";
+// Otterware seam: Home, the app switcher, module spaces and pins come from the shell registry.
+import {
+  AppSwitcher,
+  HomeRailButton,
+  ModuleSpaceButtons,
+  RailPinButtons,
+} from "../../otterware/ShellRail";
 import { moduleRegistry } from "../../otterware/registry";
+import { shellKind, useShellApp } from "../../otterware/shell";
 import { activeProfile } from "@otterware/profiles/active";
 
 type RailPlace = "settings" | "usage" | "pull-requests" | "threads" | "module";
@@ -49,11 +55,13 @@ function RailButton({
   label,
   selected = false,
   onClick,
+  onContextMenu,
   children,
 }: {
   label: string;
   selected?: boolean;
   onClick: () => void;
+  onContextMenu?: (event: MouseEvent<HTMLButtonElement>) => void;
   children: ReactNode;
 }) {
   return (
@@ -65,6 +73,7 @@ function RailButton({
             aria-label={label}
             aria-current={selected ? "page" : undefined}
             onClick={onClick}
+            onContextMenu={onContextMenu}
             className={cn(RAIL_BUTTON, selected && RAIL_BUTTON_SELECTED)}
           />
         }
@@ -85,6 +94,9 @@ export const SpaceRail = memo(function SpaceRail({ className }: { className?: st
   const navigateToMainApp = useNavigateToMainApp();
   const { isMobile, open, setOpen, setOpenMobile } = useSidebar();
   const place = useLocation({ select: (location) => railPlace(location.pathname) });
+  // The app whose spaces the rail shows; Code's own items stay as they are.
+  const activeApp = useShellApp();
+  const activeModule = activeApp === "code" ? null : moduleRegistry.byId(activeApp);
   const pullRequestsSupported = usePullRequestsSupported();
   // The legacy sidebar groups threads by project itself and ignores the scope.
   const legacySidebarEnabled = useLegacySidebarEnabled();
@@ -104,7 +116,7 @@ export const SpaceRail = memo(function SpaceRail({ className }: { className?: st
     if (!isMobile && !open) void setOpen(true);
     if (place !== "threads") void navigateToMainApp();
   };
-  const threadsShowing = place === "threads";
+  const threadsShowing = place === "threads" && activeApp === "code";
 
   return (
     <nav
@@ -129,8 +141,15 @@ export const SpaceRail = memo(function SpaceRail({ className }: { className?: st
         >
           <ProfileLogo className="size-7" />
         </div>
-        <ModuleRailButtons position="start" button={RailButton} />
-        {!activeProfile.codeVisible || legacySidebarEnabled ? null : (
+        {shellKind === "combined" ? (
+          <>
+            <HomeRailButton button={RailButton} />
+            <AppSwitcher button={RailButton} />
+            <RailDivider />
+          </>
+        ) : null}
+        {activeModule ? <ModuleSpaceButtons module={activeModule} button={RailButton} /> : null}
+        {activeApp !== "code" || !activeProfile.codeVisible || legacySidebarEnabled ? null : (
           <>
             <RailButton
               label="All projects"
@@ -165,7 +184,7 @@ export const SpaceRail = memo(function SpaceRail({ className }: { className?: st
             })}
           </>
         )}
-        {activeProfile.codeVisible && pullRequestsSupported ? (
+        {activeApp === "code" && activeProfile.codeVisible && pullRequestsSupported ? (
           <>
             <RailDivider />
             <RailButton
@@ -180,7 +199,9 @@ export const SpaceRail = memo(function SpaceRail({ className }: { className?: st
             </RailButton>
           </>
         ) : null}
-        <ModuleRailButtons position="end" button={RailButton} divider={<RailDivider />} />
+        {shellKind === "combined" ? (
+          <RailPinButtons button={RailButton} divider={<RailDivider />} />
+        ) : null}
       </div>
       <div className="flex shrink-0 flex-col items-center gap-1 pt-1">
         <SidebarUpdatePill />
