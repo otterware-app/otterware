@@ -17,6 +17,7 @@
     "@napi-rs/keyring": "^1.3.0",
     "@otterware/calendar-contracts": "workspace:*",
     "@otterware/calendar-node": "workspace:*",
+    "@otterware/module-kit": "workspace:*",
     "@otterware/profiles": "workspace:*",
     "@t3tools/client-runtime": "workspace:*",
     "@t3tools/contracts": "workspace:*",

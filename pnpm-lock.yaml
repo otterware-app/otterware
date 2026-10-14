@@ -207,6 +207,9 @@ importers:
       '@otterware/calendar-node':
         specifier: workspace:*
         version: link:../../modules/calendar/node
+      '@otterware/module-kit':
+        specifier: workspace:*
+        version: link:../../packages/module-kit
       '@otterware/profiles':
         specifier: workspace:*
         version: link:../../profiles
