@@ -39,7 +39,7 @@ export const useCalendarStore = createClientStore<
     restore: (caches) => ({ caches }),
   },
 );
-export const calendarCache = (environment: string | null) =>
+const calendarCache = (environment: string | null) =>
   environment ? (useCalendarStore.getState().caches[environment] ?? empty) : empty;
 export function setCalendarCache(environment: string, patch: Partial<Cache>) {
   useCalendarStore.setState((state) => ({

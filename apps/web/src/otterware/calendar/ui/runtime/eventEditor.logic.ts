@@ -28,7 +28,7 @@ import {
   weekday,
 } from "@otterware/calendar-contracts/time";
 
-export const TIME_STEP_MINUTES = 15;
+const TIME_STEP_MINUTES = 15;
 
 // ── Typed times ──────────────────────────────────────────────────────
 

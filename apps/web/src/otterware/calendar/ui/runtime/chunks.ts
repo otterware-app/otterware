@@ -26,12 +26,12 @@ function chunkMonday(utcDay: DayNumber): DayNumber {
 }
 
 /** The chunk key (`YYYY-MM-DD` of its Monday) of a UTC day. */
-export function chunkKey(utcDay: DayNumber): string {
+function chunkKey(utcDay: DayNumber): string {
   return formatDayNumber(chunkMonday(utcDay));
 }
 
 /** The chunk's instant range [start, end) in epoch ms; null for a malformed key. */
-export function chunkRange(week: string): { readonly start: number; readonly end: number } | null {
+function chunkRange(week: string): { readonly start: number; readonly end: number } | null {
   const monday = parseDayNumber(week);
   if (monday === null) return null;
   return { start: monday * DAY_MS, end: (monday + 7) * DAY_MS };
@@ -65,7 +65,7 @@ export function chunkWeeksForDays(
 }
 
 /** The `count` chunks before and after a run of chunk keys, for prefetching. */
-export function neighbourChunkWeeks(
+function neighbourChunkWeeks(
   weeks: ReadonlyArray<string>,
   count = 1,
 ): { readonly before: string[]; readonly after: string[] } {

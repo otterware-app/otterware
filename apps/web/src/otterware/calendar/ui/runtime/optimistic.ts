@@ -58,7 +58,7 @@ export interface OptimisticState {
 }
 
 const EMPTY_KEYS: ReadonlySet<string> = new Set();
-export const EMPTY_OPTIMISTIC_STATE: OptimisticState = { entries: [], pendingKeys: EMPTY_KEYS };
+const EMPTY_OPTIMISTIC_STATE: OptimisticState = { entries: [], pendingKeys: EMPTY_KEYS };
 
 function stateOf(entries: ReadonlyArray<OptimisticEntry>): OptimisticState {
   if (entries.length === 0) return EMPTY_OPTIMISTIC_STATE;
@@ -226,7 +226,7 @@ export function parseEventTimeInput(
 }
 
 /** An instance moved to a new range, keeping everything else. */
-export function withRange(
+function withRange(
   instance: CalendarEventInstance,
   range: { readonly start: number; readonly end: number; readonly allDay: boolean },
 ): CalendarEventInstance {
@@ -239,12 +239,12 @@ export function withRange(
 let pendingEventCounter = 0;
 
 /** A temporary id for an event being created; the server's own instance replaces it. */
-export function pendingEventId(): string {
+function pendingEventId(): string {
   pendingEventCounter += 1;
   return `pending-${pendingEventCounter}`;
 }
 
-export function isPendingEventId(eventId: string): boolean {
+function isPendingEventId(eventId: string): boolean {
   return eventId.startsWith("pending-");
 }
 

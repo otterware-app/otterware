@@ -47,7 +47,7 @@ async function fetchDocuments(folderId: string, status: DocumentStatus): Promise
   );
 }
 
-export function documentsQuery(folderId: string, status: DocumentStatus) {
+function documentsQuery(folderId: string, status: DocumentStatus) {
   const stored = readSessionCache<Artifact[]>(storageKey(folderId, status), 60_000);
   return {
     queryKey: documentsQueryKey(folderId, status),
@@ -72,7 +72,7 @@ export function useDocuments(folderId: string | undefined, status: DocumentStatu
 // Views and kinds: the sidebar's rows, kept in the URL (routes/_app.tsx).
 // ---------------------------------------------------------------------------
 
-export const DOCUMENT_KINDS = [
+const DOCUMENT_KINDS = [
   "documents",
   "spreadsheets",
   "pages",

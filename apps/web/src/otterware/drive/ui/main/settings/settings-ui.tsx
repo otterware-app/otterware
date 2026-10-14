@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 export { SettingsRow, SettingsSection } from "~/components/settings/settingsLayout";
-export { SettingsGroup } from "~/components/settings/SettingsGroup";
 export function SettingsPageContainer({
   title,
   description,

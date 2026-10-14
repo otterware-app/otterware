@@ -694,7 +694,7 @@ function DocumentRow({
   );
 }
 
-export function DocumentListSkeleton() {
+function DocumentListSkeleton() {
   return (
     <div className="flex flex-col" aria-hidden>
       {Array.from({ length: 8 }, (_, index) => (

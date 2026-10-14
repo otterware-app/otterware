@@ -1,5 +1,5 @@
 import { instanceKey, sameInstance } from "@otterware/calendar-contracts";
-export { instanceKey, sameInstance } from "@otterware/calendar-contracts";
+export { sameInstance } from "@otterware/calendar-contracts";
 /**
  * Which days a calendar view shows, and which events fall on them.
  *
@@ -198,7 +198,7 @@ export interface DayBuckets {
 }
 
 /** Local day range [firstDay, lastDay] an instance covers, and whether it is drawn as a span. */
-export function instanceDays(
+function instanceDays(
   instance: CalendarEventInstance,
   timeZone: string,
 ): { readonly firstDay: DayNumber; readonly lastDay: DayNumber; readonly span: SpanKind | null } {

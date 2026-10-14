@@ -16,7 +16,7 @@ export type HourFormat = CalendarPreferences["hourFormat"];
 let calendarLocale: string | undefined;
 
 /** Sets the locale for every label (defaults to the runtime's); clears the formatter cache. */
-export function setCalendarLocale(locale: string | undefined): void {
+function setCalendarLocale(locale: string | undefined): void {
   calendarLocale = locale;
   formatters.clear();
   twelveHourCache.clear();
@@ -44,7 +44,7 @@ function hourCycleOptions(hourFormat: HourFormat): Intl.DateTimeFormatOptions {
 const twelveHourCache = new Map<HourFormat, boolean>();
 
 /** Whether times show a day period (AM/PM) under this preference and locale. */
-export function usesTwelveHour(hourFormat: HourFormat): boolean {
+function usesTwelveHour(hourFormat: HourFormat): boolean {
   let twelve = twelveHourCache.get(hourFormat);
   if (twelve === undefined) {
     const cycle = formatter({
@@ -138,7 +138,7 @@ export function formatTime(ms: number, zone: string, hourFormat: HourFormat): st
 }
 
 /** A wall-clock time from minutes after midnight (zone-free): "9:30 AM" or "09:30". */
-export function formatMinutes(minutes: number, hourFormat: HourFormat): string {
+function formatMinutes(minutes: number, hourFormat: HourFormat): string {
   return formatTime(Math.round(minutes) * MINUTE_MS, "UTC", hourFormat);
 }
 
@@ -159,7 +159,7 @@ export function formatTimeRange(
 }
 
 /** `formatTimeRange` for wall-clock minutes (zone-free), e.g. for a drag preview. */
-export function formatMinutesRange(
+function formatMinutesRange(
   startMinutes: number,
   endMinutes: number,
   hourFormat: HourFormat,
@@ -173,7 +173,7 @@ export function formatMinutesRange(
 }
 
 /** "30 min", "1 hr", "1 hr 45 min", "1 day", "3 days". */
-export function formatDuration(minutes: number): string {
+function formatDuration(minutes: number): string {
   const total = Math.max(0, Math.round(minutes));
   if (total >= 1440 && total % 1440 === 0) {
     const days = total / 1440;
@@ -232,7 +232,7 @@ export function formatLongDate(day: DayNumber): string {
 }
 
 /** "September 2026". */
-export function formatMonthTitle(day: DayNumber): string {
+function formatMonthTitle(day: DayNumber): string {
   return formatter({ month: "long", year: "numeric", timeZone: "UTC" }).format(dayMs(day));
 }
 
@@ -247,7 +247,7 @@ export function formatMonthCellDate(day: DayNumber, withMonth: boolean): string 
  * A toolbar title for days [first, last]: "Sep 28 – Oct 4, 2026", "Oct 5 – 11, 2026",
  * "Dec 28, 2026 – Jan 3, 2027", or "Sep 30, 2026" for one day.
  */
-export function formatRangeTitle(first: DayNumber, last: DayNumber): string {
+function formatRangeTitle(first: DayNumber, last: DayNumber): string {
   const format = formatter({ month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
   if (last <= first) return format.format(dayMs(first));
   // Hermes may lack formatRange; the fallback repeats the year.
@@ -301,7 +301,7 @@ export function formatResponse(instance: CalendarEventInstance): string | null {
 }
 
 /** A screen-reader label: "Standup, Wed, Sep 30, 9 – 9:30 AM, Room 3, Maybe". */
-export function formatEventLabel(
+function formatEventLabel(
   instance: CalendarEventInstance,
   zone: string,
   hourFormat: HourFormat,
