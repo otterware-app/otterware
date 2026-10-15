@@ -28,6 +28,15 @@ import { EventEditor } from "./EventEditor.tsx";
 import { monthViewWeeks, timeGridDays, stepAnchor, type CalendarViewKind } from "./runtime/days.ts";
 import { calendarCommands } from "./calendarStore";
 import { Button } from "~/components/ui/button";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "~/components/ui/empty";
+import { CalendarDaysIcon } from "lucide-react";
 import { Input } from "~/components/ui/input";
 import { useModulePageFrameOverrides } from "../../ModulePageLayout";
 import { MonthGrid } from "./grid/MonthGrid.tsx";
@@ -403,14 +412,32 @@ export default function CalendarPage({
         </p>
       )}
       <div className="flex min-h-0 flex-1">
-        <main className="flex min-h-0 min-w-0 flex-1" aria-busy={loading || busy}>
+        <main className="flex min-h-0 min-w-0 flex-1 flex-col" aria-busy={loading || busy}>
           {!directory ? (
-            <p role="status">Loading calendars…</p>
-          ) : directory.accounts.length === 0 ? (
-            <p>
-              Connect Google in <a href="/settings/connections">Connections</a>, or add demo
-              calendars there.
+            <p role="status" className="sr-only">
+              Loading calendars…
             </p>
+          ) : directory.accounts.length === 0 ? (
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <CalendarDaysIcon />
+                </EmptyMedia>
+                <EmptyTitle>No calendars yet</EmptyTitle>
+                <EmptyDescription>
+                  Connect Google in Connections, or add demo calendars there.
+                </EmptyDescription>
+              </EmptyHeader>
+              <EmptyContent>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void navigate({ to: "/settings/connections" })}
+                >
+                  Open Connections
+                </Button>
+              </EmptyContent>
+            </Empty>
           ) : view === "month" ? (
             <MonthGrid
               {...common}

@@ -15,6 +15,8 @@ import {
   CALENDAR_NOTIFICATION_DEVICE_KEY,
 } from "./CalendarNotifications.tsx";
 
+const OAUTH_CLIENT_FORM = "calendar-oauth-client";
+
 export default function CalendarSettings({
   page = "calendar",
 }: {
@@ -91,66 +93,134 @@ export default function CalendarSettings({
   const save = (patch: Parameters<typeof client.preferences>[0]) =>
     void run(() => client.preferences(patch));
   const disabled = !canWrite || busy;
-  return (
-    <div className="space-y-6">
-      {(error ?? directoryError) && <p role="alert">{error ?? directoryError}</p>}
-      {page === "connections" && (
-        <>
-          <section className="space-y-3">
-            {flow?._tag === "waiting" && (
-              <div>
-                <p>
-                  {flow.flowId.startsWith("cloud:")
-                    ? "Google will connect through your Otter Account. Return here after signing in."
-                    : "Open Google sign-in. If the browser is on another machine, paste its final loopback address here."}
-                </p>
-                <a href={flow.authorizationUrl} target="_blank" rel="noreferrer">
+  const closeFlow = () => {
+    cancelFlow.current?.();
+    cancelFlow.current = null;
+    setFlow(null);
+  };
+  const alert = (error ?? directoryError) && (
+    <p role="alert" className="px-4 py-2 text-sm text-destructive">
+      {error ?? directoryError}
+    </p>
+  );
+  // Connections merges into the host page's card, so its rows are the card's own children.
+  if (page === "connections")
+    return (
+      <>
+        {alert}
+        {flow?._tag === "waiting" && (
+          <SettingsRow
+            title="Google sign-in"
+            description={
+              flow.flowId.startsWith("cloud:")
+                ? "Google will connect through your Otter Account. Return here after signing in."
+                : "Open Google sign-in. If the browser is on another machine, paste its final loopback address below."
+            }
+            control={
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  render={<a href={flow.authorizationUrl} target="_blank" rel="noreferrer" />}
+                >
                   Open Google sign-in
-                </a>
-                {!flow.flowId.startsWith("cloud:") && (
-                  <form
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      void run(() => client.completeConnect(flow.flowId, callback));
-                    }}
-                  >
-                    <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-                      Callback address
-                      <Input
-                        value={callback}
-                        onChange={(event) => setCallback(event.target.value)}
-                        required
-                      />
-                    </label>
-                    <Button type="submit" disabled={!canWrite || busy}>
-                      Finish connection
-                    </Button>
-                  </form>
-                )}
+                </Button>
+                <Button size="sm" variant="outline" onClick={closeFlow}>
+                  Cancel
+                </Button>
               </div>
-            )}
-            {flow?._tag === "succeeded" && <p role="status">Connected {flow.email}.</p>}
-            {flow?._tag === "failed" && <p role="alert">{flow.message}</p>}
-            {flow && (
-              <Button
-                type="button"
-                onClick={() => {
-                  cancelFlow.current?.();
-                  cancelFlow.current = null;
-                  setFlow(null);
+            }
+          />
+        )}
+        {flow?._tag === "waiting" && !flow.flowId.startsWith("cloud:") && (
+          <SettingsRow
+            title="Callback address"
+            control={
+              <form
+                className="flex gap-2"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void run(() => client.completeConnect(flow.flowId, callback));
                 }}
               >
-                Close sign-in
+                <Input
+                  size="sm"
+                  aria-label="Callback address"
+                  value={callback}
+                  onChange={(event) => setCallback(event.target.value)}
+                  required
+                />
+                <Button size="sm" type="submit" disabled={disabled}>
+                  Finish
+                </Button>
+              </form>
+            }
+          />
+        )}
+        {flow?._tag === "succeeded" && (
+          <SettingsRow
+            title={`Connected ${flow.email}`}
+            control={
+              <Button size="sm" variant="outline" onClick={closeFlow}>
+                Done
               </Button>
-            )}
-          </section>
-          <section className="space-y-3">
-            <h2>Local Google connection</h2>
-            <Button type="button" disabled={!canWrite || busy} onClick={() => connect("local")}>
+            }
+          />
+        )}
+        {flow?._tag === "failed" && (
+          <SettingsRow
+            title="Google sign-in failed"
+            description={flow.message}
+            control={
+              <Button size="sm" variant="outline" onClick={closeFlow}>
+                Close
+              </Button>
+            }
+          />
+        )}
+        <SettingsRow
+          title="Local Google connection"
+          description="Use a Google Desktop app OAuth client for accounts connected to this environment."
+          control={
+            <Button size="sm" disabled={disabled} onClick={() => connect("local")}>
               Connect with local PKCE
             </Button>
-            <p>Use a Google Desktop app OAuth client for accounts connected to this environment.</p>
+          }
+        />
+        <SettingsRow
+          title="OAuth client ID"
+          control={
+            <Input
+              size="sm"
+              form={OAUTH_CLIENT_FORM}
+              aria-label="OAuth client ID"
+              value={clientId}
+              onChange={(event) => setClientId(event.target.value)}
+              required
+              autoComplete="off"
+            />
+          }
+        />
+        <SettingsRow
+          title="OAuth client secret"
+          control={
+            <Input
+              size="sm"
+              type="password"
+              form={OAUTH_CLIENT_FORM}
+              aria-label="OAuth client secret"
+              value={clientSecret}
+              onChange={(event) => setClientSecret(event.target.value)}
+              autoComplete="new-password"
+            />
+          }
+        />
+        <SettingsRow
+          title="OAuth client"
+          description="Saved on this environment."
+          control={
             <form
+              id={OAUTH_CLIENT_FORM}
+              className="flex gap-2"
               onSubmit={(event) => {
                 event.preventDefault();
                 void run(async () => {
@@ -159,49 +229,34 @@ export default function CalendarSettings({
                 });
               }}
             >
-              <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-                Client ID
-                <Input
-                  value={clientId}
-                  onChange={(event) => setClientId(event.target.value)}
-                  required
-                  autoComplete="off"
-                />
-              </label>
-              <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-                Client secret
-                <Input
-                  type="password"
-                  value={clientSecret}
-                  onChange={(event) => setClientSecret(event.target.value)}
-                  autoComplete="new-password"
-                />
-              </label>
-              <Button type="submit" disabled={!canWrite || busy}>
+              <Button size="sm" type="submit" disabled={disabled}>
                 Save client
-              </Button>{" "}
+              </Button>
               <Button
-                type="button"
-                disabled={!canWrite || busy}
+                size="sm"
+                variant="outline"
+                disabled={disabled}
                 onClick={() => void run(client.clearClient)}
               >
                 Clear client
               </Button>
             </form>
-          </section>
-          <section className="space-y-3">
-            <h2>Demo calendars</h2>
-            <p>Try calendar views with local sample events.</p>
-            <Button
-              type="button"
-              disabled={!canWrite || busy}
-              onClick={() => void run(client.addDemo)}
-            >
+          }
+        />
+        <SettingsRow
+          title="Demo calendars"
+          description="Try calendar views with local sample events."
+          control={
+            <Button size="sm" disabled={disabled} onClick={() => void run(client.addDemo)}>
               Add demo calendars
             </Button>
-          </section>
-        </>
-      )}
+          }
+        />
+      </>
+    );
+  return (
+    <div className="space-y-6">
+      {alert}
       {page === "general" && preferences && (
         <SettingsSection title="Time" description="Account">
           <SettingsRow

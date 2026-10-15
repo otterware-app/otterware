@@ -236,9 +236,11 @@ export function ModulePageLayout({
         <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background text-foreground">
           <WorkspacePageHeader electron={isElectron}>
             <h1 className="min-w-0 flex-1 truncate text-sm font-medium">
-              {overrides?.title ?? <DefaultTitle module={module} projectTitle={projectTitle} />}
+              {overrides?.title ?? (
+                <DefaultTitle key={module.id} module={module} projectTitle={projectTitle} />
+              )}
             </h1>
-            {available ? <HeaderActions module={module} /> : null}
+            {available ? <HeaderActions key={module.id} module={module} /> : null}
             {available && module.sideChat ? (
               <Tooltip>
                 <TooltipTrigger

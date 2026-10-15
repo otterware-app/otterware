@@ -158,8 +158,18 @@ function SpaceButton({
   );
 }
 
-/** The active module's spaces; nothing when the module declares none. */
-export function ModuleSpaceButtons({
+/**
+ * The active module's spaces; nothing when the module declares none. Keyed by
+ * module, so switching apps never calls another module's hooks in place.
+ */
+export function ModuleSpaceButtons(props: {
+  readonly module: WebModule;
+  readonly button: RailButtonComponent;
+}) {
+  return <ModuleSpaceButtonList key={props.module.id} {...props} />;
+}
+
+function ModuleSpaceButtonList({
   module,
   button,
 }: {
