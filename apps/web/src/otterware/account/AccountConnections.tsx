@@ -6,6 +6,7 @@ import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../accounts/AccountProvider";
+import { SettingsRow } from "../../components/settings/settingsLayout";
 import { Button } from "../../components/ui/button";
 import { ensureLocalApi } from "../../localApi";
 import { useEnvironmentQuery } from "../../state/query";
@@ -100,58 +101,78 @@ export function AccountConnections({
       }).then(checked);
       await ensureLocalApi().shell.openExternal(result.url);
     });
+  const disconnectEnvironment = () =>
+    void run(() => detach({ environmentId, input: {} }).then(checked));
+  // Rows only: the host's "Otter Account connections" card draws the frame.
   return (
-    <section className="flex flex-col gap-3" aria-label="Otter Account connections">
-      <p className="text-sm text-muted-foreground">
-        Environment scope · Connect your Otter Account to share provider connections and Mail and
-        Calendar preferences with this environment.
-      </p>
-      {!auth.isSignedIn ? (
-        <Button onClick={() => void run(auth.signIn)} disabled={busy}>
-          Sign in to Otterware
-        </Button>
-      ) : !state.data?.accountId ? (
-        <Button
-          disabled={!canWrite || busy}
-          onClick={() =>
-            void run(async () => {
-              const accessToken = await auth.getToken();
-              if (!accessToken) throw new Error("Sign in to your Otter Account again.");
-              await attach({ environmentId, input: { accessToken } }).then(checked);
-            })
-          }
-        >
-          Use my Otter Account on this environment
-        </Button>
-      ) : (
-        <>
-          <div className="flex flex-wrap gap-2">
-            {!accountOnly && (
-              <>
-                <Button disabled={!canWrite || busy} onClick={() => void add("google")}>
-                  Connect Google
-                </Button>
-                <Button disabled={!canWrite || busy} onClick={() => void add("microsoft")}>
-                  Connect Microsoft
-                </Button>
-              </>
-            )}
+    <>
+      <SettingsRow
+        title="Otter Account"
+        description={
+          state.data?.accountId
+            ? "Provider connections and Mail and Calendar preferences are shared with this environment."
+            : "Connect your Otter Account to share provider connections and Mail and Calendar preferences with this environment."
+        }
+        control={
+          !auth.isSignedIn ? (
+            <Button size="sm" onClick={() => void run(auth.signIn)} disabled={busy}>
+              Sign in
+            </Button>
+          ) : !state.data?.accountId ? (
             <Button
+              size="sm"
+              disabled={!canWrite || busy}
+              onClick={() =>
+                void run(async () => {
+                  const accessToken = await auth.getToken();
+                  if (!accessToken) throw new Error("Sign in to your Otter Account again.");
+                  await attach({ environmentId, input: { accessToken } }).then(checked);
+                })
+              }
+            >
+              Use on this environment
+            </Button>
+          ) : (
+            <Button
+              size="sm"
               variant="outline"
               disabled={!canWrite || busy}
-              onClick={() => void run(() => detach({ environmentId, input: {} }).then(checked))}
+              onClick={disconnectEnvironment}
             >
               Disconnect environment
             </Button>
-          </div>
-          {!accountOnly &&
-            connections.data?.map((connection) => (
-              <div key={connection.id} className="flex items-center justify-between gap-3 text-sm">
-                <span>
-                  {connection.email} · {connection.provider}
-                </span>
+          )
+        }
+      />
+      {auth.isSignedIn && state.data?.accountId && !accountOnly ? (
+        <>
+          <SettingsRow
+            title="Add a provider"
+            description="Mail and Calendar use the accounts you connect here."
+            control={
+              <div className="flex gap-2">
+                <Button size="sm" disabled={!canWrite || busy} onClick={() => void add("google")}>
+                  Connect Google
+                </Button>
                 <Button
-                  variant="ghost"
+                  size="sm"
+                  disabled={!canWrite || busy}
+                  onClick={() => void add("microsoft")}
+                >
+                  Connect Microsoft
+                </Button>
+              </div>
+            }
+          />
+          {connections.data?.map((connection) => (
+            <SettingsRow
+              key={connection.id}
+              title={connection.email}
+              description={connection.provider}
+              control={
+                <Button
+                  size="sm"
+                  variant="outline"
                   disabled={!canWrite || busy}
                   onClick={() =>
                     void run(() =>
@@ -161,17 +182,18 @@ export function AccountConnections({
                     )
                   }
                 >
-                  Disconnect provider
+                  Disconnect
                 </Button>
-              </div>
-            ))}
+              }
+            />
+          ))}
         </>
-      )}
+      ) : null}
       {error || state.error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="px-4 py-2 text-sm text-destructive">
           {error ?? state.error}
         </p>
       ) : null}
-    </section>
+    </>
   );
 }
