@@ -159,6 +159,12 @@ describe("environment maintenance access", () => {
 
 describe("environment release checks", () => {
   const signal = new AbortController().signal;
+  // An immutable release of the default (otterware) profile, as publish-release.sh names it.
+  const release = (version: string, extra: { readonly draft?: boolean } = {}) => ({
+    tag_name: `otterware-otterware-v${version}`,
+    name: `otterware ${version} (otterware)`,
+    ...extra,
+  });
 
   it("keeps stable hosts on stable releases and ignores drafts", async () => {
     vi.stubGlobal(
@@ -167,9 +173,9 @@ describe("environment release checks", () => {
         .fn()
         .mockImplementation(async () =>
           Response.json([
-            { tag_name: "v2.0.0-nightly.20260923.1" },
-            { tag_name: "v1.2.0", draft: true },
-            { tag_name: "v1.1.0" },
+            release("2.0.0-nightly.20260923.1"),
+            release("1.2.0", { draft: true }),
+            release("1.1.0"),
           ]),
         ),
     );
@@ -184,7 +190,7 @@ describe("environment release checks", () => {
       .mockResolvedValueOnce(
         Response.json(Array.from({ length: 100 }, () => ({ tag_name: "v2.0.0" }))),
       )
-      .mockResolvedValueOnce(Response.json([{ tag_name: "v1.0.0-preview.20260923.2" }]));
+      .mockResolvedValueOnce(Response.json([release("1.0.0-preview.20260923.2")]));
     vi.stubGlobal("fetch", fetchMock);
     expect(await findEnvironmentUpdate("1.0.0-preview.20260923.1", signal)).toBe(
       "1.0.0-preview.20260923.2",

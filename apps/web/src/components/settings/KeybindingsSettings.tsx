@@ -76,6 +76,14 @@ import { SettingsPageContainer, SettingsRow, SettingsSection } from "./settingsL
 import { keybindingSearchAnchorId, searchableSetting } from "./settingsSearch";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "../ui/tooltip";
 import { useAtomCommand } from "../../state/use-atom-command";
+// Otterware seam: shell defaults, the app chips and per-module sections (docs/internals/modules.md).
+import {
+  filterShellKeybindingRows,
+  KeybindingsChips,
+  shellKeybindingGroups,
+  useKeybindingsChip,
+  withShellKeybindings,
+} from "../../otterware/shellKeybindings";
 
 function KeybindingPill({ value }: { value: string }) {
   // Keys dedupe repeated parts; a literal "+" in a shortcut splits into empty strings.
@@ -257,7 +265,7 @@ function UnknownWhenVariableWarning({
 
   return (
     <WarningTooltipIcon label={label} focusable={focusable} className="size-4.5">
-      T3 Code does not recognize this condition yet. It can still be saved, but it may not match
+      Otter Code does not recognize this condition yet. It can still be saved, but it may not match
       unless the runtime provides it.
     </WarningTooltipIcon>
   );
@@ -1294,7 +1302,7 @@ export function KeybindingsSettingsPanel() {
     connectedEnvironments.every((target) => writableIds.has(target.environmentId));
   const serverKeybindings = primaryEnvironment?.serverConfig?.keybindings;
   const keybindings = useMemo(
-    () => mergeWithDefaultKeybindings(serverKeybindings ?? []),
+    () => withShellKeybindings(mergeWithDefaultKeybindings(serverKeybindings ?? [])),
     [serverKeybindings],
   );
   const keybindingsConfigPath = primaryEnvironment?.serverConfig?.keybindingsConfigPath ?? null;
@@ -1313,8 +1321,12 @@ export function KeybindingsSettingsPanel() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [savingCommand, setSavingCommand] = useState<KeybindingCommand | null>(null);
   const [isAddingBinding, setIsAddingBinding] = useState(false);
-  const rows = useMemo(() => buildKeybindingRows(keybindings, query), [keybindings, query]);
-  const groups = useMemo(() => groupKeybindingRows(rows), [rows]);
+  const chip = useKeybindingsChip();
+  const rows = useMemo(
+    () => filterShellKeybindingRows(buildKeybindingRows(keybindings, query), chip),
+    [chip, keybindings, query],
+  );
+  const groups = useMemo(() => shellKeybindingGroups(groupKeybindingRows(rows)), [rows]);
   // Settings search jumps to a command, so only its first row anchors.
   const anchorIds = useMemo(() => {
     const ids = new Map<string, string>();
@@ -1470,6 +1482,7 @@ export function KeybindingsSettingsPanel() {
         headerAction={!isElectron ? <BrowserKeybindingNotice /> : null}
       >
         <div className="flex flex-wrap items-center gap-2 px-3 py-3 sm:px-4">
+          <KeybindingsChips />
           <KeybindingsSearchInput query={query} onChange={setQuery} inputRef={searchInputRef} />
           <Button
             type="button"

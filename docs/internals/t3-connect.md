@@ -1,6 +1,6 @@
 # T3 Connect
 
-T3 Connect uses Clerk for cloud identity. The relay manages environment links,
+Otter Connect uses Otter Accounts for cloud identity. The relay manages environment links,
 credentials for reaching environments, and managed tunnel allocations. After
 bootstrap, clients send application traffic through the environment's tunnel
 hostname; the relay Worker does not proxy their HTTP or WebSocket sessions.
@@ -29,7 +29,7 @@ read-once bodies of up to 1 MiB that need per-environment order, caps, and
 retry timing. Queues cap messages at 128 KB and cannot hold one environment's
 requests back while it is away.
 
-Clerk, deployment, and native authentication setup live in the
+Accounts, deployment, and native authentication setup live in the
 [Connect setup runbook](../operations/connect-setup.md).
 
 ## The relay is a trusted broker
@@ -61,6 +61,34 @@ own managed allocations rather than a caller-supplied URL. Health and mint
 requests must not follow redirects. These restrictions keep endpoint discovery
 from turning into arbitrary relay egress or exposing another service on the
 environment host.
+
+## Linear delegation rides the same trust
+
+Linear allows one webhook URL per OAuth app, so the relay receives delegated
+agent sessions for every workspace and routes each to the environment the
+delegating Linear user linked. The relay holds the workspace's app token;
+environments never do. A person's own Linear sign-in, kept when they link their
+account, is handed to their environments on request so those read Linear as
+them; the relay refreshes it, because refreshing needs the app's secret. It starts a thread with a relay-signed `linear:session`
+request that carries the issue and prompt inside the proof, and the environment
+checks it exactly like a mint request: relay key, its own audience, its linked
+user, a bounded lifetime, and single-use jti and nonce. The signed response binds
+the thread id to the request nonce. This lets the relay start threads, which is
+more than minting credentials. Treat the relay signing key as able to run agents
+on linked environments. Replies and stops from Linear reach the thread the same
+way, as a `linear:prompt` request. The other direction carries thread content:
+the environment posts the thread's progress to the relay with its environment
+credential, and the relay forwards it to Linear only for a session it recorded
+for that environment and thread. Linear's Issue and Comment webhooks become a
+`linear:changes` request to every tunnelled environment of the workspace's
+linked users, so their linked issues refresh at once. Linear's realtime GraphQL
+subscriptions are not an option: undocumented, they close with 4003 for API
+keys, and the Linear sign-in never held a connection either.
+`linear:changes` skips the single-use jti and nonce guards. A replay only causes
+one extra read, and the guards are files in the secret store that nothing
+prunes, one pair per request. See the
+[launcher](../../apps/server/src/linear/LinearAgentSessionLauncher.ts) and
+[relay integration](../../infra/relay/src/linear/LinearIntegration.ts).
 
 ## A link outlives a connector process
 
@@ -155,22 +183,14 @@ while the pin installs. Every binary needs `CLOUDFLARED_MIN_VERSION`, the oldest
 release that accepts every flag the connector is started with. Raise it whenever
 a new flag is added.
 
-## OAuth traps
+## Account boundary
 
-Interactive clients and the headless CLI use the same Clerk application but
-different credentials. The relay accepts both session-template JWTs and CLI
-OAuth tokens; requiring a JWT template for the CLI would reject valid logins.
-The CLI is a public OAuth client using PKCE and stores no client secret.
+Code clients use distinct public OAuth clients on Otter Accounts with the relay as their
+resource. The relay verifies tokens online with Accounts, so session revocation takes effect
+without replicating the identity database. DPoP and environment credentials keep their existing
+roles; an account token does not replace machine pairing or the environment key.
 
-Loopback CLI authorization starts on the hosted `/connect` page so sign-in
-completes before entering Clerk's authorize endpoint. Sending a signed-out
-browser straight to that endpoint loses the authorize parameters during the
-sign-in redirect. The [shared flow](../../packages/shared/src/connectAuth.ts)
-preserves PKCE and state for the loopback callback.
-
-SSH and headless sessions use Clerk's OAuth device authorization grant because
-the browser cannot ordinarily reach a listener on the remote machine. The CLI
-polls Clerk's token endpoint directly while the user approves a short code on
-Clerk's hosted device page; the hosted app plays no part and there is no
-redirect URI or PKCE. The grant must be enabled on the CLI OAuth application
-or the device endpoint returns an error before any prompt is shown.
+Ownership follows the canonical account ID. The provider migration deliberately requires
+reconnecting existing cloud hosts, instead of treating matching email addresses as authority.
+Local state is independent of that ownership. See the
+[account setup guide](../operations/connect-setup.md) for callbacks, device approval and cutover.

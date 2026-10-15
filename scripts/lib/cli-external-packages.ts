@@ -35,7 +35,6 @@ export const CLI_RUNTIME_EXTERNAL_PREFIXES = [
   "@yuuang/",
   "@ff-labs/",
   "@napi-rs/keyring",
-  "@clerk/electron-passkeys",
   "node-gyp-build",
   "node-addon-api",
   // ws's optional accelerators. Nothing in this repo declares them, so they are
@@ -50,9 +49,9 @@ export const CLI_RUNTIME_EXTERNAL_PREFIXES = [
   "utf-8-validate",
 ] as const;
 
-// These are Cursor's disk-backed dependency closure. Match package boundaries
-// so "zod" does not also externalize unrelated packages such as zod-to-json-schema.
-const CURSOR_RUNTIME_DEPENDENCIES = [
+// Disk-backed packages matched at package boundaries, so "zod" does not also
+// externalize unrelated packages such as zod-to-json-schema. Most are Cursor's closure.
+const PACKAGE_RUNTIME_DEPENDENCIES = [
   "@bufbuild/protobuf",
   "@connectrpc/connect",
   "@connectrpc/connect-node",
@@ -62,12 +61,17 @@ const CURSOR_RUNTIME_DEPENDENCIES = [
   "zod",
   "undici",
   "@fastify/busboy",
+  // tsserver and Pyright run as child processes and load their libraries from disk.
+  "typescript-tsserver",
+  "pyright",
+  // Pyright's optional macOS file watcher.
+  "fsevents",
 ] as const;
 
 export function isRuntimeExternalCliDependency(id: string): boolean {
   return (
     CLI_RUNTIME_EXTERNAL_PREFIXES.some((prefix) => id.startsWith(prefix)) ||
-    CURSOR_RUNTIME_DEPENDENCIES.some((name) => id === name || id.startsWith(`${name}/`))
+    PACKAGE_RUNTIME_DEPENDENCIES.some((name) => id === name || id.startsWith(`${name}/`))
   );
 }
 
@@ -89,6 +93,18 @@ export function isExternalCliDependency(id: string): boolean {
 export function shouldBundleCliDependency(id: string): boolean {
   if (id.startsWith("node:")) return false;
   return !isExternalCliDependency(id);
+}
+
+/** Zod is pure JS; SEA must inline it because its ESM loader only resolves builtins.
+ * Keep its disk copy in the staged runtime for Cursor's external dependency closure.
+ */
+export function isExternalCliExecutableDependency(id: string): boolean {
+  if (id === "zod" || id.startsWith("zod/")) return false;
+  return isExternalCliDependency(id);
+}
+
+export function shouldBundleCliExecutableDependency(id: string): boolean {
+  return !id.startsWith("node:") && !isExternalCliExecutableDependency(id);
 }
 
 /** Select direct dependency roots whose runtime closure belongs in the sidecar. */
@@ -127,7 +143,9 @@ export function findInlinedExternalPackages(source: string): {
   readonly inlinedPackages: ReadonlyArray<string>;
 } {
   // Rolldown marks each inlined module with a `//#region <path>` comment.
-  const regionPattern = /\/\/#region\s+(\S+)/g;
+  // Embedded module workers contain escaped region comments inside JS strings.
+  // Only real comment lines describe modules in this host bundle.
+  const regionPattern = /^\/\/#region[^\S\r\n]+(\S+)/gm;
   const packagePattern = /node_modules\/((?:@[^/\s]+\/)?[^/\s]+)\//g;
 
   let regionCount = 0;

@@ -33,10 +33,10 @@ describe("cliRelease", () => {
 
   it("resolves download URLs under the tagged release, honoring a mirror", () => {
     expect(cliReleaseDownloadBaseUrl("1.2.3")).toBe(
-      "https://github.com/pingdotgg/t3code/releases/download/v1.2.3",
+      "https://github.com/otterware-app/otterware/releases/download/otterware-otterware-v1.2.3",
     );
     expect(cliReleaseDownloadBaseUrl("1.2.3", "https://mirror.example/t3/")).toBe(
-      "https://mirror.example/t3/v1.2.3",
+      "https://mirror.example/t3/otterware-otterware-v1.2.3",
     );
   });
 
@@ -64,6 +64,7 @@ describe("cliRelease", () => {
 
   it("derives the release channel from the version alone", () => {
     expect(cliReleaseChannelOf("1.2.3")).toBe("stable");
+    expect(cliReleaseChannelOf("0.14.0-otterware.code.20261013.1")).toBe("nightly");
     expect(cliReleaseChannelOf("1.2.3-nightly.20260911.4")).toBe("nightly");
     expect(cliReleaseChannelOf("1.2.3-preview.20260911.4")).toBe("preview");
     // A prerelease that is not one of our trains is not silently a nightly.
@@ -72,12 +73,25 @@ describe("cliRelease", () => {
 
   it("picks the newest non-draft release on the requested channel", () => {
     const releases = [
-      { tag_name: "v1.2.4-preview.20260912.9", draft: true },
-      { tag_name: "v1.2.4-preview.20260912.8" },
-      { tag_name: "v1.2.4-nightly.20260912.7" },
+      {
+        tag_name: "otterware-otterware-v1.2.4-preview.20260912.9",
+        name: "otterware 1.2.4-preview.20260912.9 (otterware)",
+        draft: true,
+      },
+      {
+        tag_name: "otterware-otterware-v1.2.4-preview.20260912.8",
+        name: "otterware 1.2.4-preview.20260912.8 (otterware)",
+      },
+      {
+        tag_name: "otterware-otterware-v1.2.4-nightly.20260912.7",
+        name: "otterware 1.2.4-nightly.20260912.7 (otterware)",
+      },
       { tag_name: "desktop-preview" },
-      { tag_name: "v1.2.3" },
-      { tag_name: "v1.2.3-nightly.20260911.2" },
+      { tag_name: "otterware-otterware-v1.2.3", name: "otterware 1.2.3 (otterware)" },
+      {
+        tag_name: "otterware-otterware-v1.2.3-nightly.20260911.2",
+        name: "otterware 1.2.3-nightly.20260911.2 (otterware)",
+      },
     ];
     expect(newestCliReleaseVersion(releases, "preview")).toBe("1.2.4-preview.20260912.8");
     expect(newestCliReleaseVersion(releases, "nightly")).toBe("1.2.4-nightly.20260912.7");
@@ -87,8 +101,21 @@ describe("cliRelease", () => {
 
   it("pages through the release index at the largest page GitHub allows", () => {
     expect(cliReleaseIndexPageUrl(1)).toBe(
-      "https://api.github.com/repos/pingdotgg/t3code/releases?per_page=100&page=1",
+      "https://api.github.com/repos/otterware-app/otterware/releases?per_page=100&page=1",
     );
     expect(cliReleaseIndexPageUrl(3)).toContain("page=3");
+  });
+  it("ignores other profiles and branches while accepting its own published runtime", () => {
+    const version = "0.14.0-otterware.20261013.100";
+    const releases = [
+      { tag_name: `otterware-code-v${version}`, name: `code ${version} (code)` },
+      {
+        tag_name: `otterware-otterware-v${version}`,
+        name: `otterware ${version} (otterware-test)`,
+      },
+      { tag_name: `otterware-otterware-v${version}`, name: `otterware ${version} (otterware)` },
+    ];
+    expect(newestCliReleaseVersion(releases.slice(0, 2), "nightly")).toBeUndefined();
+    expect(newestCliReleaseVersion(releases, "nightly")).toBe(version);
   });
 });

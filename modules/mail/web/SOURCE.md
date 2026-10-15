@@ -1,0 +1,1 @@
+Mail's renderer was imported from `otterware-app/otter-mail` at `e1f8aaa201cc7dfb596083249485590e8eb9602d`. The retained content now lives in `apps/web/src/otterware/mail/content` so it can use host UI components; this package declares the module registration.

@@ -1,0 +1,22 @@
+{
+  "name": "@otterware/mail-web",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./module": "./src/module.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vp test run --passWithNoTests"
+  },
+  "dependencies": {
+    "@otterware/module-kit": "workspace:*",
+    "lucide-react": "^0.542.0",
+    "react": "19.2.6"
+  },
+  "devDependencies": {
+    "@types/react": "~19.3.0",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

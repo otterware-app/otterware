@@ -16,6 +16,8 @@ import {
   findInlinedExternalPackages,
   selectCliRuntimeExternalDependencies,
   shouldBundleCliDependency,
+  isExternalCliExecutableDependency,
+  shouldBundleCliExecutableDependency,
 } from "./cli-external-packages.ts";
 
 // Only the field this test cares about; decoding ignores everything else.
@@ -33,6 +35,21 @@ type PackageManifest = typeof PackageManifest.Type;
 const decodeManifest = Schema.decodeUnknownSync(Schema.fromJsonString(PackageManifest));
 
 describe("shouldBundleCliDependency", () => {
+  it("inlines Zod in SEA while preserving its disk copy and native external boundaries", () => {
+    for (const id of ["zod", "zod/v4"]) {
+      assert.strictEqual(shouldBundleCliDependency(id), false);
+      assert.strictEqual(isExternalCliExecutableDependency(id), false);
+      assert.strictEqual(shouldBundleCliExecutableDependency(id), true);
+    }
+    for (const id of ["node-pty", "@cursor/sdk", "playwright-core", "ffi-rs"]) {
+      assert.strictEqual(isExternalCliExecutableDependency(id), true);
+      assert.strictEqual(shouldBundleCliExecutableDependency(id), false);
+    }
+    assert.deepStrictEqual(selectCliRuntimeExternalDependencies({ zod: "4.6.5" }), {
+      zod: "4.6.5",
+    });
+    assert.strictEqual(shouldBundleCliExecutableDependency("node:fs"), false);
+  });
   it("bundles ordinary runtime dependencies", () => {
     for (const id of ["effect", "@effect/platform", "hono", "@t3tools/shared/HostProcess"]) {
       assert.strictEqual(shouldBundleCliDependency(id), true, id);
@@ -50,7 +67,6 @@ describe("shouldBundleCliDependency", () => {
       "@yuuang/ffi-rs-win32-x64-msvc",
       "@ff-labs/fff-node",
       "@napi-rs/keyring",
-      "@clerk/electron-passkeys",
       "node-addon-api",
     ]) {
       assert.strictEqual(shouldBundleCliDependency(id), false, id);
@@ -83,7 +99,16 @@ describe("selectCliRuntimeExternalDependencies", () => {
   it("selects every external root declared by the server", () => {
     assert.deepStrictEqual(
       Object.keys(selectCliRuntimeExternalDependencies(serverPackageJson.dependencies)).sort(),
-      ["@cursor/sdk", "@ff-labs/fff-node", "@napi-rs/keyring", "node-pty", "playwright-core"],
+      [
+        "@cursor/sdk",
+        "@ff-labs/fff-node",
+        "@napi-rs/keyring",
+        "node-pty",
+        "playwright-core",
+        "pyright",
+        "typescript-tsserver",
+        "zod",
+      ],
     );
   });
 });
@@ -237,6 +262,17 @@ var x = 1;
       region("../../node_modules/@ff-labs/fff-node/dist/src/index.js"),
     );
     assert.deepStrictEqual(result.inlined, ["@ff-labs/fff-node"]);
+  });
+
+  it("does not mistake embedded worker source for host bundle regions", () => {
+    const worker = region("../../node_modules/zod/v4/core/index.js");
+    const source =
+      `const worker = ${JSON.stringify(worker)};\n` +
+      region("../../node_modules/effect/dist/index.js");
+    const result = findInlinedExternalPackages(source);
+    assert.deepStrictEqual(result.inlined, []);
+    assert.deepStrictEqual(result.inlinedPackages, ["effect"]);
+    assert.strictEqual(result.regionCount, 1);
   });
 
   it("ignores packages that are meant to be bundled", () => {

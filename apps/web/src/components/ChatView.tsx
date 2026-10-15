@@ -1,3 +1,5 @@
+import { activeProfile } from "@otterware/profiles/active";
+import type { ComposerContextRecord } from "@t3tools/contracts";
 import { ThreadFind, ThreadFindCanvas, type ThreadFindControls } from "./chat/ThreadFindProvider";
 import { THREAD_FIND_BAR_RESERVED_HEIGHT } from "./chat/ThreadFindBar";
 import { usageLimitRecoveryBannerItem } from "./chat/UsageLimitRecoveryBanner";
@@ -248,7 +250,10 @@ import { subscribeSnapShotComposerFocus } from "../lib/desktopSnapShot";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useTurnDiffSummaries } from "../hooks/useTurnDiffSummaries";
 import { FileMetadataThreadProvider } from "../hooks/FileMetadataThreadProvider";
-import { usePreviewPanelInlineSize } from "../hooks/usePreviewPanelInlineSize";
+import {
+  PREVIEW_PANEL_WIDTH_STORAGE_KEY,
+  usePreviewPanelInlineSize,
+} from "../hooks/usePreviewPanelInlineSize";
 import {
   RIGHT_PANEL_INLINE_LAYOUT_MEDIA_QUERY,
   type ThreadPanelPresentation,
@@ -294,6 +299,9 @@ import { PullRequestsUnavailableState } from "./pullRequest/PullRequestsUnavaila
 import { RightPanelTabs } from "./RightPanelTabs";
 import { LinkPullRequestDialogHost } from "./pullRequest/LinkPullRequestDialog";
 import { ThreadPullRequestsPanel } from "./pullRequest/ThreadPullRequestsPanel";
+import { ThreadLinearIssuesPanel } from "./linear/ThreadLinearIssuesPanel";
+import { LinearIssueDetailPanel } from "./linear/LinearIssueDetailPanel";
+import { LinkLinearIssueDialogHost } from "./linear/LinkLinearIssueDialog";
 import { useDeviceState } from "~/state/device";
 import { DeviceSetup } from "./device/DeviceSetup";
 import { Dialog } from "./ui/dialog";
@@ -459,6 +467,7 @@ import {
   resolveScrollToEndClearance,
 } from "./composerFooterLayout";
 import { ChatHeader } from "./chat/ChatHeader";
+import { ModuleThreadAccessories } from "../otterware/ModuleThreadAccessories";
 import { useRemoteOpenState } from "~/remoteOpen";
 import { shouldShowOpenInPicker } from "./chat/OpenInPicker.logic";
 import { useOpenFavoriteEditorShortcut } from "./chat/OpenInPickerShortcut";
@@ -828,12 +837,43 @@ function formatOutgoingPrompt(params: {
 const SCRIPT_TERMINAL_COLS = 120;
 const SCRIPT_TERMINAL_ROWS = 30;
 
+const COMPACT_SHORTCUT_COMMANDS = new Set<string>([
+  "modelPicker.toggle",
+  "composer.host",
+  "composer.effort",
+  "composer.mode",
+  "thread.steerQueuedMessage",
+  "thread.editQueuedMessage",
+  "thread.stop",
+]);
+
 function isCompactCommandMessage(message: ChatMessage): boolean {
-  const text = message.text.trim().toLowerCase();
-  return message.role === "user" && text === "/compact" && !message.attachments?.length;
+  return (
+    message.role === "user" &&
+    message.text.trim().toLowerCase() === "/compact" &&
+    !message.attachments?.length
+  );
 }
 
-type ChatViewProps =
+/** Context an embedder adds to every new message: a leading reference link plus its records. */
+export interface ChatViewOutgoingMessageDecoration {
+  readonly prefix: string;
+  readonly records: ReadonlyArray<ComposerContextRecord>;
+}
+
+interface ChatViewEmbedProps {
+  /**
+   * Renders the thread inside another page (Otterware's side chat): no header, right panel,
+   * terminal drawer or draft hero, and shortcuts only act on events from inside the view.
+   */
+  compact?: boolean;
+  /** Called once per new message, right before it is sent. */
+  decorateOutgoingMessage?: () => ChatViewOutgoingMessageDecoration | null;
+}
+
+type ChatViewProps = ChatViewEmbedProps & ChatViewRouteProps;
+
+type ChatViewRouteProps =
   | {
       environmentId: EnvironmentId;
       threadId: ThreadId;
@@ -1586,7 +1626,10 @@ export default function ChatView(props: ChatViewProps) {
     onDiffPanelOpen,
     reserveTitleBarControlInset = true,
     forceExpandedMobileComposer = false,
+    compact: embeddedCompact = false,
+    decorateOutgoingMessage,
   } = props;
+  const compact = embeddedCompact || !activeProfile.codeVisible;
   const canOperateThread = useEnvironmentScope(environmentId, AuthOrchestrationOperateScope);
   const canOperateTerminal = useEnvironmentScope(environmentId, AuthTerminalOperateScope);
   const hasTerminalWriteAccess = useCallback(
@@ -2053,11 +2096,11 @@ export default function ChatView(props: ChatViewProps) {
   const [mountedTerminalThreadKeys, setMountedTerminalThreadKeys] = useState<string[]>([]);
   const mountedTerminalThreadRefs = useMemo(
     () =>
-      mountedTerminalThreadKeys.flatMap((mountedThreadKey) => {
+      (compact ? [] : mountedTerminalThreadKeys).flatMap((mountedThreadKey) => {
         const mountedThreadRef = parseScopedThreadKey(mountedThreadKey);
         return mountedThreadRef ? [{ key: mountedThreadKey, threadRef: mountedThreadRef }] : [];
       }),
-    [mountedTerminalThreadKeys],
+    [compact, mountedTerminalThreadKeys],
   );
 
   const fallbackDraftProjectRef = draftThread
@@ -2265,7 +2308,9 @@ export default function ChatView(props: ChatViewProps) {
   const browserAvailable = isPreviewSupportedInRuntime() || activeEnvironmentServerBrowser;
   const previewPanelInlineSize = usePreviewPanelInlineSize(undefined, {
     container: workspaceLayoutElement,
-    widthStorageKey: `t3code:preview-panel-width:${activeThreadKey}`,
+    widthStorageKey: `${PREVIEW_PANEL_WIDTH_STORAGE_KEY}:${activeThreadKey}`,
+    // A thread without its own width opens at the last width dragged in any thread.
+    fallbackWidthStorageKey: PREVIEW_PANEL_WIDTH_STORAGE_KEY,
   });
   const activeThreadShell = useThreadShell(isServerThread ? activeThreadRef : null);
   const timelineThreadError =
@@ -4098,14 +4143,16 @@ export default function ChatView(props: ChatViewProps) {
   const [dockedDraftHeroThreadKey, setDockedDraftHeroThreadKey] = useState<string | null>(null);
   const draftHeroDockRequested =
     activeThreadKey !== null && dockedDraftHeroThreadKey === activeThreadKey;
-  const isDraftHeroState = resolveDraftHeroState({
-    isLocalDraftThread,
-    hasTimelineEntries: timelineEntries.length > 0,
-    isWorking,
-    draftHeroDockRequested,
-    backgroundSubmissionPending,
-    hasWorktreeSetupCard: worktreeSetup !== null,
-  });
+  const isDraftHeroState =
+    !compact &&
+    resolveDraftHeroState({
+      isLocalDraftThread,
+      hasTimelineEntries: timelineEntries.length > 0,
+      isWorking,
+      draftHeroDockRequested,
+      backgroundSubmissionPending,
+      hasWorktreeSetupCard: worktreeSetup !== null,
+    });
   const draftHeroTransition = useDraftHeroLayoutTransition(
     isDraftHeroState,
     panelAnimationsActive,
@@ -5492,6 +5539,13 @@ export default function ChatView(props: ChatViewProps) {
     if (!activeThreadRef || !pullRequestsSurfaceAvailable) return;
     useRightPanelStore.getState().open(activeThreadRef, "pull-requests");
   }, [activeThreadRef, pullRequestsSurfaceAvailable]);
+  const linearIssuesSurfaceAvailable =
+    isServerThread && serverConfig?.environment.capabilities.threadLinearIssues === true;
+  const linkedLinearIssueCount = ((activeThreadShell ?? activeThread)?.linearIssues ?? []).length;
+  const addLinearIssuesSurface = useCallback(() => {
+    if (!activeThreadRef || !linearIssuesSurfaceAvailable) return;
+    useRightPanelStore.getState().open(activeThreadRef, "linear-issues");
+  }, [activeThreadRef, linearIssuesSurfaceAvailable]);
   const { state: deviceState, loaded: deviceStateLoaded } = useDeviceState(
     activeThreadRef?.environmentId ?? null,
   );
@@ -6898,7 +6952,7 @@ export default function ChatView(props: ChatViewProps) {
   // terminal is a surface and is recognized by the predicate instead. Mobile is left alone so
   // returning to the app does not raise the keyboard.
   useEffect(() => {
-    if (!activeThread?.id || terminalUiState.terminalOpen || isMobileViewport) return;
+    if (!activeThread?.id || terminalUiState.terminalOpen || isMobileViewport || compact) return;
     let frame: number | null = null;
     const onWindowFocus = () => {
       if (frame !== null) window.cancelAnimationFrame(frame);
@@ -6919,7 +6973,7 @@ export default function ChatView(props: ChatViewProps) {
       window.removeEventListener("focus", onWindowFocus);
       if (frame !== null) window.cancelAnimationFrame(frame);
     };
-  }, [activeThread?.id, focusComposer, isMobileViewport, terminalUiState.terminalOpen]);
+  }, [activeThread?.id, focusComposer, isMobileViewport, compact, terminalUiState.terminalOpen]);
 
   useEffect(() => {
     if (!activeThread?.id) return;
@@ -8064,6 +8118,7 @@ export default function ChatView(props: ChatViewProps) {
 
   useEffect(() => {
     const handler = (event: globalThis.KeyboardEvent) => {
+      if (compact && !eventPathContainsSelector(event, "[data-chat-view-compact]")) return;
       if (preventRepeatedTerminalCloseShortcut(event, keybindings)) {
         event.stopPropagation();
         return;
@@ -8098,7 +8153,7 @@ export default function ChatView(props: ChatViewProps) {
       const command = resolveChatShortcutCommand(event, keybindings, scriptKeybindings, {
         context: shortcutContext,
       });
-      if (!command) return;
+      if (!command || (compact && !COMPACT_SHORTCUT_COMMANDS.has(command))) return;
 
       if (command === "thread.copyReference") {
         event.preventDefault();
@@ -8406,6 +8461,7 @@ export default function ChatView(props: ChatViewProps) {
     splitPanelTerminal,
     keybindings,
     scriptKeybindings,
+    compact,
     handleUnsettleActiveThread,
     isServerThread,
     serverConfig?.threadFind,
@@ -8455,7 +8511,7 @@ export default function ChatView(props: ChatViewProps) {
       }
     };
     const handler = (event: ClipboardEvent) => {
-      if (!activeThreadId || isCommandPaletteOpen()) return;
+      if (!activeThreadId || isCommandPaletteOpen() || compact) return;
       if (getTerminalFocusOwner() !== null) return;
       if (composerRef.current?.isModelPickerOpen()) return;
       const text = pasteTextToFocusComposer(event);
@@ -8478,7 +8534,7 @@ export default function ChatView(props: ChatViewProps) {
       window.removeEventListener("keydown", keyHandler, true);
       window.removeEventListener("paste", handler, true);
     };
-  }, [activeThreadId, composerRef]);
+  }, [activeThreadId, composerRef, compact]);
 
   const [pendingRevert, setPendingRevert] = useState<{
     turnCount: number;
@@ -9352,8 +9408,11 @@ export default function ChatView(props: ChatViewProps) {
     // Records bind attachments by the id each side knows: the local id for the optimistic
     // row, the upload id (or local id on the data-URL path) on the wire; the server
     // rebinds them to the persisted id.
-    const buildOutgoingMessageContext = (attachmentIds: ReadonlyArray<string>) =>
-      buildMessageContext({
+    const outgoingDecoration = decorateOutgoingMessage?.() ?? null;
+    const decorateOutgoingText = (text: string) =>
+      outgoingDecoration === null ? text : `${outgoingDecoration.prefix}${text}`;
+    const buildOutgoingMessageContext = (attachmentIds: ReadonlyArray<string>) => {
+      const context = buildMessageContext({
         terminalContexts: composerTerminalContextsSnapshot,
         reviewComments: composerReviewCommentsSnapshot,
         previewAnnotations: composerPreviewAnnotationsSnapshot,
@@ -9363,6 +9422,12 @@ export default function ChatView(props: ChatViewProps) {
           attachmentId: attachmentIds[index] ?? attachment.id,
         })),
       });
+      if (outgoingDecoration === null || outgoingDecoration.records.length === 0) return context;
+      return {
+        version: 1 as const,
+        records: [...(context?.records ?? []), ...outgoingDecoration.records],
+      };
+    };
     const outgoingMessageContext = buildOutgoingMessageContext(
       composerAttachmentsSnapshot.map((attachment) => attachment.id),
     );
@@ -9385,7 +9450,7 @@ export default function ChatView(props: ChatViewProps) {
       model: ctxSelectedModel,
       models: ctxSelectedProviderModels,
       effort: ctxSelectedPromptEffort,
-      text: messageTextForSend || ATTACHMENT_ONLY_BOOTSTRAP_PROMPT,
+      text: decorateOutgoingText(messageTextForSend || ATTACHMENT_ONLY_BOOTSTRAP_PROMPT),
     });
     if (composerRef.current?.validateProviderInput(outgoingMessageText) === false) {
       return;
@@ -9434,7 +9499,7 @@ export default function ChatView(props: ChatViewProps) {
         model: selection.model,
         models: provider.models,
         effort: providerState.promptEffort,
-        text: messageTextForSend || ATTACHMENT_ONLY_BOOTSTRAP_PROMPT,
+        text: decorateOutgoingText(messageTextForSend || ATTACHMENT_ONLY_BOOTSTRAP_PROMPT),
       });
       if (composerRef.current?.validateProviderInput(text) === false) return;
       multipleTargets.push({
@@ -11178,7 +11243,7 @@ export default function ChatView(props: ChatViewProps) {
     ) : renderedRightPanelSurface?.kind === "pull-request" && !supportsPullRequests ? (
       <PullRequestsUnavailableState
         title="Pull requests unavailable"
-        error="Update this environment's T3 Code server to browse pull requests."
+        error="Update this environment's Otter Code server to browse pull requests."
       />
     ) : renderedRightPanelSurface?.kind === "pull-request" ? (
       // No onClose: the surface tab's own X owns closing here, and a second X in the header
@@ -11228,6 +11293,16 @@ export default function ChatView(props: ChatViewProps) {
       />
     ) : renderedRightPanelSurface?.kind === "pull-requests" && activeThreadRef ? (
       <ThreadPullRequestsPanel threadRef={activeThreadRef} />
+    ) : renderedRightPanelSurface?.kind === "linear-issues" && activeThreadRef ? (
+      <ThreadLinearIssuesPanel threadRef={activeThreadRef} />
+    ) : renderedRightPanelSurface?.kind === "linear-issue" && activeThreadRef ? (
+      <LinearIssueDetailPanel
+        key={renderedRightPanelSurface.id}
+        threadRef={activeThreadRef}
+        identifier={renderedRightPanelSurface.identifier}
+        onBack={linkedLinearIssueCount > 1 ? addLinearIssuesSurface : undefined}
+        onCite={citeAssistantText}
+      />
     ) : renderedRightPanelSurface?.kind === "device" ? (
       <Suspense fallback={null}>
         <DevicePanel
@@ -11339,9 +11414,6 @@ export default function ChatView(props: ChatViewProps) {
     onDeleteProjectScript: deleteProjectScript,
   };
   const panelToggleControlProps = {
-    terminalAvailable: activeProject !== null,
-    terminalOpen: terminalUiState.terminalOpen,
-    terminalShortcutLabel: shortcutLabelForCommand(keybindings, "terminal.toggle"),
     threadPanelOpen,
     threadPanelPresentation,
     threadPanelPopoverHandle,
@@ -11349,7 +11421,6 @@ export default function ChatView(props: ChatViewProps) {
     rightPanelAvailable: activeProject !== null,
     rightPanelOpen,
     rightPanelShortcutLabel: shortcutLabelForCommand(keybindings, "rightPanel.toggle"),
-    onToggleTerminal: toggleTerminalVisibility,
     onToggleThreadPanel: toggleThreadPanel,
     onToggleRightPanel: toggleRightPanel,
   } satisfies PanelLayoutControlsProps;
@@ -11366,11 +11437,7 @@ export default function ChatView(props: ChatViewProps) {
       className="absolute top-[var(--workspace-controls-top)] right-[calc(env(safe-area-inset-right)+0.75rem)] z-50 flex h-[var(--workspace-topbar-height)] items-center [-webkit-app-region:no-drag]"
       data-workspace-titlebar-controls
     >
-      <PanelLayoutControls
-        {...panelToggleControlProps}
-        showTerminalControl={false}
-        showRightPanelControl={false}
-      />
+      <PanelLayoutControls {...panelToggleControlProps} showRightPanelControl={false} />
     </div>
   );
   const panelLayoutControls = (
@@ -11389,9 +11456,9 @@ export default function ChatView(props: ChatViewProps) {
             "flex shrink-0",
             panelAnimationsActive &&
               "motion-safe:transition-opacity motion-safe:duration-(--panel-animation-duration) motion-safe:ease-out",
-            // Closed, the control leaves the flex flow so the cluster is only as wide as the two
+            // Closed, the control leaves the flex flow so the cluster is only as wide as the
             // toggles the header reserves room for; anchored to the cluster's left edge, it fades
-            // out where it stood rather than over the terminal toggle.
+            // out where it stood rather than over the toggles.
             rightPanelOpen
               ? "pointer-events-auto opacity-100"
               : "pointer-events-none absolute right-full mr-1 opacity-0",
@@ -11416,6 +11483,7 @@ export default function ChatView(props: ChatViewProps) {
   const content = (
     <div
       ref={setWorkspaceLayoutElement}
+      data-chat-view-compact={compact ? "" : undefined}
       className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden bg-background"
     >
       <Dialog
@@ -11441,13 +11509,13 @@ export default function ChatView(props: ChatViewProps) {
           ) : null}
         </WizardPopup>
       </Dialog>
-      {rightPanelControlsAtRoot ? panelLayoutControls : null}
+      {rightPanelControlsAtRoot && !compact ? panelLayoutControls : null}
       <div
         className={cn(
           "flex min-h-0 min-w-0 flex-col overflow-x-hidden",
-          rightPanelMaximized ? "w-0 flex-none" : "flex-1",
+          rightPanelMaximized && !compact ? "w-0 flex-none" : "flex-1",
         )}
-        data-chat-column-maximized-away={rightPanelMaximized ? "true" : "false"}
+        data-chat-column-maximized-away={rightPanelMaximized && !compact ? "true" : "false"}
       >
         {/* Top bar */}
         <header
@@ -11464,6 +11532,7 @@ export default function ChatView(props: ChatViewProps) {
                 )
               : "flex h-[var(--workspace-topbar-height)] min-h-[var(--workspace-topbar-height)] shrink-0 items-center pl-(--workspace-gutter-start) pr-(--workspace-gutter-end)",
             COLLAPSED_SIDEBAR_TITLEBAR_INSET_CLASS,
+            compact && "hidden!",
           )}
         >
           {isElectron && rightPanelControlsAtRoot ? (
@@ -11547,6 +11616,16 @@ export default function ChatView(props: ChatViewProps) {
                   setThreadErrorBannerDismissTick((tick) => tick + 1);
                 }}
               />
+              {/* Otterware seam: what modules show about this thread (Drive's linked documents). */}
+              {isServerThread && !compact ? (
+                <ModuleThreadAccessories
+                  className="pointer-events-auto mt-2 mr-3 self-end"
+                  environmentId={activeThread.environmentId}
+                  threadId={activeThread.id}
+                  sideChat={false}
+                  pageContext={null}
+                />
+              ) : null}
             </div>
             {/* Messages Wrapper */}
             <div className="relative flex min-h-0 flex-1 flex-col bg-background">
@@ -12098,7 +12177,7 @@ export default function ChatView(props: ChatViewProps) {
         ))}
       </div>
 
-      {rightPanelPresent && !shouldUsePlanSidebarSheet && activeThreadRef ? (
+      {rightPanelPresent && !shouldUsePlanSidebarSheet && activeThreadRef && !compact ? (
         <RightPanelTabs
           mode="inline"
           open={rightPanelOpen}
@@ -12132,6 +12211,7 @@ export default function ChatView(props: ChatViewProps) {
           onAddFiles={addFilesSurface}
           onAddPullRequest={addPullRequestSurface}
           onAddPullRequests={addPullRequestsSurface}
+          onAddLinearIssues={addLinearIssuesSurface}
           onAddDevice={addDeviceSurface}
           browserAvailable={canOperatePreview && browserAvailable}
           terminalAvailable={activeProject !== null && canOperateTerminal}
@@ -12139,12 +12219,13 @@ export default function ChatView(props: ChatViewProps) {
           filesAvailable={activeProject !== null}
           pullRequestAvailable={pullRequestSurfaceAvailable}
           pullRequestsAvailable={pullRequestsSurfaceAvailable}
+          linearIssuesAvailable={linearIssuesSurfaceAvailable}
           deviceAvailable={activeThreadRef !== null}
         >
           {rightPanelContent}
         </RightPanelTabs>
       ) : null}
-      {rightPanelPresent && shouldUsePlanSidebarSheet && activeThreadRef ? (
+      {rightPanelPresent && shouldUsePlanSidebarSheet && activeThreadRef && !compact ? (
         <RightPanelSheet
           animationDurationMs={panelAnimationsActive ? panelAnimationDurationMs : 0}
           open={rightPanelOpen}
@@ -12191,6 +12272,7 @@ export default function ChatView(props: ChatViewProps) {
             onAddFiles={addFilesSurface}
             onAddPullRequest={addPullRequestSurface}
             onAddPullRequests={addPullRequestsSurface}
+            onAddLinearIssues={addLinearIssuesSurface}
             onAddDevice={addDeviceSurface}
             browserAvailable={canOperatePreview && browserAvailable}
             terminalAvailable={activeProject !== null && canOperateTerminal}
@@ -12198,6 +12280,7 @@ export default function ChatView(props: ChatViewProps) {
             filesAvailable={activeProject !== null}
             pullRequestAvailable={pullRequestSurfaceAvailable}
             pullRequestsAvailable={pullRequestsSurfaceAvailable}
+            linearIssuesAvailable={linearIssuesSurfaceAvailable}
             deviceAvailable={activeThreadRef !== null}
           >
             {rightPanelContent}
@@ -12244,6 +12327,7 @@ export default function ChatView(props: ChatViewProps) {
         </AlertDialogPopup>
       </AlertDialog>
       <LinkPullRequestDialogHost />
+      <LinkLinearIssueDialogHost />
       {expandedImage && (
         <ExpandedImageDialog
           key={expandedImageKey(expandedImage)}

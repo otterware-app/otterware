@@ -1,3 +1,9 @@
+import {
+  SERVER_RELEASE_CHANNEL,
+  SERVER_RELEASE_PROFILE,
+  SERVER_RELEASE_REPOSITORY,
+} from "@otterware/profiles/server-release";
+
 /**
  * Naming shared by the release workflow, the runtime installers, and
  * install scripts for the per-platform CLI archives attached to GitHub
@@ -5,7 +11,7 @@
  * platform key, so a rename here is a release-breaking change.
  */
 
-const CLI_RELEASE_REPOSITORY = "pingdotgg/t3code";
+const CLI_RELEASE_REPOSITORY = SERVER_RELEASE_REPOSITORY;
 export const CLI_RELEASE_CHECKSUMS_FILE = "SHA256SUMS";
 /** Overrides the download origin for mirrors and air-gapped installs. */
 export const CLI_RELEASE_BASE_URL_ENV = "T3CODE_RELEASE_BASE_URL";
@@ -56,12 +62,22 @@ export function cliArchiveFileName(version: string, platformKey: CliArchivePlatf
 
 const CLI_RELEASE_DEFAULT_BASE_URL = `https://github.com/${CLI_RELEASE_REPOSITORY}/releases/download`;
 
+/** Prefix of the active profile's immutable release tags: `<prefix><version>`. */
+export const CLI_RELEASE_TAG_PREFIX = `otterware-${SERVER_RELEASE_PROFILE}-v`;
+
+/** The `releases/download` root, or a mirror of it, without a trailing slash. */
+export function cliReleaseRootUrl(
+  baseUrl: string | undefined = CLI_RELEASE_DEFAULT_BASE_URL,
+): string {
+  return (baseUrl?.trim() || CLI_RELEASE_DEFAULT_BASE_URL).replace(/\/+$/, "");
+}
+
 /** Directory that `releases/download/<tag>/<asset>` lives under. */
 export function cliReleaseDownloadBaseUrl(
   version: string,
   baseUrl: string | undefined = CLI_RELEASE_DEFAULT_BASE_URL,
 ): string {
-  return `${(baseUrl?.trim() || CLI_RELEASE_DEFAULT_BASE_URL).replace(/\/+$/, "")}/v${version}`;
+  return `${cliReleaseRootUrl(baseUrl)}/${CLI_RELEASE_TAG_PREFIX}${version}`;
 }
 
 /**
@@ -88,6 +104,7 @@ export const CLI_RELEASE_CHANNELS: ReadonlyArray<CliReleaseChannel> = [
 
 /** The release train a version was published on, derived from its prerelease tag. */
 export function cliReleaseChannelOf(version: string): CliReleaseChannel {
+  if (/^[^-+]+-otterware\.(?:[a-z]+\.)?\d{8}\.\d+$/.test(version)) return "nightly";
   const channel = /^[^-+]+-(nightly|preview)\.\d{8}\.\d+$/.exec(version)?.[1];
   return channel === "nightly" || channel === "preview" ? channel : "stable";
 }
@@ -102,22 +119,27 @@ export function cliReleaseIndexPageUrl(page: number): string {
 }
 
 /**
- * Picks the newest version on a channel from the release index. Tags are
- * `v<version>`; the channel is decided by the same rule the runtime uses, so
- * a preview tag never satisfies a nightly lookup and vice versa. Drafts are
- * skipped because their assets are not downloadable.
+ * Picks only this build's profile and branch from immutable release tags.
+ * publish-release.sh includes the feed channel in the release name; keep
+ * that metadata when decoding the index so test releases never enter a
+ * main-profile update. Drafts are not downloadable.
  */
 export function newestCliReleaseVersion(
   releases: ReadonlyArray<{
     readonly tag_name: string;
     readonly draft?: boolean | undefined;
+    readonly name?: string | undefined;
   }>,
   channel: CliReleaseChannel,
 ): string | undefined {
   for (const release of releases) {
     if (release.draft) continue;
-    const version = /^v(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$/.exec(release.tag_name)?.[1];
-    if (version === undefined) continue;
+    const prefix = `otterware-${SERVER_RELEASE_PROFILE}-v`;
+    if (!release.tag_name.startsWith(prefix)) continue;
+    const version = release.tag_name.slice(prefix.length);
+    if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(version)) continue;
+    if (release.name !== `${SERVER_RELEASE_PROFILE} ${version} (${SERVER_RELEASE_CHANNEL})`)
+      continue;
     if (cliReleaseChannelOf(version) === channel) return version;
   }
   return undefined;

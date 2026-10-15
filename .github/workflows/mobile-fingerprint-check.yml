@@ -13,6 +13,7 @@ name: Mobile Fingerprint Check
 # pnpm), so the comparison is self-consistent; no EXPO_TOKEN needed.
 on:
   pull_request:
+    branches: [main]
     # Run even when a rebase or base change removes every native input from the
     # diff, so the label can be cleared without installing Expo dependencies.
     types: [opened, synchronize, reopened, edited]
@@ -24,7 +25,7 @@ concurrency:
 jobs:
   fingerprint:
     name: Native fingerprint diff
-    runs-on: blacksmith-8vcpu-ubuntu-2404
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       issues: write
@@ -89,7 +90,9 @@ jobs:
         env:
           BASE_SHA: ${{ steps.changes.outputs.base_sha }}
         run: |
-          git checkout --quiet "$BASE_SHA"
+          # Filtered installs can rewrite tracked dependency metadata. Fingerprint
+          # artifacts are in RUNNER_TEMP; discard install edits in this CI checkout.
+          git checkout --quiet --force "$BASE_SHA"
           # Re-sync node_modules to the base commit's lockfile before
           # fingerprinting — a dep-changing PR must not fingerprint the base
           # against head's installed packages.

@@ -1,3 +1,5 @@
+import { moduleWorkerPlugin } from "../../scripts/otterware/module-workers.ts";
+import { resolveProfile } from "../../profiles/index.ts";
 import "vite-plus/test/config";
 import { defineConfig, mergeConfig } from "vite-plus";
 
@@ -16,7 +18,9 @@ import { WeightedShardSequencer } from "./src/testUtils/weightedShardSequencer.t
 // inlined. See scripts/lib/cli-external-packages.ts for what earns an exemption.
 import {
   isExternalCliDependency,
+  isExternalCliExecutableDependency,
   shouldBundleCliDependency,
+  shouldBundleCliExecutableDependency,
 } from "../../scripts/lib/cli-external-packages.ts";
 
 export { shouldBundleCliDependency };
@@ -76,6 +80,8 @@ export default mergeConfig(
       },
     },
     pack: {
+      // Otterware seam: self-contained module workers travel with every host artifact.
+      plugins: [moduleWorkerPlugin()],
       // The executable embeds one entry; the history worker becomes a hidden
       // subcommand there instead of a sibling script.
       entry: packExecutable ? ["src/bin.ts"] : ["src/bin.ts", "src/claude-history-worker.ts"],
@@ -96,6 +102,11 @@ export default mergeConfig(
             },
           }
         : {}),
+      // Its UMD entry hides relative require calls inside a factory. Bundle the ESM entry.
+      alias: {
+        "vscode-json-languageservice": "vscode-json-languageservice/lib/esm/jsonLanguageService.js",
+        "jsonc-parser": "jsonc-parser/lib/esm/main.js",
+      },
       deps: {
         // Both halves are required. `alwaysBundle` forces the JS dependencies in
         // (declared deps are external by default, which is what this change is
@@ -103,21 +114,23 @@ export default mergeConfig(
         // false from `alwaysBundle` only means "no opinion", so a transitive
         // dependency would still be bundled — which silently inlined native
         // loaders such as node-gyp-build, losing native acceleration.
-        alwaysBundle: shouldBundleCliDependency,
-        neverBundle: (id: string) => isExternalCliDependency(id),
+        alwaysBundle: packExecutable
+          ? shouldBundleCliExecutableDependency
+          : shouldBundleCliDependency,
+        neverBundle: packExecutable ? isExternalCliExecutableDependency : isExternalCliDependency,
         onlyBundle: false,
       },
       banner: {
         js: "#!/usr/bin/env node\n",
       },
       define: {
+        // Otterware seam: the app profile this build runs as (profiles/active.ts).
+        __OTTERWARE_PROFILE__: JSON.stringify(resolveProfile(process.env.OTTERWARE_PROFILE).id),
         __T3CODE_BUILD_CHANNEL__: JSON.stringify(cliBuildChannel),
         __T3CODE_BUILD_RELAY_URL__: JSON.stringify(repoEnv.T3CODE_RELAY_URL?.trim() ?? ""),
-        __T3CODE_BUILD_CLERK_PUBLISHABLE_KEY__: JSON.stringify(
-          repoEnv.T3CODE_CLERK_PUBLISHABLE_KEY?.trim() ?? "",
-        ),
-        __T3CODE_BUILD_CLERK_CLI_OAUTH_CLIENT_ID__: JSON.stringify(
-          repoEnv.T3CODE_CLERK_CLI_OAUTH_CLIENT_ID?.trim() ?? "",
+        __T3CODE_BUILD_ACCOUNTS_URL__: JSON.stringify(repoEnv.T3CODE_ACCOUNTS_URL?.trim() ?? ""),
+        __T3CODE_BUILD_ACCOUNTS_CLI_CLIENT_ID__: JSON.stringify(
+          repoEnv.T3CODE_ACCOUNTS_CLI_CLIENT_ID?.trim() ?? "",
         ),
         __T3CODE_BUILD_RELAY_CLIENT_OTLP_TRACES_URL__: JSON.stringify(
           repoEnv.T3CODE_RELAY_CLIENT_OTLP_TRACES_URL?.trim() ?? "",

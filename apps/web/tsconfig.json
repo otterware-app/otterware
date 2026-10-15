@@ -26,6 +26,7 @@
     ]
   },
   "include": [
+    "../../packages/shared/src/otterAccounts.ts",
     "src",
     "vite",
     "vite.config.ts",
@@ -33,6 +34,8 @@
     "test",
     "scripts/warm-dep-cache.ts",
     "../../scripts/lib/public-config.ts",
+    "../../scripts/otterware/profile-web-assets.ts",
+    "../../profiles",
     "../../scripts/lib/third-party-licenses.ts"
   ]
 }

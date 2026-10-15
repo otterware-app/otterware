@@ -1,0 +1,43 @@
+{
+  "name": "@otterware/cloud",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vp test run",
+    "lint": "vp lint .",
+    "build": "node scripts/build.ts && wrangler deploy --dry-run",
+    "build:cli": "node scripts/build-cli.ts",
+    "deploy": "node scripts/deploy.ts"
+  },
+  "dependencies": {
+    "@better-auth/api-key": "1.7.6",
+    "@better-auth/oauth-provider": "1.7.6",
+    "@cfworker/json-schema": "4.1.1",
+    "@cloudflare/puppeteer": "1.1.0",
+    "@e965/xlsx": "0.20.3",
+    "@hono/zod-validator": "0.9.1",
+    "@modelcontextprotocol/sdk": "1.30.1",
+    "@openrouter/ai-sdk-provider": "3.1.0",
+    "@otterware/otter-cloud-client": "workspace:*",
+    "ai": "7.0.127",
+    "better-auth": "1.7.6",
+    "drizzle-orm": "0.45.3",
+    "fflate": "0.8.3",
+    "hono": "4.13.9",
+    "jose": "6.2.3",
+    "papaparse": "5.5.4",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "5.20260927.1",
+    "@types/node": "catalog:",
+    "@types/papaparse": "5.5.2",
+    "esbuild": "0.28.1",
+    "miniflare": "5.20260925.0-alpha",
+    "tsx": "4.23.0",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:",
+    "wrangler": "4.141.0"
+  }
+}

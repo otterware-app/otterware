@@ -1,0 +1,36 @@
+{
+  "name": "@otterware/drive-web",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/DriveWebModule.ts",
+      "import": "./src/DriveWebModule.ts"
+    },
+    "./registration": {
+      "types": "./src/DriveWebModule.ts",
+      "import": "./src/DriveWebModule.ts"
+    },
+    "./rpc": {
+      "types": "./src/rpc.ts",
+      "import": "./src/rpc.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc-rs --noEmit",
+    "test": "vp test run --config ../../../vite.config.ts --dir . --passWithNoTests"
+  },
+  "dependencies": {
+    "@otterware/drive-contracts": "workspace:*",
+    "@otterware/module-kit": "workspace:*",
+    "@t3tools/client-runtime": "workspace:*",
+    "effect": "catalog:",
+    "lucide-react": "^0.564.0",
+    "react": "19.2.6"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "@types/react": "~19.3.0",
+    "vite-plus": "catalog:"
+  }
+}

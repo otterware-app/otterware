@@ -1,0 +1,28 @@
+{
+  "name": "@otterware/mail-browser",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./page": "./src/pageClient.ts",
+    "./page-contracts": "./src/page.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vp test run --passWithNoTests"
+  },
+  "dependencies": {
+    "@otterware/mail-contracts": "workspace:*",
+    "@otterware/mail-engine": "workspace:*",
+    "@otterware/module-kit": "workspace:*",
+    "@otterware/otter-cloud-client": "workspace:*",
+    "@sqlite.org/sqlite-wasm": "3.53.4-build1",
+    "effect": "catalog:",
+    "subtls": "0.5.0"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "typescript": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

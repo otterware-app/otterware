@@ -17,6 +17,7 @@ import { OrchestratorMcpFailure, PreviewAutomationError } from "@t3tools/contrac
 
 import packageJson from "../../package.json" with { type: "json" };
 import * as ServerConfig from "../config.ts";
+import * as OtterwareServer from "../otterware/OtterwareServer.ts";
 import * as DeviceService from "../device/DeviceService.ts";
 import * as HtmlRender from "../htmlRender/HtmlRender.ts";
 import * as ThreadCommandExecutor from "../orchestration-v2/ThreadCommandExecutor.ts";
@@ -51,6 +52,8 @@ import * as WorktreeMcpService from "./WorktreeMcpService.ts";
 import * as PullRequestsHandlers from "./toolkits/pullRequests/handlers.ts";
 import { PullRequestsToolkit } from "./toolkits/pullRequests/tools.ts";
 import * as DeviceHandlers from "./toolkits/device/handlers.ts";
+import * as LinearIssuesHandlers from "./toolkits/linearIssues/handlers.ts";
+import { LinearIssuesToolkit } from "./toolkits/linearIssues/tools.ts";
 import {
   DeviceScreenshotTool,
   DeviceScreenshotToolkit,
@@ -848,6 +851,11 @@ const layerDeviceStandardToolkitRegistration = toolkitRegistration(
   DeviceHandlers.layerStandard,
 );
 
+const layerLinearIssuesToolkitRegistration = toolkitRegistration(
+  LinearIssuesToolkit,
+  LinearIssuesHandlers.layer,
+);
+
 const layerDeviceScreenshotRegistration = imageToolRegistration(
   registerDeviceScreenshot(),
   DeviceHandlers.layerScreenshot,
@@ -876,6 +884,9 @@ export const layer = Layer.mergeAll(
   layerPreviewControlsRegistration,
   layerWorktreeToolkitRegistration,
   layerPullRequestsToolkit,
+  layerLinearIssuesToolkitRegistration,
   layerDeviceToolkit,
   layerHtmlToolkit,
+  // Otterware seam: module tools, filtered by module state (docs/internals/modules.md).
+  OtterwareServer.layerMcpToolkits,
 ).pipe(Layer.provideMerge(layerMcpTransport));

@@ -1,3 +1,5 @@
+import { profileWebAssetsPlugin } from "../../scripts/otterware/profile-web-assets.ts";
+import { resolveProfile } from "../../profiles/index.ts";
 import * as NodeZlib from "node:zlib";
 
 import react, { reactCompilerPreset } from "@vitejs/plugin-react";
@@ -36,9 +38,8 @@ const host = explicitHost || "localhost";
 const configuredWsUrl = isSingleOriginDev ? undefined : process.env.VITE_WS_URL?.trim();
 const configuredHttpUrl = isSingleOriginDev ? undefined : process.env.VITE_HTTP_URL?.trim();
 const configuredRelayUrl = repoEnv.VITE_T3CODE_RELAY_URL?.trim() || "";
-const configuredClerkPublishableKey = repoEnv.VITE_CLERK_PUBLISHABLE_KEY?.trim() || "";
-const configuredClerkJwtTemplate = repoEnv.VITE_CLERK_JWT_TEMPLATE?.trim() || "";
-const configuredClerkCliOAuthClientId = repoEnv.VITE_CLERK_CLI_OAUTH_CLIENT_ID?.trim() || "";
+const configuredAccountsUrl = repoEnv.VITE_ACCOUNTS_URL?.trim() || "";
+const configuredAccountsCliClientId = repoEnv.VITE_ACCOUNTS_CLI_CLIENT_ID?.trim() || "";
 const configuredRelayTracingUrl = repoEnv.VITE_RELAY_OTLP_TRACES_URL?.trim() || "";
 const configuredRelayTracingDataset = repoEnv.VITE_RELAY_OTLP_TRACES_DATASET?.trim() || "";
 const configuredRelayTracingToken = repoEnv.VITE_RELAY_OTLP_TRACES_TOKEN?.trim() || "";
@@ -84,7 +85,11 @@ const unitTestProject = {
     // run, those async tests can exceed Vitest's default 5s budget.
     hookTimeout: 15_000,
     testTimeout: 15_000,
-    setupFiles: ["../../packages/shared/src/testing/longTempDir.ts"],
+    setupFiles: [
+      "../../packages/shared/src/testing/longTempDir.ts",
+      // Otterware: upstream tests see the host without modules.
+      "./src/otterware/testing/hostOnlyModuleRegistry.ts",
+    ],
   },
 } satisfies TestProjectInlineConfiguration;
 
@@ -160,6 +165,7 @@ export default defineConfig(() => {
   return {
     assetsInclude: ["**/*.wasm"],
     plugins: [
+      profileWebAssetsPlugin(),
       devCompressionPlugin(),
       thirdPartyLicensesPlugin({
         bundleName: "web",
@@ -185,10 +191,12 @@ export default defineConfig(() => {
       }),
       tailwindPlugins(bundledDev),
     ],
+    // The in-browser environment's workers code-split (Otterware, ADR 0008).
+    worker: { format: "es" },
     optimizeDeps: {
+      // SQLite in WASM loads its .wasm beside its own module; prebundling moves it.
+      exclude: ["@sqlite.org/sqlite-wasm"],
       include: [
-        "@clerk/clerk-js",
-        "@clerk/react/internal",
         "@pierre/diffs",
         "@pierre/diffs/edit",
         "@pierre/diffs/react",
@@ -199,6 +207,7 @@ export default defineConfig(() => {
       ],
     },
     define: {
+      __OTTERWARE_PROFILE__: JSON.stringify(resolveProfile(process.env.OTTERWARE_PROFILE).id),
       // In dev mode, tell the web app where the WebSocket server lives
       "import.meta.env.VITE_WS_URL": JSON.stringify(configuredWsUrl ?? ""),
       // Pinned explicitly rather than left to Vite's automatic VITE_ exposure:
@@ -206,11 +215,8 @@ export default defineConfig(() => {
       // supplies it, so the client falls back to window.location.origin.
       "import.meta.env.VITE_HTTP_URL": JSON.stringify(configuredHttpUrl ?? ""),
       "import.meta.env.VITE_T3CODE_RELAY_URL": JSON.stringify(configuredRelayUrl),
-      "import.meta.env.VITE_CLERK_PUBLISHABLE_KEY": JSON.stringify(configuredClerkPublishableKey),
-      "import.meta.env.VITE_CLERK_JWT_TEMPLATE": JSON.stringify(configuredClerkJwtTemplate),
-      "import.meta.env.VITE_CLERK_CLI_OAUTH_CLIENT_ID": JSON.stringify(
-        configuredClerkCliOAuthClientId,
-      ),
+      "import.meta.env.VITE_ACCOUNTS_URL": JSON.stringify(configuredAccountsUrl),
+      "import.meta.env.VITE_ACCOUNTS_CLI_CLIENT_ID": JSON.stringify(configuredAccountsCliClientId),
       "import.meta.env.VITE_RELAY_OTLP_TRACES_URL": JSON.stringify(configuredRelayTracingUrl),
       "import.meta.env.VITE_RELAY_OTLP_TRACES_DATASET": JSON.stringify(
         configuredRelayTracingDataset,

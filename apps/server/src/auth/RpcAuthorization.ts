@@ -30,6 +30,7 @@ import {
   WS_METHODS,
   WsRpcGroup,
 } from "@t3tools/contracts";
+import { OTTERWARE_RPC_SUPERSET_SCOPES } from "@otterware/composition/contracts";
 import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 import * as Layer from "effect/Layer";
@@ -129,6 +130,8 @@ export const RPC_REQUIRED_SCOPES = {
   [WS_METHODS.pullRequestsStack]: AuthOrchestrationReadScope,
   [WS_METHODS.pullRequestsLinkedThreads]: AuthOrchestrationReadScope,
   [WS_METHODS.pullRequestsDetail]: AuthOrchestrationReadScope,
+  [WS_METHODS.linearIssueDetail]: AuthOrchestrationReadScope,
+  [WS_METHODS.linearSubscribeIssueChanges]: AuthOrchestrationReadScope,
   [WS_METHODS.pullRequestsPreview]: AuthOrchestrationReadScope,
   [WS_METHODS.pullRequestsChecks]: AuthOrchestrationReadScope,
   [WS_METHODS.pullRequestsActivity]: AuthOrchestrationReadScope,
@@ -148,6 +151,8 @@ export const RPC_REQUIRED_SCOPES = {
   [WS_METHODS.sourceControlLookupRepository]: AuthOrchestrationReadScope,
   [WS_METHODS.subscribeProjectClones]: AuthOrchestrationReadScope,
   [WS_METHODS.projectsListEntries]: AuthFilesystemReadScope,
+  [WS_METHODS.projectsLanguage]: AuthFilesystemReadScope,
+  [WS_METHODS.projectsLanguageServers]: AuthFilesystemReadScope,
   [WS_METHODS.projectsReadFile]: AuthFilesystemReadScope,
   [WS_METHODS.projectsSearchContents]: AuthFilesystemReadScope,
   [WS_METHODS.projectsSearchEntries]: AuthFilesystemReadScope,
@@ -178,6 +183,7 @@ export const RPC_REQUIRED_SCOPES = {
   [WS_METHODS.vcsListRefs]: AuthOrchestrationReadScope,
   [WS_METHODS.reviewGetDiffPreview]: AuthFilesystemReadScope,
   [WS_METHODS.reviewGetDiffFileContents]: AuthFilesystemReadScope,
+  [WS_METHODS.reviewListCommits]: AuthFilesystemReadScope,
   [WS_METHODS.terminalOpen]: AuthTerminalOperateScope,
   [WS_METHODS.terminalAttach]: AuthTerminalOperateScope,
   [WS_METHODS.terminalObserve]: AuthTerminalReadScope,
@@ -217,6 +223,10 @@ export const RPC_REQUIRED_SCOPES = {
 
 export function requiredScopeForRpcMethod(method: string): AuthEnvironmentScope {
   if (!Object.hasOwn(RPC_REQUIRED_SCOPES, method)) {
+    // Otterware seam: host and module methods declare their scopes in their contracts.
+    if (Object.hasOwn(OTTERWARE_RPC_SUPERSET_SCOPES, method)) {
+      return OTTERWARE_RPC_SUPERSET_SCOPES[method as keyof typeof OTTERWARE_RPC_SUPERSET_SCOPES];
+    }
     throw new Error(`RPC method ${method} has no declared authorization scope.`);
   }
   const requiredScope = RPC_REQUIRED_SCOPES[method as WsRpcMethod];

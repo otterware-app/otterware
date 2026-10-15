@@ -1,0 +1,60 @@
+{
+  "name": "@otterware/composition",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./contracts": {
+      "types": "./src/contracts.ts",
+      "import": "./src/contracts.ts"
+    },
+    "./server": {
+      "types": "./src/server.ts",
+      "import": "./src/server.ts"
+    },
+    "./browser-contracts": {
+      "types": "./src/browserContracts.ts",
+      "import": "./src/browserContracts.ts"
+    },
+    "./browser": {
+      "types": "./src/browser.ts",
+      "import": "./src/browser.ts"
+    },
+    "./web": {
+      "types": "./src/web.ts",
+      "import": "./src/web.ts"
+    },
+    "./calendar-rpc": {
+      "types": "./src/calendar-rpc.ts",
+      "import": "./src/calendar-rpc.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc-rs --noEmit",
+    "test": "vp test run --config ../../vite.config.ts --dir ."
+  },
+  "dependencies": {
+    "@otterware/calendar-contracts": "workspace:*",
+    "@otterware/calendar-engine": "workspace:*",
+    "@otterware/calendar-node": "workspace:*",
+    "@otterware/calendar-web": "workspace:*",
+    "@otterware/drive-contracts": "workspace:*",
+    "@otterware/drive-engine": "workspace:*",
+    "@otterware/drive-node": "workspace:*",
+    "@otterware/drive-web": "workspace:*",
+    "@otterware/home-contracts": "workspace:*",
+    "@otterware/home-engine": "workspace:*",
+    "@otterware/home-web": "workspace:*",
+    "@otterware/mail-browser": "workspace:*",
+    "@otterware/mail-contracts": "workspace:*",
+    "@otterware/mail-engine": "workspace:*",
+    "@otterware/mail-node": "workspace:*",
+    "@otterware/module-kit": "workspace:*",
+    "@otterware/profiles": "workspace:*",
+    "@t3tools/contracts": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "vite-plus": "catalog:"
+  }
+}

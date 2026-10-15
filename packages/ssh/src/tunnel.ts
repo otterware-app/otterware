@@ -6,7 +6,7 @@ import {
   describeReadinessCause,
   waitForHttpReady as waitForHttpReadyShared,
 } from "@t3tools/shared/httpReadiness";
-import { cliReleaseDownloadBaseUrl } from "@t3tools/shared/cliRelease";
+import { CLI_RELEASE_TAG_PREFIX, cliReleaseRootUrl } from "@t3tools/shared/cliRelease";
 import * as KeyedLock from "@t3tools/shared/KeyedLock";
 import * as NetService from "@t3tools/shared/Net";
 import { extractJsonObject, fromLenientJson } from "@t3tools/shared/schemaJson";
@@ -52,7 +52,8 @@ const SSH_READY_TIMEOUT_MS = 20_000;
 const SSH_READY_PROBE_TIMEOUT_MS = 1_000;
 const TUNNEL_SHUTDOWN_TIMEOUT_MS = 2_000;
 const REMOTE_READY_TIMEOUT_MS = 60_000;
-const REMOTE_LAUNCH_TIMEOUT_MS = 90_000;
+const REMOTE_LAUNCH_TIMEOUT_MS = 150_000;
+const REMOTE_SERVICE_WAIT_SECONDS = 120;
 // A cold archive launch also downloads and unpacks a ~70 MB release archive
 // and may wait on another installer's lock. The budgets nest: the checksum
 // file is tiny and the archive download is bounded; a waiter outlasts both
@@ -465,16 +466,17 @@ fi
 # Self-contained release archive: no Node, npm, or compiler on the remote.
 # Unpacked into the pinned-runtime layout so \`t3 service install\` reuses it.
 T3_RELEASE_BASE_URL=@@T3_RELEASE_BASE_URL@@
-T3_RUNTIME_DIR="$HOME/.t3/runtime/versions/$T3_ARCHIVE_VERSION"
+T3_RELEASE_TAG="@@T3_RELEASE_TAG_PREFIX@@$T3_ARCHIVE_VERSION"
+T3_RUNTIME_DIR="$HOME/.otter-code/runtime/versions/$T3_ARCHIVE_VERSION"
 t3_runtime_ready() {
   [ -x "$T3_RUNTIME_DIR/t3" ] && [ "$(cat "$T3_RUNTIME_DIR/.install-complete" 2>/dev/null)" = "$T3_ARCHIVE_VERSION" ]
 }
 if ! t3_runtime_ready; then
-  mkdir -p "$HOME/.t3/runtime/versions"
+  mkdir -p "$HOME/.otter-code/runtime/versions"
   # Concurrent launches (two clients, a retry racing a slow first run) must
   # not both install: mkdir is the atomic lock and the ready check repeats
   # under it.
-  T3_LOCK="$HOME/.t3/runtime/versions/.$T3_ARCHIVE_VERSION.install.lock"
+  T3_LOCK="$HOME/.otter-code/runtime/versions/.$T3_ARCHIVE_VERSION.install.lock"
   # mkdir is the only portable atomic exclusive create (mv would silently
   # nest a candidate inside an existing lock). The owner publishes its pid
   # right after, so a lock with a live owner is never reclaimed however
@@ -521,7 +523,7 @@ if ! t3_runtime_ready; then
     *) printf 'Remote host %s has no t3 release archive.\\n' "$(uname -m)" >&2; exit 1 ;;
   esac
   T3_ARCHIVE="t3-$T3_ARCHIVE_VERSION-$T3_PLATFORM-$T3_ARCH.tar.gz"
-  T3_STAGING="$(mktemp -d "$HOME/.t3/runtime/versions/.staging-XXXXXX")"
+  T3_STAGING="$(mktemp -d "$HOME/.otter-code/runtime/versions/.staging-XXXXXX")"
   trap 'rm -rf "$T3_STAGING" "$T3_LOCK"' EXIT
   t3_fetch() {
     if command -v curl >/dev/null 2>&1; then curl -fsSL --connect-timeout 30 --max-time "$3" "$1" -o "$2"
@@ -529,8 +531,8 @@ if ! t3_runtime_ready; then
     else printf 'Remote host needs curl or wget to download %s.\\n' "$T3_ARCHIVE" >&2; exit 1
     fi
   }
-  t3_fetch "$T3_RELEASE_BASE_URL/v$T3_ARCHIVE_VERSION/SHA256SUMS" "$T3_STAGING/SHA256SUMS" @@T3_ARCHIVE_CHECKSUMS_SECONDS@@
-  t3_fetch "$T3_RELEASE_BASE_URL/v$T3_ARCHIVE_VERSION/$T3_ARCHIVE" "$T3_STAGING/$T3_ARCHIVE" @@T3_ARCHIVE_DOWNLOAD_SECONDS@@
+  t3_fetch "$T3_RELEASE_BASE_URL/$T3_RELEASE_TAG/SHA256SUMS" "$T3_STAGING/SHA256SUMS" @@T3_ARCHIVE_CHECKSUMS_SECONDS@@
+  t3_fetch "$T3_RELEASE_BASE_URL/$T3_RELEASE_TAG/$T3_ARCHIVE" "$T3_STAGING/$T3_ARCHIVE" @@T3_ARCHIVE_DOWNLOAD_SECONDS@@
   T3_EXPECTED="$(grep " \\*\\{0,1\\}$T3_ARCHIVE$" "$T3_STAGING/SHA256SUMS" | cut -d' ' -f1)"
   if command -v sha256sum >/dev/null 2>&1; then
     T3_ACTUAL="$(sha256sum "$T3_STAGING/$T3_ARCHIVE" | cut -d' ' -f1)"
@@ -561,8 +563,8 @@ exec "$T3_RUNTIME_DIR/t3" "$@"
 const REMOTE_LAUNCH_SCRIPT = `set -eu
 @@T3_NODE_ENV_SCRIPT@@
 STATE_KEY="$1"
-STATE_DIR="$HOME/.t3/ssh-launch/$STATE_KEY"
-DEFAULT_SERVER_HOME="$HOME/.t3"
+STATE_DIR="$HOME/.otter-code/ssh-launch/$STATE_KEY"
+DEFAULT_SERVER_HOME="$HOME/.otter-code"
 DEFAULT_RUNTIME_FILE="$DEFAULT_SERVER_HOME/userdata/server-runtime.json"
 PORT_FILE="$STATE_DIR/port"
 PID_FILE="$STATE_DIR/pid"
@@ -657,42 +659,62 @@ NODE
 REMOTE_PID="$(cat "$PID_FILE" 2>/dev/null || true)"
 REMOTE_PORT="$(cat "$PORT_FILE" 2>/dev/null || true)"
 REMOTE_MANAGED="$(cat "$MANAGED_FILE" 2>/dev/null || true)"
-DEFAULT_RUNTIME_INFO="$(resolve_default_runtime_port 2>/dev/null || true)"
+service_manages_default_home() {
+  # Durable service state reserves this home even while its child is down.
+  # Fail closed on unreadable/malformed state rather than risking two writers.
+  [ -f "$DEFAULT_SERVER_HOME/runtime/service-state.json" ] ||
+    [ -f "$HOME/.config/systemd/user/otter-code.service" ] ||
+    [ -f "$HOME/Library/LaunchAgents/dev.otterware.code.service.plist" ] ||
+    { command -v systemctl >/dev/null 2>&1 && systemctl --user is-enabled otter-code.service >/dev/null 2>&1; }
+}
 DEFAULT_RUNTIME_PID=""
 DEFAULT_REMOTE_PORT=""
 ADOPTED_PID=""
-if [ -n "$DEFAULT_RUNTIME_INFO" ]; then
+read_default_runtime() {
+  DEFAULT_RUNTIME_INFO="$(resolve_default_runtime_port 2>/dev/null || true)"
+  [ -n "$DEFAULT_RUNTIME_INFO" ] || return 1
   DEFAULT_RUNTIME_PID="\${DEFAULT_RUNTIME_INFO%% *}"
   DEFAULT_REMOTE_PORT="\${DEFAULT_RUNTIME_INFO#* }"
-fi
-# The managed server runs on the default home, so it writes the default
-# runtime file too. When that file names the PID this launcher recorded as
-# managed, it describes our own server and its real port, not one to adopt.
-if [ -n "$DEFAULT_REMOTE_PORT" ] && [ "$REMOTE_MANAGED" = "managed" ] && [ "$DEFAULT_RUNTIME_PID" = "$REMOTE_PID" ]; then
+}
+# Adopts the server named by the default runtime file as an external server.
+connect_default_runtime() {
   REMOTE_PORT="$DEFAULT_REMOTE_PORT"
-  printf '%s\\n' "$REMOTE_PORT" >"$PORT_FILE"
-elif [ -n "$DEFAULT_REMOTE_PORT" ]; then
-  REMOTE_PORT="$DEFAULT_REMOTE_PORT"
-  if wait_ready "@@T3_REUSE_READY_TIMEOUT_MS@@"; then
-    ADOPTED_PID="$DEFAULT_RUNTIME_PID"
-    if [ "$REMOTE_MANAGED" = "managed" ]; then
-      if [ -n "$REMOTE_PID" ] && kill -0 "$REMOTE_PID" 2>/dev/null; then
-        kill "$REMOTE_PID" 2>/dev/null || true
-        wait_for_pid_exit "$REMOTE_PID"
-      fi
-      REMOTE_PID=""
-      REMOTE_PORT="$DEFAULT_REMOTE_PORT"
-      REMOTE_MANAGED="external"
-      rm -f "$PID_FILE"
-      printf '%s\\n' "$REMOTE_PORT" >"$PORT_FILE"
-      printf 'external\\n' >"$MANAGED_FILE"
-    else
-      printf '%s\\n' "$REMOTE_PORT" >"$PORT_FILE"
-      printf 'external\\n' >"$MANAGED_FILE"
-      REMOTE_PID=""
-      REMOTE_MANAGED="external"
+  wait_ready "@@T3_REUSE_READY_TIMEOUT_MS@@" || return 1
+  ADOPTED_PID="$DEFAULT_RUNTIME_PID"
+  if [ "$REMOTE_MANAGED" = "managed" ]; then
+    # A leftover ownership file must never kill the service's current child.
+    if [ -n "$REMOTE_PID" ] && [ "$REMOTE_PID" != "$DEFAULT_RUNTIME_PID" ] && kill -0 "$REMOTE_PID" 2>/dev/null; then
+      kill "$REMOTE_PID" 2>/dev/null || true
+      wait_for_pid_exit "$REMOTE_PID"
     fi
-  else
+  fi
+  REMOTE_PID=""
+  REMOTE_PORT="$DEFAULT_REMOTE_PORT"
+  REMOTE_MANAGED="external"
+  rm -f "$PID_FILE"
+  printf '%s\\n' "$REMOTE_PORT" >"$PORT_FILE"
+  printf 'external\\n' >"$MANAGED_FILE"
+}
+if service_manages_default_home; then
+  SERVICE_WAIT_DEADLINE=$(($(date +%s) + @@T3_SERVICE_WAIT_SECONDS@@))
+  while ! { read_default_runtime && connect_default_runtime; }; do
+    if [ "$(date +%s)" -ge "$SERVICE_WAIT_DEADLINE" ]; then
+      printf "This host's Otter Code service is not running; start it with otter-code service restart (or systemctl --user start otter-code.service on Linux).\\n" >&2
+      exit 1
+    fi
+    sleep 1
+  done
+  printf '{"remotePort":%s,"serverKind":"external"}\\n' "$REMOTE_PORT"
+  exit 0
+fi
+if read_default_runtime; then
+  # The managed server runs on the default home, so it writes the default
+  # runtime file too. When that file names the PID this launcher recorded as
+  # managed, it describes our own server and its real port, not one to adopt.
+  if [ "$REMOTE_MANAGED" = "managed" ] && [ "$DEFAULT_RUNTIME_PID" = "$REMOTE_PID" ]; then
+    REMOTE_PORT="$DEFAULT_REMOTE_PORT"
+    printf '%s\\n' "$REMOTE_PORT" >"$PORT_FILE"
+  elif ! connect_default_runtime; then
     REMOTE_PID="$(cat "$PID_FILE" 2>/dev/null || true)"
     REMOTE_PORT="$(cat "$PORT_FILE" 2>/dev/null || true)"
     REMOTE_MANAGED="$(cat "$MANAGED_FILE" 2>/dev/null || true)"
@@ -758,8 +780,8 @@ printf '{"remotePort":%s,"serverKind":"%s"}\\n' "$REMOTE_PORT" "\${REMOTE_MANAGE
 `;
 
 const REMOTE_PAIRING_SCRIPT = `set -eu
-STATE_DIR="$HOME/.t3/ssh-launch/@@T3_STATE_KEY@@"
-DEFAULT_SERVER_HOME="$HOME/.t3"
+STATE_DIR="$HOME/.otter-code/ssh-launch/@@T3_STATE_KEY@@"
+DEFAULT_SERVER_HOME="$HOME/.otter-code"
 RUNNER_FILE="$STATE_DIR/run-t3.sh"
 mkdir -p "$STATE_DIR"
 cat >"$RUNNER_FILE" <<'SH'
@@ -771,7 +793,7 @@ PAIRING_BASE_DIR="$DEFAULT_SERVER_HOME"
 `;
 
 const REMOTE_STOP_SCRIPT = `set -eu
-STATE_DIR="$HOME/.t3/ssh-launch/@@T3_STATE_KEY@@"
+STATE_DIR="$HOME/.otter-code/ssh-launch/@@T3_STATE_KEY@@"
 PID_FILE="$STATE_DIR/pid"
 PORT_FILE="$STATE_DIR/port"
 MANAGED_FILE="$STATE_DIR/managed"
@@ -794,7 +816,7 @@ printf '{"stopped":true}\\n'
 `;
 
 const REMOTE_LOG_TAIL_SCRIPT = `set -eu
-STATE_DIR="$HOME/.t3/ssh-launch/@@T3_STATE_KEY@@"
+STATE_DIR="$HOME/.otter-code/ssh-launch/@@T3_STATE_KEY@@"
 LOG_FILE="$STATE_DIR/server.log"
 if [ -f "$LOG_FILE" ]; then
   tail -n 80 "$LOG_FILE" 2>/dev/null || true
@@ -834,16 +856,14 @@ export function buildRemoteT3RunnerScript(input?: RemoteT3RunnerOptions): string
   if (archiveVersion !== "" && !EXACT_ARCHIVE_VERSION.test(archiveVersion)) {
     throw new SshInvalidArchiveVersionError({ archiveVersion });
   }
-  // Strip the `/v<version>` the helper appends: the script builds URLs itself.
-  const releaseBaseUrl = cliReleaseDownloadBaseUrl("", input?.releaseBaseUrl ?? undefined).replace(
-    /\/v$/u,
-    "",
-  );
+  // The script builds `<root>/<tag>/<asset>` itself, from the active profile's release tags.
+  const releaseBaseUrl = cliReleaseRootUrl(input?.releaseBaseUrl ?? undefined);
   return stripTrailingNewlines(
     applyScriptPlaceholders(REMOTE_RUNNER_SCRIPT, {
       T3_NODE_SCRIPT_PATH: shellSingleQuote(nodeScriptPath),
       T3_ARCHIVE_VERSION: shellSingleQuote(archiveVersion),
       T3_RELEASE_BASE_URL: shellSingleQuote(releaseBaseUrl),
+      T3_RELEASE_TAG_PREFIX: CLI_RELEASE_TAG_PREFIX,
       T3_ARCHIVE_LOCK_WAIT_SECONDS: String(REMOTE_ARCHIVE_LOCK_WAIT_SECONDS),
       T3_ARCHIVE_DOWNLOAD_SECONDS: String(REMOTE_ARCHIVE_DOWNLOAD_SECONDS),
       T3_ARCHIVE_CHECKSUMS_SECONDS: String(REMOTE_ARCHIVE_CHECKSUMS_SECONDS),
@@ -872,6 +892,7 @@ export function buildRemoteLaunchScript(input?: RemoteT3RunnerOptions): string {
     T3_REMOTE_PORT_SCAN_WINDOW: String(REMOTE_PORT_SCAN_WINDOW),
     T3_READY_TIMEOUT_MS: String(REMOTE_READY_TIMEOUT_MS),
     T3_REUSE_READY_TIMEOUT_MS: String(REMOTE_REUSE_READY_TIMEOUT_MS),
+    T3_SERVICE_WAIT_SECONDS: String(REMOTE_SERVICE_WAIT_SECONDS),
     T3_READY_PROBE_TIMEOUT_MS: String(SSH_READY_PROBE_TIMEOUT_MS),
   });
 }

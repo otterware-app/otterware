@@ -1,6 +1,6 @@
 import { ScreenScrollView as ScrollView } from "../../components/ScreenScrollView";
 import { NativeHeaderToolbar } from "../../native/StackHeader";
-import { useAuth } from "@clerk/expo";
+import { useAuth } from "../accounts/AccountProvider";
 import { StackActions, useNavigation } from "@react-navigation/native";
 import { useCallback, useEffect, useState } from "react";
 import { Platform, Pressable, RefreshControl, View } from "react-native";
@@ -45,7 +45,7 @@ export function ConnectOnboardingRouteScreen() {
 function ConfiguredConnectOnboardingRouteScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const { isSignedIn, userId } = useAuth({ treatPendingAsSignedOut: false });
+  const { isSignedIn, userId } = useAuth();
   const { connectedEnvironments, onSetEnvironmentEnabled, onRemoveEnvironmentPress } =
     useRemoteConnections();
   const { refreshRelayEnvironments } = useConnectionController();
@@ -86,7 +86,7 @@ function ConfiguredConnectOnboardingRouteScreen() {
     <View collapsable={false} className="flex-1 bg-sheet">
       {Platform.OS === "android" ? (
         <AndroidSheetHeader
-          title="Set up T3 Connect"
+          title="Set up Otter Connect"
           actions={[
             {
               accessibilityLabel: "Refresh environments",
@@ -131,7 +131,7 @@ function ConfiguredConnectOnboardingRouteScreen() {
         ) : (
           <View collapsable={false} className="rounded-[24px] bg-grouped-card p-5">
             <Text className="text-sm leading-normal text-foreground-muted">
-              Sign in to your T3 account to set up T3 Connect.
+              Sign in to your Otter Code account to set up Otter Connect.
             </Text>
           </View>
         )}

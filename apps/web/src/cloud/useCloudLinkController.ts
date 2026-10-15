@@ -1,5 +1,5 @@
 import { useAtomValue } from "@effect/atom-react";
-import { useAuth } from "@clerk/react";
+import { useAuth } from "../accounts/AccountProvider";
 import { findErrorTraceId } from "@t3tools/client-runtime/errors";
 import {
   EnvironmentId,
@@ -25,7 +25,6 @@ import {
   updatePrimaryEnvironmentPreferences as updatePrimaryEnvironmentPreferencesAtom,
 } from "./linkEnvironmentAtoms";
 import { readCachedPrimaryCloudLinkState, usePrimaryCloudLinkState } from "./primaryCloudLinkState";
-import { resolveRelayClerkTokenOptions } from "./publicConfig";
 
 export interface CloudLinkDesiredState {
   readonly managedTunnel: boolean;
@@ -87,13 +86,14 @@ export function useCloudLinkController() {
   const [operationError, setOperationError] = useState<string | null>(null);
 
   const reportUpdateFailure = (cause: unknown) => {
-    const message = cause instanceof Error ? cause.message : "Could not update T3 Connect access.";
+    const message =
+      cause instanceof Error ? cause.message : "Could not update Otter Connect access.";
     const traceId = findErrorTraceId(cause);
-    console.error("[t3-connect] Could not update T3 Connect", { message, traceId, cause });
+    console.error("[t3-connect] Could not update Otter Connect", { message, traceId, cause });
     setOperationError(traceId ? `${message} Trace ID: ${traceId}` : message);
     toastManager.add({
       type: "error",
-      title: "Could not update T3 Connect",
+      title: "Could not update Otter Connect",
       description: message,
       data: traceId
         ? {
@@ -132,7 +132,7 @@ export function useCloudLinkController() {
         !readEnvironmentScope(environmentId, AuthRelayWriteScope)
       ) {
         reportUpdateFailure(
-          new Error("This connection needs permission to view and manage T3 Connect settings."),
+          new Error("This connection needs permission to view and manage Otter Connect settings."),
         );
         return false;
       }
@@ -141,14 +141,16 @@ export function useCloudLinkController() {
     const readLinkState = () => {
       const state = readCachedPrimaryCloudLinkState(target);
       if (state === null) {
-        reportUpdateFailure(new Error("Wait until the current T3 Connect settings can be read."));
+        reportUpdateFailure(
+          new Error("Wait until the current Otter Connect settings can be read."),
+        );
       }
       return state;
     };
     if (!canManageLink()) return false;
     const wantsLink = desired.managedTunnel || desired.publish;
     if (wantsLink && readLinkState() === null) return false;
-    const tokenResult = await settlePromise(() => getToken(resolveRelayClerkTokenOptions()));
+    const tokenResult = await settlePromise(() => getToken());
     if (!canManageLink()) return false;
 
     // A failure after this point may follow a partially applied mutation (e.g.
@@ -160,7 +162,7 @@ export function useCloudLinkController() {
       // leave the user unable to turn T3 Connect off.
       const unlinkResult = await unlinkPrimaryEnvironment({
         target,
-        clerkToken: tokenResult._tag === "Success" ? (tokenResult.value ?? null) : null,
+        accountToken: tokenResult._tag === "Success" ? (tokenResult.value ?? null) : null,
       });
       if (unlinkResult._tag === "Failure") {
         if (!isAtomCommandInterrupted(unlinkResult)) {
@@ -176,9 +178,9 @@ export function useCloudLinkController() {
         reportUpdateFailure(squashAtomCommandFailure(tokenResult));
         return false;
       }
-      const clerkToken = tokenResult.value;
-      if (!clerkToken) {
-        reportUpdateFailure(new Error("Sign in to T3 Connect before enabling this."));
+      const accountToken = tokenResult.value;
+      if (!accountToken) {
+        reportUpdateFailure(new Error("Sign in to Otter Connect before enabling this."));
         return false;
       }
       const currentManagedTunnel = isManagedTunnelActive(currentLinkState, relayProviderKind);
@@ -189,7 +191,7 @@ export function useCloudLinkController() {
       ) {
         const linkResult = await linkPrimaryEnvironment({
           target,
-          clerkToken,
+          accountToken,
           mode: desired.managedTunnel ? "managed" : "publish_only",
         });
         if (linkResult._tag === "Failure") {

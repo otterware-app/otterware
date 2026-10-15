@@ -1,0 +1,26 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "Preserve",
+    "moduleResolution": "Bundler",
+    "lib": ["ESNext", "DOM"],
+    "types": ["@cloudflare/workers-types", "node"],
+    "noUncheckedIndexedAccess": false,
+    "exactOptionalPropertyTypes": false,
+    "plugins": [
+      {
+        "name": "@effect/language-service",
+        "diagnosticSeverity": {
+          "cryptoRandomUUID": "off",
+          "globalConsole": "off",
+          "globalDate": "off",
+          "globalFetch": "off",
+          "globalRandom": "off",
+          "globalTimers": "off",
+          "nodeBuiltinImport": "off"
+        }
+      }
+    ]
+  },
+  "include": ["src", "accounts/src", "drive", "drive-cli", "mail", "scripts"]
+}

@@ -1,3 +1,5 @@
+import { profileAppIdentity } from "@otterware/profiles";
+import { activeProfile } from "@otterware/profiles/active";
 import type {
   DesktopAppBranding,
   DesktopAppStageLabel,
@@ -14,7 +16,11 @@ import * as Path from "effect/Path";
 import * as DesktopAppSettings from "../settings/DesktopAppSettings.ts";
 import * as DesktopConfig from "./DesktopConfig.ts";
 import { resolveLinuxDesktopEntryName } from "./DesktopEarlyElectronStartup.ts";
-import { resolveDesktopBaseDir, resolveDesktopStateDir } from "./DesktopStatePaths.ts";
+import {
+  resolveDesktopBaseDir,
+  resolveDesktopClientBaseDir,
+  resolveDesktopStateDir,
+} from "./DesktopStatePaths.ts";
 import { isNightlyDesktopVersion } from "../updates/updateChannels.ts";
 import type { OtlpProtocol } from "@t3tools/shared/observability";
 
@@ -93,7 +99,8 @@ export class DesktopEnvironment extends Context.Service<
   }
 >()("@t3tools/desktop/app/DesktopEnvironment") {}
 
-const APP_BASE_NAME = "T3 Code";
+// Otterware seam: the active profile supplies desktop identity.
+const APP_BASE_NAME = activeProfile.brand.productName;
 
 function resolveDesktopAppStageLabel(input: {
   readonly isDevelopment: boolean;
@@ -114,7 +121,8 @@ export function resolveDesktopAppBranding(input: {
   return {
     baseName: APP_BASE_NAME,
     stageLabel,
-    displayName: `${APP_BASE_NAME} (${stageLabel})`,
+    // Otter Code ships one product name per channel; only dev builds carry a suffix.
+    displayName: profileAppIdentity(activeProfile, input.isDevelopment).displayName,
   };
 }
 
@@ -180,8 +188,18 @@ const make = Effect.fn("desktop.environment.make")(function* (
     appVersion: input.appVersion,
   });
   const displayName = branding.displayName;
-  const stateDir = resolveDesktopStateDir({
+  const serverStateDir = resolveDesktopStateDir({
     baseDir,
+    isDevelopment,
+    joinPath: path.join,
+    t3Home: config.t3Home,
+  });
+  const stateDir = resolveDesktopStateDir({
+    baseDir: resolveDesktopClientBaseDir({
+      homeDirectory,
+      joinPath: path.join,
+      t3Home: config.t3Home,
+    }),
     isDevelopment,
     joinPath: path.join,
     t3Home: config.t3Home,
@@ -209,7 +227,7 @@ const make = Effect.fn("desktop.environment.make")(function* (
     desktopSettingsPath: path.join(stateDir, "desktop-settings.json"),
     clientSettingsPath: path.join(stateDir, "client-settings.json"),
     savedEnvironmentRegistryPath: path.join(stateDir, "saved-environments.json"),
-    serverSettingsPath: path.join(stateDir, "settings.json"),
+    serverSettingsPath: path.join(serverStateDir, "settings.json"),
     logDir: path.join(stateDir, "logs"),
     browserArtifactsDir: path.join(stateDir, "browser-artifacts"),
     rootDir,
@@ -235,11 +253,12 @@ const make = Effect.fn("desktop.environment.make")(function* (
     otlpProtocol: config.otlpProtocol,
     branding,
     displayName,
-    appUserModelId: Option.getOrElse(config.appUserModelIdOverride, () =>
-      isDevelopment ? "com.t3tools.t3code.dev" : "com.t3tools.t3code",
+    appUserModelId: Option.getOrElse(
+      config.appUserModelIdOverride,
+      () => profileAppIdentity(activeProfile, isDevelopment).appId,
     ),
     linuxDesktopEntryName: resolveLinuxDesktopEntryName(isDevelopment),
-    linuxWmClass: isDevelopment ? "t3code-dev" : "t3code",
+    linuxWmClass: profileAppIdentity(activeProfile, isDevelopment).slug,
     linuxApplicationsDir,
     appImagePath: config.appImagePath,
     defaultDesktopSettings: DesktopAppSettings.resolveDefaultDesktopSettings(input.appVersion),

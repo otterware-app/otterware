@@ -1,3 +1,4 @@
+import { activeProfile } from "@otterware/profiles/active";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -28,6 +29,10 @@ describe("brand-assets", () => {
         sourceRelativePath: BRAND_ASSET_PATHS.productionWebAppleTouchIconPng,
         targetRelativePath: "dist/client/apple-touch-icon.png",
       },
+      {
+        sourceRelativePath: BRAND_ASSET_PATHS.productionWebFaviconSvg,
+        targetRelativePath: "dist/client/favicon.svg",
+      },
     ]);
   });
 
@@ -55,6 +60,10 @@ describe("brand-assets", () => {
       {
         sourceRelativePath: BRAND_ASSET_PATHS.developmentWebAppleTouchIconPng,
         targetRelativePath: "apps/web/public/apple-touch-icon.png",
+      },
+      {
+        sourceRelativePath: BRAND_ASSET_PATHS.developmentWebFaviconSvg,
+        targetRelativePath: "apps/web/public/favicon.svg",
       },
     ]);
   });
@@ -84,18 +93,21 @@ describe("brand-assets", () => {
     expect(resolveWebAssetBrandForPackageVersion("0.0.29-preview.20260723.882")).toBe("nightly");
   });
 
-  it("keeps development, nightly, and production icon families separate", () => {
+  it("takes every channel's icons from the active profile, never a T3 one", () => {
+    const icons = activeProfile.brand.icons;
     expect([
       BRAND_ASSET_PATHS.developmentIconComposerProject,
       BRAND_ASSET_PATHS.nightlyIconComposerProject,
       BRAND_ASSET_PATHS.productionIconComposerProject,
     ]).toEqual([
-      "assets/dev/app-icon.icon",
-      "assets/nightly/app-icon.icon",
-      "assets/prod/app-icon.icon",
+      `${icons.development}/app-icon.icon`,
+      `${icons.nightly}/app-icon.icon`,
+      `${icons.production}/app-icon.icon`,
     ]);
-    expect(BRAND_ASSET_PATHS.developmentDesktopIconPng).toMatch(/^assets\/dev\/blueprint-/);
-    expect(BRAND_ASSET_PATHS.nightlyMacIconPng).toMatch(/^assets\/nightly\/nightly-/);
-    expect(BRAND_ASSET_PATHS.productionMacIconPng).toMatch(/^assets\/prod\/black-/);
+    const kits = [icons.development, icons.nightly, icons.production];
+    for (const path of Object.values(BRAND_ASSET_PATHS)) {
+      expect(kits.some((kit) => path.startsWith(`${kit}/`))).toBe(true);
+      expect(path).not.toMatch(/t3/i);
+    }
   });
 });

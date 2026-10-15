@@ -1,4 +1,14 @@
+import { installOtterwareDesktop } from "../otterware/registry.ts";
+import { installModuleDesktopBridge } from "../otterware/moduleBridge.ts";
+import {
+  getAccountSession,
+  setAccountSession,
+  authorizeAccount,
+} from "./methods/accountSession.ts";
 import * as Effect from "effect/Effect";
+import * as HostProcess from "@t3tools/shared/HostProcess";
+
+import { nativeMessagingDirectories } from "../preview/extensions/NativeMessagingLocations.ts";
 
 import { receiveProviderAuthCallback, cancelProviderAuthCallback } from "./methods/providerAuth.ts";
 import * as DesktopIpc from "./DesktopIpc.ts";
@@ -69,12 +79,14 @@ import {
   setSnapShotShortcutSuppressed,
 } from "./methods/snapShot.ts";
 import * as PreviewIpc from "./methods/preview.ts";
+import * as PreviewExtensions from "../preview/extensions/PreviewExtensions.ts";
 import * as AppActivationIpc from "./methods/appActivation.ts";
 import * as WebLinksIpc from "./methods/webLinks.ts";
 import {
   completeLegacyLocalStorage,
   takeLegacyLocalStorage,
 } from "./methods/legacyLocalStorage.ts";
+import * as ThreadLinksIpc from "./methods/threadLinks.ts";
 import { getWslState, setWslBackendEnabled, setWslDistro, setWslOnly } from "./methods/wsl.ts";
 import {
   getCliCommandState,
@@ -85,7 +97,17 @@ import {
 export const installDesktopIpcHandlers = Effect.fn("desktop.ipc.installHandlers")(function* () {
   const ipc = yield* DesktopIpc.DesktopIpc;
   yield* installNotificationBadge();
+  yield* installOtterwareDesktop;
+  yield* installModuleDesktopBridge;
   yield* PreviewIpc.installPreviewEventForwarding();
+  const platform = yield* HostProcess.Platform;
+  const environment = yield* HostProcess.Environment;
+  yield* Effect.sync(() =>
+    PreviewExtensions.installPreviewExtensions({
+      preloadPath: `${__dirname}/preview-extensions-preload.cjs`,
+      nativeMessagingDirectories: nativeMessagingDirectories(platform, environment.XDG_CONFIG_HOME),
+    }),
+  );
 
   yield* ipc.handle(AppActivationIpc.setReady);
   yield* ipc.handle(AppActivationIpc.complete);
@@ -104,6 +126,9 @@ export const installDesktopIpcHandlers = Effect.fn("desktop.ipc.installHandlers"
   yield* ipc.handle(getClientSettings);
   yield* ipc.handle(setClientSettings);
   yield* ipc.handle(getConnectionCatalog);
+  yield* ipc.handle(getAccountSession);
+  yield* ipc.handle(setAccountSession);
+  yield* ipc.handle(authorizeAccount);
   yield* ipc.handle(getSnapShotState);
   yield* ipc.handle(setupSnapShot);
   yield* ipc.handle(previewSnapShotConfig);
@@ -150,6 +175,7 @@ export const installDesktopIpcHandlers = Effect.fn("desktop.ipc.installHandlers"
   yield* ipc.handle(openSystemSettings);
   yield* ipc.handle(checkSystemPermission);
   yield* ipc.handle(pasteAsText);
+  yield* ipc.handle(ThreadLinksIpc.takePending);
   yield* ipc.handle(probeRemoteEditors);
   yield* ipc.handle(getUpdateState);
   yield* ipc.handle(setUpdateChannel);

@@ -1,0 +1,55 @@
+export {
+  MODULE_PAGE_CONTEXT_KIND,
+  type ModulePageContext,
+  type ModulePageRef,
+  useCurrentModulePageContext,
+  useModulePageContext,
+} from "./pageContext.ts";
+export {
+  createModuleRegistry,
+  defineWebModule,
+  HOME_MODULE_ID,
+  modulePath,
+  moduleSettingsPath,
+  projectScopedModulePath,
+  type HostSettingsPage,
+  type ModuleHeaderAction,
+  type ModuleLocation,
+  type ModulePageProps,
+  type ModuleRegistry,
+  type ModuleRowAction,
+  type ModuleSidebarContext,
+  type ModuleSidebarRow,
+  type ModuleSidebarSection,
+  type ModuleSpace,
+  type ModuleThreadAccessoryProps,
+  type SettingsPlacement,
+  type WebModule,
+  type WebModuleCommand,
+  type WebModuleSettingsPage,
+  type WebModuleSettingsRow,
+  type WebModuleStore,
+} from "./registry.ts";
+export {
+  createClientStore,
+  readPersisted,
+  writePersisted,
+  type PersistedSlice,
+} from "./clientStore.ts";
+export { useActiveSpaceId, useAssistantOpen, useShellSelection } from "./shellSelection.ts";
+export {
+  APP_SWITCH_COMMANDS,
+  ASSISTANT_TOGGLE_COMMAND,
+  ASSISTANT_TOGGLE_DEFAULT_KEY,
+  SHELL_GLOBAL_COMMANDS,
+  applyKeybindingCommandAliases,
+  appWhenContext,
+  appWhenVariable,
+  keybindingCommandApp,
+  mergeShellKeybindings,
+  moduleKeybindingAliases,
+  shellDefaultKeybindings,
+  shellWhenVariables,
+  type ShellKind,
+} from "./keybindings.ts";
+export { useModuleCommandContext } from "./commandContext.ts";

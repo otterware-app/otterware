@@ -1,0 +1,67 @@
+{
+  "name": "@otterware/module-kit",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./contracts": {
+      "types": "./src/contracts/index.ts",
+      "import": "./src/contracts/index.ts"
+    },
+    "./engine": {
+      "types": "./src/engine/index.ts",
+      "import": "./src/engine/index.ts"
+    },
+    "./runtime": {
+      "types": "./src/runtime/index.ts",
+      "import": "./src/runtime/index.ts"
+    },
+    "./server": {
+      "types": "./src/server/index.ts",
+      "import": "./src/server/index.ts"
+    },
+    "./web": {
+      "types": "./src/web/index.ts",
+      "import": "./src/web/index.ts"
+    },
+    "./agent-instructions": {
+      "types": "./src/agent-instructions/index.ts",
+      "import": "./src/agent-instructions/index.ts"
+    },
+    "./account": {
+      "types": "./src/account/index.ts",
+      "import": "./src/account/index.ts"
+    },
+    "./desktop": {
+      "types": "./src/desktop/index.ts",
+      "import": "./src/desktop/index.ts"
+    },
+    "./desktop/bridge": "./src/desktop/bridge.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc-rs --noEmit",
+    "test": "vp test run --config ../../vite.config.ts --dir ."
+  },
+  "dependencies": {
+    "@otterware/otter-cloud-client": "workspace:*",
+    "@t3tools/contracts": "workspace:*",
+    "@t3tools/shared": "workspace:*",
+    "effect": "catalog:",
+    "proper-lockfile": "4.1.2"
+  },
+  "devDependencies": {
+    "@effect/platform-node": "catalog:",
+    "@effect/vitest": "catalog:",
+    "@types/node": "catalog:",
+    "@types/proper-lockfile": "^4.1.4",
+    "@types/react": "^19.3.0",
+    "lucide-react": "^0.564.0",
+    "react": "19.2.6",
+    "vite-plus": "catalog:",
+    "zustand": "^5.0.11"
+  },
+  "peerDependencies": {
+    "lucide-react": "*",
+    "react": ">=19",
+    "zustand": "*"
+  }
+}

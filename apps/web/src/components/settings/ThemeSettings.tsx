@@ -22,6 +22,7 @@ import {
   type ThemeAppearance,
   type ThemeDefinition,
   type ThemeHalves,
+  CHATGPT_THEME,
   T3_CHAT_THEME,
   EMBER_THEME,
   GROVE_THEME,
@@ -53,13 +54,17 @@ import {
   type ThemeMode,
 } from "./ThemePreviewCircles";
 import { ThemeWireframe } from "./ThemeWireframe";
+import { OTTERWARE_THEMES } from "../../otterware/themes";
 
 const MAINTAINER_THEMES: ReadonlyArray<ThemeDefinition> = [
+  CHATGPT_THEME,
   T3_CHAT_THEME,
   GROVE_THEME,
   OCEAN_THEME,
   EMBER_THEME,
   IRIS_THEME,
+  // Otterware seam: module palettes join the maintainer themes.
+  ...OTTERWARE_THEMES,
 ];
 
 function collectionVariantLabels(themes: ReadonlyArray<ThemeDefinition>): ReadonlyArray<string> {

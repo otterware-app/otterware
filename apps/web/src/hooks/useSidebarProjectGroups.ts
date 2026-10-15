@@ -1,3 +1,4 @@
+import type { EnvironmentProject } from "@t3tools/client-runtime/state/shell";
 import { useMemo } from "react";
 
 import { orderItemsByPreferredIds, sortSidebarV2ProjectGroups } from "../components/Sidebar.logic";
@@ -8,9 +9,18 @@ import { useProjects, useThreadShells } from "../state/entities";
 import { legacyProjectCwdPreferenceKey, useUiStateStore } from "../uiStateStore";
 import { useClientSettings } from "./useSettings";
 
-/** The sidebar's project groups, in the order the sidebar shows them. */
-export function useSidebarProjectGroups() {
-  const projects = useProjects();
+/**
+ * The sidebar's project groups, in the order the sidebar shows them. A filter
+ * (the rail's project space) limits which projects they cover.
+ */
+export function useSidebarProjectGroups(
+  projectFilter: ((project: EnvironmentProject) => boolean) | null = null,
+) {
+  const allProjects = useProjects();
+  const projects = useMemo(
+    () => (projectFilter === null ? allProjects : allProjects.filter(projectFilter)),
+    [allProjects, projectFilter],
+  );
   const threads = useThreadShells();
   const projectOrder = useUiStateStore((store) => store.projectOrder);
   const sortOrder = useClientSettings((s) => s.sidebarProjectSortOrder);

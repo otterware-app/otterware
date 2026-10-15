@@ -1,7 +1,7 @@
 import { AuthRelayWriteScope } from "@t3tools/contracts";
 import { readEnvironmentScope } from "../../state/session";
 import { ScreenScrollView as ScrollView } from "../../components/ScreenScrollView";
-import { useAuth } from "@clerk/expo";
+import { useAuth } from "../accounts/AccountProvider";
 import { useAtomSet, useAtomValue } from "@effect/atom-react";
 import * as Notifications from "expo-notifications";
 import { useNavigation } from "@react-navigation/native";
@@ -32,7 +32,7 @@ import {
   subscribeAgentAwarenessRegistrationStatus,
 } from "../agent-awareness/remoteRegistration";
 import { refreshManagedRelayEnvironments } from "../cloud/managedRelayState";
-import { hasCloudPublicConfig, resolveRelayClerkTokenOptions } from "../cloud/publicConfig";
+import { hasCloudPublicConfig } from "../cloud/publicConfig";
 import { runtime } from "../../lib/runtime";
 import { mobilePreferencesAtom, updateMobilePreferencesAtom } from "../../state/preferences";
 import { useSavedRemoteConnections } from "../../state/use-remote-environment-registry";
@@ -67,7 +67,7 @@ export function SettingsNotificationsRouteScreen() {
           contentContainerClassName="px-5 pt-4"
         >
           <Text className="text-base text-foreground-muted">
-            Notifications require T3 Connect in this app build.
+            Notifications require Otter Connect in this app build.
           </Text>
         </ScrollView>
       </SettingsScreen>
@@ -88,7 +88,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
       : agentAwarenessPlatform.subtitle;
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { getToken, isLoaded, isSignedIn } = useAuth({ treatPendingAsSignedOut: false });
+  const { getToken, isLoaded, isSignedIn } = useAuth();
   const { savedConnectionsById } = useSavedRemoteConnections();
   const [notificationStatus, setNotificationStatus] = useState<NotificationStatus>("checking");
   const [liveActivityStatus, setLiveActivityStatus] = useState<LiveActivityStatus>("checking");
@@ -178,7 +178,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
       } else {
         Alert.alert(
           "Couldn't finish enabling notifications",
-          "Notification access was granted, but this device could not be registered with T3 Connect. Notifications will start once registration succeeds.",
+          "Notification access was granted, but this device could not be registered with Otter Connect. Notifications will start once registration succeeds.",
         );
       }
       return;
@@ -208,8 +208,8 @@ function ConfiguredSettingsNotificationsRouteScreen() {
 
   const promptSignIn = useCallback(() => {
     Alert.alert(
-      "Sign in to T3 Connect",
-      "Live Activity updates require T3 Connect so relay can deliver updates to this device.",
+      "Sign in to Otter Connect",
+      "Live Activity updates require Otter Connect so relay can deliver updates to this device.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -254,7 +254,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
       }
       setNotificationStatus("enabled");
     }
-    const tokenResult = await settlePromise(() => getToken(resolveRelayClerkTokenOptions()));
+    const tokenResult = await settlePromise(() => getToken());
     if (tokenResult._tag === "Failure") {
       setLiveActivityStatus("disabled");
       const error = squashAtomCommandFailure(tokenResult);
@@ -277,7 +277,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
             readEnvironmentScope(environmentId, AuthRelayWriteScope),
           enabled: true,
           previousEnabled: liveActivitiesPreferenceEnabled,
-          clerkToken: tokenResult.value,
+          accountToken: tokenResult.value,
           connections,
         }),
       ),
@@ -312,7 +312,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
     } else {
       Alert.alert(
         "Couldn't finish enabling activity updates",
-        "This device could not be registered with T3 Connect, so activity updates won't appear yet. They'll start once registration succeeds.",
+        "This device could not be registered with Otter Connect, so activity updates won't appear yet. They'll start once registration succeeds.",
       );
     }
   }, [
@@ -338,7 +338,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
 
       Alert.alert(
         "Disable notifications",
-        "Open system Settings to disable notifications for T3 Code.",
+        "Open system Settings to disable notifications for Otter Code.",
         [
           { text: "Cancel", style: "cancel" },
           { text: "Open Settings", onPress: () => void Linking.openSettings() },
@@ -358,9 +358,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
           try {
             let token: string | null = null;
             if (isSignedIn) {
-              const tokenResult = await settlePromise(() =>
-                getToken(resolveRelayClerkTokenOptions()),
-              );
+              const tokenResult = await settlePromise(() => getToken());
               if (tokenResult._tag === "Failure") {
                 setLiveActivityStatus("enabled");
                 reportAtomCommandResult(tokenResult, {
@@ -378,7 +376,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
                     readEnvironmentScope(environmentId, AuthRelayWriteScope),
                   enabled: false,
                   previousEnabled: liveActivitiesPreferenceEnabled,
-                  clerkToken: token,
+                  accountToken: token,
                   connections,
                 }),
               ),
@@ -492,7 +490,7 @@ function ConfiguredSettingsNotificationsRouteScreen() {
                 void openAndroidLiveUpdateSettings().catch(() => {
                   Alert.alert(
                     "Couldn't open Settings",
-                    "Open Android Settings, select T3 Code, then enable Live Updates in Notifications.",
+                    "Open Android Settings, select Otter Code, then enable Live Updates in Notifications.",
                   );
                 });
               }}

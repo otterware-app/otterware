@@ -7,7 +7,25 @@ import * as NodeURL from "node:url";
 import * as Console from "effect/Console";
 import * as Effect from "effect/Effect";
 
+import { collectWorkspaceManifestPaths } from "./otterware/release-workspace-manifests.ts";
+
+import {
+  assertServerRuntimeBundle,
+  assertServerRuntimeDependencies,
+  assertServerRuntimeExecutable,
+} from "./otterware/server-runtime-dependencies.ts";
+
 const repoRoot = NodePath.resolve(NodePath.dirname(NodeURL.fileURLToPath(import.meta.url)), "..");
+
+assertServerRuntimeDependencies(repoRoot);
+if (process.argv.includes("--server-executable")) {
+  assertServerRuntimeExecutable(repoRoot);
+  process.exit(0);
+}
+if (process.argv.includes("--server-bundle")) {
+  assertServerRuntimeBundle(repoRoot);
+  process.exit(0);
+}
 
 const workspaceFiles = [
   "package.json",
@@ -37,6 +55,7 @@ const workspaceFiles = [
   "packages/provider-grok/package.json",
   "packages/provider-muse/package.json",
   "packages/provider-opencode/package.json",
+  "packages/provider-api-agents/package.json",
   "packages/source-control-azure-devops/package.json",
   "packages/source-control-bitbucket/package.json",
   "packages/source-control-core/package.json",
@@ -51,7 +70,7 @@ const workspaceFiles = [
 ] as const;
 
 function copyWorkspaceManifestFixture(targetRoot: string): void {
-  for (const relativePath of workspaceFiles) {
+  for (const relativePath of collectWorkspaceManifestPaths(repoRoot, workspaceFiles)) {
     const sourcePath = NodePath.resolve(repoRoot, relativePath);
     const destinationPath = NodePath.resolve(targetRoot, relativePath);
     NodeFS.mkdirSync(NodePath.dirname(destinationPath), { recursive: true });
@@ -282,7 +301,7 @@ try {
   );
   assertContains(
     nightlyReleaseMetadata,
-    "name=T3 Code Nightly 9.9.10-nightly.20260413.321 (abcdef123456)",
+    "name=Otter Code Nightly 9.9.10-nightly.20260413.321 (abcdef123456)",
     "Expected nightly metadata to include the short commit SHA in the release name.",
   );
 

@@ -15,12 +15,15 @@ import {
   BotIcon,
   createLucideIcon,
   CalendarClockIcon,
+  BracesIcon,
   GitBranchIcon,
   HardDriveIcon,
   PanelsTopLeftIcon,
   KeyboardIcon,
+  LayersIcon,
   Link2Icon,
   PaletteIcon,
+  PuzzleIcon,
   SearchIcon,
   Settings2Icon,
   XIcon,
@@ -64,45 +67,87 @@ const SnapShotIcon = createLucideIcon("snap-shot", [
 ]);
 
 const T3ConnectSidebarSignIn = lazy(() =>
-  import("../clerk/T3ConnectSidebarSignIn").then((module) => ({
+  import("../accounts/T3ConnectSidebarSignIn").then((module) => ({
     default: module.T3ConnectSidebarSignIn,
   })),
 );
 const T3ConnectSidebarAvatar = lazy(() =>
-  import("../clerk/T3ConnectSidebarSignIn").then((module) => ({
+  import("../accounts/T3ConnectSidebarSignIn").then((module) => ({
     default: module.T3ConnectSidebarAvatar,
   })),
 );
 
+// Otterware seam: module pages, their icons, grouping and profile visibility
+// follow the registry (docs/internals/modules.md).
+import {
+  OTTERWARE_SETTINGS_SECTION_ICONS,
+  isProfileSettingsPathVisible,
+  settingsNavLayout,
+} from "../../otterware/settingsRegistry";
+import { useOnModuleIds } from "../../otterware/moduleState";
+import { setKeybindingsChip, useKeybindingsChip } from "../../otterware/shellKeybindings";
+
 const SETTINGS_SECTION_ICONS: Readonly<
   Record<SettingsPath, ComponentType<{ className?: string }>>
 > = {
+  ...OTTERWARE_SETTINGS_SECTION_ICONS,
   "/settings/general": Settings2Icon,
   "/settings/diagnostics": Settings2Icon,
   "/settings/appearance": PaletteIcon,
   "/settings/projects": PanelsTopLeftIcon,
+  "/settings/project-groups": LayersIcon,
   "/settings/keybindings": KeyboardIcon,
   "/settings/snap-shot": SnapShotIcon,
   "/settings/providers": BotIcon,
   "/settings/integrations": BlocksIcon,
+  "/settings/extensions": PuzzleIcon,
   "/settings/scheduled-tasks": CalendarClockIcon,
   "/settings/source-control": GitBranchIcon,
+  "/settings/code-intelligence": BracesIcon,
   "/settings/storage": HardDriveIcon,
   "/settings/connections": Link2Icon,
   "/settings/archived": ArchiveIcon,
 };
 
-const SETTINGS_NAV_ITEMS: ReadonlyArray<{
+interface SettingsNavItem {
   label: string;
   to: SettingsPath;
   icon: ComponentType<{ className?: string }>;
-}> = (Object.keys(SETTINGS_SECTION_LABELS) as SettingsPath[])
-  .filter((to) => to !== "/settings/diagnostics")
-  .map((to) => ({
-    to,
-    label: SETTINGS_SECTION_LABELS[to],
-    icon: SETTINGS_SECTION_ICONS[to],
-  }));
+  /** A module group's Keybindings link: opens the page with the module's chip selected. */
+  keybindingsApp?: string;
+}
+
+const UPSTREAM_SETTINGS_ORDER = (Object.keys(SETTINGS_SECTION_LABELS) as SettingsPath[]).filter(
+  (to) => to !== "/settings/diagnostics",
+);
+
+const navItem = (to: SettingsPath): SettingsNavItem => ({
+  to,
+  label: SETTINGS_SECTION_LABELS[to],
+  icon: SETTINGS_SECTION_ICONS[to],
+});
+
+/** The sidebar's sections: one flat list, or App, Code and a group per module that is on. */
+function useSettingsNavGroups() {
+  const onModuleIds = useOnModuleIds();
+  return useMemo(
+    () =>
+      settingsNavLayout({ upstreamOrder: UPSTREAM_SETTINGS_ORDER, onModuleIds }).map((group) => ({
+        id: group.id,
+        label: group.label,
+        keybindingsApp: group.keybindingsApp,
+        items: [
+          ...(group.paths as ReadonlyArray<SettingsPath>)
+            .filter((to) => isProfileSettingsPathVisible(to))
+            .map(navItem),
+          ...(group.keybindingsApp === undefined
+            ? []
+            : [{ ...navItem("/settings/keybindings"), keybindingsApp: group.keybindingsApp }]),
+        ],
+      })),
+    [onModuleIds],
+  );
+}
 
 function SettingsSectionIcon({ to }: { to: SettingsPath }) {
   const Icon = SETTINGS_SECTION_ICONS[to];
@@ -114,9 +159,12 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   const currentHash = useLocation({ select: (location) => location.hash });
   const currentSearch = useLocation({ select: (location) => location.search });
   const scopeSearch = useMemo(() => validateSettingsScopeSearch(currentSearch), [currentSearch]);
-  const navItems = SETTINGS_NAV_ITEMS.filter(
-    (item) => item.to !== "/settings/projects" || isSettingsOverviewVisible(scopeSearch),
-  );
+  const navGroups = useSettingsNavGroups();
+  const keybindingsChip = useKeybindingsChip();
+  const isNavItemVisible = (item: SettingsNavItem) =>
+    (item.to !== "/settings/projects" || isSettingsOverviewVisible(scopeSearch)) &&
+    // Browser extensions run in the desktop app's browser only.
+    (item.to !== "/settings/extensions" || window.desktopBridge?.previewExtensions);
   const { isMobile, setOpenMobile, open, setOpen } = useSidebar();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
@@ -182,12 +230,13 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   }, [isMobile, open, setOpen, setOpenMobile]);
 
   const handleSectionClick = useCallback(
-    (to: SettingsPath) => {
+    (item: SettingsNavItem) => {
       if (isMobile) {
         setOpenMobile(false);
       }
+      if (item.to === "/settings/keybindings") setKeybindingsChip(item.keybindingsApp ?? "all");
       void navigate({
-        to,
+        href: item.to,
         hash: "",
         replace: true,
         hashScrollIntoView: false,
@@ -211,7 +260,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
         return;
       }
       void navigate({
-        to: item.to,
+        href: item.to,
         hash: targetId,
         replace: true,
         hashScrollIntoView: false,
@@ -336,29 +385,43 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                 ))}
               </SidebarMenu>
             ) : (
-              <SidebarMenu>
-                {navItems.map((item) => {
-                  const Icon = item.icon;
-                  const isGeneralDetailPage =
-                    item.to === "/settings/general" &&
-                    pathname === "/settings/open-source-licenses";
-                  const isActive =
-                    isGeneralDetailPage ||
-                    pathname === item.to ||
-                    pathname.startsWith(`${item.to}/`);
-                  return (
-                    <SidebarMenuItem key={item.to}>
-                      <SidebarMenuButton
-                        isActive={isActive}
-                        onClick={() => handleSectionClick(item.to)}
-                      >
-                        <Icon />
-                        <span className="truncate">{item.label}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
-              </SidebarMenu>
+              navGroups.map((group) => (
+                <SidebarMenu key={group.id} aria-label={group.label ?? undefined}>
+                  {group.label ? (
+                    <li className="px-2 pt-3 pb-1 text-2xs font-medium tracking-wide text-sidebar-muted-foreground/70 uppercase">
+                      {group.label}
+                    </li>
+                  ) : null}
+                  {group.items.filter(isNavItemVisible).map((item) => {
+                    const Icon = item.icon;
+                    const isGeneralDetailPage =
+                      item.to === "/settings/general" &&
+                      pathname === "/settings/open-source-licenses";
+                    // A module group's Keybindings link lights up only with its chip.
+                    const chipMatches =
+                      item.to !== "/settings/keybindings" ||
+                      (item.keybindingsApp ?? "all") === keybindingsChip ||
+                      (item.keybindingsApp === undefined &&
+                        !navGroups.some((entry) => entry.keybindingsApp === keybindingsChip));
+                    const isActive =
+                      (isGeneralDetailPage ||
+                        pathname === item.to ||
+                        pathname.startsWith(`${item.to}/`)) &&
+                      chipMatches;
+                    return (
+                      <SidebarMenuItem key={`${item.to}:${item.keybindingsApp ?? ""}`}>
+                        <SidebarMenuButton
+                          isActive={isActive}
+                          onClick={() => handleSectionClick(item)}
+                        >
+                          <Icon />
+                          <span className="truncate">{item.label}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              ))
             )}
           </div>
         </SidebarGroup>

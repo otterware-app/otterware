@@ -1,0 +1,84 @@
+# Upstream-owned files Otterware may touch (OTTERWARE.md, docs/internals/modules.md).
+# One path or glob per line; `#` starts a comment. scripts/otterware/check-upstream-seams.ts
+# fails a PR that changes an upstream-owned file not listed here. Extending this list is a
+# deliberate decision made in the PR description. One-off edits that already landed in the
+# Otterware commit are not listed: a PR that needs one of those files again adds it here.
+
+# Server: module runtime, RPC handlers, authorization, instrumentation, MCP tools, data home
+apps/server/src/server.ts
+apps/server/src/ws.ts
+apps/server/src/auth/RpcAuthorization.ts
+apps/server/src/observability/RpcInstrumentation.ts
+apps/server/src/mcp/McpHttpServer.ts
+apps/server/src/os-jank.ts
+
+# Shared: the typed client over the merged RPC group, module agent instructions, module commands
+packages/client-runtime/src/rpc/*.ts
+packages/client-runtime/src/state/commandPermissions*.ts
+packages/provider-core/src/server/runtimeInstructions.ts
+packages/contracts/src/keybindings.ts
+
+# Web: shell (ADR 0020) — rail, layout, palette, settings tables and nav, keybindings page, branding
+apps/web/src/components/AppSidebarLayout.tsx
+apps/web/src/components/sidebar/SpaceRail.tsx
+apps/web/src/components/CommandPalette.tsx
+apps/web/src/components/settings/settingsSearch.ts
+apps/web/src/components/settings/settingsLayout.tsx
+apps/web/src/components/settings/SettingsSidebarNav.tsx
+apps/web/src/components/settings/KeybindingsSettings.tsx
+apps/web/src/components/settings/KeybindingsSettings.logic.ts
+apps/web/src/branding*.ts
+
+# Desktop identity, IPC and preload bridges from the app profile and modules
+apps/desktop/src/app/Desktop*.ts
+apps/desktop/src/electron/ElectronProtocol.ts
+apps/desktop/src/electron/ElectronUpdater.ts
+apps/desktop/src/ipc/DesktopIpcHandlers.ts
+apps/desktop/src/ipc/methods/notificationBadge*.ts
+apps/desktop/src/preload.ts
+apps/desktop/scripts/electron-launcher.mjs
+
+# Packaging and release from the app profile
+scripts/build-desktop-artifact*.ts
+scripts/build-npm-platform-packages*.ts
+scripts/lib/brand-assets*.ts
+scripts/lib/cli-external-packages*.ts
+scripts/lib/third-party-licenses.ts
+scripts/release-smoke.ts
+packages/shared/src/cliRelease*.ts
+packages/ssh/src/tunnel*.ts
+apps/mobile/src/features/settings/environment-maintenance*.ts
+apps/server/src/cli/update.ts
+
+# Provider drivers and secrets
+apps/server/src/provider/builtInDrivers.ts
+apps/server/src/settingsSecrets.ts
+apps/web/src/components/settings/providerDriverMeta.ts
+apps/mobile/src/lib/providerClients.ts
+
+# Docs and CI
+docs/**/*.md
+.github/workflows/*.yml
+
+# Generated and manifest files: regenerated or merged mechanically on every sync
+apps/web/src/routeTree.gen.ts
+pnpm-*.yaml
+**/package.json
+**/vite.config.ts
+**/tsconfig.json
+knip.jsonc
+third-party-licenses.config.json
+
+# Rebrand: upstream tests that assert the product name or the renamed account token field
+apps/mobile/src/features/connection/environmentStatusText.test.ts
+packages/client-runtime/src/relay/managedRelay.test.ts
+
+# Mail contributes its built-in palette to the web theme library and the Appearance list.
+apps/web/src/themePalette.ts
+apps/web/src/components/settings/ThemeSettings.tsx
+
+# Mail content supplies scroll viewport refs and handlers to the host control.
+apps/web/src/components/ui/scroll-area.tsx
+
+# Mail editor keys reuse the host predicate evaluator.
+apps/web/src/keybindings.ts

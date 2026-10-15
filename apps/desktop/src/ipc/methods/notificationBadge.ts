@@ -17,19 +17,43 @@ const NotificationBadge = Schema.Struct({
   ),
 });
 
-export function applyNotificationBadge(
+type Badge = typeof NotificationBadge.Type;
+const moduleBadges = new Map<string, Badge>();
+let notificationBadge: Badge = { count: 0, image: null };
+
+/** Module unread counts persist while focused; Code notifications keep their existing clear behavior. */
+export function setModuleNotificationBadge(
+  platform: NodeJS.Platform,
+  module: string,
+  badge: Badge,
+) {
+  if (badge.count === 0) moduleBadges.delete(module);
+  else moduleBadges.set(module, badge);
+  renderBadge(platform, notificationBadge);
+}
+
+export function applyNotificationBadge(platform: NodeJS.Platform, badge: Badge): void {
+  notificationBadge = badge;
+  renderBadge(platform, badge);
+}
+
+function renderBadge(
   platform: NodeJS.Platform,
   { count, image }: typeof NotificationBadge.Type,
 ): void {
   try {
     if (Electron.BrowserWindow.getFocusedWindow()) count = 0;
+    for (const badge of moduleBadges.values()) {
+      count += badge.count;
+      if (badge.image) image = badge.image;
+    }
     if (platform === "win32") {
       const overlay = count > 0 && image ? Electron.nativeImage.createFromDataURL(image) : null;
       for (const window of Electron.BrowserWindow.getAllWindows()) {
         if (!window.isDestroyed()) {
           window.setOverlayIcon(
             overlay?.isEmpty() ? null : overlay,
-            count > 0 ? `${count} threads with new notifications` : "",
+            count > 0 ? `${count} unread items` : "",
           );
         }
       }

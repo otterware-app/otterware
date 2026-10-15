@@ -1,11 +1,13 @@
 #!/usr/bin/env node
+import { releaseFeed } from "../profiles/release-feed.ts";
+import { stageMailTranslator } from "./otterware/mail-translator.ts";
+import { activeProfile } from "@otterware/profiles/active";
+import { profileUpdateChannel } from "@otterware/profiles";
 // @effect-diagnostics nodeBuiltinImport:off - Node's typed junction API avoids Windows symlink privileges while keeping the probe isolated.
 
 import * as NodeFSP from "node:fs/promises";
 import * as NodeCrypto from "node:crypto";
 import * as NodeModule from "node:module";
-// plist is CommonJS; Node cannot load its named exports from an ES module.
-import Plist from "plist";
 
 import {
   createPackageWithOptions,
@@ -17,7 +19,6 @@ import {
 
 import { fromYaml } from "@t3tools/shared/schemaYaml";
 import * as HostProcess from "@t3tools/shared/HostProcess";
-import { clerkFrontendApiHostnameFromPublishableKey } from "@t3tools/shared/relayAuth";
 import { resolveSpawnCommand } from "@t3tools/shared/shell";
 import rootPackageJson from "../package.json" with { type: "json" };
 import desktopPackageJson from "../apps/desktop/package.json" with { type: "json" };
@@ -35,8 +36,14 @@ import {
   findInlinedExternalPackages,
   selectCliRuntimeExternalDependencies,
 } from "./lib/cli-external-packages.ts";
-import { loadRepoEnv } from "./lib/public-config.ts";
 import { selectDesktopRuntimeExternalDependencies } from "./lib/desktop-external-packages.ts";
+import { loadRepoEnv } from "./lib/public-config.ts";
+import {
+  resolveMacPasskeySigningConfiguration,
+  resolveMacWebAuthnEntitlements,
+  renderMacPasskeyEntitlements,
+  type MacWebAuthnEntitlements,
+} from "./otter/macos-profile.ts";
 import { resolveCatalogDependencies } from "./lib/resolve-catalog.ts";
 
 import * as NodeRuntime from "@effect/platform-node/NodeRuntime";
@@ -56,8 +63,8 @@ import { Command, Flag } from "effect/cli";
 import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
 const LINUX_ICON_SIZES = [16, 22, 24, 32, 48, 64, 128, 256, 512] as const;
-const DESKTOP_APP_ID = "com.t3tools.t3code";
-const APPLE_TEAM_ID_PATTERN = /^[A-Z0-9]{10}$/u;
+// Otterware seam: build identity comes from the active app profile.
+const DESKTOP_APP_ID = activeProfile.brand.appId;
 
 const BuildPlatform = Schema.Literals(["mac", "linux", "win"]);
 const BuildArch = Schema.Literals(["arm64", "x64", "universal"]);
@@ -208,16 +215,19 @@ export class MacPasskeySigningConfigurationResolutionError extends Schema.Tagged
     cause: Schema.Defect(),
   },
 ) {
-  static fromCause(
-    cause: unknown,
-  ): MacPasskeySigningConfigurationError | MacPasskeySigningConfigurationResolutionError {
-    return isMacPasskeySigningConfigurationError(cause)
-      ? cause
-      : new MacPasskeySigningConfigurationResolutionError({ cause });
-  }
-
   override get message(): string {
     return "Failed to resolve macOS passkey signing configuration.";
+  }
+}
+
+export class MacProvisioningProfileNotFoundError extends Schema.TaggedError<MacProvisioningProfileNotFoundError>()(
+  "MacProvisioningProfileNotFoundError",
+  {
+    provisioningProfilePath: Schema.String,
+  },
+) {
+  override get message(): string {
+    return `macOS provisioning profile not found: ${this.provisioningProfilePath}`;
   }
 }
 
@@ -234,22 +244,6 @@ export class KeyringNativePackageMissingError extends Schema.TaggedError<Keyring
 ) {
   override get message(): string {
     return `Keyring native package is missing: ${this.packageName}`;
-  }
-}
-
-export class ClerkPasskeyNativePackageMissingError extends Schema.TaggedError<ClerkPasskeyNativePackageMissingError>()(
-  "ClerkPasskeyNativePackageMissingError",
-  {
-    packageName: Schema.String,
-    binaryFileName: Schema.String,
-    packageEntryPath: Schema.String,
-    platform: BuildPlatform,
-    arch: BuildArch,
-    cause: Schema.Defect(),
-  },
-) {
-  override get message(): string {
-    return `Clerk passkey native package is missing: ${this.packageName}`;
   }
 }
 
@@ -652,17 +646,6 @@ export class MissingDesktopBuildInputError extends Schema.TaggedError<MissingDes
   }
 }
 
-export class MacProvisioningProfileNotFoundError extends Schema.TaggedError<MacProvisioningProfileNotFoundError>()(
-  "MacProvisioningProfileNotFoundError",
-  {
-    provisioningProfilePath: Schema.String,
-  },
-) {
-  override get message(): string {
-    return `macOS provisioning profile not found: ${this.provisioningProfilePath}`;
-  }
-}
-
 export class DesktopBuildDistDirectoryMissingError extends Schema.TaggedError<DesktopBuildDistDirectoryMissingError>()(
   "DesktopBuildDistDirectoryMissingError",
   {
@@ -686,6 +669,17 @@ export class DesktopBuildNoArtifactsProducedError extends Schema.TaggedError<Des
 ) {
   override get message(): string {
     return `Build completed but no files were produced in ${this.distPath}`;
+  }
+}
+
+export class TypeScriptServerLibMissingError extends Schema.TaggedError<TypeScriptServerLibMissingError>()(
+  "TypeScriptServerLibMissingError",
+  {
+    packagePath: Schema.String,
+  },
+) {
+  override get message(): string {
+    return `typescript-tsserver at ${this.packagePath} has no lib.*.d.ts files; tsserver would run without the standard library.`;
   }
 }
 
@@ -966,6 +960,8 @@ interface StagePackageJson {
 export const STAGE_INSTALL_ARGS = ["install", "--prod"] as const;
 export const DESKTOP_ELECTRON_LANGUAGES = ["en-US"] as const;
 export const DESKTOP_FILE_EXCLUSIONS = [
+  "!apps/desktop/prod-resources/bin/mail-translator",
+  "!apps/desktop/resources/bin/mail-translator",
   // Cursor finds platform assets by walking up from argv[1]. Keep them outside
   // asar so spawning helpers and loading native addons both use real paths.
   "!**/node_modules/@cursor/sdk-*/**/*",
@@ -993,8 +989,23 @@ export const DESKTOP_FILE_EXCLUSIONS = [
   "!apps/desktop/gnome-extension",
   "!apps/desktop/gnome-extension/**/*",
 ] as const;
+// electron-builder drops every *.d.ts below node_modules from app.asar, which
+// strips TypeScript's standard library (lib.*.d.ts) and leaves tsserver unable
+// to type `Set` or `string`. Mac and Linux ship the package as loose files in
+// resources/node_modules instead, where Node resolution from app.asar finds it.
+// Windows runs tsserver from server.asar, which is packed by hand and keeps them.
+export const TSSERVER_RESOURCE_SOURCE_DIR = "apps/desktop/prod-resources/typescript-tsserver";
+export const TSSERVER_FILE_EXCLUSIONS = [
+  "!**/node_modules/typescript-tsserver/**/*",
+  `!${TSSERVER_RESOURCE_SOURCE_DIR}`,
+  `!${TSSERVER_RESOURCE_SOURCE_DIR}/**/*`,
+] as const;
+export const TSSERVER_EXTRA_RESOURCES = [
+  { from: TSSERVER_RESOURCE_SOURCE_DIR, to: "node_modules/typescript-tsserver" },
+] as const;
 // Windows terminal helpers cannot run on macOS and slow signing and notarization.
 export const MAC_FILE_EXCLUSIONS = [
+  ...TSSERVER_FILE_EXCLUSIONS,
   "!**/node_modules/node-pty/prebuilds/win32-*/**/*",
   "!**/node_modules/node-pty/third_party/conpty/**/*",
 ] as const;
@@ -1133,291 +1144,6 @@ export const LINUX_BROWSER_SECRET_EXTRA_RESOURCES = [
   { from: "apps/desktop/prod-resources/browser-secret", to: "browser-secret" },
 ] as const;
 
-export interface MacPasskeySigningConfiguration {
-  readonly appId: string;
-  readonly teamId: string;
-  readonly rpDomains: readonly string[];
-  readonly provisioningProfilePath: string;
-}
-
-export const InvalidMacPasskeyRpDomainReason = Schema.Literals([
-  "empty",
-  "scheme-not-allowed",
-  "parse-failed",
-  "credentials-not-allowed",
-  "port-not-allowed",
-  "path-not-allowed",
-  "query-not-allowed",
-  "fragment-not-allowed",
-  "hostname-mismatch",
-]);
-export type InvalidMacPasskeyRpDomainReason = typeof InvalidMacPasskeyRpDomainReason.Type;
-
-export class InvalidMacPasskeyRpDomainError extends Schema.TaggedError<InvalidMacPasskeyRpDomainError>()(
-  "InvalidMacPasskeyRpDomainError",
-  {
-    reason: InvalidMacPasskeyRpDomainReason,
-    inputLength: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
-    cause: Schema.optionalKey(Schema.Defect()),
-  },
-) {
-  override get message(): string {
-    return `Invalid passkey RP domain (${this.reason}).`;
-  }
-}
-
-export class InvalidAppleTeamIdError extends Schema.TaggedError<InvalidAppleTeamIdError>()(
-  "InvalidAppleTeamIdError",
-  {
-    teamId: Schema.String,
-  },
-) {
-  override get message(): string {
-    return `T3CODE_APPLE_TEAM_ID '${this.teamId}' must be a 10-character Apple Developer Team ID.`;
-  }
-}
-
-export class MissingMacPasskeyProvisioningProfileError extends Schema.TaggedError<MissingMacPasskeyProvisioningProfileError>()(
-  "MissingMacPasskeyProvisioningProfileError",
-  {},
-) {
-  override get message(): string {
-    return "T3CODE_MACOS_PROVISIONING_PROFILE must point to an Associated Domains provisioning profile.";
-  }
-}
-
-export class MissingMacPasskeyDomainConfigurationError extends Schema.TaggedError<MissingMacPasskeyDomainConfigurationError>()(
-  "MissingMacPasskeyDomainConfigurationError",
-  {},
-) {
-  override get message(): string {
-    return "T3CODE_CLERK_PUBLISHABLE_KEY or T3CODE_CLERK_PASSKEY_RP_DOMAINS is required for signed macOS passkey builds.";
-  }
-}
-
-export class InvalidMacPasskeyPublishableKeyError extends Schema.TaggedError<InvalidMacPasskeyPublishableKeyError>()(
-  "InvalidMacPasskeyPublishableKeyError",
-  {
-    cause: Schema.Defect(),
-  },
-) {
-  override get message(): string {
-    return "T3CODE_CLERK_PUBLISHABLE_KEY is invalid.";
-  }
-}
-
-export class MissingMacPasskeyRpDomainError extends Schema.TaggedError<MissingMacPasskeyRpDomainError>()(
-  "MissingMacPasskeyRpDomainError",
-  {},
-) {
-  override get message(): string {
-    return "At least one Clerk passkey RP domain is required.";
-  }
-}
-
-export const MacPasskeySigningConfigurationError = Schema.Union([
-  InvalidMacPasskeyRpDomainError,
-  InvalidAppleTeamIdError,
-  MissingMacPasskeyProvisioningProfileError,
-  MissingMacPasskeyDomainConfigurationError,
-  InvalidMacPasskeyPublishableKeyError,
-  MissingMacPasskeyRpDomainError,
-]);
-export type MacPasskeySigningConfigurationError = typeof MacPasskeySigningConfigurationError.Type;
-export const isMacPasskeySigningConfigurationError = Schema.is(MacPasskeySigningConfigurationError);
-
-function normalizePasskeyRpDomain(value: string): string {
-  const normalized = value.trim().toLowerCase();
-  const inputLength = value.length;
-  if (normalized.length === 0) {
-    throw new InvalidMacPasskeyRpDomainError({ reason: "empty", inputLength });
-  }
-  if (/^[a-z][a-z\d+.-]*:\/\//u.test(normalized)) {
-    throw new InvalidMacPasskeyRpDomainError({
-      reason: "scheme-not-allowed",
-      inputLength,
-    });
-  }
-
-  let parsed: URL;
-  try {
-    parsed = new URL(`https://${normalized}`);
-  } catch (cause) {
-    throw new InvalidMacPasskeyRpDomainError({ reason: "parse-failed", inputLength, cause });
-  }
-
-  let reason: InvalidMacPasskeyRpDomainReason | undefined;
-  if (parsed.username.length > 0 || parsed.password.length > 0) {
-    reason = "credentials-not-allowed";
-  } else if (parsed.port.length > 0) {
-    reason = "port-not-allowed";
-  } else if (parsed.pathname !== "/") {
-    reason = "path-not-allowed";
-  } else if (parsed.search.length > 0) {
-    reason = "query-not-allowed";
-  } else if (parsed.hash.length > 0) {
-    reason = "fragment-not-allowed";
-  } else if (parsed.host !== normalized) {
-    reason = "hostname-mismatch";
-  }
-  if (reason) {
-    throw new InvalidMacPasskeyRpDomainError({ reason, inputLength });
-  }
-
-  return parsed.hostname;
-}
-
-export function resolveMacPasskeySigningConfiguration(
-  env: Readonly<Record<string, string | undefined>>,
-): MacPasskeySigningConfiguration {
-  const teamId = env.T3CODE_APPLE_TEAM_ID?.trim().toUpperCase() ?? "";
-  if (!APPLE_TEAM_ID_PATTERN.test(teamId)) {
-    throw new InvalidAppleTeamIdError({ teamId });
-  }
-
-  const provisioningProfilePath = env.T3CODE_MACOS_PROVISIONING_PROFILE?.trim() ?? "";
-  if (provisioningProfilePath.length === 0) {
-    throw new MissingMacPasskeyProvisioningProfileError();
-  }
-
-  const configuredRpDomains = env.T3CODE_CLERK_PASSKEY_RP_DOMAINS?.trim();
-  let rpDomains: readonly string[];
-  if (configuredRpDomains) {
-    rpDomains = configuredRpDomains.split(",").map(normalizePasskeyRpDomain);
-  } else {
-    const publishableKey = env.T3CODE_CLERK_PUBLISHABLE_KEY?.trim();
-    if (!publishableKey) {
-      throw new MissingMacPasskeyDomainConfigurationError();
-    }
-    let hostname: string;
-    try {
-      hostname = clerkFrontendApiHostnameFromPublishableKey(publishableKey);
-    } catch (cause) {
-      throw new InvalidMacPasskeyPublishableKeyError({ cause });
-    }
-    rpDomains = [normalizePasskeyRpDomain(hostname)];
-  }
-
-  const uniqueRpDomains = [...new Set(rpDomains)];
-  if (uniqueRpDomains.length === 0) {
-    throw new MissingMacPasskeyRpDomainError();
-  }
-
-  return {
-    appId: DESKTOP_APP_ID,
-    teamId,
-    rpDomains: uniqueRpDomains,
-    provisioningProfilePath,
-  };
-}
-
-function escapeXml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&apos;");
-}
-
-/**
- * Passkey entitlements for the in-app browser. Each is granted only when the
- * provisioning profile authorizes it: macOS refuses to launch an app that
- * claims a restricted entitlement its embedded profile does not carry.
- */
-export interface MacWebAuthnEntitlements {
-  /** Keychain group for Electron's Touch ID passkeys. */
-  readonly touchIdKeychainAccessGroup: string | undefined;
-  /** Apple's managed browser entitlement, which allows passkeys for any site. */
-  readonly browserPasskeys: boolean;
-}
-
-const BROWSER_PASSKEYS_ENTITLEMENT = "com.apple.developer.web-browser.public-key-credential";
-
-const ProvisioningProfilePlist = Schema.Struct({
-  Entitlements: Schema.Struct({
-    "keychain-access-groups": Schema.optional(Schema.Array(Schema.String)),
-    [BROWSER_PASSKEYS_ENTITLEMENT]: Schema.optional(Schema.Boolean),
-  }),
-});
-const isProvisioningProfilePlist = Schema.is(ProvisioningProfilePlist);
-
-/**
- * Reads the Entitlements dict of the XML plist a provisioning profile wraps in
- * its CMS envelope. Anything unreadable grants nothing.
- */
-const readProfileEntitlements = (provisioningProfile: string) => {
-  const start = provisioningProfile.indexOf("<?xml");
-  const end = provisioningProfile.indexOf("</plist>", start);
-  if (start === -1 || end === -1) return undefined;
-  try {
-    const profile: unknown = Plist.parse(provisioningProfile.slice(start, end + "</plist>".length));
-    return isProvisioningProfilePlist(profile) ? profile.Entitlements : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
-export function resolveMacWebAuthnEntitlements(
-  provisioningProfile: string,
-  configuration: Pick<MacPasskeySigningConfiguration, "appId" | "teamId">,
-): MacWebAuthnEntitlements {
-  const entitlements = readProfileEntitlements(provisioningProfile);
-  const keychainAccessGroup = `${configuration.teamId}.${configuration.appId}.webauthn`;
-  const keychainGroupAuthorized = (entitlements?.["keychain-access-groups"] ?? []).some((group) =>
-    group.endsWith("*")
-      ? keychainAccessGroup.startsWith(group.slice(0, -1))
-      : group === keychainAccessGroup,
-  );
-  return {
-    touchIdKeychainAccessGroup: keychainGroupAuthorized ? keychainAccessGroup : undefined,
-    browserPasskeys: entitlements?.[BROWSER_PASSKEYS_ENTITLEMENT] === true,
-  };
-}
-
-export function renderMacPasskeyEntitlements(
-  configuration: MacPasskeySigningConfiguration,
-  webAuthn: MacWebAuthnEntitlements,
-): string {
-  const associatedDomains = configuration.rpDomains
-    .map((domain) => `      <string>webcredentials:${escapeXml(domain)}</string>`)
-    .join("\n");
-  const keychainAccessGroups = webAuthn.touchIdKeychainAccessGroup
-    ? `
-    <key>keychain-access-groups</key>
-    <array>
-      <string>${escapeXml(webAuthn.touchIdKeychainAccessGroup)}</string>
-    </array>`
-    : "";
-  const browserPasskeys = webAuthn.browserPasskeys
-    ? `
-    <key>${BROWSER_PASSKEYS_ENTITLEMENT}</key>
-    <true/>`
-    : "";
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-  <dict>
-    <key>com.apple.application-identifier</key>
-    <string>${escapeXml(`${configuration.teamId}.${configuration.appId}`)}</string>
-    <key>com.apple.developer.team-identifier</key>
-    <string>${escapeXml(configuration.teamId)}</string>
-    <key>com.apple.developer.associated-domains</key>
-    <array>
-${associatedDomains}
-    </array>${keychainAccessGroups}${browserPasskeys}
-    <key>com.apple.security.cs.allow-jit</key>
-    <true/>
-    <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
-    <true/>
-    <key>com.apple.security.cs.disable-library-validation</key>
-    <true/>
-  </dict>
-</plist>
-`;
-}
-
 export function resolveFffNativeDependencies(
   platform: typeof BuildPlatform.Type,
   arch: typeof BuildArch.Type,
@@ -1478,38 +1204,26 @@ export const stageCursorSdkPlatformPackages = Effect.fn("stageCursorSdkPlatformP
   },
 );
 
-export interface ClerkPasskeyNativeArtifact {
-  readonly packageName: string;
-  readonly binaryFileName: string;
-}
-
-export function resolveClerkPasskeyNativeArtifacts(
-  platform: typeof BuildPlatform.Type,
-  arch: typeof BuildArch.Type,
-): readonly ClerkPasskeyNativeArtifact[] {
-  const architectures = arch === "universal" ? (["arm64", "x64"] as const) : [arch];
-
-  if (platform === "mac") {
-    return architectures.map((architecture) => ({
-      packageName: `@clerk/electron-passkeys-darwin-${architecture}`,
-      binaryFileName: `electron-passkeys.darwin-${architecture}.node`,
-    }));
+export const stageTypeScriptServerPackage = Effect.fn("stageTypeScriptServerPackage")(function* (
+  nodeModulesDir: string,
+  destination: string,
+) {
+  const fs = yield* FileSystem.FileSystem;
+  const path = yield* Path.Path;
+  const source = yield* fs.realPath(path.join(nodeModulesDir, "typescript-tsserver"));
+  const libFiles = (yield* fs.readDirectory(path.join(source, "lib"))).filter((name) =>
+    /^lib\..*\.d\.ts$/.test(name),
+  );
+  if (libFiles.length === 0) {
+    return yield* new TypeScriptServerLibMissingError({ packagePath: source });
   }
-
-  if (platform === "win") {
-    return architectures.map((architecture) => ({
-      packageName: `@clerk/electron-passkeys-win32-${architecture}-msvc`,
-      binaryFileName: `electron-passkeys.win32-${architecture}-msvc.node`,
-    }));
-  }
-
-  return [];
-}
+  yield* fs.copy(source, destination);
+});
 
 export function resolveKeyringNativeArtifacts(
   platform: typeof BuildPlatform.Type,
   arch: typeof BuildArch.Type,
-): readonly ClerkPasskeyNativeArtifact[] {
+): readonly { readonly packageName: string; readonly binaryFileName: string }[] {
   const architectures = arch === "universal" ? (["arm64", "x64"] as const) : [arch];
 
   if (platform === "mac") {
@@ -1533,8 +1247,7 @@ export function resolveKeyringNativeArtifacts(
 }
 
 /**
- * Same nesting problem as the Clerk passkey binaries: pnpm keeps the platform
- * package under `@napi-rs/keyring`, electron-builder only retains collected
+ * pnpm keeps the platform package under `@napi-rs/keyring`, electron-builder only retains collected
  * top-level dependencies, and the generated loader checks for a sibling
  * `keyring.<platform>.node` before falling back to the package. Staging the
  * binary beside `index.js` lets that first branch win.
@@ -1557,39 +1270,6 @@ const stageKeyringNativeBinaries = Effect.fn("stageKeyringNativeBinaries")(funct
       try: () => packageRequire.resolve(`${artifact.packageName}/${artifact.binaryFileName}`),
       catch: (cause) =>
         new KeyringNativePackageMissingError({
-          packageName: artifact.packageName,
-          binaryFileName: artifact.binaryFileName,
-          packageEntryPath,
-          platform,
-          arch,
-          cause,
-        }),
-    });
-    yield* fs.copyFile(sourcePath, path.join(packageDir, artifact.binaryFileName));
-  }
-});
-
-// pnpm nests the architecture package under @clerk/electron-passkeys, while electron-builder only
-// retains collected top-level dependencies. The SDK loader checks beside index.js first, so stage
-// the binary there and let electron-builder's native-addon handling unpack it from the ASAR.
-const stageClerkPasskeyNativeBinaries = Effect.fn("stageClerkPasskeyNativeBinaries")(function* (
-  stageAppDir: string,
-  platform: typeof BuildPlatform.Type,
-  arch: typeof BuildArch.Type,
-) {
-  const fs = yield* FileSystem.FileSystem;
-  const path = yield* Path.Path;
-  const packageEntryPath = yield* fs.realPath(
-    path.join(stageAppDir, "node_modules", "@clerk", "electron-passkeys", "index.js"),
-  );
-  const packageDir = path.dirname(packageEntryPath);
-  const packageRequire = NodeModule.createRequire(packageEntryPath);
-
-  for (const artifact of resolveClerkPasskeyNativeArtifacts(platform, arch)) {
-    const sourcePath = yield* Effect.try({
-      try: () => packageRequire.resolve(artifact.packageName),
-      catch: (cause) =>
-        new ClerkPasskeyNativePackageMissingError({
           packageName: artifact.packageName,
           binaryFileName: artifact.binaryFileName,
           packageEntryPath,
@@ -2495,7 +2175,13 @@ function stageMacIcons(stageResourcesDir: string, sourcePng: string, verbose: bo
       verbose,
     });
 
-    yield* generateMacIconSet(sourcePng, iconIcnsPath, tmpRoot, path, verbose);
+    // Otterware seam: supplied native artwork takes precedence over PNG exports.
+    const sourceIcns = sourcePng.replace(/-macos-1024\.png$/, "-macos.icns");
+    if (yield* fs.exists(sourceIcns)) {
+      yield* fs.copyFile(sourceIcns, iconIcnsPath);
+    } else {
+      yield* generateMacIconSet(sourcePng, iconIcnsPath, tmpRoot, path, verbose);
+    }
   });
 }
 
@@ -2668,6 +2354,8 @@ export function resolveDesktopRuntimeDependencies(
 export const resolveGitHubPublishConfig = Effect.fn("resolveGitHubPublishConfig")(function* (
   updateChannel: "latest" | "nightly",
 ) {
+  const feed = releaseFeed();
+  if (feed) return feed;
   const env = yield* Config.all({
     updateRepository: Config.String("T3CODE_DESKTOP_UPDATE_REPOSITORY").pipe(Config.option),
     githubRepository: Config.String("GITHUB_REPOSITORY").pipe(Config.option),
@@ -2675,7 +2363,7 @@ export const resolveGitHubPublishConfig = Effect.fn("resolveGitHubPublishConfig"
   const rawRepo = (
     Option.getOrUndefined(env.updateRepository)?.trim() ||
     Option.getOrUndefined(env.githubRepository)?.trim() ||
-    ""
+    activeProfile.updateFeed.repository
   ).trim();
   if (!rawRepo) return undefined;
 
@@ -2687,7 +2375,9 @@ export const resolveGitHubPublishConfig = Effect.fn("resolveGitHubPublishConfig"
     owner,
     repo,
     releaseType: updateChannel === "nightly" ? "prerelease" : "release",
-    ...(updateChannel === "nightly" ? { channel: "nightly" as const } : {}),
+    ...(updateChannel === "nightly" || activeProfile.updateFeed.channelPrefix !== null
+      ? { channel: profileUpdateChannel(activeProfile, updateChannel) }
+      : {}),
   };
 });
 
@@ -2743,10 +2433,8 @@ export function resolvePackageManagerUserAgent(packageManager: string): string {
   return `${trimmed.slice(0, versionSeparator)}/${trimmed.slice(versionSeparator + 1)}`;
 }
 
-export function resolveDesktopProductName(version: string): string {
-  return resolveDesktopUpdateChannel(version) === "nightly"
-    ? "T3 Code (Nightly)"
-    : (desktopPackageJson.productName ?? "T3 Code");
+export function resolveDesktopProductName(_version: string): string {
+  return activeProfile.brand.productName;
 }
 
 export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
@@ -2756,7 +2444,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   signed: boolean,
   mockUpdates: boolean,
   mockUpdateServerPort: number | undefined,
-  macPasskeySigning:
+  macSigning:
     | {
         readonly entitlementsPath: string;
         readonly provisioningProfilePath: string;
@@ -2771,7 +2459,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   const buildConfig: Record<string, unknown> = {
     appId: DESKTOP_APP_ID,
     productName: resolveDesktopProductName(version),
-    artifactName: "T3-Code-${version}-${arch}.${ext}",
+    artifactName: activeProfile.brand.artifactName,
     electronLanguages: [...DESKTOP_ELECTRON_LANGUAGES],
     files: [
       ...DESKTOP_FILE_EXCLUSIONS,
@@ -2790,8 +2478,13 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
     ...(platform === "win"
       ? { asar: { smartUnpack: false }, asarUnpack: [WINDOWS_NATIVE_ASAR_UNPACK_GLOB] }
       : {}),
+    protocols: activeProfile.id === "mail" ? [{ name: "Email", schemes: ["mailto"] }] : [],
     extraResources: [
       ...DESKTOP_EXTRA_RESOURCES,
+      ...(platform === "mac" && activeProfile.modules.includes("mail")
+        ? [{ from: "apps/desktop/prod-resources/bin/mail-translator", to: "bin/mail-translator" }]
+        : []),
+      ...(platform === "win" ? [] : TSSERVER_EXTRA_RESOURCES),
       ...(platform === "linux" ? LINUX_CAPTURE_EXTRA_RESOURCES : []),
       ...(platform === "linux" ? LINUX_BROWSER_SECRET_EXTRA_RESOURCES : []),
       ...(platform === "win" ? WINDOWS_SERVER_EXTRA_RESOURCES : []),
@@ -2816,6 +2509,16 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
   if (platform === "mac") {
     const path = yield* Path.Path;
     const repoRoot = yield* RepoRoot;
+    // API-key releases recover transient CloudKit staple failures before DMG/ZIP creation.
+    // Keep electron-builder's other credential strategies and signing flow intact.
+    const retryNotarizationStaple =
+      signed &&
+      Boolean(process.env.APPLE_API_KEY) &&
+      !process.env.APPLE_ID &&
+      !process.env.APPLE_APP_SPECIFIC_PASSWORD;
+    if (retryNotarizationStaple) {
+      buildConfig.afterSign = path.join(repoRoot, "scripts/otterware/notarize-desktop.ts");
+    }
     buildConfig.mac = {
       target: target === "dmg" ? [target, "zip"] : [target],
       icon: "icon.icns",
@@ -2823,10 +2526,8 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       extendInfo: {
         // macOS 26 offers Messages/Mail codes in every text field unless opted out.
         NSAutoFillRequiresTextContentTypeForOneTimeCodeOnMac: true,
-        NSLocalNetworkUsageDescription:
-          "T3 Code connects to devices on your local network for remote environments and commands run by terminals and coding agents.",
-        NSScreenCaptureUsageDescription:
-          "T3 Code captures the active window when you use the window capture shortcut.",
+        NSLocalNetworkUsageDescription: `${activeProfile.brand.productName} connects to devices on your local network for remote environments and commands run by terminals and ${activeProfile.codeVisible ? "coding agents" : "agents"}.`,
+        NSScreenCaptureUsageDescription: `${activeProfile.brand.productName} captures the active window when you use the window capture shortcut.`,
         // macOS lists an app under Default web browser only when it opens web
         // pages as documents as well as http and https links (see protocols).
         CFBundleDocumentTypes: [
@@ -2839,11 +2540,14 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
         ],
       },
       protocols: [
+        ...(activeProfile.id === "mail"
+          ? [{ name: "Email", schemes: ["mailto"], role: "Viewer" }]
+          : []),
         {
-          name: "T3 Code",
-          schemes: ["t3code", "t3code-dev"],
+          name: activeProfile.brand.productName,
+          schemes: [activeProfile.brand.urlScheme, activeProfile.brand.devUrlScheme],
         },
-        // Lets people choose T3 Code as their default web browser, which opens
+        // Lets people choose Otter Code as their default web browser, which opens
         // each link in a new thread's browser panel.
         {
           name: "Web site URL",
@@ -2852,10 +2556,11 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
         },
       ],
       ...(signed ? { sign: path.join(repoRoot, "scripts/sign-macos.ts") } : {}),
-      ...(macPasskeySigning
+      ...(retryNotarizationStaple ? { notarize: false } : {}),
+      ...(macSigning
         ? {
-            entitlements: macPasskeySigning.entitlementsPath,
-            provisioningProfile: macPasskeySigning.provisioningProfilePath,
+            entitlements: macSigning.entitlementsPath,
+            provisioningProfile: macSigning.provisioningProfilePath,
           }
         : {}),
     };
@@ -2896,7 +2601,7 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       // resources/package-type into the .deb only, so electron-updater updates
       // each install in its own format.
       target: target === "AppImage" ? [target, "deb"] : [target],
-      executableName: "t3code",
+      executableName: activeProfile.brand.slug,
       icon: "icons",
       category: "Development",
       synopsis: "Desktop GUI for coding agents",
@@ -2906,14 +2611,17 @@ export const createBuildConfig = Effect.fn("createBuildConfig")(function* (
       // in the .desktop entry (Exec already gets %U), so browsers can hand
       // t3code:// OAuth callbacks to the app.
       protocols: [
+        ...(activeProfile.id === "mail"
+          ? [{ name: "Email", schemes: ["mailto"], role: "Viewer" }]
+          : []),
         {
-          name: "T3 Code",
-          schemes: ["t3code", "t3code-dev"],
+          name: activeProfile.brand.productName,
+          schemes: [activeProfile.brand.urlScheme, activeProfile.brand.devUrlScheme],
         },
       ],
       desktop: {
         entry: {
-          StartupWMClass: "t3code",
+          StartupWMClass: activeProfile.brand.slug,
         },
       },
     };
@@ -3736,6 +3444,9 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
   yield* Effect.log("[desktop-artifact] Staging release app...");
   yield* fs.copy(distDirs.desktopDist, path.join(stageAppDir, "apps/desktop/dist-electron"));
   yield* fs.copy(distDirs.desktopResources, stageResourcesDir);
+  if (options.platform === "mac" && activeProfile.modules.includes("mail")) {
+    yield* Effect.tryPromise(() => stageMailTranslator(repoRoot, stageResourcesDir, options.arch));
+  }
   if (options.platform === "linux") {
     const extensionDir = path.join(stageAppDir, "apps/desktop/gnome-extension");
     yield* fs.makeDirectory(extensionDir, { recursive: true });
@@ -3801,8 +3512,9 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
   const configuredMacPasskeySigning =
     options.platform === "mac" && options.signed
       ? yield* Effect.try({
-          try: () => resolveMacPasskeySigningConfiguration(loadRepoEnv({ repoRoot })),
-          catch: MacPasskeySigningConfigurationResolutionError.fromCause,
+          try: () =>
+            resolveMacPasskeySigningConfiguration(loadRepoEnv({ repoRoot }), DESKTOP_APP_ID),
+          catch: (cause) => new MacPasskeySigningConfigurationResolutionError({ cause }),
         })
       : undefined;
   const macPasskeySigning = configuredMacPasskeySigning
@@ -3824,16 +3536,19 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
         provisioningProfilePath: macPasskeySigning.provisioningProfilePath,
       });
     }
-    macWebAuthn = resolveMacWebAuthnEntitlements(
-      yield* fs.readFileString(macPasskeySigning.provisioningProfilePath),
-      macPasskeySigning,
-    );
+    const profile = yield* fs.readFileString(macPasskeySigning.provisioningProfilePath);
+    macWebAuthn = resolveMacWebAuthnEntitlements(profile, macPasskeySigning);
     yield* Effect.log(
       `[desktop-artifact] In-app browser passkeys: Touch ID ${macWebAuthn.touchIdKeychainAccessGroup ? "enabled" : "disabled"}, browser passkeys ${macWebAuthn.browserPasskeys ? "enabled" : "disabled"}.`,
     );
-    yield* fs.writeFileString(
-      macEntitlementsPath,
-      renderMacPasskeyEntitlements(macPasskeySigning, macWebAuthn),
+    const entitlements = renderMacPasskeyEntitlements(macPasskeySigning, macWebAuthn, profile);
+    yield* fs.writeFileString(macEntitlementsPath, entitlements);
+    yield* Effect.log(
+      `[desktop-artifact] macOS provisioning profile embedded; enabled entitlements: ${[...entitlements.matchAll(/<key>([^<]+)<\/key>/gu)].map((match) => match[1]).join(", ")}.`,
+    );
+  } else if (options.platform === "mac") {
+    yield* Effect.log(
+      "[desktop-artifact] No macOS provisioning profile embedded; passkey entitlements disabled; default hardened-runtime entitlements retained.",
     );
   }
 
@@ -3860,7 +3575,7 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
       ? path.join(stageAppDir, WINDOWS_SERVER_RESOURCE_SOURCE_DIR, WINDOWS_SERVER_ASAR_RESOURCE)
       : undefined;
   const stagePackageJson: StagePackageJson = {
-    name: "t3code",
+    name: activeProfile.brand.slug,
     version: appVersion,
     buildVersion: appVersion,
     t3codeCommitHash: commitHash,
@@ -3925,7 +3640,6 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
     }),
     { label: "vp install --prod", verbose: options.verbose },
   );
-  yield* stageClerkPasskeyNativeBinaries(stageAppDir, options.platform, options.arch);
   yield* stageKeyringNativeBinaries(stageAppDir, options.platform, options.arch);
 
   // Only the Windows artifact carries the server sidecar and the WSL runtime;
@@ -3953,6 +3667,12 @@ const buildDesktopArtifact = Effect.fn("buildDesktopArtifact")(function* (
     ),
     path.join(stageProdResourcesDir, "cursor-sdk"),
   );
+  if (options.platform !== "win") {
+    yield* stageTypeScriptServerPackage(
+      path.join(stageAppDir, "node_modules"),
+      path.join(stageAppDir, TSSERVER_RESOURCE_SOURCE_DIR),
+    );
+  }
   if (
     options.wslRuntime !== undefined &&
     bundlesWslRuntime({ platform: options.platform, runtimeArchivePath: options.wslRuntime })

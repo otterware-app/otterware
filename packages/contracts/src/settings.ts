@@ -1,3 +1,4 @@
+import { CodeIntelligenceSettings } from "./language.ts";
 import { SshDeviceHostConfigs } from "./device.ts";
 import {
   AuthOrchestrationOperateScope,
@@ -841,6 +842,29 @@ export const GitHubHost = TrimmedNonEmptyString.pipe(
 export const SourceControlHostSettings = Schema.Record(Schema.String, Schema.Unknown);
 export type SourceControlHostSettings = typeof SourceControlHostSettings.Type;
 
+export const LinearTeamProject = Schema.Struct({
+  /** Linear team key, e.g. "ENG". */
+  teamKey: TrimmedNonEmptyString,
+  projectId: ProjectId,
+});
+export type LinearTeamProject = typeof LinearTeamProject.Type;
+
+/**
+ * Linear on this environment. The API key reads issue status for linked
+ * issues; it is redacted before reaching a client, like a hub key. Issues
+ * delegated to the Otter agent run in the team's project, else the default.
+ */
+export const LinearSettings = Schema.Struct({
+  apiKey: TrimmedString.pipe(Schema.withDecodingDefault(Effect.succeed("")), secretSetting),
+  defaultProjectId: Schema.NullOr(ProjectId).pipe(Schema.withDecodingDefault(Effect.succeed(null))),
+  teamProjects: Schema.Array(LinearTeamProject).pipe(
+    Schema.withDecodingDefault(Effect.succeed([])),
+  ),
+  /** First message of a delegated thread; empty uses `DEFAULT_LINEAR_PROMPT_TEMPLATE`. */
+  promptTemplate: Schema.String.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
+});
+export type LinearSettings = typeof LinearSettings.Type;
+
 export const ObservabilitySettings = Schema.Struct({
   otlpTracesUrl: TrimmedString.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
   otlpMetricsUrl: TrimmedString.pipe(Schema.withDecodingDefault(Effect.succeed(""))),
@@ -1108,6 +1132,17 @@ export const StorageCleanupSettings = Schema.Struct({
 });
 export type StorageCleanupSettings = typeof StorageCleanupSettings.Type;
 
+/**
+ * A named set of projects the rail offers as one space. Members are logical
+ * project keys, so one repository on several machines is one member.
+ */
+export const ProjectGroupSetting = Schema.Struct({
+  id: TrimmedNonEmptyString,
+  name: TrimmedNonEmptyString,
+  projectKeys: Schema.Array(TrimmedNonEmptyString),
+});
+export type ProjectGroupSetting = typeof ProjectGroupSetting.Type;
+
 export const ServerSettings = Schema.Struct({
   // Null means no client has migrated this preference yet; an empty value is
   // authoritative so another device cannot resurrect cleared preferences.
@@ -1187,6 +1222,8 @@ export const ServerSettings = Schema.Struct({
    * settings UI is not undone by the next server start.
    */
   projectSettingsFolded: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
+  /** Language servers for the file and diff editors, keyed by `CodeIntelligenceServerId`. */
+  codeIntelligence: CodeIntelligenceSettings.pipe(Schema.withDecodingDefault(Effect.succeed({}))),
   /**
    * Whether agents may drive simulators and emulators. Gates the `device_*`
    * MCP tools and the preconfigured `agent-device` CLI the same way
@@ -1355,6 +1392,15 @@ export const ServerSettings = Schema.Struct({
    */
   usageModelAliases: Schema.Record(TrimmedNonEmptyString, TrimmedNonEmptyString).pipe(
     Schema.withDecodingDefault(Effect.succeed({})),
+  ),
+  linear: LinearSettings.pipe(Schema.withDecodingDefault(Effect.succeed({}))),
+  /**
+   * The rail's project groups, in rail order. A user preference that clients
+   * write to every environment (see `sharedSettings.ts`), so each machine and
+   * the hosted app show the same groups.
+   */
+  railProjectGroups: Schema.Array(ProjectGroupSetting).pipe(
+    Schema.withDecodingDefault(Effect.succeed([])),
   ),
 });
 export type ServerSettings = typeof ServerSettings.Type;
@@ -1587,6 +1633,7 @@ export const ServerSettingsPatch = Schema.Struct({
   enableDeviceSupport: Schema.optionalKey(Schema.Boolean),
   deviceOnboardingCompleted: Schema.optionalKey(Schema.Boolean),
   deviceHosts: Schema.optionalKey(SshDeviceHostConfigs),
+  codeIntelligence: Schema.optionalKey(CodeIntelligenceSettings),
   sidebarAutoSettleAfterDays: Schema.optionalKey(Schema.NullOr(SidebarAutoSettleAfterDays)),
   sidebarAutoSettleKeepPullRequests: Schema.optionalKey(Schema.Boolean),
   sidebarAutoSettleOnMerge: Schema.optionalKey(Schema.Boolean),
@@ -1658,6 +1705,17 @@ export const ServerSettingsPatch = Schema.Struct({
   usageModelAliases: Schema.optionalKey(
     Schema.Record(TrimmedNonEmptyString, Schema.NullOr(TrimmedNonEmptyString)),
   ),
+  /** Shallow: each present key replaces the stored value, `teamProjects` as a whole list. */
+  linear: Schema.optionalKey(
+    Schema.Struct({
+      apiKey: Schema.optionalKey(TrimmedString),
+      defaultProjectId: Schema.optionalKey(Schema.NullOr(ProjectId)),
+      teamProjects: Schema.optionalKey(Schema.Array(LinearTeamProject)),
+      promptTemplate: Schema.optionalKey(Schema.String),
+    }),
+  ),
+  /** Replaces the whole list. */
+  railProjectGroups: Schema.optionalKey(Schema.Array(ProjectGroupSetting)),
 });
 export type ServerSettingsPatch = typeof ServerSettingsPatch.Type;
 

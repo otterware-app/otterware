@@ -115,7 +115,7 @@ const makeHarness = Effect.fn("TestRemoteAuthorization.makeHarness")(function* (
   readonly bootstrap?: RelayEnvironmentConnectResponse;
   readonly beforeBootstrap?: Effect.Effect<void, ManagedRelay.ManagedRelayClientError>;
   readonly beforePut?: Effect.Effect<void>;
-  readonly clerkToken?: ClientCapabilities.CloudSession["Service"]["clerkToken"];
+  readonly accountToken?: ClientCapabilities.CloudSession["Service"]["accountToken"];
 }) {
   const tokens = yield* Ref.make(
     new Map(
@@ -202,7 +202,7 @@ const makeHarness = Effect.fn("TestRemoteAuthorization.makeHarness")(function* (
         Layer.succeed(ManagedRelay.ManagedRelayClient, relay),
         Layer.succeed(ClientCapabilities.CloudSession, {
           identity: Ref.get(session),
-          clerkToken: input.clerkToken ?? Effect.succeed("clerk-session"),
+          accountToken: input.accountToken ?? Effect.succeed("account-session"),
         }),
         Layer.succeed(ClientCapabilities.RelayDeviceIdentity, {
           deviceId: Effect.succeedSome("device-1"),
@@ -212,7 +212,7 @@ const makeHarness = Effect.fn("TestRemoteAuthorization.makeHarness")(function* (
           ClientCapabilities.ClientPresentation,
           ClientCapabilities.ClientPresentation.of({
             metadata: {
-              label: "T3 Code Test",
+              label: "Otter Code Test",
               deviceType: "mobile",
               os: "test",
             },
@@ -345,7 +345,7 @@ describe("RemoteEnvironmentAuthorization", () => {
     }),
   );
 
-  it.effect("uses the T3 Connect token on a learned direct address without the relay", () =>
+  it.effect("uses the Otter Connect token on a learned direct address without the relay", () =>
     Effect.gen(function* () {
       const cached = new TokenStore.RemoteDpopAccessToken({
         environmentId: ENVIRONMENT_ID,
@@ -563,7 +563,7 @@ describe("RemoteEnvironmentAuthorization", () => {
         for (const [, init] of exchanges) {
           expect(Object.fromEntries(tokenFields(init))).toMatchObject({
             subject_token: BOOTSTRAP.credential,
-            client_label: "T3 Code Test",
+            client_label: "Otter Code Test",
             client_device_type: "mobile",
             client_os: "test",
           });
@@ -740,7 +740,7 @@ describe("RemoteEnvironmentAuthorization", () => {
         expect(yield* Ref.get(harness.relayInputs)).toEqual([
           {
             environmentId: ENVIRONMENT_ID,
-            clerkToken: "clerk-session",
+            accountToken: "account-session",
             scopes: [RelayEnvironmentConnectScope],
             deviceId: "device-1",
           },
@@ -1096,13 +1096,13 @@ describe("RemoteEnvironmentAuthorization", () => {
       const started = yield* Deferred.make<void>();
       const reads = yield* Ref.make(0);
       const harness = yield* makeHarness({
-        clerkToken: Effect.gen(function* () {
+        accountToken: Effect.gen(function* () {
           const read = yield* Ref.updateAndGet(reads, (value) => value + 1);
           if (read === 1) {
             yield* Deferred.succeed(started, undefined);
             return yield* Effect.never;
           }
-          return "clerk-session";
+          return "account-session";
         }),
         responses: [Response.json(DESCRIPTOR), accessToken("fresh-token")],
       });
