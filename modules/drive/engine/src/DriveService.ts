@@ -156,6 +156,24 @@ export class DriveService extends Context.Service<
       input: DriveShareInput,
     ) => Effect.Effect<DriveSharingResult, DriveError>;
     readonly getFolderSharing: (reference: string) => Effect.Effect<DriveSharingResult, DriveError>;
+    /** `folder` is an id, slug or unique name, as for uploads. */
+    readonly moveDocument: (
+      reference: string,
+      folder: string,
+    ) => Effect.Effect<DriveDocumentSummary, DriveError>;
+    readonly setDocumentArchived: (
+      reference: string,
+      archived: boolean,
+    ) => Effect.Effect<DriveDocumentSummary, DriveError>;
+    readonly promoteVersion: (
+      reference: string,
+      version: number,
+    ) => Effect.Effect<DriveDocumentSummary, DriveError>;
+    /** Inside `parent` (id, slug or unique name), defaulting to the personal drive. */
+    readonly createFolder: (input: {
+      readonly name: string;
+      readonly parent?: string | undefined;
+    }) => Effect.Effect<DriveFolder, DriveError>;
     readonly markViewed: (artifactId: string, version: number) => Effect.Effect<void, DriveError>;
     readonly linkDocument: (input: {
       readonly threadId: string;
@@ -861,6 +879,50 @@ export const makeWith = (options: { readonly api: DriveApi; readonly store: Driv
         }),
       );
 
+    /** Applies a document change by id, then refreshes the links that name the document. */
+    const changeDocument = (
+      reference: string,
+      change: (artifact: Artifact, token: string) => Effect.Effect<Artifact, DriveApiError>,
+    ) =>
+      Effect.gen(function* () {
+        const { artifact, token } = yield* resolve(reference);
+        const changed = yield* change(artifact, token).pipe(
+          Effect.tapError((error) =>
+            error.status === 401 ? connection.markRejected : Effect.void,
+          ),
+          Effect.mapError(driveErrorOf),
+        );
+        yield* recordRead(changed);
+        return summaryOfArtifact(changed, baseUrl);
+      });
+
+    const moveDocument: DriveService["Service"]["moveDocument"] = (reference, folder) =>
+      changeDocument(reference, (artifact, token) =>
+        folderIdFor(token, folder).pipe(
+          Effect.flatMap((folderId) => api.moveArtifact(artifact.id, folderId, { token })),
+        ),
+      );
+    const setDocumentArchived: DriveService["Service"]["setDocumentArchived"] = (
+      reference,
+      archived,
+    ) =>
+      changeDocument(reference, (artifact, token) =>
+        api.setArchived(artifact.id, archived, { token }),
+      );
+    const promoteVersion: DriveService["Service"]["promoteVersion"] = (reference, version) =>
+      changeDocument(reference, (artifact, token) =>
+        api.promoteVersion(artifact.id, version, { token }),
+      );
+    const createFolder: DriveService["Service"]["createFolder"] = (input) =>
+      withSession((token) =>
+        Effect.gen(function* () {
+          const parentId = yield* folderIdFor(token, input.parent);
+          const created = yield* api.createFolder({ name: input.name, parentId }, { token });
+          folderCache = null;
+          return folderOf(created);
+        }),
+      );
+
     const markViewed: DriveService["Service"]["markViewed"] = (artifactId, version) =>
       Effect.gen(function* () {
         yield* orStoreFailure(store.markViewed(artifactId, version, yield* nowIso));
@@ -964,6 +1026,10 @@ export const makeWith = (options: { readonly api: DriveApi; readonly store: Driv
       getShareLink,
       shareFolder,
       getFolderSharing,
+      moveDocument,
+      setDocumentArchived,
+      promoteVersion,
+      createFolder,
       markViewed,
       linkDocument,
       unlinkDocument,
