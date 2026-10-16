@@ -4,7 +4,7 @@ import {
 } from "@t3tools/client-runtime/state/runtime";
 import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId } from "@t3tools/contracts";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useAuth } from "../../accounts/AccountProvider";
 import { SettingsRow } from "../../components/settings/settingsLayout";
 import { Button } from "../../components/ui/button";
@@ -14,34 +14,32 @@ import { useAtomCommand } from "../../state/use-atom-command";
 import {
   accountState,
   accountConnections,
-  attachAccount,
-  detachAccount,
-  connectProvider,
+  signInEnvironment,
+  signOutEnvironment,
   disconnectProvider,
 } from "./rpc";
+import { useConnectProvider } from "./useConnectProvider";
 
 function checked<A, E>(result: AtomCommandResult<A, E>): A {
   if (result._tag === "Failure") throw squashAtomCommandFailure(result);
   return result.value;
 }
 
-/** The account is attached explicitly to the selected environment, including remote ones. */
-export function AccountConnections({
-  environmentId,
-  accountOnly = false,
-}: {
-  environmentId: EnvironmentId;
-  accountOnly?: boolean;
-}) {
+/**
+ * The environment's own Otter Account, which Code, Home, Mail, Calendar and Drive there use.
+ * It is signed in on the environment itself (any client can approve it), so it keeps working
+ * when this client signs out.
+ */
+export function AccountConnections({ environmentId }: { environmentId: EnvironmentId }) {
   const auth = useAuth();
   const state = useEnvironmentQuery(accountState({ environmentId, input: {} }));
   const connections = useEnvironmentQuery(
     state.data?.accountId ? accountConnections({ environmentId, input: {} }) : null,
   );
-  const canWrite = useAtomValue(attachAccount.permissionAtom(environmentId));
-  const attach = useAtomCommand(attachAccount);
-  const detach = useAtomCommand(detachAccount);
-  const connect = useAtomCommand(connectProvider);
+  const canWrite = useAtomValue(signInEnvironment.permissionAtom(environmentId));
+  const signIn = useAtomCommand(signInEnvironment);
+  const signOut = useAtomCommand(signOutEnvironment);
+  const connect = useConnectProvider(environmentId);
   const disconnect = useAtomCommand(disconnectProvider);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -53,122 +51,86 @@ export function AccountConnections({
       state.refresh();
       connections.refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Could not connect the account.");
+      setError(cause instanceof Error ? cause.message : "Could not update the Otter Account.");
     } finally {
       setBusy(false);
     }
   };
-  // The environment keeps the suite session; refresh its grant only while this owner is signed in.
-  useEffect(() => {
-    if (!canWrite || !auth.userId || state.data?.accountId !== auth.userId) return;
-    let active = true;
-    const refresh = async () => {
-      const accessToken = await auth.getToken().catch(() => null);
-      if (active && accessToken)
-        await attach({ environmentId, input: { accessToken } })
-          .then(checked)
-          .catch(() => {});
-    };
-    const timer = window.setInterval(() => void refresh(), 20 * 60_000);
-    return () => {
-      active = false;
-      window.clearInterval(timer);
-    };
-  }, [canWrite, auth.userId, auth.getToken, state.data?.accountId, attach, environmentId]);
-  const add = (provider: "google" | "microsoft") =>
-    run(async () => {
-      const result = await connect({
-        environmentId,
-        input: {
-          provider,
-          scopes:
-            provider === "google"
-              ? [
-                  "https://www.googleapis.com/auth/gmail.modify",
-                  "https://www.googleapis.com/auth/gmail.settings.basic",
-                  "https://www.googleapis.com/auth/contacts.readonly",
-                  "https://www.googleapis.com/auth/calendar",
-                ]
-              : [
-                  "User.Read",
-                  "Mail.ReadWrite",
-                  "Mail.Send",
-                  "Contacts.Read",
-                  "Calendars.ReadWrite",
-                ],
-          returnTo: window.location.href,
-        },
-      }).then(checked);
-      await ensureLocalApi().shell.openExternal(result.url);
-    });
-  const disconnectEnvironment = () =>
-    void run(() => detach({ environmentId, input: {} }).then(checked));
+  const account = state.data;
+  const pending = account?.pendingSignIn ?? null;
+  const differs = Boolean(account?.accountId && auth.userId && account.accountId !== auth.userId);
   // Rows only: the host's "Otter Account connections" card draws the frame.
   return (
     <>
       <SettingsRow
-        title="Otter Account"
+        title={account?.email ?? "Not signed in"}
         description={
-          state.data?.accountId
-            ? "Provider connections and Mail and Calendar preferences are shared with this environment."
-            : "Connect your Otter Account to share provider connections and Mail and Calendar preferences with this environment."
+          account?.accountId
+            ? differs
+              ? `This environment uses a different Otter Account than this app (${auth.user?.email ?? "you"}).`
+              : "This environment's Otter Account. Your mailbox list, preferences and projects follow it."
+            : pending
+              ? `Approve code ${pending.userCode} in your browser to sign this environment in.`
+              : "Sign this environment in to your Otter Account. It keeps its own sign-in."
         }
         control={
-          !auth.isSignedIn ? (
-            <Button size="sm" onClick={() => void run(auth.signIn)} disabled={busy}>
-              Sign in
+          account?.accountId ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={!canWrite || busy}
+              onClick={() => void run(() => signOut({ environmentId, input: {} }).then(checked))}
+            >
+              Sign out environment
             </Button>
-          ) : !state.data?.accountId ? (
+          ) : pending ? (
+            <Button
+              size="sm"
+              disabled={busy}
+              onClick={() => void ensureLocalApi().shell.openExternal(pending.verificationUrl)}
+            >
+              Open sign-in
+            </Button>
+          ) : (
             <Button
               size="sm"
               disabled={!canWrite || busy}
               onClick={() =>
                 void run(async () => {
-                  const accessToken = await auth.getToken();
-                  if (!accessToken) throw new Error("Sign in to your Otter Account again.");
-                  await attach({ environmentId, input: { accessToken } }).then(checked);
+                  const prompt = checked(await signIn({ environmentId, input: {} }));
+                  await ensureLocalApi().shell.openExternal(prompt.verificationUrl);
                 })
               }
             >
-              Use on this environment
-            </Button>
-          ) : (
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={!canWrite || busy}
-              onClick={disconnectEnvironment}
-            >
-              Disconnect environment
+              Sign in environment
             </Button>
           )
         }
       />
-      {auth.isSignedIn && state.data?.accountId && !accountOnly ? (
+      {account?.accountId ? (
         <>
           <SettingsRow
-            title="Add a provider"
-            description="Mail and Calendar use the accounts you connect here."
+            title="Google on this device"
+            description={
+              connections.data?.length
+                ? "Connected on this device. Mail, Calendar and contacts on this device use it."
+                : "Not connected on this device. Mail, Calendar and contacts on this device use the Google account you connect here."
+            }
             control={
-              <div className="flex gap-2">
-                <Button size="sm" disabled={!canWrite || busy} onClick={() => void add("google")}>
-                  Connect Google
-                </Button>
-                <Button
-                  size="sm"
-                  disabled={!canWrite || busy}
-                  onClick={() => void add("microsoft")}
-                >
-                  Connect Microsoft
-                </Button>
-              </div>
+              <Button
+                size="sm"
+                disabled={!canWrite || busy}
+                onClick={() => void run(() => connect("google"))}
+              >
+                Connect Google on this device
+              </Button>
             }
           />
           {connections.data?.map((connection) => (
             <SettingsRow
               key={connection.id}
               title={connection.email}
-              description={connection.provider}
+              description="Google · Connected on this device"
               control={
                 <Button
                   size="sm"
@@ -182,16 +144,16 @@ export function AccountConnections({
                     )
                   }
                 >
-                  Disconnect
+                  Remove from this device
                 </Button>
               }
             />
           ))}
         </>
       ) : null}
-      {error || state.error ? (
+      {error || account?.error || state.error ? (
         <p role="alert" className="px-4 py-2 text-sm text-destructive">
-          {error ?? state.error}
+          {error ?? account?.error ?? state.error}
         </p>
       ) : null}
     </>

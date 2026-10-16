@@ -32,6 +32,8 @@ app.use(async (c, next) => {
     "/v1/auth/oauth2/token",
     "/v1/auth/oauth2/revoke",
     "/v1/auth/code/session",
+    "/v1/auth/code/grants",
+    "/v1/auth/code/grants/revoke",
     "/v1/auth/suite/session",
   ].includes(c.req.path);
   const responseHeaders = () => {

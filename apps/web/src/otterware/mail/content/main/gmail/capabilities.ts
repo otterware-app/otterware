@@ -23,6 +23,11 @@ export function signsInWithPassword(account: GmailAccount): boolean {
   return account.imap != null;
 }
 
+/** Signs in with Google, which is authorized on each device separately. */
+export function signsInWithGoogle(account: GmailAccount): boolean {
+  return account.imap == null && (account.provider ?? "gmail") === "gmail";
+}
+
 /** Where the account's mail lives, for copy like "Nothing is deleted from Gmail". */
 export function mailServerName(account: GmailAccount): string {
   return account.imap ? account.imap.imap.host : "Gmail";

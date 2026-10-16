@@ -204,6 +204,7 @@ function hostAccount(): ConnectedAccount {
   });
   return {
     accountId: "u-1",
+    email: "u-1@example.test",
     client,
     connections: () => client.connections(),
     providerToken: (id) => client.providerToken(id),
@@ -214,8 +215,10 @@ function hostAccount(): ConnectedAccount {
 }
 const connected = Layer.succeed(OtterAccountSession, {
   current: () => hostAccount(),
-  attach: async () => "u-1",
-  detach: async () => {},
+  providerAccount: () => null,
+  status: () => ({ pendingSignIn: null, error: null }),
+  signIn: () => Promise.reject(new Error("unused")),
+  signOut: async () => {},
   subscribe: () => () => {},
 });
 const setup = (
@@ -247,8 +250,10 @@ describe("DriveService", () => {
       const identity = hostAccount();
       const account = Layer.succeed(OtterAccountSession, {
         current: () => (signedIn ? identity : null),
-        attach: async () => "u-1",
-        detach: async () => {},
+        providerAccount: () => null,
+        status: () => ({ pendingSignIn: null, error: null }),
+        signIn: () => Promise.reject(new Error("unused")),
+        signOut: async () => {},
         subscribe: () => () => {},
       });
       const drive = yield* setup(fake, account, (api) => ({

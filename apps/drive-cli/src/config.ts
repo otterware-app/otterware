@@ -9,8 +9,17 @@ const { dirname, join } = NodePath;
 
 import { DEFAULT_API_URL } from "@otterware/drive-contracts/api";
 
+/** This machine's own Otter Account grant (device login); never shared between machines. */
+export interface AccountGrant {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+}
+
 export interface Profile {
   apiUrl: string;
+  accountGrant?: AccountGrant | undefined;
+  /** A legacy Drive session or OTTERDRIVE_TOKEN bearer. */
   accessToken?: string | undefined;
   apiKey?: string | undefined;
   folderId?: string | undefined;
@@ -32,6 +41,12 @@ export function mergeProfile(existing: Profile | undefined, update: Partial<Prof
   }
   if (Object.prototype.hasOwnProperty.call(update, "apiKey") && update.apiKey === undefined) {
     delete profile.apiKey;
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(update, "accountGrant") &&
+    update.accountGrant === undefined
+  ) {
+    delete profile.accountGrant;
   }
   return profile;
 }
@@ -88,6 +103,14 @@ async function writeConfig(config: ConfigFile): Promise<void> {
   await chmod(path, 0o600);
 }
 
+const profileNames = new WeakMap<Profile, string>();
+/** The stored profile a loaded profile came from, so a renewed grant is saved back to it. */
+export const profileNameOf = (profile: Profile) => profileNames.get(profile);
+
+/** A person's own sign-in (not an agent API key): required for sharing and moving. */
+export const isUserLogin = (profile: Profile) =>
+  Boolean((profile.accessToken || profile.accountGrant) && !profile.apiKey);
+
 export async function getProfile(name?: string): Promise<{
   name: string;
   profile: Profile;
@@ -105,6 +128,7 @@ export async function getProfile(name?: string): Promise<{
   if (token) {
     delete profile.apiKey;
     delete profile.accessToken;
+    delete profile.accountGrant;
     if (token.startsWith("otw_")) profile.apiKey = token;
     else profile.accessToken = token;
   }
@@ -116,6 +140,7 @@ export async function getProfile(name?: string): Promise<{
   if (folder) {
     profile.folderId = folder;
   }
+  profileNames.set(profile, profileName);
   return { name: profileName, profile };
 }
 
@@ -138,6 +163,7 @@ export async function clearCredentials(name: string): Promise<void> {
   if (profile) {
     delete profile.accessToken;
     delete profile.apiKey;
+    delete profile.accountGrant;
     await writeConfig(config);
   }
 }

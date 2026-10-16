@@ -10,7 +10,7 @@ import { useMailLocation } from "../host/surface";
 import { Button } from "~/components/ui/button";
 
 import { mailDocument } from "../host/dom";
-import { mailBridge, mailHost, useMailCanWrite } from "../host/bridge";
+import { connectMailbox, mailBridge, mailHost, useMailCanWrite } from "../host/bridge";
 import { useLatest } from "./use-latest";
 import { TodoistDialogs } from "./integrations/todoist";
 import {
@@ -278,11 +278,14 @@ export function HomeView() {
       <div className="flex h-full flex-col items-center justify-center gap-4">
         <EmptyState
           title="Connect a mailbox"
-          description="Add a mail account in Connections to start reading mail."
+          description="Connect Google on this device for Mail and Calendar, or add another mailbox in Connections."
         />
-        <Button onClick={() => mailHost().navigate("/settings/connections")}>
-          Open Connections
-        </Button>
+        <div className="flex gap-2">
+          <Button onClick={connectMailbox}>Connect Google on this device</Button>
+          <Button variant="outline" onClick={() => mailHost().navigate("/settings/connections")}>
+            Open Connections
+          </Button>
+        </div>
       </div>
     );
   }

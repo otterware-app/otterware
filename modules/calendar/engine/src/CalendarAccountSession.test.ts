@@ -108,6 +108,7 @@ it.effect("uses the shared host account and observes detach without a second Goo
     });
     const identity: ConnectedAccount = {
       accountId: "alice",
+      email: "alice@example.test",
       client,
       connections: () => client.connections(),
       providerToken: (id) => client.providerToken(id),
@@ -118,8 +119,13 @@ it.effect("uses the shared host account and observes detach without a second Goo
     let attached = true;
     const host = Layer.succeed(OtterAccountSession, {
       current: () => (attached ? identity : null),
-      attach: async () => "alice",
-      detach: async () => {},
+      providerAccount: () =>
+        attached
+          ? { ...identity, connect: async () => ({ url: "" }), disconnect: async () => {} }
+          : null,
+      status: () => ({ pendingSignIn: null, error: null }),
+      signIn: () => Promise.reject(new Error("unused")),
+      signOut: async () => {},
       subscribe: () => () => {},
     });
     const context = yield* Layer.build(

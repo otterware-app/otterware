@@ -9,6 +9,7 @@
       "types": "./src/drive/client.ts",
       "import": "./src/drive/client.ts"
     },
+    "./scopes": "./src/scopes.ts",
     "./session": "./src/session.ts"
   },
   "scripts": {

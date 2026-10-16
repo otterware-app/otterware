@@ -1,13 +1,11 @@
 import * as NodeTimersPromises from "node:timers/promises";
 const { setTimeout: delay } = NodeTimersPromises;
 
-import {
-  deviceCodeResponseSchema,
-  deviceTokenResponseSchema,
-} from "@otterware/drive-contracts/api";
+import { DRIVE_CLOUD_ORIGIN } from "@otterware/drive-contracts/constants";
 import type { Command } from "commander";
 import open from "open";
 import pc from "picocolors";
+import { pollDeviceLogin, revokeGrant, startDeviceLogin } from "./account";
 import { ApiClient } from "./client";
 import { clearCredentials, configPath, getProfile, updateProfile } from "./config";
 import type { GlobalOptions } from "./output";
@@ -53,47 +51,31 @@ export function registerAuthCommands(program: Command): void {
         return;
       }
 
-      const client = new ApiClient(profile);
-      const code = deviceCodeResponseSchema.parse(
-        await client.post("/api/auth/device/code", {
-          client_id: "otterdrive-cli",
-          scope: "openid profile email offline_access",
-        }),
-      );
-      const verificationUrl = new URL(
-        code.verification_uri_complete ?? code.verification_uri,
-        profile.apiUrl,
-      ).toString();
+      // This machine's own Otter Account grant; Drive requests go to Otter Cloud with it.
+      const code = await startDeviceLogin();
+      process.stdout.write(`\nEnter ${pc.bold(pc.cyan(code.userCode))} at:\n`);
+      process.stdout.write(`${code.verificationUrl}\n\n`);
+      if (options.noOpen !== true) await open(code.verificationUrl);
 
-      process.stdout.write(`\nEnter ${pc.bold(pc.cyan(code.user_code))} at:\n`);
-      process.stdout.write(`${verificationUrl}\n\n`);
-      if (options.noOpen !== true) await open(verificationUrl);
-
-      const expiresAt = Date.now() + code.expires_in * 1_000;
-      let interval = (code.interval ?? 5) * 1_000;
+      const expiresAt = Date.now() + code.expiresIn * 1_000;
+      let interval = code.interval * 1_000;
       while (Date.now() < expiresAt) {
         await delay(interval);
-        try {
-          const token = deviceTokenResponseSchema.parse(
-            await client.post("/api/auth/device/token", {
-              grant_type: "urn:ietf:params:oauth:grant-type:device_code",
-              device_code: code.device_code,
-              client_id: "otterdrive-cli",
-            }),
-          );
-          await updateProfile(name, {
-            apiUrl: profile.apiUrl,
-            accessToken: token.access_token,
-            apiKey: undefined,
-          });
-          if (globals.json) printJson(token);
-          else success(`Authenticated profile ${pc.bold(name)}.`);
-          return;
-        } catch (error) {
-          const message = (error as Error).message;
-          if (message.includes("slow_down")) interval += 5_000;
-          else if (!message.includes("authorization_pending")) throw error;
+        const grant = await pollDeviceLogin(code.deviceCode);
+        if (grant === "slow_down") {
+          interval += 5_000;
+          continue;
         }
+        if (!grant) continue;
+        await updateProfile(name, {
+          apiUrl: options.url ?? DRIVE_CLOUD_ORIGIN,
+          accountGrant: grant,
+          accessToken: undefined,
+          apiKey: undefined,
+        });
+        if (globals.json) printJson({ success: true, profile: name });
+        else success(`Authenticated profile ${pc.bold(name)}.`);
+        return;
       }
       throw new Error("The login code expired before it was approved.");
     });
@@ -104,7 +86,7 @@ export function registerAuthCommands(program: Command): void {
     .action(async (_options: unknown, command: Command) => {
       const globals = globalOptions(command);
       const { name, profile } = await getProfile(globals.profile);
-      if (!profile.accessToken && !profile.apiKey) {
+      if (!profile.accessToken && !profile.apiKey && !profile.accountGrant) {
         const status = {
           authenticated: false,
           profile: name,
@@ -124,10 +106,12 @@ export function registerAuthCommands(program: Command): void {
 
   auth
     .command("logout")
-    .description("Remove locally stored credentials")
+    .description("Sign this machine out and remove its credentials")
     .action(async (_options: unknown, command: Command) => {
       const globals = globalOptions(command);
-      const { name } = await getProfile(globals.profile);
+      const { name, profile } = await getProfile(globals.profile);
+      // Ends this machine's sign-in at Otter Accounts too; other devices stay signed in.
+      if (profile.accountGrant) await revokeGrant(profile.accountGrant);
       await clearCredentials(name);
       if (globals.json) printJson({ success: true, profile: name });
       else success(`Removed credentials for profile ${pc.bold(name)}.`);

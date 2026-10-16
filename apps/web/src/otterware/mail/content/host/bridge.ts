@@ -16,6 +16,8 @@ export interface MailWebHost extends DesktopBridge {
   navigate(path: string, replace?: boolean): void;
   openAssistant(): void;
   publishSelection(selection: MailPageSelection): void;
+  /** Starts the one Google connect the Otter Account shares with Calendar. */
+  connectGoogle?(): Promise<void>;
 }
 let current: MailWebHost | undefined;
 const subscriptions = new Set<{
@@ -41,6 +43,12 @@ export function installMailWebHost(host: MailWebHost): () => void {
   };
 }
 export const mailHostOrNull = () => current ?? null;
+/** Adds a Google mailbox through the shared connect, or opens Connections without one. */
+export const connectMailbox = () => {
+  const host = mailHost();
+  if (host.connectGoogle) void host.connectGoogle();
+  else host.navigate("/settings/connections");
+};
 export const mailHost = () => {
   if (!current) throw new Error("Mail is not connected to an environment.");
   return current;

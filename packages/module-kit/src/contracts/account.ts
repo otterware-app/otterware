@@ -15,19 +15,30 @@ export class AccountSessionError extends Schema.TaggedError<AccountSessionError>
   },
 ) {}
 const errors = Schema.Union([AccountSessionError, EnvironmentAuthorizationError]);
-const state = Schema.Struct({ accountId: Schema.NullOr(Schema.String) });
+const SignInPrompt = Schema.Struct({
+  verificationUrl: Schema.String,
+  userCode: Schema.String,
+  expiresAt: Schema.Number,
+});
+/** The environment's own account; a client compares it with its own sign-in. */
+const state = Schema.Struct({
+  accountId: Schema.NullOr(Schema.String),
+  email: Schema.NullOr(Schema.String),
+  pendingSignIn: Schema.NullOr(SignInPrompt),
+  error: Schema.NullOr(Schema.String),
+});
 export const AccountRpcGroup = RpcGroup.make(
-  Rpc.make("account.session.attach", {
-    payload: Schema.Struct({ accessToken: Schema.String }),
-    success: state,
+  Rpc.make("account.session.state", { payload: Schema.Struct({}), success: state, error: errors }),
+  Rpc.make("account.session.signIn", {
+    payload: Schema.Struct({}),
+    success: SignInPrompt,
     error: errors,
   }),
-  Rpc.make("account.session.detach", {
+  Rpc.make("account.session.signOut", {
     payload: Schema.Struct({}),
     success: Schema.Void,
     error: errors,
   }),
-  Rpc.make("account.session.state", { payload: Schema.Struct({}), success: state, error: errors }),
   Rpc.make("account.connections.list", {
     payload: Schema.Struct({}),
     success: Schema.Array(Connection),
@@ -49,9 +60,9 @@ export const AccountRpcGroup = RpcGroup.make(
   }),
 );
 export const ACCOUNT_RPC_SCOPES = {
-  "account.session.attach": AuthSettingsWriteScope,
-  "account.session.detach": AuthSettingsWriteScope,
   "account.session.state": AuthOrchestrationReadScope,
+  "account.session.signIn": AuthSettingsWriteScope,
+  "account.session.signOut": AuthSettingsWriteScope,
   "account.connections.list": AuthOrchestrationReadScope,
   "account.connections.connect": AuthSettingsWriteScope,
   "account.connections.disconnect": AuthSettingsWriteScope,

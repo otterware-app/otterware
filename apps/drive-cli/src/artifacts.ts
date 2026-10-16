@@ -23,7 +23,7 @@ import type { Command } from "commander";
 import open from "open";
 import pc from "picocolors";
 import { ApiClient } from "./client";
-import { getProfile } from "./config";
+import { getProfile, isUserLogin } from "./config";
 import { resolveFolderReference, type Folder } from "./folders";
 import { discoverFiles, resolveEntryPath, type LocalArtifactFile } from "./files";
 import type { GlobalOptions } from "./output";
@@ -322,7 +322,7 @@ export function registerArtifactCommands(program: Command): void {
     .description("Move an artifact to another folder")
     .action(async (id: string, folderRef: string, command: Command) => {
       const { profile } = await getProfile(globals(command).profile);
-      if (!profile.accessToken || profile.apiKey) {
+      if (!isUserLogin(profile)) {
         throw new Error("Moving artifacts requires a user login, not an API key.");
       }
       const client = new ApiClient(profile);

@@ -9,15 +9,13 @@ import { Input } from "~/components/ui/input";
 import { Switch } from "~/components/ui/switch";
 import { Toggle, ToggleGroup } from "~/components/ui/toggle-group";
 import { CalendarSelect } from "./CalendarSelect";
-import { useEffect, useRef, useState } from "react";
-import { type CalendarId, type GoogleConnectState } from "@otterware/calendar-contracts";
+import { useState } from "react";
+import { type CalendarId } from "@otterware/calendar-contracts";
 import { useCalendarClient, useCalendarDirectory } from "./host.tsx";
 import {
   calendarDesktopBridge,
   CALENDAR_NOTIFICATION_DEVICE_KEY,
 } from "./CalendarNotifications.tsx";
-
-const OAUTH_CLIENT_FORM = "calendar-oauth-client";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const EVENT_LENGTH_CHOICES = [15, 30, 45, 60, 90, 120];
@@ -51,22 +49,15 @@ function timeZoneChoices(saved: string | null): ReadonlyArray<string> {
 export default function CalendarSettings({
   page = "general",
 }: {
-  page?: "general" | "calendars" | "connections" | "time";
+  page?: "general" | "calendars" | "time";
 }) {
   const client = useCalendarClient();
   const { directory, error: directoryError, canWrite } = useCalendarDirectory();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [clientId, setClientId] = useState("");
-  const [clientSecret, setClientSecret] = useState("");
-  const [flow, setFlow] = useState<GoogleConnectState | null>(null);
-  const [callback, setCallback] = useState("");
-  const callbackAuthorization = useRef<string | null>(null);
   const [deviceNotifications, setDeviceNotifications] = useState(
     () => localStorage.getItem(CALENDAR_NOTIFICATION_DEVICE_KEY) === "true",
   );
-  const cancelFlow = useRef<(() => void) | null>(null);
-  useEffect(() => () => cancelFlow.current?.(), []);
   const run = async (work: () => Promise<void>) => {
     setBusy(true);
     setError(null);
@@ -78,212 +69,15 @@ export default function CalendarSettings({
       setBusy(false);
     }
   };
-  const connect = (source?: "account" | "local") => {
-    cancelFlow.current?.();
-    setError(null);
-    setFlow(null);
-    const cancel = client.connect(
-      { ...(source ? { source } : {}), returnTo: window.location.href },
-      (state) => {
-        setFlow(state);
-        const desktop = calendarDesktopBridge();
-        if (state._tag === "waiting" && !state.flowId.startsWith("cloud:") && desktop) {
-          callbackAuthorization.current = state.authorizationUrl;
-          void desktop
-            .receiveGoogleCallback(state.authorizationUrl)
-            .then((callbackUrl) => {
-              if (callbackAuthorization.current === state.authorizationUrl)
-                return client.completeConnect(state.flowId, callbackUrl);
-            })
-            .catch((cause) => {
-              if (callbackAuthorization.current === state.authorizationUrl)
-                setError(
-                  cause instanceof Error
-                    ? cause.message
-                    : "Open the sign-in link or paste its callback address.",
-                );
-            });
-        }
-      },
-      (message) => {
-        setError(message);
-        cancelFlow.current?.();
-      },
-    );
-    cancelFlow.current = () => {
-      cancel();
-      const url = callbackAuthorization.current;
-      callbackAuthorization.current = null;
-      if (url)
-        void calendarDesktopBridge()
-          ?.cancelGoogleCallback(url)
-          .catch(() => undefined);
-    };
-  };
   const preferences = directory?.preferences;
   const save = (patch: Parameters<typeof client.preferences>[0]) =>
     void run(() => client.preferences(patch));
   const disabled = !canWrite || busy;
-  const closeFlow = () => {
-    cancelFlow.current?.();
-    cancelFlow.current = null;
-    setFlow(null);
-  };
   const alert = (error ?? directoryError) && (
     <p role="alert" className="px-4 py-2 text-sm text-destructive">
       {error ?? directoryError}
     </p>
   );
-  if (page === "connections")
-    return (
-      <HostSettingsSection title="Calendar connections">
-        {alert}
-        {flow?._tag === "waiting" && (
-          <SettingsRow
-            title="Google sign-in"
-            description={
-              flow.flowId.startsWith("cloud:")
-                ? "Google will connect through your Otter Account. Return here after signing in."
-                : "Open Google sign-in. If the browser is on another machine, paste its final loopback address below."
-            }
-            control={
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  render={<a href={flow.authorizationUrl} target="_blank" rel="noreferrer" />}
-                >
-                  Open Google sign-in
-                </Button>
-                <Button size="sm" variant="outline" onClick={closeFlow}>
-                  Cancel
-                </Button>
-              </div>
-            }
-          />
-        )}
-        {flow?._tag === "waiting" && !flow.flowId.startsWith("cloud:") && (
-          <SettingsRow
-            title="Callback address"
-            control={
-              <form
-                className="flex gap-2"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  void run(() => client.completeConnect(flow.flowId, callback));
-                }}
-              >
-                <Input
-                  size="sm"
-                  aria-label="Callback address"
-                  value={callback}
-                  onChange={(event) => setCallback(event.target.value)}
-                  required
-                />
-                <Button size="sm" type="submit" disabled={disabled}>
-                  Finish
-                </Button>
-              </form>
-            }
-          />
-        )}
-        {flow?._tag === "succeeded" && (
-          <SettingsRow
-            title={`Connected ${flow.email}`}
-            control={
-              <Button size="sm" variant="outline" onClick={closeFlow}>
-                Done
-              </Button>
-            }
-          />
-        )}
-        {flow?._tag === "failed" && (
-          <SettingsRow
-            title="Google sign-in failed"
-            description={flow.message}
-            control={
-              <Button size="sm" variant="outline" onClick={closeFlow}>
-                Close
-              </Button>
-            }
-          />
-        )}
-        <SettingsRow
-          title="Local Google connection"
-          description="Use a Google Desktop app OAuth client for accounts connected to this environment."
-          control={
-            <Button size="sm" disabled={disabled} onClick={() => connect("local")}>
-              Connect with local PKCE
-            </Button>
-          }
-        />
-        <SettingsRow
-          title="OAuth client ID"
-          control={
-            <Input
-              size="sm"
-              form={OAUTH_CLIENT_FORM}
-              aria-label="OAuth client ID"
-              value={clientId}
-              onChange={(event) => setClientId(event.target.value)}
-              required
-              autoComplete="off"
-            />
-          }
-        />
-        <SettingsRow
-          title="OAuth client secret"
-          control={
-            <Input
-              size="sm"
-              type="password"
-              form={OAUTH_CLIENT_FORM}
-              aria-label="OAuth client secret"
-              value={clientSecret}
-              onChange={(event) => setClientSecret(event.target.value)}
-              autoComplete="new-password"
-            />
-          }
-        />
-        <SettingsRow
-          title="OAuth client"
-          description="Saved on this environment."
-          control={
-            <form
-              id={OAUTH_CLIENT_FORM}
-              className="flex gap-2"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void run(async () => {
-                  await client.setClient({ clientId, clientSecret });
-                  setClientSecret("");
-                });
-              }}
-            >
-              <Button size="sm" type="submit" disabled={disabled}>
-                Save client
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={disabled}
-                onClick={() => void run(client.clearClient)}
-              >
-                Clear client
-              </Button>
-            </form>
-          }
-        />
-        <SettingsRow
-          title="Demo calendars"
-          description="Try calendar views with local sample events."
-          control={
-            <Button size="sm" disabled={disabled} onClick={() => void run(client.addDemo)}>
-              Add demo calendars
-            </Button>
-          }
-        />
-      </HostSettingsSection>
-    );
   return (
     <>
       {alert}
