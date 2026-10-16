@@ -129,13 +129,13 @@ export const DriveWebModule = createDriveWebModule({
     [
       {
         id: "drives",
-        label: "Drives and folders",
+        label: "Drives",
         placement: "page",
         rows: ["Shared drives", "New drive", "Move folder", "Delete empty folder", "Drive link"],
       },
       {
         id: "access",
-        label: "Shared drive access",
+        label: "Sharing",
         placement: "page",
         rows: ["People with access", "Invite"],
       },

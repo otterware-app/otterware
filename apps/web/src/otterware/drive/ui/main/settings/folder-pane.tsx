@@ -14,6 +14,7 @@ import { api } from "../../lib/api";
 
 import { NewFolderDialog } from "../drive/new-folder-dialog";
 import { announceFoldersChanged, driveForFolder, folderLabel, useFolders } from "../folders";
+import { FolderPickerSection } from "./folder-picker";
 import { SettingsPageContainer, SettingsRow, SettingsSection } from "./settings-ui";
 export function FolderPane() {
   const { activeFolder: folder, folders, selectFolder } = useFolders(),
@@ -34,10 +35,8 @@ export function FolderPane() {
     }
   }
   return (
-    <SettingsPageContainer
-      title="Drives and folders"
-      description="My Drive is yours alone; share its folders and documents from their menus. Shared drive members can open every folder inside it."
-    >
+    <SettingsPageContainer description="My Drive is yours alone; share its folders and documents from their menus. Shared drive members can open every folder inside it.">
+      <FolderPickerSection />
       <SettingsSection title={folder ? folderLabel(folder) : "Folder"}>
         <SettingsRow
           title="Name"

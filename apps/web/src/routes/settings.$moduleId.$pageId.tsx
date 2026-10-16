@@ -1,10 +1,14 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { Suspense } from "react";
 
-import { SettingsPageContainer, SettingsSection } from "../components/settings/settingsLayout";
+import { SettingsPageContainer, SettingsSearchTarget } from "../components/settings/settingsLayout";
 import { moduleSettingsPage } from "../otterware/settingsRegistry";
 
-/** A module's own settings page (`WebModuleSettingsPage` placed as a page), at `/settings/<module>/<page>`. */
+/**
+ * A module's own settings page (`WebModuleSettingsPage` placed as a page), at
+ * `/settings/<module>/<page>`. The page renders its own sections; the header's
+ * breadcrumb names it, so no title is drawn here.
+ */
 function ModuleSettingsRoutePage() {
   const { moduleId, pageId } = Route.useParams();
   const entry = moduleSettingsPage(moduleId, pageId);
@@ -12,11 +16,11 @@ function ModuleSettingsRoutePage() {
   const Page = entry.page.component;
   return (
     <SettingsPageContainer>
-      <SettingsSection id={entry.sectionId} title={entry.page.label}>
+      <SettingsSearchTarget id={entry.sectionId} className="flex flex-col gap-8 outline-none">
         <Suspense fallback={null}>
           <Page />
         </Suspense>
-      </SettingsSection>
+      </SettingsSearchTarget>
     </SettingsPageContainer>
   );
 }

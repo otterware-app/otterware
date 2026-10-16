@@ -80,6 +80,7 @@ const T3ConnectSidebarAvatar = lazy(() =>
 // Otterware seam: module pages, their icons, grouping and profile visibility
 // follow the registry (docs/internals/modules.md).
 import {
+  OTTERWARE_SETTINGS_NAV_LABELS,
   OTTERWARE_SETTINGS_SECTION_ICONS,
   isProfileSettingsPathVisible,
   settingsNavLayout,
@@ -123,7 +124,7 @@ const UPSTREAM_SETTINGS_ORDER = (Object.keys(SETTINGS_SECTION_LABELS) as Setting
 
 const navItem = (to: SettingsPath): SettingsNavItem => ({
   to,
-  label: SETTINGS_SECTION_LABELS[to],
+  label: OTTERWARE_SETTINGS_NAV_LABELS[to] ?? SETTINGS_SECTION_LABELS[to],
   icon: SETTINGS_SECTION_ICONS[to],
 });
 

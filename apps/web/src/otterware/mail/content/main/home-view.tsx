@@ -104,6 +104,7 @@ import { ProjectView } from "./gmail/project-view";
 import { NewProjectDialog } from "./gmail/project-menus";
 
 import { Tour } from "./onboarding/tour";
+import { mailSettingsPath } from "../../settingsPaths";
 import {
   endTour,
   getSetupStage,
@@ -374,7 +375,7 @@ function MailHome() {
   const openSettings = useCallback((route: SettingsRoute) => {
     if (route.pane === "keybindings") setKeybindingsChip("mail");
     mailHost().navigate(
-      `${route.pane === "accounts" ? "/settings/mail/mailboxes" : route.pane === "agents" ? "/settings/providers" : route.pane === "browser" ? "/settings/extensions" : route.pane === "otter" ? "/settings/account" : `/settings/${route.pane}`}${route.target ? `?target=${encodeURIComponent(route.target)}` : ""}`,
+      `${mailSettingsPath(route.pane)}${route.target ? `?target=${encodeURIComponent(route.target)}` : ""}`,
     );
   }, []);
   const openSettingsRef = useLatest(openSettings);

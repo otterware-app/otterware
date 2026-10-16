@@ -17,6 +17,7 @@ import { ensureLocalApi } from "../../../localApi";
 import { appAtomRegistry } from "../../../rpc/atomRegistry";
 import { mailOperations, mailWriteCommand } from "./operations";
 import { subscribeMailEvents } from "./events";
+import { mailSettingsPath } from "../settingsPaths";
 
 const unavailable = async (): Promise<never> => {
   throw new Error("This capability is provided by Otterware Settings.");
@@ -173,16 +174,7 @@ export function createMailHost(
       case "app:takePendingMailto":
         return null;
       case "window:openSettings":
-        callbacks.navigate(
-          (
-            {
-              accounts: "/settings/mail/mailboxes",
-              agents: "/settings/providers",
-              browser: "/settings/extensions",
-              otter: "/settings/account",
-            } as Record<string, string>
-          )[text(params.pane)] ?? `/settings/${encodeURIComponent(text(params.pane) || "general")}`,
-        );
+        callbacks.navigate(mailSettingsPath(text(params.pane)));
         return;
       case "gmail:pickAttachments":
         return pickAttachments(typeof params.existingBytes === "number" ? params.existingBytes : 0);

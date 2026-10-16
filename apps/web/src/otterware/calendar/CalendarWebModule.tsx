@@ -25,18 +25,18 @@ import { toastManager } from "../../components/ui/toast";
 
 const settingsPages = [
   {
-    id: "calendar",
-    label: "Calendar",
+    id: "general",
+    label: "General",
     placement: "page",
     rows: [
-      "Week start",
-      "Time zone",
+      "Week starts on",
+      "Show weekends",
+      "Custom view",
       "Working hours",
       "Default length",
-      "Custom-view days",
-      "Weekends",
-      "Declined",
       "New events go to",
+      "Show declined events",
+      "Time zone",
       "Reminders",
     ],
   },
@@ -52,7 +52,7 @@ const settingsPages = [
     placement: "connections",
     rows: ["Google sign-in", "OAuth client", "Demo accounts"],
   },
-  { id: "general", label: "Time", placement: "general", rows: ["Time format"] },
+  { id: "time", label: "Time", placement: "general", rows: ["Time format"] },
 ] as const;
 
 const commands: WebModuleCommand[] = [
@@ -246,8 +246,12 @@ export const CalendarWebModule = createCalendarWebModule({
       id:
         (
           {
-            "Custom-view days": "calendar-custom-days",
+            "Week starts on": "calendar-week-start",
+            "Show weekends": "calendar-weekends",
+            "Custom view": "calendar-custom-days",
+            "Default length": "calendar-default-length",
             "New events go to": "calendar-default-calendar",
+            "Show declined events": "calendar-declined",
             "Time format": "calendar-hour-format",
           } as Record<string, string>
         )[title] ?? `calendar-${title.toLowerCase().replaceAll(" ", "-")}`,

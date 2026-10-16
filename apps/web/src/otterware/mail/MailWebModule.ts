@@ -1,6 +1,6 @@
 import { createMailWebModule } from "@otterware/mail-web/module";
 import { lazy } from "react";
-import { MailIcon, BookOpenIcon, LanguagesIcon, SettingsIcon, PlugIcon } from "lucide-react";
+import { MailIcon, PaletteIcon, SettingsIcon, PlugIcon } from "lucide-react";
 import {
   mailPaletteCommands,
   useMailSpaces,
@@ -22,6 +22,26 @@ export const MailWebModule = createMailWebModule({
   keybindingAliases: mailKeybindingAliases,
   settings: [
     {
+      id: "general",
+      label: "General",
+      icon: SettingsIcon,
+      component: lazy(() => import("./MailSettings").then((m) => ({ default: m.GeneralSettings }))),
+      placement: { grouped: "page", standalone: "general" },
+      searchTerms: ["notifications", "sync", "translate", "language", "tour", "setup", "feedback"],
+      rows: MAIL_SETTING_ROWS.general,
+    },
+    {
+      id: "appearance",
+      label: "Appearance",
+      icon: PaletteIcon,
+      component: lazy(() =>
+        import("./MailSettings").then((m) => ({ default: m.AppearanceSettings })),
+      ),
+      placement: { grouped: "page", standalone: "appearance" },
+      searchTerms: ["layout", "reading", "width", "messages", "read"],
+      rows: MAIL_SETTING_ROWS.appearance,
+    },
+    {
       id: "mailboxes",
       label: "Mailboxes",
       icon: MailIcon,
@@ -29,37 +49,8 @@ export const MailWebModule = createMailWebModule({
         import("./MailSettings").then((m) => ({ default: m.MailboxesSettings })),
       ),
       placement: { grouped: "page", standalone: "page" },
-      searchTerms: ["signature", "sync", "mailbox", "behavior"],
+      searchTerms: ["signature", "mailbox", "account"],
       rows: MAIL_SETTING_ROWS.mailboxes,
-    },
-    {
-      id: "reading",
-      label: "Reading",
-      icon: BookOpenIcon,
-      component: lazy(() => import("./MailSettings").then((m) => ({ default: m.ReadingSettings }))),
-      placement: { grouped: "page", standalone: "appearance" },
-      searchTerms: ["layout", "width", "messages", "read"],
-      rows: MAIL_SETTING_ROWS.reading,
-    },
-    {
-      id: "translation",
-      label: "Translation",
-      icon: LanguagesIcon,
-      component: lazy(() =>
-        import("./MailSettings").then((m) => ({ default: m.TranslationSettings })),
-      ),
-      placement: { grouped: "page", standalone: "general" },
-      searchTerms: ["language", "translate", "OpenRouter"],
-      rows: MAIL_SETTING_ROWS.translation,
-    },
-    {
-      id: "general",
-      label: "Mail",
-      icon: SettingsIcon,
-      component: lazy(() => import("./MailSettings").then((m) => ({ default: m.GeneralSettings }))),
-      placement: { grouped: "general", standalone: "general" },
-      searchTerms: ["notifications", "tour", "setup", "feedback"],
-      rows: MAIL_SETTING_ROWS.general,
     },
     {
       id: "integrations",

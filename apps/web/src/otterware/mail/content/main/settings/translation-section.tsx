@@ -1,4 +1,3 @@
-import { mailHost } from "../../host/bridge";
 import { DEFAULT_SETTINGS } from "@otterware/mail-contracts";
 import { Switch } from "../../components/ui/switch";
 import { toast } from "../gmail/toast";
@@ -138,14 +137,6 @@ export function TranslationSection() {
             checked={autoTranslate}
             onCheckedChange={(checked) => void save({ autoTranslate: checked })}
           />
-        }
-      />
-      <SettingsRow
-        id="openrouter"
-        title="OpenRouter"
-        description="Manage the shared OpenRouter connection in Agents."
-        control={
-          <Btn onClick={() => mailHost().navigate("/settings/providers")}>Configure OpenRouter</Btn>
         }
       />
     </SettingsSection>

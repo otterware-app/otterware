@@ -14,6 +14,7 @@ import { api } from "../../lib/api";
 
 import { announceFoldersChanged, driveForFolder, useFolders } from "../folders";
 import { folderUrl } from "../../lib/links";
+import { FolderPickerSection } from "./folder-picker";
 import { SettingsPageContainer, SettingsRow, SettingsSection } from "./settings-ui";
 interface Member {
   id: string;
@@ -66,13 +67,13 @@ export function MembersPane() {
   }
   return (
     <SettingsPageContainer
-      title="Shared drive access"
       description={
         drive?.kind === "shared"
           ? `Access to ${drive.name} includes all its folders and documents.`
           : "My Drive is yours alone. Share its folders and documents from their menus, or create a shared drive for a team."
       }
     >
+      <FolderPickerSection />
       {enabled ? (
         <>
           <SettingsSection id="drive-invite" title="Invite people">

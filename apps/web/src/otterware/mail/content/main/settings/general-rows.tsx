@@ -20,6 +20,7 @@ import { Btn } from "../gmail/ui";
 import { requestTour, startSetup } from "../onboarding/onboarding";
 import { requestProblemReport } from "../support/report-problem";
 import { useRailUnreadDots } from "../gmail/rail-preferences";
+import { TranslationSection } from "./translation-section";
 
 /** Where the settings page is. */
 export type { SettingsRoute } from "../../host/public";
@@ -50,7 +51,8 @@ const ADVANCE_DIRECTION_OPTIONS: { value: AdvanceDirection; label: string }[] = 
 // General
 // ---------------------------------------------------------------------------
 
-export function GeneralRows({ behavior = false }: { behavior?: boolean | undefined }) {
+/** Mail › General: Otter Mail's General sections, in its order. */
+export function GeneralRows() {
   const [syncInterval, setSyncInterval] = useState<number | null>(null);
   const [notificationsMode, setNotificationsMode] = useState<NotificationsMode | null>(null);
   const [advanceDirection, setAdvanceDirectionState] = useState<AdvanceDirection>(() =>
@@ -170,26 +172,12 @@ export function GeneralRows({ behavior = false }: { behavior?: boolean | undefin
     void loadMailApps();
   };
 
-  // The rail's unread dots, next to the Dock badge in the Mac app; in Mail elsewhere.
-  const railDotsRow = (
-    <SettingsRow
-      {...searchableSetting("rail-unread-dots")}
-      resetAction={
-        railDots ? (
-          <SettingResetButton label="mailbox unread dots" onClick={() => setRailDots(false)} />
-        ) : null
-      }
-      description="A dot on each mailbox in the rail whose Inbox has unread mail, and each view with unread mail."
-      control={<Switch id="railUnreadDots" checked={railDots} onCheckedChange={setRailDots} />}
-    />
-  );
-
   return (
-    <SettingsSection title={behavior ? "Behavior" : "Mail"}>
+    <>
       {/* What only the desktop app has isn't shown elsewhere. */}
       {features.launchAtLogin || features.dockBadge ? (
-        <>
-          {!behavior && features.launchAtLogin ? (
+        <SettingsSection title={features.dockBadge ? "Startup & Dock" : "Startup"}>
+          {features.launchAtLogin ? (
             <SettingsRow
               {...searchableSetting("launch-at-login")}
               resetAction={
@@ -210,7 +198,7 @@ export function GeneralRows({ behavior = false }: { behavior?: boolean | undefin
               }
             />
           ) : null}
-          {behavior && features.dockBadge ? (
+          {features.dockBadge ? (
             <SettingsRow
               {...searchableSetting("dock-badge")}
               resetAction={
@@ -231,90 +219,94 @@ export function GeneralRows({ behavior = false }: { behavior?: boolean | undefin
               }
             />
           ) : null}
-          {behavior && features.dockBadge ? railDotsRow : null}
-        </>
+        </SettingsSection>
       ) : null}
 
-      <>
-        {behavior && !features.dockBadge ? railDotsRow : null}
-        {behavior ? (
-          <SettingsRow
-            {...searchableSetting("sync-interval")}
-            resetAction={
-              syncInterval != null && syncInterval !== DEFAULT_SETTINGS.syncIntervalSeconds ? (
-                <SettingResetButton
-                  label="check for new mail"
-                  onClick={() =>
-                    void handleSyncIntervalChange(String(DEFAULT_SETTINGS.syncIntervalSeconds))
-                  }
-                />
-              ) : null
-            }
-            description="Sync runs in the background at this cadence."
-            control={
-              <RowSelect
-                value={syncInterval != null ? String(syncInterval) : undefined}
-                onValueChange={(v) => void handleSyncIntervalChange(v)}
-                options={SYNC_INTERVAL_OPTIONS.map((o) => ({
-                  value: String(o.value),
-                  label: o.label,
-                }))}
-                ariaLabel="Check for new mail"
+      <SettingsSection title="Mail">
+        <SettingsRow
+          {...searchableSetting("sync-interval")}
+          resetAction={
+            syncInterval != null && syncInterval !== DEFAULT_SETTINGS.syncIntervalSeconds ? (
+              <SettingResetButton
+                label="check for new mail"
+                onClick={() =>
+                  void handleSyncIntervalChange(String(DEFAULT_SETTINGS.syncIntervalSeconds))
+                }
               />
-            }
-          />
-        ) : null}
-        {!behavior ? (
-          <SettingsRow
-            {...searchableSetting("notifications")}
-            resetAction={
-              notificationsMode != null &&
-              notificationsMode !== DEFAULT_SETTINGS.notificationsMode ? (
-                <SettingResetButton
-                  label="notifications"
-                  onClick={() =>
-                    void handleNotificationsModeChange(DEFAULT_SETTINGS.notificationsMode)
-                  }
-                />
-              ) : null
-            }
-            description="Notify about new mail found by background sync."
-            control={
-              <RowSelect
-                value={notificationsMode ?? undefined}
-                onValueChange={(v) => void handleNotificationsModeChange(v)}
-                options={NOTIFICATIONS_OPTIONS}
-                ariaLabel="Notifications"
+            ) : null
+          }
+          description="Sync runs in the background at this cadence."
+          control={
+            <RowSelect
+              value={syncInterval != null ? String(syncInterval) : undefined}
+              onValueChange={(v) => void handleSyncIntervalChange(v)}
+              options={SYNC_INTERVAL_OPTIONS.map((o) => ({
+                value: String(o.value),
+                label: o.label,
+              }))}
+              ariaLabel="Check for new mail"
+            />
+          }
+        />
+        <SettingsRow
+          {...searchableSetting("notifications")}
+          resetAction={
+            notificationsMode != null &&
+            notificationsMode !== DEFAULT_SETTINGS.notificationsMode ? (
+              <SettingResetButton
+                label="notifications"
+                onClick={() =>
+                  void handleNotificationsModeChange(DEFAULT_SETTINGS.notificationsMode)
+                }
               />
-            }
-          />
-        ) : null}
-        {behavior ? (
-          <SettingsRow
-            {...searchableSetting("advance-direction")}
-            resetAction={
-              advanceDirection !== "next" ? (
-                <SettingResetButton
-                  label="after archive, delete, or move"
-                  onClick={() => handleAdvanceDirectionChange("next")}
-                />
-              ) : null
-            }
-            description="Which message to select next in the list."
-            control={
-              <RowSelect
-                value={advanceDirection}
-                onValueChange={handleAdvanceDirectionChange}
-                options={ADVANCE_DIRECTION_OPTIONS}
-                ariaLabel="After archive, delete, or move"
+            ) : null
+          }
+          description="Notify about new mail found by background sync."
+          control={
+            <RowSelect
+              value={notificationsMode ?? undefined}
+              onValueChange={(v) => void handleNotificationsModeChange(v)}
+              options={NOTIFICATIONS_OPTIONS}
+              ariaLabel="Notifications"
+            />
+          }
+        />
+        <SettingsRow
+          {...searchableSetting("advance-direction")}
+          resetAction={
+            advanceDirection !== "next" ? (
+              <SettingResetButton
+                label="after archive, delete, or move"
+                onClick={() => handleAdvanceDirectionChange("next")}
               />
-            }
-          />
-        ) : null}
-      </>
+            ) : null
+          }
+          description="Which message to select next in the list."
+          control={
+            <RowSelect
+              value={advanceDirection}
+              onValueChange={handleAdvanceDirectionChange}
+              options={ADVANCE_DIRECTION_OPTIONS}
+              ariaLabel="After archive, delete, or move"
+            />
+          }
+        />
+        <SettingsRow
+          {...searchableSetting("rail-unread-dots")}
+          resetAction={
+            railDots ? (
+              <SettingResetButton label="mailbox unread dots" onClick={() => setRailDots(false)} />
+            ) : null
+          }
+          description="A dot on each mailbox in the rail whose Inbox has unread mail, and each view with unread mail."
+          control={<Switch id="railUnreadDots" checked={railDots} onCheckedChange={setRailDots} />}
+        />
+      </SettingsSection>
 
-      {behavior && features.defaultMailApp ? (
-        <>
+      <TranslationSection />
+
+      {features.defaultMailApp ? (
+        <SettingsSection title="System">
           <SettingsRow
             {...searchableSetting("default-mail-app")}
             description={`Which app opens mailto: links across ${osNames.system}.`}
@@ -329,45 +321,41 @@ export function GeneralRows({ behavior = false }: { behavior?: boolean | undefin
               />
             }
           />
-        </>
+        </SettingsSection>
       ) : null}
 
-      {!behavior ? (
-        <>
-          <>
-            <SettingsRow
-              {...searchableSetting("tour")}
-              description="A minute's walk through the app, on your own mail."
-              control={
-                <Btn size="sm" onClick={requestTour}>
-                  Take the tour
-                </Btn>
-              }
-            />
-            <SettingsRow
-              {...searchableSetting("setup")}
-              description="Mailboxes, look, notifications, your agent and the keys, one step at a time."
-              control={
-                <Btn size="sm" onClick={() => startSetup()}>
-                  Run setup again
-                </Btn>
-              }
-            />
-          </>
+      <SettingsSection title="Getting started">
+        <SettingsRow
+          {...searchableSetting("tour")}
+          description="A minute's walk through the app, on your own mail."
+          control={
+            <Btn size="sm" onClick={requestTour}>
+              Take the tour
+            </Btn>
+          }
+        />
+        <SettingsRow
+          {...searchableSetting("setup")}
+          description="Mailboxes, look, notifications, your agent and the keys, one step at a time."
+          control={
+            <Btn size="sm" onClick={() => startSetup()}>
+              Run setup again
+            </Btn>
+          }
+        />
+      </SettingsSection>
 
-          <>
-            <SettingsRow
-              {...searchableSetting("send-feedback")}
-              description="Report a Mail bug or suggest a feature on GitHub."
-              control={
-                <Btn size="sm" onClick={requestProblemReport}>
-                  Send feedback
-                </Btn>
-              }
-            />
-          </>
-        </>
-      ) : null}
-    </SettingsSection>
+      <SettingsSection title="Support">
+        <SettingsRow
+          {...searchableSetting("send-feedback")}
+          description="Report a Mail bug or suggest a feature on GitHub."
+          control={
+            <Btn size="sm" onClick={requestProblemReport}>
+              Send feedback
+            </Btn>
+          }
+        />
+      </SettingsSection>
+    </>
   );
 }

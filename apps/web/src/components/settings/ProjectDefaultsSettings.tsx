@@ -9,6 +9,7 @@ import { resolveProjectSettings } from "@t3tools/shared/projectSettings";
 import { useNavigate } from "@tanstack/react-router";
 
 import { mergeEnvironmentSettings } from "../../hooks/useSettings";
+import { isProfileSettingVisible } from "../../otterware/settingsRegistry";
 import { getCustomModelOptionsByInstance } from "../../modelSelection";
 import {
   applyProviderInstanceSettings,
@@ -213,6 +214,7 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
       settingKeys={["defaultThreadEnvMode"]}
       mixed={mixedWorkspace}
       id={searchableSetting("new-threads").id}
+      hidden={!isProfileSettingVisible("new-threads")}
       title="Workspace"
       description={
         isProjectScope
@@ -347,6 +349,7 @@ export function ProjectDefaultsSettings({ category }: { category: ProjectSetting
             settingKeys={["worktreeSubmodules"]}
             mixed={mixedSubmodules}
             {...searchableSetting("worktree-submodules")}
+            hidden={!isProfileSettingVisible("worktree-submodules")}
             description={
               isProjectScope
                 ? "How new worktrees in this project populate git submodules."

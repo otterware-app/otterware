@@ -41,6 +41,7 @@ import {
   type SettingOverridingProject,
 } from "./SettingInheritance";
 import { ModuleSettingsMerges } from "../../otterware/ModuleSettingsMerges";
+import { showsSettingsScopeSentence } from "../../otterware/settingsRegistry";
 
 const EMPTY_SETTING_KEYS: readonly (keyof ServerSettings)[] = [];
 
@@ -551,6 +552,8 @@ export function SettingsPageContainer({
 }) {
   const navigate = useNavigate();
   const hash = useLocation({ select: (location) => location.hash });
+  const pathname = useLocation({ select: (location) => location.pathname });
+  const scopeSearch = useOptionalSettingsScope()?.search;
   const highlightTarget = useLocation({
     select: (location) => location.state.settingsTargetHighlight !== false,
   });
@@ -576,7 +579,10 @@ export function SettingsPageContainer({
         data-settings-page-scroll
       >
         <WorkspacePageContainer width={width} className={cn("gap-8", className)}>
-          <SettingsScopeSentence />
+          {/* Otterware seam: module pages name their own scope. */}
+          {showsSettingsScopeSentence(pathname, scopeSearch ?? {}) ? (
+            <SettingsScopeSentence />
+          ) : null}
           {children}
           {/* Otterware seam: module settings pages merged into this host page. */}
           <ModuleSettingsMerges />
