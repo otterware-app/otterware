@@ -252,6 +252,78 @@ export const GetFolderSharingTool = Tool.make("drive_get_folder_sharing", {
   .annotate(Tool.Idempotent, true)
   .annotate(Tool.OpenWorld, true);
 
+export const MoveDocumentTool = Tool.make("drive_move_document", {
+  description:
+    "Move a document to another folder or drive, only when the user asks. It takes the destination's access: moving into a shared drive or shared folder exposes it to everyone there. Only the drive owner can move, and the slug must be free in the destination. folder is an ID, slug, or unique name.",
+  parameters: Schema.Struct({ document: DocumentReference, folder: TrimmedNonEmptyString }),
+  success: Schema.Struct({ document: DriveDocumentSummary }),
+  failure: DriveToolError,
+  dependencies: [ModuleToolCaller],
+})
+  .annotate(Tool.Title, "Move Drive document")
+  .annotate(Tool.Readonly, false)
+  .annotate(Tool.Destructive, true)
+  .annotate(Tool.Idempotent, false)
+  .annotate(Tool.OpenWorld, true);
+
+export const ArchiveDocumentTool = Tool.make("drive_archive_document", {
+  description:
+    "Archive a document, only when the user asks: it disappears from Drive listings for everyone with access, but keeps its versions and can be restored with drive_restore_document.",
+  parameters: Schema.Struct({ document: DocumentReference }),
+  success: Schema.Struct({ document: DriveDocumentSummary }),
+  failure: DriveToolError,
+  dependencies: [ModuleToolCaller],
+})
+  .annotate(Tool.Title, "Archive Drive document")
+  .annotate(Tool.Readonly, false)
+  .annotate(Tool.Destructive, true)
+  .annotate(Tool.Idempotent, true)
+  .annotate(Tool.OpenWorld, true);
+
+export const RestoreDocumentTool = Tool.make("drive_restore_document", {
+  description: "Restore an archived document to its folder's listings.",
+  parameters: Schema.Struct({ document: DocumentReference }),
+  success: Schema.Struct({ document: DriveDocumentSummary }),
+  failure: DriveToolError,
+  dependencies: [ModuleToolCaller],
+})
+  .annotate(Tool.Title, "Restore Drive document")
+  .annotate(Tool.Readonly, false)
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, true)
+  .annotate(Tool.OpenWorld, true);
+
+export const PromoteVersionTool = Tool.make("drive_promote_version", {
+  description:
+    "Make an earlier version the document's current version again, without creating a new one; every version stays. Find versions with drive_get_document.",
+  parameters: Schema.Struct({ document: DocumentReference, version: Schema.Int }),
+  success: Schema.Struct({ document: DriveDocumentSummary }),
+  failure: DriveToolError,
+  dependencies: [ModuleToolCaller],
+})
+  .annotate(Tool.Title, "Promote Drive version")
+  .annotate(Tool.Readonly, false)
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, true)
+  .annotate(Tool.OpenWorld, true);
+
+export const CreateFolderTool = Tool.make("drive_create_folder", {
+  description:
+    "Create a folder inside parent (an ID, slug, or unique name), defaulting to the user's personal drive. It inherits the parent's access; this never shares. Creating a new shared drive is not supported here.",
+  parameters: Schema.Struct({
+    name: TrimmedNonEmptyString.check(Schema.isMaxLength(80)),
+    parent: Schema.optional(TrimmedNonEmptyString),
+  }),
+  success: Schema.Struct({ folder: DriveFolder }),
+  failure: DriveToolError,
+  dependencies: [ModuleToolCaller],
+})
+  .annotate(Tool.Title, "Create Drive folder")
+  .annotate(Tool.Readonly, false)
+  .annotate(Tool.Destructive, false)
+  .annotate(Tool.Idempotent, false)
+  .annotate(Tool.OpenWorld, true);
+
 export const LinkDocumentTool = Tool.make("drive_link_document_to_thread", {
   description:
     "Link an Otter Drive document to this thread so it shows beside the thread, like a linked issue. Link the documents you work on or the user names. Linking an already-linked document succeeds with alreadyLinked=true.",
@@ -305,6 +377,11 @@ export const DriveToolkit = Toolkit.make(
   withToolTier(GetShareLinkTool, "read-only"),
   withToolTier(ShareFolderTool, "full"),
   withToolTier(GetFolderSharingTool, "read-only"),
+  withToolTier(MoveDocumentTool, "full"),
+  withToolTier(ArchiveDocumentTool, "full"),
+  withToolTier(RestoreDocumentTool, "safe"),
+  withToolTier(PromoteVersionTool, "safe"),
+  withToolTier(CreateFolderTool, "safe"),
   withToolTier(LinkDocumentTool, "safe"),
   withToolTier(UnlinkDocumentTool, "full"),
   withToolTier(ListThreadDocumentsTool, "read-only"),

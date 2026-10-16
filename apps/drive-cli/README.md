@@ -14,6 +14,13 @@ otterdrive artifacts create ./report.xlsx \
   --title "Quarterly report"
 ```
 
+Publish a new version of files you pulled. `pull` reports the version it downloaded; `push` refuses to publish over a newer version someone else published, unless you pass `--force`:
+
+```bash
+otterdrive artifacts pull quarterly-report ./report
+otterdrive artifacts push quarterly-report ./report --label "Q3 numbers" --if-version 4
+```
+
 Share an artifact or a folder with people, or with anyone who has its link:
 
 ```bash
