@@ -1,11 +1,13 @@
-import type { ComponentProps } from "react";
+import { Fragment, type ComponentProps } from "react";
+import { PlusIcon, RefreshCwIcon, XIcon } from "lucide-react";
 import {
   SettingsRow,
   SettingsSection as HostSettingsSection,
 } from "~/components/settings/settingsLayout";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { Checkbox } from "~/components/ui/checkbox";
+import { Switch } from "~/components/ui/switch";
+import { Toggle, ToggleGroup } from "~/components/ui/toggle-group";
 import { CalendarSelect } from "./CalendarSelect";
 import { useEffect, useRef, useState } from "react";
 import { type CalendarId, type GoogleConnectState } from "@otterware/calendar-contracts";
@@ -17,10 +19,39 @@ import {
 
 const OAUTH_CLIENT_FORM = "calendar-oauth-client";
 
+const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const EVENT_LENGTH_CHOICES = [15, 30, 45, 60, 90, 120];
+const CUSTOM_DAY_CHOICES = [2, 3, 4, 5, 6, 7, 10, 14];
+const DEVICE_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+/** The choices, plus a saved value that isn't one of them. */
+const withCurrent = (choices: ReadonlyArray<number>, current: number) =>
+  choices.includes(current) ? choices : [...choices, current].toSorted((a, b) => a - b);
+
+/** The week's days in the order the week starts on. */
+const workingDayOrder = (weekStartsOn: number) =>
+  Array.from({ length: 7 }, (_, index) => (weekStartsOn + index) % 7);
+
+const minutesToTime = (minutes: number) =>
+  `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+
+function formatMinutes(minutes: number): string {
+  if (minutes < 60 || minutes % 60 !== 0) return `${minutes} min`;
+  const hours = minutes / 60;
+  return hours === 1 ? "1 hour" : `${hours} hours`;
+}
+
+let timeZones: ReadonlyArray<string> | null = null;
+/** Every IANA zone this runtime knows, plus a saved one it doesn't. */
+function timeZoneChoices(saved: string | null): ReadonlyArray<string> {
+  timeZones ??= Intl.supportedValuesOf("timeZone");
+  return saved && !timeZones.includes(saved) ? [saved, ...timeZones] : timeZones;
+}
+
 export default function CalendarSettings({
-  page = "calendar",
+  page = "general",
 }: {
-  page?: "calendar" | "calendars" | "connections" | "general";
+  page?: "general" | "calendars" | "connections" | "time";
 }) {
   const client = useCalendarClient();
   const { directory, error: directoryError, canWrite } = useCalendarDirectory();
@@ -103,10 +134,9 @@ export default function CalendarSettings({
       {error ?? directoryError}
     </p>
   );
-  // Connections merges into the host page's card, so its rows are the card's own children.
   if (page === "connections")
     return (
-      <>
+      <HostSettingsSection title="Calendar connections">
         {alert}
         {flow?._tag === "waiting" && (
           <SettingsRow
@@ -252,13 +282,13 @@ export default function CalendarSettings({
             </Button>
           }
         />
-      </>
+      </HostSettingsSection>
     );
   return (
-    <div className="space-y-6">
+    <>
       {alert}
-      {page === "general" && preferences && (
-        <SettingsSection title="Time" description="Account">
+      {page === "time" && preferences && (
+        <HostSettingsSection title="Time">
           <SettingsRow
             id="calendar-hour-format"
             title="Time format"
@@ -277,11 +307,11 @@ export default function CalendarSettings({
               </CalendarSelect>
             }
           />
-        </SettingsSection>
+        </HostSettingsSection>
       )}
-      {page === "calendar" && preferences && (
+      {page === "general" && preferences && (
         <>
-          <SettingsSection title="Calendar" description="Account · Synced across your devices">
+          <HostSettingsSection title="Week">
             <SettingsRow
               id="calendar-week-start"
               title="Week starts on"
@@ -299,102 +329,11 @@ export default function CalendarSettings({
               }
             />
             <SettingsRow
-              id="calendar-time-zone"
-              title="Time zone"
-              description="Leave empty to follow this device."
-              control={
-                <Input
-                  aria-label="Time zone"
-                  key={preferences.timeZone}
-                  defaultValue={preferences.timeZone ?? ""}
-                  disabled={disabled}
-                  onBlur={(event) => save({ timeZone: event.target.value.trim() || null })}
-                />
-              }
-            />
-            <SettingsRow
-              id="calendar-working-hours"
-              title="Working hours"
-              control={
-                <div className="flex gap-2">
-                  {(["start", "end"] as const).map((part) => (
-                    <Input
-                      key={`${part}/${preferences.workingHours[part]}`}
-                      aria-label={`Working hours ${part}`}
-                      type="time"
-                      disabled={disabled}
-                      defaultValue={`${String(Math.floor(preferences.workingHours[part] / 60)).padStart(2, "0")}:${String(preferences.workingHours[part] % 60).padStart(2, "0")}`}
-                      onBlur={(event) => {
-                        const [h, m] = event.target.value.split(":").map(Number);
-                        if (h !== undefined && m !== undefined)
-                          save({
-                            workingHours: { ...preferences.workingHours, [part]: h * 60 + m },
-                          });
-                      }}
-                    />
-                  ))}
-                </div>
-              }
-            >
-              <div className="flex flex-wrap gap-3">
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => (
-                  <label key={day} className="flex items-center gap-2">
-                    <Checkbox
-                      disabled={disabled}
-                      checked={preferences.workingHours.days.includes(index)}
-                      onCheckedChange={(checked) =>
-                        save({
-                          workingHours: {
-                            ...preferences.workingHours,
-                            days: checked
-                              ? [...preferences.workingHours.days, index]
-                              : preferences.workingHours.days.filter((value) => value !== index),
-                          },
-                        })
-                      }
-                    />
-                    {day}
-                  </label>
-                ))}
-              </div>
-            </SettingsRow>
-            <SettingsRow
-              id="calendar-default-length"
-              title="Default event length (minutes)"
-              control={
-                <Input
-                  aria-label="Default event length"
-                  key={preferences.defaultEventMinutes}
-                  type="number"
-                  min={5}
-                  max={1440}
-                  defaultValue={preferences.defaultEventMinutes}
-                  disabled={disabled}
-                  onBlur={(event) => save({ defaultEventMinutes: Number(event.target.value) })}
-                />
-              }
-            />
-            <SettingsRow
-              id="calendar-custom-days"
-              title="Custom-view days"
-              control={
-                <Input
-                  aria-label="Custom-view days"
-                  key={preferences.customDays}
-                  type="number"
-                  min={2}
-                  max={14}
-                  defaultValue={preferences.customDays}
-                  disabled={disabled}
-                  onBlur={(event) => save({ customDays: Number(event.target.value) })}
-                />
-              }
-            />
-            <SettingsRow
               id="calendar-weekends"
               title="Show weekends"
+              description="Include Saturday and Sunday in the week view."
               control={
-                <Checkbox
+                <Switch
                   aria-label="Show weekends"
                   disabled={disabled}
                   checked={preferences.showWeekends}
@@ -403,15 +342,100 @@ export default function CalendarSettings({
               }
             />
             <SettingsRow
-              id="calendar-declined"
-              title="Show declined events"
+              id="calendar-custom-days"
+              title="Custom view"
+              description="How many days the custom view shows."
               control={
-                <Checkbox
-                  aria-label="Show declined events"
+                <CalendarSelect
+                  aria-label="Custom view"
+                  value={preferences.customDays}
                   disabled={disabled}
-                  checked={preferences.showDeclined}
-                  onCheckedChange={(checked) => save({ showDeclined: checked })}
-                />
+                  onChange={(event) => save({ customDays: Number(event.target.value) })}
+                >
+                  {withCurrent(CUSTOM_DAY_CHOICES, preferences.customDays).map((days) => (
+                    <option key={days} value={days}>
+                      {`${days} days`}
+                    </option>
+                  ))}
+                </CalendarSelect>
+              }
+            />
+          </HostSettingsSection>
+          <HostSettingsSection id="calendar-working-hours" title="Working hours">
+            <SettingsRow
+              title="Days"
+              control={
+                <ToggleGroup
+                  aria-label="Working days"
+                  multiple
+                  disabled={disabled}
+                  value={preferences.workingHours.days.map(String)}
+                  onValueChange={(next) =>
+                    save({
+                      workingHours: {
+                        ...preferences.workingHours,
+                        days: next.map(Number).toSorted((a, b) => a - b),
+                      },
+                    })
+                  }
+                >
+                  {workingDayOrder(preferences.weekStartsOn).map((day) => (
+                    <Toggle key={day} value={String(day)} aria-label={WEEKDAYS[day]}>
+                      {WEEKDAYS[day]?.slice(0, 2)}
+                    </Toggle>
+                  ))}
+                </ToggleGroup>
+              }
+            />
+            <SettingsRow
+              title="Hours"
+              control={
+                <div className="flex items-center gap-2">
+                  {(["start", "end"] as const).map((part, index) => (
+                    <Fragment key={part}>
+                      {index === 1 ? <span className="text-muted-foreground">–</span> : null}
+                      <Input
+                        key={`${part}/${preferences.workingHours[part]}`}
+                        aria-label={part === "start" ? "Working hours start" : "Working hours end"}
+                        type="time"
+                        size="sm"
+                        className="w-32"
+                        disabled={disabled}
+                        defaultValue={minutesToTime(preferences.workingHours[part])}
+                        onBlur={(event) => {
+                          const [h, m] = event.target.value.split(":").map(Number);
+                          if (h !== undefined && m !== undefined)
+                            save({
+                              workingHours: { ...preferences.workingHours, [part]: h * 60 + m },
+                            });
+                        }}
+                      />
+                    </Fragment>
+                  ))}
+                </div>
+              }
+            />
+          </HostSettingsSection>
+          <HostSettingsSection title="Events">
+            <SettingsRow
+              id="calendar-default-length"
+              title="Default length"
+              description="How long a new event lasts."
+              control={
+                <CalendarSelect
+                  aria-label="Default event length"
+                  value={preferences.defaultEventMinutes}
+                  disabled={disabled}
+                  onChange={(event) => save({ defaultEventMinutes: Number(event.target.value) })}
+                >
+                  {withCurrent(EVENT_LENGTH_CHOICES, preferences.defaultEventMinutes).map(
+                    (minutes) => (
+                      <option key={minutes} value={minutes}>
+                        {formatMinutes(minutes)}
+                      </option>
+                    ),
+                  )}
+                </CalendarSelect>
               }
             />
             <SettingsRow
@@ -444,107 +468,155 @@ export default function CalendarSettings({
                 </CalendarSelect>
               }
             />
-          </SettingsSection>
-          <section className="space-y-3">
-            <h2>Event reminders · Account</h2>
-            <p>
-              Default popup reminders for new events and local reminders for upcoming events.
-              Per-event overrides take priority.
-            </p>
+            <SettingsRow
+              id="calendar-declined"
+              title="Show declined events"
+              control={
+                <Switch
+                  aria-label="Show declined events"
+                  disabled={disabled}
+                  checked={preferences.showDeclined}
+                  onCheckedChange={(checked) => save({ showDeclined: checked })}
+                />
+              }
+            />
+            <SettingsRow
+              id="calendar-time-zone"
+              title="Time zone"
+              description="Times in Calendar show in this zone."
+              control={
+                <CalendarSelect
+                  aria-label="Time zone"
+                  value={preferences.timeZone ?? ""}
+                  disabled={disabled}
+                  onChange={(event) => save({ timeZone: event.target.value || null })}
+                >
+                  <option value="">{`This device (${DEVICE_TIME_ZONE})`}</option>
+                  {timeZoneChoices(preferences.timeZone).map((zone) => (
+                    <option key={zone} value={zone}>
+                      {zone.replaceAll("_", " ")}
+                    </option>
+                  ))}
+                </CalendarSelect>
+              }
+            />
+          </HostSettingsSection>
+          <HostSettingsSection id="calendar-reminders" title="Reminders">
             {directory.preferences.notificationRules.map((rule, index) => (
-              <div className="my-2 flex items-center gap-2" key={`${index}/${rule.minutesBefore}`}>
-                <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-                  <Checkbox
-                    disabled={!canWrite || busy}
-                    checked={rule.enabled}
-                    onCheckedChange={(checked) =>
-                      void run(() =>
-                        client.preferences({
-                          notificationRules: directory.preferences.notificationRules.map(
-                            (item, i) => (i === index ? { ...item, enabled: checked } : item),
-                          ),
-                        }),
-                      )
-                    }
-                  />
-                  Enabled
-                </label>
-                <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-                  Minutes before
-                  <Input
-                    type="number"
-                    min={0}
-                    max={40320}
-                    defaultValue={rule.minutesBefore}
-                    disabled={!canWrite || busy}
-                    onBlur={(event) => {
-                      const minutesBefore = Number(event.target.value);
-                      if (minutesBefore !== rule.minutesBefore)
+              <SettingsRow
+                key={`${index}/${rule.minutesBefore}`}
+                title={`${formatMinutes(rule.minutesBefore)} before`}
+                description="A popup on new events."
+                control={
+                  <div className="flex items-center gap-2">
+                    <Input
+                      aria-label="Minutes before"
+                      type="number"
+                      size="sm"
+                      className="w-20"
+                      min={0}
+                      max={40320}
+                      defaultValue={rule.minutesBefore}
+                      disabled={disabled}
+                      onBlur={(event) => {
+                        const minutesBefore = Number(event.target.value);
+                        if (minutesBefore !== rule.minutesBefore)
+                          void run(() =>
+                            client.preferences({
+                              notificationRules: directory.preferences.notificationRules.map(
+                                (item, i) => (i === index ? { ...item, minutesBefore } : item),
+                              ),
+                            }),
+                          );
+                      }}
+                    />
+                    <span className="text-xs text-muted-foreground">min</span>
+                    <Switch
+                      aria-label="Reminder on"
+                      disabled={disabled}
+                      checked={rule.enabled}
+                      onCheckedChange={(checked) =>
                         void run(() =>
                           client.preferences({
                             notificationRules: directory.preferences.notificationRules.map(
-                              (item, i) => (i === index ? { ...item, minutesBefore } : item),
+                              (item, i) => (i === index ? { ...item, enabled: checked } : item),
                             ),
                           }),
-                        );
-                    }}
-                  />
-                </label>
+                        )
+                      }
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Remove reminder"
+                      disabled={disabled}
+                      onClick={() =>
+                        void run(() =>
+                          client.preferences({
+                            notificationRules: directory.preferences.notificationRules.filter(
+                              (_, i) => i !== index,
+                            ),
+                          }),
+                        )
+                      }
+                    >
+                      <XIcon />
+                    </Button>
+                  </div>
+                }
+              />
+            ))}
+            <SettingsRow
+              title="Add a reminder"
+              description="Default popup reminders for new events, and local reminders for upcoming ones. A reminder set on an event wins."
+              control={
                 <Button
-                  type="button"
-                  disabled={!canWrite || busy}
+                  size="sm"
+                  variant="outline"
+                  disabled={disabled || directory.preferences.notificationRules.length >= 5}
                   onClick={() =>
                     void run(() =>
                       client.preferences({
-                        notificationRules: directory.preferences.notificationRules.filter(
-                          (_, i) => i !== index,
-                        ),
+                        notificationRules: [
+                          ...directory.preferences.notificationRules,
+                          { minutesBefore: 10, enabled: true },
+                        ],
                       }),
                     )
                   }
                 >
-                  Remove
+                  <PlusIcon />
+                  Add reminder
                 </Button>
-              </div>
-            ))}
-            <Button
-              type="button"
-              disabled={!canWrite || busy || directory.preferences.notificationRules.length >= 5}
-              onClick={() =>
-                void run(() =>
-                  client.preferences({
-                    notificationRules: [
-                      ...directory.preferences.notificationRules,
-                      { minutesBefore: 10, enabled: true },
-                    ],
-                  }),
-                )
               }
-            >
-              Add reminder
-            </Button>
-            <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-              <Checkbox
-                checked={deviceNotifications}
-                onCheckedChange={(checked) => {
-                  const enabled = checked;
-                  void run(async () => {
-                    if (enabled && !calendarDesktopBridge()) {
-                      if (typeof Notification === "undefined")
-                        throw new Error("This browser does not support notifications.");
-                      if ((await Notification.requestPermission()) !== "granted")
-                        throw new Error(
-                          "Allow notifications in this browser's settings to receive reminders.",
-                        );
-                    }
-                    localStorage.setItem(CALENDAR_NOTIFICATION_DEVICE_KEY, String(enabled));
-                    setDeviceNotifications(enabled);
-                  });
-                }}
-              />
-              System notifications on this device
-            </label>
-          </section>
+            />
+            <SettingsRow
+              title="System notifications"
+              description="Show upcoming reminders as notifications."
+              status="This device"
+              control={
+                <Switch
+                  aria-label="System notifications on this device"
+                  checked={deviceNotifications}
+                  onCheckedChange={(checked) => {
+                    const enabled = checked;
+                    void run(async () => {
+                      if (enabled && !calendarDesktopBridge()) {
+                        if (typeof Notification === "undefined")
+                          throw new Error("This browser does not support notifications.");
+                        if ((await Notification.requestPermission()) !== "granted")
+                          throw new Error(
+                            "Allow notifications in this browser's settings to receive reminders.",
+                          );
+                      }
+                      localStorage.setItem(CALENDAR_NOTIFICATION_DEVICE_KEY, String(enabled));
+                      setDeviceNotifications(enabled);
+                    });
+                  }}
+                />
+              }
+            />
+          </HostSettingsSection>
         </>
       )}
       {page === "calendars" && directory && (
@@ -553,7 +625,12 @@ export default function CalendarSettings({
             <SettingsSection
               key={account.accountId}
               title={account.email}
-              description={`Account · ${account.status}${account.error ? ` · ${account.error}` : ""}`}
+              // A healthy account needs no label; a problem names itself.
+              description={
+                account.status === "ok" && !account.error
+                  ? undefined
+                  : `${account.status}${account.error ? ` · ${account.error}` : ""}`
+              }
             >
               {directory.calendars
                 .filter((calendar) => calendar.accountId === account.accountId)
@@ -564,16 +641,17 @@ export default function CalendarSettings({
                     description={
                       calendar.watchOnly
                         ? "Watch only · Excluded from attention and free-time search"
-                        : "Account"
+                        : undefined
                     }
                     control={
-                      <div className="flex items-center gap-3">
-                        <Input
+                      <div className="flex items-center gap-4">
+                        <input
                           type="color"
                           aria-label={`Color for ${calendar.name}`}
                           key={calendar.color}
                           defaultValue={calendar.color}
                           disabled={disabled}
+                          className="size-6 cursor-pointer rounded-full border border-border bg-transparent p-0 disabled:cursor-default [&::-moz-color-swatch]:rounded-full [&::-moz-color-swatch]:border-0 [&::-webkit-color-swatch]:rounded-full [&::-webkit-color-swatch]:border-0 [&::-webkit-color-swatch-wrapper]:p-0"
                           onBlur={(event) =>
                             void run(() =>
                               client.calendar({
@@ -583,20 +661,10 @@ export default function CalendarSettings({
                             )
                           }
                         />
-                        <label className="flex items-center gap-2">
-                          <Checkbox
-                            disabled={disabled}
-                            checked={calendar.visible}
-                            onCheckedChange={(visible) =>
-                              void run(() =>
-                                client.calendar({ calendarId: calendar.calendarId, visible }),
-                              )
-                            }
-                          />
-                          Visible
-                        </label>
-                        <label className="flex items-center gap-2">
-                          <Checkbox
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                          Watch only
+                          <Switch
+                            size="sm"
                             disabled={disabled}
                             checked={calendar.watchOnly === true}
                             onCheckedChange={(watchOnly) =>
@@ -605,14 +673,27 @@ export default function CalendarSettings({
                               )
                             }
                           />
-                          Watch only
+                        </label>
+                        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                          Show
+                          <Switch
+                            size="sm"
+                            disabled={disabled}
+                            checked={calendar.visible}
+                            onCheckedChange={(visible) =>
+                              void run(() =>
+                                client.calendar({ calendarId: calendar.calendarId, visible }),
+                              )
+                            }
+                          />
                         </label>
                       </div>
                     }
                   />
                 ))}
               <SettingsRow
-                title="Remove account from Calendar"
+                title="Remove from Calendar"
+                description="Its events disappear from Calendar on this environment."
                 control={
                   <Button
                     variant="outline"
@@ -629,55 +710,69 @@ export default function CalendarSettings({
               />
             </SettingsSection>
           ))}
-          <SettingsSection
-            title="Sync window"
-            description="Environment · Weeks outside this cache load as needed."
-          >
+          <SettingsSection title="Sync" description="Environment">
             {(["pastWeeks", "futureWeeks"] as const).map((part) => (
               <SettingsRow
                 key={part}
                 title={part === "pastWeeks" ? "Past weeks" : "Future weeks"}
+                description={
+                  part === "pastWeeks"
+                    ? "How far back events are kept ready. Older weeks load when you open them."
+                    : "How far ahead events are kept ready. Later weeks load when you open them."
+                }
                 control={
-                  <Input
-                    aria-label={part}
-                    type="number"
-                    min={1}
-                    max={part === "pastWeeks" ? 104 : 156}
-                    defaultValue={directory.environmentPreferences.syncWindow[part]}
-                    disabled={disabled}
-                    onBlur={(event) =>
-                      void run(() =>
-                        client.environmentPreferences({
-                          syncWindow: {
-                            ...directory.environmentPreferences.syncWindow,
-                            [part]: Number(event.target.value),
-                          },
-                        }),
-                      )
-                    }
-                  />
+                  <div className="flex items-center gap-2">
+                    <Input
+                      aria-label={part === "pastWeeks" ? "Past weeks" : "Future weeks"}
+                      type="number"
+                      size="sm"
+                      className="w-20"
+                      min={1}
+                      max={part === "pastWeeks" ? 104 : 156}
+                      defaultValue={directory.environmentPreferences.syncWindow[part]}
+                      disabled={disabled}
+                      onBlur={(event) =>
+                        void run(() =>
+                          client.environmentPreferences({
+                            syncWindow: {
+                              ...directory.environmentPreferences.syncWindow,
+                              [part]: Number(event.target.value),
+                            },
+                          }),
+                        )
+                      }
+                    />
+                    <span className="text-xs text-muted-foreground">weeks</span>
+                  </div>
                 }
               />
             ))}
             <SettingsRow
               title="Sync now"
+              description="Fetch changes from every calendar now."
               control={
-                <Button disabled={disabled} size="sm" onClick={() => void run(client.sync)}>
-                  Sync
+                <Button
+                  disabled={disabled}
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void run(client.sync)}
+                >
+                  <RefreshCwIcon />
+                  Sync now
                 </Button>
               }
             />
           </SettingsSection>
         </>
       )}
-    </div>
+    </>
   );
 }
 
 function SettingsSection({
   description,
   ...props
-}: ComponentProps<typeof HostSettingsSection> & { description?: string }) {
+}: ComponentProps<typeof HostSettingsSection> & { description?: string | undefined }) {
   return (
     <HostSettingsSection
       {...props}

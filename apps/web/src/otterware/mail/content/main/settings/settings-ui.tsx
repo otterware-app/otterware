@@ -23,16 +23,21 @@ export function SettingsRow(props: ComponentProps<typeof HostRow>) {
     : props.id === "mailbox-status"
       ? "environment"
       : inheritedScope;
+  // Account is Mail's default scope (ADR 0011), so only the exceptions are named.
   return (
     <HostRow
       {...props}
       status={
-        <>
-          {props.status}
-          <span aria-label={`Scope: ${scope}`}>
-            {scope === "client" ? "This device" : scope === "account" ? "Account" : "Environment"}
-          </span>
-        </>
+        scope === "account" ? (
+          props.status
+        ) : (
+          <>
+            {props.status}
+            <span aria-label={`Scope: ${scope}`}>
+              {scope === "client" ? "This device" : "Environment"}
+            </span>
+          </>
+        )
       }
     />
   );
@@ -87,6 +92,8 @@ export function RowSelect({
   return (
     <Select
       value={value ?? ""}
+      // The trigger shows an option's label, not its stored value ("Every 30 seconds", not "30").
+      items={options}
       onValueChange={(next) => {
         if (next !== null) onValueChange(next);
       }}

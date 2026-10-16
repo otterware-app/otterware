@@ -32,8 +32,6 @@ import { Btn, HintTooltip, cn, restoreFocusForKeyboardOnly } from "../gmail/ui";
 import {
   DraftInput,
   SettingResetButton,
-  SettingsGroup,
-  SettingsPageContainer,
   SettingsRow,
   SettingsSearchTarget,
   SettingsSection,
@@ -613,15 +611,13 @@ export function AccountsPane() {
   useEffect(() => void gmailApi.refreshSignatures().catch(() => {}), []);
 
   return (
-    <SettingsPageContainer
-      searchId={searchableSetting("mailboxes").id}
-      title="Mailboxes"
-      description="Turn mailboxes on or off and drag them into order, on every device."
-      action={<SignInButton label="Add mailbox" />}
-    >
-      {current ? (
-        <>
-          <SettingsGroup>
+    <>
+      <SettingsSection
+        {...searchableSetting("mailboxes")}
+        headerAction={<SignInButton label="Add mailbox" />}
+      >
+        {current ? (
+          <>
             {accounts.length > 1 ? (
               <AllMailboxesRow
                 on={arrangement.combined}
@@ -662,17 +658,15 @@ export function AccountsPane() {
                 />
               );
             })}
-          </SettingsGroup>
-          <AccountEditor key={current.id} account={current} />
-        </>
-      ) : (
-        <SettingsGroup>
+          </>
+        ) : (
           <SettingsRow
             title={accountsQuery.isLoading ? "Loading mailboxes…" : "No mailboxes yet"}
             description="Add a Gmail account, or any mailbox that works with IMAP, to start syncing mail."
           />
-        </SettingsGroup>
-      )}
-    </SettingsPageContainer>
+        )}
+      </SettingsSection>
+      {current ? <AccountEditor key={current.id} account={current} /> : null}
+    </>
   );
 }

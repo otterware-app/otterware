@@ -1,14 +1,14 @@
 import { ProviderConnections } from "./account/ProviderConnections";
 /**
  * Module settings pages whose placement merges them into the host page being
- * shown (ADR 0011): each renders as one section, titled with the page's label,
- * below the host page's own rows. `SettingsPageContainer` renders this once
- * per page through its seam; module pages themselves add nothing here.
+ * shown (ADR 0011), below the host page's own sections. A module page draws
+ * its own titled sections, as on its own page, so nothing wraps it here.
+ * `SettingsPageContainer` renders this once per page through its seam.
  */
 import { useLocation } from "@tanstack/react-router";
 import { Suspense } from "react";
 
-import { SettingsSection } from "../components/settings/settingsLayout";
+import { SettingsSearchTarget, SettingsSection } from "../components/settings/settingsLayout";
 import { mergedModuleSettingsPages } from "./settingsRegistry";
 
 export function ModuleSettingsMerges() {
@@ -23,11 +23,15 @@ export function ModuleSettingsMerges() {
       {mergedModuleSettingsPages(pathname).map((entry) => {
         const Page = entry.page.component;
         return (
-          <SettingsSection key={entry.sectionId} id={entry.sectionId} title={entry.page.label}>
+          <SettingsSearchTarget
+            key={entry.sectionId}
+            id={entry.sectionId}
+            className="flex flex-col gap-8 outline-none"
+          >
             <Suspense fallback={null}>
               <Page />
             </Suspense>
-          </SettingsSection>
+          </SettingsSearchTarget>
         );
       })}
     </>

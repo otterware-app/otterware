@@ -1,4 +1,5 @@
 import { ProfileWordmark } from "../../otterware/ProfileLogo";
+import { isProfileSettingVisible } from "../../otterware/settingsRegistry";
 import { SettingsGroup } from "./SettingsGroup";
 import { useScopedSettingsWriteAllowed } from "./useScopedSettings";
 import { Spinner } from "~/components/ui/spinner";
@@ -2124,7 +2125,13 @@ function LegacyFeaturesSection() {
   }, [searchTargetId]);
 
   return (
-    <section id="legacy-features" ref={targetRef} tabIndex={-1} className="space-y-2.5">
+    <section
+      id="legacy-features"
+      ref={targetRef}
+      tabIndex={-1}
+      hidden={!isProfileSettingVisible("legacy-features")}
+      className="space-y-2.5"
+    >
       <Collapsible open={open} onOpenChange={setOpen}>
         <CollapsibleTrigger className="group flex min-h-8 w-full items-center gap-2 px-3 sm:px-4">
           <h2 className="text-sm font-normal text-foreground/70 transition-colors group-hover:text-foreground">
@@ -2277,7 +2284,11 @@ export function GeneralSettingsPanel() {
   return (
     <SettingsPageContainer>
       <ProjectDefaultsSettings category="general" />
-      <SettingsSection id="organization" title="Organization">
+      <SettingsSection
+        id="organization"
+        title="Organization"
+        hidden={!isProfileSettingVisible("organization")}
+      >
         <SettingsRow
           {...searchableSetting("project-grouping")}
           description="Combine matching repositories across environments."
@@ -2618,6 +2629,7 @@ export function GeneralSettingsPanel() {
         />
         <SettingsRow
           {...searchableSetting("hide-whitespace-changes")}
+          hidden={!isProfileSettingVisible("hide-whitespace-changes")}
           description="Set whether the diff panel ignores whitespace-only edits by default."
           resetAction={
             settings.diffIgnoreWhitespace !== DEFAULT_UNIFIED_SETTINGS.diffIgnoreWhitespace ? (
@@ -2643,6 +2655,7 @@ export function GeneralSettingsPanel() {
         />
         <SettingsRow
           {...searchableSetting("default-diff-file-state")}
+          hidden={!isProfileSettingVisible("default-diff-file-state")}
           description="Start with files expanded or collapsed when opening diffs or a pull request's Code tab."
           resetAction={
             settings.diffFilesCollapsed !== DEFAULT_UNIFIED_SETTINGS.diffFilesCollapsed ? (
@@ -2685,6 +2698,7 @@ export function GeneralSettingsPanel() {
         />
         <SettingsRow
           {...searchableSetting("diff-layout")}
+          hidden={!isProfileSettingVisible("diff-layout")}
           description="Show diffs stacked or side by side. The toggle in the diff toolbar changes this too."
           resetAction={
             settings.diffLayout !== DEFAULT_UNIFIED_SETTINGS.diffLayout ? (
@@ -2720,6 +2734,7 @@ export function GeneralSettingsPanel() {
 
         <SettingsRow
           {...searchableSetting("proactive-panels")}
+          hidden={!isProfileSettingVisible("proactive-panels")}
           description="Open linked pull requests first. Otherwise, open Changes for edits to at least 3 files or 50 lines."
           resetAction={
             settings.proactivePanelsEnabled !== DEFAULT_UNIFIED_SETTINGS.proactivePanelsEnabled ? (
@@ -3075,7 +3090,11 @@ export function GeneralSettingsPanel() {
         />
       </SettingsSection>
 
-      <SettingsSection id="projects-and-threads" title="Projects & threads">
+      <SettingsSection
+        id="projects-and-threads"
+        title="Projects & threads"
+        hidden={!isProfileSettingVisible("projects-and-threads")}
+      >
         <SettingsRow
           serverScoped
           settingKeys={["newWorktreesStartFromOrigin"]}
@@ -3260,7 +3279,11 @@ export function GeneralSettingsPanel() {
         ) : null}
       </SettingsSection>
 
-      <SettingsSection id="text-generation" title="Text generation">
+      <SettingsSection
+        id="text-generation"
+        title="Text generation"
+        hidden={!isProfileSettingVisible("text-generation")}
+      >
         <SettingsRow
           serverScoped
           settingKeys={["textGenerationModelSelection"]}

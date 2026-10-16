@@ -3,9 +3,8 @@ import type { ReactNode } from "react";
 import { useMailStore } from "./mailStore";
 import { MailContentProvider } from "./content/host/surface";
 import { GeneralRows } from "./content/main/settings/general-rows";
-import { ReadingRows } from "./content/main/settings/reading-rows";
+import { AppearanceRows } from "./content/main/settings/appearance-rows";
 import { AccountsPane } from "./content/main/settings/accounts-pane";
-import { TranslationSection } from "./content/main/settings/translation-section";
 import { TodoistSettingsPane } from "./content/main/integrations/todoist";
 import { MailSettingScope } from "./content/main/settings/settings-ui";
 
@@ -37,7 +36,10 @@ function MailSettingsRows({
   return (
     <MailContentProvider session={current.session}>
       <MailSettingScope.Provider value={scope}>
-        <fieldset disabled={current.host.canWrite?.() === false} className="min-w-0 space-y-6">
+        <fieldset
+          disabled={current.host.canWrite?.() === false}
+          className="flex min-w-0 flex-col gap-8"
+        >
           {children}
         </fieldset>
       </MailSettingScope.Provider>
@@ -48,21 +50,13 @@ export function MailboxesSettings() {
   return (
     <MailSettingsRows>
       <AccountsPane />
-      <GeneralRows behavior />
     </MailSettingsRows>
   );
 }
-export function ReadingSettings() {
+export function AppearanceSettings() {
   return (
     <MailSettingsRows>
-      <ReadingRows />
-    </MailSettingsRows>
-  );
-}
-export function TranslationSettings() {
-  return (
-    <MailSettingsRows>
-      <TranslationSection />
+      <AppearanceRows />
     </MailSettingsRows>
   );
 }

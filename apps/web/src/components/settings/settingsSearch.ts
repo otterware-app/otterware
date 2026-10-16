@@ -19,6 +19,7 @@ import {
   OTTERWARE_SETTINGS_LABEL_OVERRIDES,
   OTTERWARE_SETTINGS_CATEGORY_SCOPES,
   OTTERWARE_SETTINGS_SEARCH_ITEMS,
+  isProfileSettingVisible,
   isProfileSettingsPathVisible,
   type OtterwareSettingsPath,
 } from "../../otterware/settingsRegistry";
@@ -1218,6 +1219,7 @@ export function filterAvailableSettingsSearchItems(
   return items.filter(
     (item) =>
       isProfileSettingsPathVisible(item.to) &&
+      isProfileSettingVisible(item.targetId ?? item.id) &&
       (!item.cloudOnly || availability.hasCloudPublicConfig) &&
       (!item.environmentOnly || availability.hasEnvironment) &&
       (!item.providerSettingsOnly || availability.hasProviderSettingsEnvironment) &&

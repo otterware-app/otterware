@@ -32,14 +32,11 @@ const ACCOUNT_SETTINGS_PATH = "/settings/account";
  * host's tables are keyed by. A new module page adds its id here.
  */
 export type ModuleSettingsPageId =
-  | "mail"
   | "general"
+  | "appearance"
   | "integrations"
-  | "calendar"
-  | "drive"
-  | "reading"
+  | "time"
   | "mailboxes"
-  | "translation"
   | "calendars"
   | "drives"
   | "access";
@@ -111,9 +108,39 @@ export function moduleSettingsPage(
   return ownPages.find((entry) => entry.module.id === moduleId && entry.page.id === pageId) ?? null;
 }
 
-/** Breadcrumb and search subtitles: `Mail › Reading` while several modules group, else the page. */
+/** Where a module page is shown: its own page, or the host page it merges into. */
+export function moduleSettingsHref(moduleId: string, pageId: string): string | null {
+  const entry = MODULE_SETTINGS_PAGES.find(
+    (candidate) => candidate.module.id === moduleId && candidate.page.id === pageId,
+  );
+  if (entry === undefined) return null;
+  return entry.placement === "page" ? entry.path : HOST_SETTINGS_PAGE_PATHS[entry.placement];
+}
+
+/** Breadcrumb and search subtitles: `Mail › Appearance` while several modules group, else the page. */
 const ownPageLabel = (entry: PlacedModuleSettingsPage) =>
   shellKind === "combined" ? `${entry.module.label} › ${entry.page.label}` : entry.page.label;
+
+/** Sidebar labels: the module's group header already names it, so only the page. */
+export const OTTERWARE_SETTINGS_NAV_LABELS: Readonly<Partial<Record<string, string>>> =
+  Object.fromEntries(ownPages.map((entry) => [entry.path, entry.page.label]));
+
+/**
+ * The scope sentence ("Applying settings for … across …") picks where Code
+ * settings are written; a module page's rows name their own scope, so it hides
+ * there unless a project or environment is already picked and must stay changeable.
+ */
+export function showsSettingsScopeSentence(
+  pathname: string,
+  search: {
+    readonly project?: string | undefined;
+    readonly machine?: string | undefined;
+    readonly checkout?: string | undefined;
+  },
+): boolean {
+  if (!ownPages.some((entry) => entry.path === pathname)) return true;
+  return Boolean(search.project || search.machine || search.checkout);
+}
 
 export const OTTERWARE_SETTINGS_SECTION_LABELS = {
   [MODULES_SETTINGS_PATH]: "Modules",
@@ -198,6 +225,44 @@ export const OTTERWARE_SETTINGS_SEARCH_ITEMS: ReadonlyArray<OtterwareSettingsSea
   ...(shellKind === "combined" ? [MODULES_SEARCH_ITEM] : []),
   ...MODULE_SETTINGS_PAGES.flatMap(pageSearchItems),
 ];
+
+/**
+ * Rows and sections of the shared General page that only mean something with
+ * Code: projects, worktrees, diffs, pull requests and commit text. A
+ * standalone app hides them (and their search results); the model,
+ * permissions and composer stay, because the app's assistant chat uses them.
+ */
+const CODE_ONLY_GENERAL_SETTINGS: ReadonlySet<string> = new Set([
+  "new-threads",
+  "worktree-submodules",
+  "proactive-panels",
+  "organization",
+  "project-grouping",
+  "project-order",
+  "snooze-limited-threads",
+  "auto-resume-limited-threads",
+  "working-shelf",
+  "auto-settle-inactive-threads",
+  "auto-settle-merged-threads",
+  "days-before-auto-settle",
+  "hide-whitespace-changes",
+  "default-diff-file-state",
+  "diff-layout",
+  "projects-and-threads",
+  "start-from-origin",
+  "add-project-starts-in",
+  "text-generation",
+  "text-generation-model",
+  "legacy-features",
+  "legacy-plan-mode",
+  "legacy-context-window-indicator",
+  "legacy-sidebar",
+]);
+
+/** Whether a host settings row or section shows in this profile. */
+export function isProfileSettingVisible(id: string): boolean {
+  return activeProfile.codeVisible || !CODE_ONLY_GENERAL_SETTINGS.has(id);
+}
 
 const CODE_SETTINGS_PATHS = [
   "/settings/projects",

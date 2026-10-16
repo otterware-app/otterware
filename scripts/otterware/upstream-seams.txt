@@ -25,6 +25,9 @@ apps/web/src/components/CommandPalette.tsx
 apps/web/src/components/settings/settingsSearch.ts
 apps/web/src/components/settings/settingsLayout.tsx
 apps/web/src/components/settings/SettingsSidebarNav.tsx
+# General page: `hidden` on the Code-only sections and rows a standalone app has no use for
+apps/web/src/components/settings/SettingsPanels.tsx
+apps/web/src/components/settings/ProjectDefaultsSettings.tsx
 apps/web/src/components/settings/KeybindingsSettings.tsx
 apps/web/src/components/settings/KeybindingsSettings.logic.ts
 apps/web/src/branding*.ts

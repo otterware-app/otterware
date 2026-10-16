@@ -60,7 +60,7 @@ export const READING_WIDTHS = {
   full: { label: "Full width", maxWidth: "none" },
 } as const;
 export type ReadingWidth = keyof typeof READING_WIDTHS;
-const DEFAULT_READING_WIDTH: ReadingWidth = "full";
+export const DEFAULT_READING_WIDTH: ReadingWidth = "full";
 const READING_WIDTH_KEY = "otter:reading-width";
 
 export const MESSAGE_LIST_STYLES = {
@@ -68,7 +68,7 @@ export const MESSAGE_LIST_STYLES = {
   dividers: { label: "With dividers", description: "A compact list with full-width separators." },
 } as const;
 export type MessageListStyle = keyof typeof MESSAGE_LIST_STYLES;
-const DEFAULT_MESSAGE_LIST_STYLE: MessageListStyle = "classic";
+export const DEFAULT_MESSAGE_LIST_STYLE: MessageListStyle = "classic";
 const MESSAGE_LIST_STYLE_KEY = "otter:message-list-style";
 
 export const MAIL_LAYOUTS = {
@@ -80,7 +80,7 @@ export const MAIL_LAYOUTS = {
   },
 } as const;
 export type MailLayout = keyof typeof MAIL_LAYOUTS;
-const DEFAULT_MAIL_LAYOUT: MailLayout = "split";
+export const DEFAULT_MAIL_LAYOUT: MailLayout = "split";
 const MAIL_LAYOUT_KEY = "otter:mail-layout";
 
 function getMailLayout(): MailLayout {
