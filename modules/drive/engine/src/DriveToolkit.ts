@@ -53,6 +53,22 @@ export const handlers = Effect.gen(function* () {
       suite.pipe(Effect.andThen(drive.shareFolder(folder, input))),
     drive_get_folder_sharing: ({ folder }) =>
       suite.pipe(Effect.andThen(drive.getFolderSharing(folder))),
+    drive_move_document: ({ document, folder }) =>
+      drive.moveDocument(document, folder).pipe(Effect.map((moved) => ({ document: moved }))),
+    drive_archive_document: ({ document }) =>
+      drive
+        .setDocumentArchived(document, true)
+        .pipe(Effect.map((archived) => ({ document: archived }))),
+    drive_restore_document: ({ document }) =>
+      drive
+        .setDocumentArchived(document, false)
+        .pipe(Effect.map((restored) => ({ document: restored }))),
+    drive_promote_version: ({ document, version }) =>
+      drive
+        .promoteVersion(document, version)
+        .pipe(Effect.map((promoted) => ({ document: promoted }))),
+    drive_create_folder: (input) =>
+      drive.createFolder(input).pipe(Effect.map((folder) => ({ folder }))),
     drive_link_document_to_thread: ({ document }) =>
       callingThread.pipe(
         Effect.flatMap((threadId) =>

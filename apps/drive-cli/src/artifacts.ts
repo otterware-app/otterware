@@ -44,6 +44,7 @@ interface CreateOptions {
 
 interface PushOptions {
   entry?: string;
+  force?: boolean;
   ifVersion?: string;
   label: string;
 }
@@ -69,6 +70,29 @@ function globals(command: Command): GlobalOptions {
 async function clientFor(command: Command): Promise<ApiClient> {
   const { profile } = await getProfile(globals(command).profile);
   return new ApiClient(profile);
+}
+
+/**
+ * The version a push must still find current. Publishing over someone else's newer
+ * version needs the version the files were based on, or an explicit --force.
+ */
+export function expectedPushVersion(
+  options: Pick<PushOptions, "force" | "ifVersion">,
+  artifact: Pick<Artifact, "title" | "versionCount">,
+): number | undefined {
+  if (options.ifVersion !== undefined && options.force)
+    throw new Error("Use either --if-version or --force, not both.");
+  if (options.ifVersion !== undefined) {
+    const version = Number(options.ifVersion);
+    if (!Number.isInteger(version) || version < 0)
+      throw new Error("--if-version must be a version number.");
+    return version;
+  }
+  if (options.force) return undefined;
+  if (artifact.versionCount === 0) return 0;
+  throw new Error(
+    `${artifact.title} is at v${artifact.versionCount}. Pass --if-version ${artifact.versionCount} if your files are based on it, or --force to publish over whatever is current.`,
+  );
 }
 
 function versionQuery(version?: string): string {
@@ -273,12 +297,17 @@ export function registerArtifactCommands(program: Command): void {
     .argument("<path>", "File or directory to publish")
     .requiredOption("--label <label>", "Description of this version")
     .option("--entry <path>", "Entry file inside the artifact")
-    .option("--if-version <number>", "Fail unless this is the current version")
+    .option(
+      "--if-version <number>",
+      "The version your files are based on; fails if it's no longer current",
+    )
+    .option("--force", "Publish over whatever version is current")
     .action(async (id: string, path: string, options: PushOptions, command: Command) => {
       const client = await clientFor(command);
       const artifact = artifactResponseSchema.parse(
         await client.get(`/api/v1/artifacts/${id}`),
       ).data;
+      const expectedCurrentVersion = expectedPushVersion(options, artifact);
       const files = await discoverFiles(path);
       const entryPath = resolveEntryPath(files, options.entry);
       const result = await publishFiles({
@@ -288,7 +317,7 @@ export function registerArtifactCommands(program: Command): void {
         entryPath,
         files,
         label: options.label,
-        expectedCurrentVersion: options.ifVersion ? Number(options.ifVersion) : undefined,
+        expectedCurrentVersion,
       });
       if (globals(command).json) printJson(result);
       else {
@@ -413,8 +442,14 @@ export function registerArtifactCommands(program: Command): void {
     .description("Download every file in a version")
     .action(async (id: string, destination: string, options: PullOptions, command: Command) => {
       const client = await clientFor(command);
+      // Pin the current version, so the files match the number to push back with --if-version.
+      const version =
+        options.version ??
+        artifactResponseSchema
+          .parse(await client.get(`/api/v1/artifacts/${id}`))
+          .data.currentVersion?.number.toString();
       const files = artifactFilesResponseSchema.parse(
-        await client.get(`/api/v1/artifacts/${id}/files${versionQuery(options.version)}`),
+        await client.get(`/api/v1/artifacts/${id}/files${versionQuery(version)}`),
       ).data;
       const root = resolve(destination);
       await pooled(files, 4, async (file: ArtifactFile) => {
@@ -423,7 +458,7 @@ export function registerArtifactCommands(program: Command): void {
           throw new Error(`Unsafe file path returned by server: ${file.path}`);
         }
         const query = new URLSearchParams({ path: file.path });
-        if (options.version) query.set("version", options.version);
+        if (version) query.set("version", version);
         const response = await client.request<Response>(
           `/api/v1/artifacts/${id}/content?${query}`,
           { raw: true },
@@ -432,8 +467,14 @@ export function registerArtifactCommands(program: Command): void {
         await writeFile(target, Buffer.from(await response.arrayBuffer()));
         if (!globals(command).json) note(`Downloaded ${file.path}`);
       });
-      if (globals(command).json) printJson({ destination: root, files });
-      else success(`Downloaded ${files.length} files to ${root}.`);
+      if (globals(command).json)
+        printJson({ destination: root, version: version ? Number(version) : null, files });
+      else
+        success(
+          version
+            ? `Downloaded ${files.length} files from v${version} to ${root}. Publish changes with --if-version ${version}.`
+            : `Downloaded ${files.length} files to ${root}.`,
+        );
     });
 
   artifacts

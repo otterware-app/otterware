@@ -89,6 +89,20 @@ const effectParser = <S extends Schema.Top & { readonly DecodingServices: never 
   };
 };
 const meResponseSchema = effectParser(MeResponse);
+/** `POST /api/v1/folders` answers the new folder without the list's `shared` flag. */
+const createdFolderSchema = effectParser(
+  Schema.Struct({
+    data: Schema.Struct({
+      id: Schema.String,
+      name: Schema.String,
+      slug: Schema.String,
+      parentId: Schema.NullOr(Schema.String),
+      kind: Schema.Literals(["personal", "shared", "folder"]),
+      ownerUserId: Schema.String,
+      role: Schema.Literals(["owner", "editor", "viewer"]),
+    }),
+  }),
+);
 const deviceErrorSchema = effectParser(DeviceError);
 export type DeviceTokenResult =
   | { readonly _tag: "Token"; readonly accessToken: string }
@@ -400,6 +414,48 @@ export const makeDriveApi = (baseUrl: string) =>
         send(
           authorized(HttpClientRequest.delete(url(`/api/v1/artifacts/${ref(id)}/draft`)), options),
         ).pipe(Effect.asVoid),
+      /** Drive owners only; the slug must be free in the destination. */
+      moveArtifact: (id: string, folderId: string, options: DriveRequestOptions) =>
+        json(
+          HttpClientRequest.post(url(`/api/v1/artifacts/${ref(id)}/move`)).pipe(
+            HttpClientRequest.bodyJsonUnsafe({ folderId }),
+          ),
+          options,
+          artifactResponseSchema,
+          "document",
+        ).pipe(Effect.map((body) => body.data)),
+      /** Archiving is reversible; Drive's `DELETE` on a document archives it. */
+      setArchived: (id: string, archived: boolean, options: DriveRequestOptions) =>
+        json(
+          archived
+            ? HttpClientRequest.delete(url(`/api/v1/artifacts/${ref(id)}`))
+            : HttpClientRequest.post(url(`/api/v1/artifacts/${ref(id)}/restore`)),
+          options,
+          artifactResponseSchema,
+          "document",
+        ).pipe(Effect.map((body) => body.data)),
+      /** Makes an earlier immutable version current again, without creating a new version. */
+      promoteVersion: (id: string, version: number, options: DriveRequestOptions) =>
+        json(
+          HttpClientRequest.post(url(`/api/v1/artifacts/${ref(id)}/promote`)).pipe(
+            HttpClientRequest.bodyJsonUnsafe({ version }),
+          ),
+          options,
+          artifactResponseSchema,
+          "document",
+        ).pipe(Effect.map((body) => body.data)),
+      createFolder: (
+        input: { readonly name: string; readonly parentId: string },
+        options: DriveRequestOptions,
+      ): Effect.Effect<Folder, DriveApiError> =>
+        json(
+          HttpClientRequest.post(url("/api/v1/folders")).pipe(
+            HttpClientRequest.bodyJsonUnsafe({ ...input, kind: "folder" }),
+          ),
+          options,
+          createdFolderSchema,
+          "folder",
+        ).pipe(Effect.map((body) => body.data)),
       getSharing: (kind: "artifacts" | "folders", id: string, options: DriveRequestOptions) =>
         json(
           HttpClientRequest.get(url(`/api/v1/${kind}/${ref(id)}/sharing`)),
