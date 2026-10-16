@@ -46,12 +46,6 @@ const settingsPages = [
     placement: "page",
     rows: ["Accounts", "Color", "Visibility", "Watch only", "Sync window"],
   },
-  {
-    id: "connections",
-    label: "Calendar connections",
-    placement: "connections",
-    rows: ["Google sign-in", "OAuth client", "Demo accounts"],
-  },
   { id: "time", label: "Time", placement: "general", rows: ["Time format"] },
 ] as const;
 
@@ -242,7 +236,7 @@ export const CalendarWebModule = createCalendarWebModule({
     icon: CalendarDaysIcon,
     searchTerms: page.rows,
     placement: { grouped: page.placement, standalone: page.placement },
-    rows: (page.id === "calendars" || page.id === "connections" ? [] : page.rows).map((title) => ({
+    rows: (page.id === "calendars" ? [] : page.rows).map((title) => ({
       id:
         (
           {

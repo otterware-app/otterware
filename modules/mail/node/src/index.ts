@@ -42,7 +42,7 @@ export const mailNodeModule = (options: MailNodeOptions) => ({
           try: () =>
             workerLifecycle(
               () => {
-                const session = account?.current();
+                const session = account?.providerAccount();
                 return openMailWorker({ ...options, ...(session ? { session } : {}) }, (event) =>
                   Effect.runSync(PubSub.publish(events, event)),
                 );

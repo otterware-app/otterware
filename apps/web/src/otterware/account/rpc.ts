@@ -14,13 +14,13 @@ export const accountConnections = createEnvironmentRpcQueryAtomFamily(connection
   tag: "account.connections.list",
   refreshIntervalMs: 5_000,
 });
-export const attachAccount = createEnvironmentRpcCommand(connectionAtomRuntime, {
-  label: "otterware:account-attach",
-  tag: "account.session.attach",
+export const signInEnvironment = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "otterware:account-sign-in",
+  tag: "account.session.signIn",
 });
-export const detachAccount = createEnvironmentRpcCommand(connectionAtomRuntime, {
-  label: "otterware:account-detach",
-  tag: "account.session.detach",
+export const signOutEnvironment = createEnvironmentRpcCommand(connectionAtomRuntime, {
+  label: "otterware:account-sign-out",
+  tag: "account.session.signOut",
 });
 export const connectProvider = createEnvironmentRpcCommand(connectionAtomRuntime, {
   label: "otterware:provider-connect",

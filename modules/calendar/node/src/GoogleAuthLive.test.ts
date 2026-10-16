@@ -429,7 +429,7 @@ describe("tokens", () => {
     }),
   );
 
-  it.effect("forgets and revokes an account's tokens", () =>
+  it.effect("forgets an account's tokens on this device without revoking the Google grant", () =>
     Effect.gen(function* () {
       const secrets = new Map<string, Uint8Array>();
       storeTokens(secrets);
@@ -438,7 +438,8 @@ describe("tokens", () => {
       yield* auth.removeTokens(SUB);
       expect(secrets.size).toBe(0);
       expect(yield* auth.hasTokens(SUB)).toBe(false);
-      expect(yield* Deferred.await(google.revoked)).toBe("refresh-1");
+      // Google revokes per project, so a revoke here would sign out the user's other devices.
+      expect(Deferred.isDoneUnsafe(google.revoked)).toBe(false);
     }),
   );
 });

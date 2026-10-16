@@ -43,6 +43,7 @@ export const SyncPage = Schema.Struct({
 });
 export const ChannelTicket = Schema.Struct({ ticket: Schema.String, expiresAt: Schema.Number });
 export const ConnectResult = Schema.Struct({ url: Schema.String });
+export { PROVIDER_SCOPES } from "./scopes.ts";
 export const ChannelEvent = Schema.Union([
   Schema.Struct({ type: Schema.Literal("sync.changed") }),
   Schema.Struct({ type: Schema.Literal("connections.changed") }),

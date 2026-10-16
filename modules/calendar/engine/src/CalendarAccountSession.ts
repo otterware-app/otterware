@@ -2,6 +2,9 @@ import { OtterAccountSession } from "@otterware/module-kit/account";
 import * as Config from "effect/Config";
 import { OtterCloudClient, CloudError } from "@otterware/otter-cloud-client";
 import { CalendarError } from "@otterware/calendar-contracts";
+import { PROVIDER_SCOPES } from "@otterware/otter-cloud-client/scopes";
+
+const GOOGLE_SCOPES = [...PROVIDER_SCOPES.google];
 import * as Clock from "effect/Clock";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -21,10 +24,28 @@ export interface CalendarAccountCredential {
   readonly cloudOrigin: string;
   readonly audience: string;
 }
+/** Where Google grants come from: this device on a host, Cloud only without one. */
+export interface CalendarProviders {
+  readonly connections: OtterCloudClient["connections"];
+  readonly providerToken: OtterCloudClient["providerToken"];
+  readonly connect: (provider: "google") => Promise<{ readonly url: string }>;
+  readonly disconnect: (connectionId: string) => Promise<void>;
+}
+/** Cloud-held grants, only for hosts without an account session of their own. */
+export const cloudProviders = (
+  client: OtterCloudClient,
+  cloudOrigin: string,
+): CalendarProviders => ({
+  connections: () => client.connections(),
+  providerToken: (id) => client.providerToken(id),
+  connect: (provider) => client.connect(provider, GOOGLE_SCOPES, cloudOrigin),
+  disconnect: (id) => client.disconnect(id),
+});
 export interface CalendarCloudContext {
   readonly accountId: string;
   readonly client: OtterCloudClient;
   readonly cloudOrigin: string;
+  readonly providers: CalendarProviders;
 }
 export class CalendarAccountSession extends Context.Service<
   CalendarAccountSession,
@@ -107,9 +128,20 @@ export const accountSessionLayer = <E, R>(
       const current = lock.withPermits(1)(
         Effect.gen(function* () {
           if (Option.isSome(host)) {
-            const account = host.value.current();
+            // Mail and Calendar take provider connections only where the host allows them.
+            const account = host.value.providerAccount();
             return account
-              ? Option.some({ accountId: account.accountId, client: account.client, cloudOrigin })
+              ? Option.some({
+                  accountId: account.accountId,
+                  client: account.client,
+                  cloudOrigin,
+                  providers: {
+                    connections: async () => [...(await account.connections())],
+                    providerToken: account.providerToken,
+                    connect: account.connect,
+                    disconnect: account.disconnect,
+                  },
+                })
               : Option.none<CalendarCloudContext>();
           }
           const saved = yield* readCredential.pipe(Effect.mapError(failed));
@@ -153,7 +185,12 @@ export const accountSessionLayer = <E, R>(
             sessionToken: async () => session.token,
             fetch: makeCloudFetch(http, abort.signal),
           });
-          const context = { accountId: session.user.id, client, cloudOrigin: key.cloudOrigin };
+          const context = {
+            accountId: session.user.id,
+            client,
+            cloudOrigin: key.cloudOrigin,
+            providers: cloudProviders(client, key.cloudOrigin),
+          };
           cached = { credential: key, expiresAt: session.expiresAt, context, abort };
           return Option.some(context);
         }),

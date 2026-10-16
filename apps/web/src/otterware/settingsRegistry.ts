@@ -221,7 +221,7 @@ const MODULES_SEARCH_ITEM: OtterwareSettingsSearchItem = {
 };
 
 export const OTTERWARE_SETTINGS_SEARCH_ITEMS: ReadonlyArray<OtterwareSettingsSearchItem> = [
-  ...(shellKind === "code" ? [] : [ACCOUNT_SEARCH_ITEM]),
+  ACCOUNT_SEARCH_ITEM,
   ...(shellKind === "combined" ? [MODULES_SEARCH_ITEM] : []),
   ...MODULE_SETTINGS_PAGES.flatMap(pageSearchItems),
 ];
@@ -276,7 +276,8 @@ const CODE_SETTINGS_PATHS = [
 /** Code is hidden in standalone profiles; the shared agents and connections stay. */
 export function isProfileSettingsPathVisible(path: string): boolean {
   if (path === MODULES_SETTINGS_PATH) return shellKind === "combined";
-  if (path === ACCOUNT_SETTINGS_PATH) return shellKind !== "code";
+  // Every profile, Code included, uses the one Otter Account and lists its sessions.
+  if (path === ACCOUNT_SETTINGS_PATH) return true;
   return (
     activeProfile.codeVisible || !(CODE_SETTINGS_PATHS as ReadonlyArray<string>).includes(path)
   );
@@ -333,7 +334,14 @@ export function settingsNavLayout(input: {
   readonly onModuleIds: ReadonlyArray<string>;
 }): ReadonlyArray<SettingsNavGroup> {
   if (shellKind === "code") {
-    return [{ id: "all", label: null, paths: input.upstreamOrder }];
+    const general = input.upstreamOrder.indexOf("/settings/general");
+    return [
+      {
+        id: "all",
+        label: null,
+        paths: input.upstreamOrder.toSpliced(general + 1, 0, ACCOUNT_SETTINGS_PATH),
+      },
+    ];
   }
   const pagesOf = (moduleId: string) =>
     ownPages.filter((entry) => entry.module.id === moduleId).map((entry) => entry.path);

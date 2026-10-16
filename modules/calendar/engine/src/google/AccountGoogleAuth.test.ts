@@ -10,7 +10,11 @@ import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as HttpClient from "effect/http/HttpClient";
 import * as HttpClientResponse from "effect/http/HttpClientResponse";
-import { CalendarAccountSession, type CalendarCloudContext } from "../CalendarAccountSession.ts";
+import {
+  CalendarAccountSession,
+  cloudProviders,
+  type CalendarCloudContext,
+} from "../CalendarAccountSession.ts";
 import * as GoogleAuthUnavailable from "../GoogleAuthUnavailable.ts";
 import { GoogleAuth } from "./GoogleAuth.ts";
 import * as AccountGoogleAuth from "./AccountGoogleAuth.ts";
@@ -22,6 +26,9 @@ const setup = Effect.gen(function* () {
   const cloud = (accountId: string, grantedScopes = scopes): CalendarCloudContext => ({
     accountId,
     cloudOrigin: "https://cloud.test",
+    get providers() {
+      return cloudProviders(this.client, this.cloudOrigin);
+    },
     client: new OtterCloudClient({
       origin: "https://cloud.test",
       audience: "env",

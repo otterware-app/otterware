@@ -1,7 +1,7 @@
 import { clearUndo } from "./content/main/gmail/undo";
 import { MailKeybindingMigration } from "./MailKeybindingMigration";
 import { useOpenLink } from "~/browser/useOpenLink";
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useShellSelection } from "@otterware/module-kit/web";
 import { useModuleTarget } from "../browser/runtime";
@@ -32,6 +32,7 @@ import { useRailUnreadDots } from "./content/main/gmail/rail-preferences";
 import { startSyncedPreferences } from "./content/main/synced-preferences";
 import { useMailStore, type MailSnapshot } from "./mailStore";
 import MailBackground from "./MailBackground";
+import { useConnectProvider } from "../account/useConnectProvider";
 
 export default function MailRuntime() {
   const target = useModuleTarget();
@@ -51,6 +52,12 @@ export default function MailRuntime() {
     [navigate],
   );
   useMailPageCapabilities(inBrowser, navigateMail);
+  // A ref keeps the host stable: rebuilding it reinstalls Mail and clears its state.
+  const connect = useConnectProvider();
+  const connectProvider = useRef(connect);
+  useLayoutEffect(() => {
+    connectProvider.current = connect;
+  }, [connect]);
   const host = useMemo(
     () =>
       environmentId || inBrowser
@@ -66,6 +73,9 @@ export default function MailRuntime() {
               inBrowser ? { ...browserMailTransport, id: `browser:${browserIdentity}` } : undefined,
             ),
             openExternal: openLink,
+            // Without a signed-in environment the connect fails; Connections explains why.
+            connectGoogle: () =>
+              connectProvider.current("google").catch(() => navigateMail("/settings/connections")),
           }
         : null,
     [environmentId, inBrowser, browserIdentity, navigateMail, desktop, openLink],

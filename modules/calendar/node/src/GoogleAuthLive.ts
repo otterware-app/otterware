@@ -251,17 +251,6 @@ export const make = Effect.fn("GoogleAuthLive.make")(function* (
     });
   });
 
-  /**
-   * Revokes a grant, best effort. Google revokes every token of the account for the whole
-   * OAuth project, so this only runs when an account is removed, never when it is replaced.
-   */
-  const revoke = (token: string) =>
-    http
-      .execute(
-        HttpClientRequest.post(REVOKE_ENDPOINT).pipe(HttpClientRequest.bodyUrlParams({ token })),
-      )
-      .pipe(Effect.timeout(TOKEN_REQUEST_TIMEOUT), Effect.ignore);
-
   // ── Access tokens ──────────────────────────────────────────────────
 
   const accessToken = (sub: string, rejected?: string) =>
@@ -599,22 +588,20 @@ export const make = Effect.fn("GoogleAuthLive.make")(function* (
       );
     });
 
+  /**
+   * Forgets the sign-in on this device only. Google revokes per OAuth project, not per device,
+   * so revoking here would also end the user's other devices' Mail and Calendar sign-ins.
+   */
   const removeTokens: GoogleAuthShape["removeTokens"] = (sub) =>
-    Effect.gen(function* () {
-      const stored = yield* withAccountLock(sub)(
-        Effect.gen(function* () {
-          const stored = yield* readTokens(sub).pipe(Effect.orElseSucceed(() => Option.none()));
-          if (SUBJECT.test(sub))
-            yield* secrets
-              .remove(tokenSecretName(sub))
-              .pipe(Effect.catch(() => Effect.logWarning("Could not delete a Google sign-in.")));
-          cache.delete(sub);
-          return stored;
-        }),
-      );
-      if (Option.isSome(stored))
-        yield* Effect.forkIn(revoke(stored.value.refreshToken), scope, { startImmediately: true });
-    });
+    withAccountLock(sub)(
+      Effect.gen(function* () {
+        if (SUBJECT.test(sub))
+          yield* secrets
+            .remove(tokenSecretName(sub))
+            .pipe(Effect.catch(() => Effect.logWarning("Could not delete a Google sign-in.")));
+        cache.delete(sub);
+      }),
+    );
 
   return GoogleAuth.of({
     clientStatus: clients.status,

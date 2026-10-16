@@ -8,7 +8,7 @@ import {
 import type { Command } from "commander";
 import pc from "picocolors";
 import { ApiClient } from "./client";
-import { getProfile } from "./config";
+import { getProfile, isUserLogin } from "./config";
 import { resolveFolderReference, type Folder } from "./folders";
 import type { GlobalOptions } from "./output";
 import { note, printJson, success, table } from "./output";
@@ -28,7 +28,7 @@ function globals(command: Command): GlobalOptions {
 
 async function userClient(command: Command): Promise<ApiClient> {
   const { profile } = await getProfile(globals(command).profile);
-  if (!profile.accessToken || profile.apiKey) {
+  if (!isUserLogin(profile)) {
     throw new Error("Sharing requires a user login, not an API key.");
   }
   return new ApiClient(profile);
