@@ -693,7 +693,6 @@ export default function CalendarSettings({
                 ))}
               <SettingsRow
                 title="Remove from Calendar"
-                description="Its events disappear from Calendar on this environment."
                 control={
                   <Button
                     variant="outline"
