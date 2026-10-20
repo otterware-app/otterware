@@ -5,7 +5,7 @@ import { DEFAULT_RESOLVED_KEYBINDINGS } from "@t3tools/shared/keybindings";
 import { CommandPalette } from "./CommandPalette";
 import { useComposerHandleContext } from "../composerHandleContext";
 import { openCommandPalette } from "../commandPaletteBus";
-import { primaryServerKeybindingsAtom } from "../state/server";
+import { shellKeybindingsAtom } from "../otterware/shellKeybindings";
 import { isMacPlatform } from "../lib/utils";
 
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
@@ -19,7 +19,7 @@ vi.mock("@effect/atom-react", async (importOriginal) => {
   return {
     ...original,
     useAtomValue: (atom: unknown) =>
-      atom === primaryServerKeybindingsAtom ? DEFAULT_RESOLVED_KEYBINDINGS : [],
+      atom === shellKeybindingsAtom ? DEFAULT_RESOLVED_KEYBINDINGS : [],
   };
 });
 vi.mock("../hooks/useTheme", () => ({

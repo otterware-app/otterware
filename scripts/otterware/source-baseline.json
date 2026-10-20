@@ -166,7 +166,7 @@
       "apps/web/src/components/BranchToolbarEnvModeSelector.tsx": "100644 blob 6d0b51f3cfd73b0578d80245e046797178779c30",
       "apps/web/src/components/ChatMarkdown.tsx": "100644 blob 83bae868fe046a1c74f13f41ae42ae94efbbfdd5",
       "apps/web/src/components/ChatView.tsx": "100644 blob 4810cc30b12bbace78c1dd30d78c8ca18ab7eaae",
-      "apps/web/src/components/CommandPalette.focus.browser.test.tsx": "100644 blob 49c818fe60c574de59b1458d4a87be5eb3585961",
+      "apps/web/src/components/CommandPalette.focus.browser.test.tsx": "100644 blob 96d86d6766251b70b9c86ef32d2beedd2a7407c8",
       "apps/web/src/components/CommandPalette.logic.test.ts": "100644 blob 5da4e87a674e50f27eb843395c7c88f24ea887b8",
       "apps/web/src/components/CommandPaletteContent.tsx": "100644 blob 5042ce801ef2bdb99f514eea380db9a7d403eac3",
       "apps/web/src/components/CustomSnoozeDialog.tsx": "100644 blob 2c5c4452e99c3d2c3f188761f81e8c9972fab415",
