@@ -26,7 +26,8 @@ removing entries once they compile, following the mobile coverage approach.
 
 The module rail, persistent module shell, scoped settings/keybindings, standalone profile
 visibility, Otter Account adapters, app identities, and release destinations remain monorepo
-implementations. The standalone Code sidebar/auth composition does not replace them. Compact
+implementations. The standalone Code sidebar/auth composition and its rail customization controls do not replace
+the host module rail and pins. Compact
 module assistants filter chat shortcuts by their focused surface. A generated relay migration
 joins the upstream API-pause migration and the existing Otter migration head without applying
 anything to a database.

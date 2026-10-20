@@ -422,7 +422,7 @@
       "apps/web/src/previewStateStore.ts": "100644 blob 29052cb61a4afaead5b79b5d0281b2d1bdd34caf",
       "apps/web/src/reopenClosedView.ts": "100644 blob 247de33bfa2a64cb9fbda6ebe038881893a178a5",
       "apps/web/src/rightPanelStore.ts": "100644 blob 43de838d546cfa272f899d5d5d35aac9e2098bd2",
-      "apps/web/src/routes/__root.tsx": "100644 blob cc4ce13568e303f4d8c550eb84b552cf7dbcc0c8",
+      "apps/web/src/routes/__root.tsx": "100644 blob 6e29d6c5b1bbdb9a062a9aca1df38152a3a0603c",
       "apps/web/src/routes/_chat.index.tsx": "100644 blob 8d246178e40652710ccc7028a6d65857ea4976e3",
       "apps/web/src/routes/_chat.pull-requests.tsx": "100644 blob 3ab675d046df8e8fa64f8f0b670920d3e79d605e",
       "apps/web/src/routes/_chat.tsx": "100644 blob e6a6265c1b454c84fac5c68f66c8ba695e376944",

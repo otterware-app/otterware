@@ -3,12 +3,13 @@ import { ipc } from "../../lib/ipc";
 import { toast } from "./toast";
 import { useEffect, useState, type ReactNode } from "react";
 import { ImapSettings, MailServer } from "@otterware/mail-contracts";
-import { ChevronRightIcon, MailIcon, ServerIcon } from "lucide-react";
+import { ChevronRightIcon, ServerIcon } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Dialog } from "../../components/ui/dialog";
 import { Field } from "../../components/ui/field";
 import { Input } from "../../components/ui/input";
 import { gmailApi } from "./api";
+import { ProviderMark } from "./provider-mark";
 import { useAddImapAccount, useSignInImap } from "./hooks";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./select";
@@ -72,12 +73,12 @@ function AddMailboxMenu({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>{children}</DropdownMenuTrigger>
         <DropdownMenuContent align={align}>
-          <DropdownMenuItem icon={<MailIcon />} onSelect={onGmail}>
+          <DropdownMenuItem icon={<ProviderMark provider="gmail" />} onSelect={onGmail}>
             Gmail
           </DropdownMenuItem>
           {outlookAvailable && (
             <DropdownMenuItem
-              icon={<MailIcon />}
+              icon={<ProviderMark provider="outlook" />}
               disabled={addingOutlook}
               onSelect={() => void addOutlook()}
             >
