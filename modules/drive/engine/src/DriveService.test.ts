@@ -34,7 +34,15 @@ function makeFakeDrive() {
   ];
   const documents = new Map<
     string,
-    { folderId: string; folderSlug: string; slug: string; title: string; versions: Array<string> }
+    {
+      folderId: string;
+      folderSlug: string;
+      slug: string;
+      title: string;
+      versions: Array<string>;
+      current?: number;
+      archived?: boolean;
+    }
   >([
     [
       DOC_ID,
@@ -79,6 +87,7 @@ function makeFakeDrive() {
   };
   const artifactOf = (id: string): Artifact => {
     const doc = documents.get(id)!;
+    const current = doc.current ?? doc.versions.length;
     return {
       id,
       folderId: doc.folderId,
@@ -88,8 +97,8 @@ function makeFakeDrive() {
       description: "",
       createdAt: "2026-10-01T10:00:00.000Z",
       updatedAt: `2026-10-0${doc.versions.length}T10:00:00.000Z`,
-      archivedAt: null,
-      currentVersion: versionOf(id, doc.versions.length),
+      archivedAt: doc.archived ? "2026-10-09T10:00:00.000Z" : null,
+      currentVersion: versionOf(id, current),
       versionCount: doc.versions.length,
       url: `${BASE}/${doc.folderSlug}/a/${doc.slug}/`,
       role: "owner",
@@ -109,7 +118,12 @@ function makeFakeDrive() {
   ];
 
   const respond = (status: number, body: unknown) => Response.json(body, { status });
-  const handle = (method: string, url: URL, headers: Record<string, string>): Response => {
+  const handle = (
+    method: string,
+    url: URL,
+    headers: Record<string, string>,
+    body: Record<string, unknown>,
+  ): Response => {
     state.requests.push(`${method} ${url.pathname}`);
     const path = url.pathname;
     if (path === "/api/auth/suite-session")
@@ -135,6 +149,19 @@ function makeFakeDrive() {
       return respond(200, {
         data: { actor: { id: "u-1", type: "user", name: "Ada" }, userId: "u-1", folderId: "p" },
       });
+    if (path === "/api/v1/folders" && method === "POST") {
+      const folder: Folder = {
+        id: `folder-${folders.length + 1}`,
+        name: String(body.name),
+        slug: String(body.name).toLowerCase(),
+        parentId: String(body.parentId),
+        kind: "folder",
+        ownerUserId: "u-1",
+        role: "owner",
+      };
+      folders.push(folder);
+      return respond(201, { data: folder });
+    }
     if (path === "/api/v1/folders") return respond(200, { data: folders });
     if (path === "/api/v1/shared") return respond(200, { data: shared() });
     if (path === "/api/v1/links/share-token" && method === "POST")
@@ -146,7 +173,9 @@ function makeFakeDrive() {
           slug: "q3-plan",
         },
       });
-    const match = path.match(/^\/api\/v1\/artifacts\/([^/]+)(?:\/(versions|content))?$/u);
+    const match = path.match(
+      /^\/api\/v1\/artifacts\/([^/]+)(?:\/(versions|content|move|restore|promote))?$/u,
+    );
     if (match) {
       const reference = decodeURIComponent(match[1]!);
       const folderId = headers["x-otterdrive-folder"];
@@ -158,6 +187,25 @@ function makeFakeDrive() {
           error: { code: "artifact_not_found", message: "Document not found." },
         });
       const doc = documents.get(id)!;
+      if (match[2] === "move") {
+        const destination = folders.find((folder) => folder.id === body.folderId)!;
+        if (
+          [...documents.values()].some(
+            (other) =>
+              other !== doc && other.folderId === destination.id && other.slug === doc.slug,
+          )
+        )
+          return respond(409, {
+            error: {
+              code: "slug_exists",
+              message: "That document slug already exists in the destination folder.",
+            },
+          });
+        Object.assign(doc, { folderId: destination.id, folderSlug: destination.slug });
+      }
+      if (match[2] === "restore") doc.archived = false;
+      if (match[2] === undefined && method === "DELETE") doc.archived = true;
+      if (match[2] === "promote") doc.current = Number(body.version);
       if (match[2] === "versions")
         return respond(200, {
           data: doc.versions.map((_, index) => versionOf(id, index + 1)).toReversed(),
@@ -178,7 +226,14 @@ function makeFakeDrive() {
     Effect.sync(() =>
       HttpClientResponse.fromWeb(
         request,
-        handle(request.method, new URL(request.url), request.headers as Record<string, string>),
+        handle(
+          request.method,
+          new URL(request.url),
+          request.headers as Record<string, string>,
+          request.body._tag === "Uint8Array"
+            ? JSON.parse(new TextDecoder().decode(request.body.body))
+            : {},
+        ),
       ),
     ),
   );
@@ -417,6 +472,72 @@ describe("DriveService", () => {
       expect(
         (yield* Effect.flip(drive.documentDetail(`${BASE}/team-docs/a/q3-plan/v99`))).reason,
       ).toBe("not_found");
+    }).pipe(Effect.scoped, Effect.provide(testLayer)),
+  );
+  it.effect("moves, archives, restores and promotes a document, refreshing its thread link", () =>
+    Effect.gen(function* () {
+      const fake = makeFakeDrive();
+      fake.folders.push({
+        id: "folder-archive",
+        name: "Archive",
+        slug: "old-plans",
+        parentId: "folder-team",
+        kind: "folder",
+        ownerUserId: "u-1",
+        role: "owner",
+      });
+      const drive = yield* setup(fake);
+      yield* drive.linkDocument({ threadId: "t-1", reference: DOC_ID, source: "agent" });
+
+      const moved = yield* drive.moveDocument(DOC_ID, "old-plans");
+      expect(moved).toMatchObject({ folderId: "folder-archive", folderSlug: "old-plans" });
+      const [link] = yield* drive.listThreadLinks("t-1");
+      expect(link?.snapshot?.folderSlug).toBe("old-plans");
+
+      expect((yield* drive.setDocumentArchived(DOC_ID, true)).archived).toBe(true);
+      expect((yield* drive.setDocumentArchived(DOC_ID, false)).archived).toBe(false);
+
+      const promoted = yield* drive.promoteVersion(DOC_ID, 1);
+      expect(promoted.version).toBe(1);
+      expect(yield* drive.readDocument(DOC_ID)).toMatchObject({ version: 1, text: "# Plan v1" });
+    }).pipe(Effect.scoped, Effect.provide(testLayer)),
+  );
+
+  it.effect("reports a slug collision on move as a conflict", () =>
+    Effect.gen(function* () {
+      const fake = makeFakeDrive();
+      fake.documents.set("9b8c7d6e-5f4a-4b3c-8d2e-1f0a9b8c7d6e", {
+        folderId: "folder-bob",
+        folderSlug: "bob-drive",
+        slug: "q3-plan",
+        title: "Bob's plan",
+        versions: ["mine"],
+      });
+      fake.folders.push({
+        id: "folder-bob",
+        name: "Bob",
+        slug: "bob-drive",
+        parentId: null,
+        kind: "shared",
+        ownerUserId: "u-1",
+        role: "owner",
+      });
+      const drive = yield* setup(fake);
+      const error = yield* Effect.flip(drive.moveDocument(DOC_ID, "bob-drive"));
+      expect(error.reason).toBe("conflict");
+    }).pipe(Effect.scoped, Effect.provide(testLayer)),
+  );
+
+  it.effect("creates a folder in the personal drive by default and lists it right away", () =>
+    Effect.gen(function* () {
+      const fake = makeFakeDrive();
+      const drive = yield* setup(fake);
+      expect(yield* drive.listFolders).toHaveLength(1);
+      const folder = yield* drive.createFolder({ name: "Research" });
+      expect(folder).toMatchObject({ name: "Research", parentId: "p", kind: "folder" });
+      expect((yield* drive.listFolders).map((entry) => entry.id)).toContain(folder.id);
+      const nested = yield* drive.createFolder({ name: "Notes", parent: "team-docs" });
+      expect(nested.parentId).toBe("folder-team");
     }).pipe(Effect.scoped, Effect.provide(testLayer)),
   );
 });
