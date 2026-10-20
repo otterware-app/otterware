@@ -33,7 +33,7 @@ export const layer = Layer.effect(
     const accounts = Effect.gen(function* () {
       const context = yield* account.current;
       if (Option.isNone(context)) return [];
-      return (yield* cloudCall(() => context.value.client.connections()))
+      return (yield* cloudCall(() => context.value.providers.connections()))
         .filter((connection) => connection.provider === "google" && required(connection.scopes))
         .map((connection) => ({ sub: `${PREFIX}${connection.id}`, email: connection.email }));
     });
@@ -59,7 +59,7 @@ export const layer = Layer.effect(
           const cached = tokens.get(key);
           if (cached && cached.expiresAt > now + 60_000 && cached.accessToken !== rejected)
             return cached.accessToken;
-          const result = yield* cloudCall(() => context.value.client.providerToken(id)).pipe(
+          const result = yield* cloudCall(() => context.value.providers.providerToken(id)).pipe(
             Effect.mapError(
               (error) =>
                 new CalendarProviderError({
@@ -83,23 +83,18 @@ export const layer = Layer.effect(
           if (input.source === "local") return local.connect(input);
           const context = yield* account.current;
           if (Option.isNone(context)) return local.connect(input);
-          const before = yield* cloudCall(() => context.value.client.connections());
-          const authorization = yield* cloudCall(() =>
-            context.value.client.connect(
-              "google",
-              ["openid", "email", "profile", ...GOOGLE_CALENDAR_SCOPES],
-              input.returnTo ?? context.value.cloudOrigin,
-            ),
-          );
+          const before = yield* cloudCall(() => context.value.providers.connections());
+          // The one Google consent Mail and Calendar share on this device.
+          const authorization = yield* cloudCall(() => context.value.providers.connect("google"));
           const waiting = {
             _tag: "waiting" as const,
             flowId: "cloud:google",
             authorizationUrl: authorization.url,
-            redirectUri: `${context.value.cloudOrigin}/v1/cloud/providers/google/callback`,
+            redirectUri: new URL(authorization.url).searchParams.get("redirect_uri") ?? "",
           };
           const connected = Stream.fromEffect(
             Effect.sleep("3 seconds").pipe(
-              Effect.andThen(cloudCall(() => context.value.client.connections())),
+              Effect.andThen(cloudCall(() => context.value.providers.connections())),
             ),
           ).pipe(
             Stream.repeat(Schedule.forever),
@@ -165,7 +160,7 @@ export const layer = Layer.effect(
                   code: "signed_out",
                   detail: "Sign in before disconnecting this Google account.",
                 });
-              yield* cloudCall(() => context.value.client.disconnect(sub.slice(PREFIX.length)));
+              yield* cloudCall(() => context.value.providers.disconnect(sub.slice(PREFIX.length)));
               tokens.clear();
             })
           : Effect.void,

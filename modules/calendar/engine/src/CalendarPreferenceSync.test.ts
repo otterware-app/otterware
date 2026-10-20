@@ -13,7 +13,11 @@ import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
 import * as SqlClient from "effect/sql/SqlClient";
 import { SqlitePersistenceMemory } from "../test/Sqlite.ts";
-import { CalendarAccountSession, type CalendarCloudContext } from "./CalendarAccountSession.ts";
+import {
+  CalendarAccountSession,
+  cloudProviders,
+  type CalendarCloudContext,
+} from "./CalendarAccountSession.ts";
 import { makePreferenceSync } from "./CalendarPreferenceSync.ts";
 
 const database = SqlitePersistenceMemory.pipe(Layer.provideMerge(NodeServices.layer));
@@ -24,6 +28,9 @@ const setup = Effect.gen(function* () {
   const cloud = (accountId: string): CalendarCloudContext => ({
     accountId,
     cloudOrigin: "https://cloud.test",
+    get providers() {
+      return cloudProviders(this.client, this.cloudOrigin);
+    },
     client: new OtterCloudClient({
       origin: "https://cloud.test",
       audience: "env",

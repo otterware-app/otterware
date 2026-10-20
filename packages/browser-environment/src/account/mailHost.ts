@@ -17,24 +17,38 @@ import * as Option from "effect/Option";
 import * as Stream from "effect/Stream";
 
 import { BrowserAccount } from "./BrowserAccount.ts";
+import { BrowserGoogle } from "./BrowserGoogle.ts";
 
 export const layerMailHost = Layer.effect(
   MailBrowserHost,
   Effect.gen(function* () {
     const account = yield* BrowserAccount;
+    const google = yield* BrowserGoogle;
     const read = Effect.gen(function* () {
       const cloud = yield* Effect.option(account.cloud);
       const credential = yield* account.credential;
       if (Option.isNone(cloud) || Option.isNone(credential)) return Option.none();
+      const client = cloud.value.client;
       const mail: MailBrowserAccount = {
         accountId: cloud.value.accountId,
         cloudOrigin: credential.value.cloudOrigin,
-        client: cloud.value.client,
+        // Account data through Cloud; Google from this browser's own grants.
+        client: {
+          connections: async () => [...(await google.connections())],
+          providerToken: google.providerToken,
+          push: (records) => client.push(records),
+          pull: (cursor) => client.pull(cursor),
+          request: (...args) => client.request(...args),
+        },
         subscribe: (listener) => {
           const fiber = Effect.runFork(
             Stream.runForEach(account.events, (event) => Effect.sync(() => listener(event))),
           );
-          return () => void Effect.runFork(Fiber.interrupt(fiber));
+          const stop = google.subscribe(() => listener({ type: "connections.changed" }));
+          return () => {
+            stop();
+            void Effect.runFork(Fiber.interrupt(fiber));
+          };
         },
       };
       return Option.some(mail);

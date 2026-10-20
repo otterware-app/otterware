@@ -2,7 +2,7 @@ import { OTTER_ACCOUNTS_URL } from "@t3tools/shared/otterAccounts";
 import { ensureLocalApi } from "../../localApi";
 /**
  * Settings › Account (ADR 0020): the Otter Account this client is signed in
- * to, and the environment it is attached to. Modules add their own rows here
+ * to, the environment's own sign-in and provider connections, and every session. Modules add their own rows here
  * (Mail's devices and agent tokens, Drive's API keys) through a settings page
  * placed on `account`; they never draw an account screen of their own.
  */
@@ -16,6 +16,7 @@ import { Button } from "../../components/ui/button";
 import { useAuth } from "../../accounts/AccountProvider";
 import { useModuleEnvironmentId } from "../browser/moduleEndpoint";
 import { AccountConnections } from "./AccountConnections";
+import { AccountSessions } from "./AccountSessions";
 
 export function AccountSettingsPage() {
   const auth = useAuth();
@@ -72,9 +73,10 @@ export function AccountSettingsPage() {
       </SettingsSection>
       {environmentId !== null ? (
         <SettingsSection id="account-environment" title="Environment">
-          <AccountConnections environmentId={environmentId} accountOnly />
+          <AccountConnections environmentId={environmentId} />
         </SettingsSection>
       ) : null}
+      <AccountSessions />
     </SettingsPageContainer>
   );
 }

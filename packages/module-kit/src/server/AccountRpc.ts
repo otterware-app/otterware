@@ -12,29 +12,42 @@ export const accountHandlers = Effect.gen(function* () {
         if (Option.isNone(service)) throw new Error("Account services are unavailable.");
         return run(service.value);
       },
-      catch: () =>
+      // Host messages are written for people and carry no credentials.
+      catch: (cause) =>
         new AccountSessionError({
           message:
-            "Could not connect to your Otter Account. Sign in again or check this environment's connection.",
+            cause instanceof Error
+              ? cause.message
+              : "Could not connect to your Otter Account. Sign in again or check this environment's connection.",
         }),
     });
-  const connected = (host: OtterAccountSession["Service"]) => {
-    const account = host.current();
-    if (!account) throw new Error("Sign in to your Otter Account.");
+  /** Provider grants belong to this device, not to Cloud; headless servers have none (VMs deferred). */
+  const device = (host: OtterAccountSession["Service"]) => {
+    const account = host.providerAccount();
+    if (!account)
+      throw new Error(
+        host.current()
+          ? "Google can't be connected on this environment yet."
+          : "Sign this environment in to your Otter Account first.",
+      );
     return account;
   };
   return AccountRpcGroup.of({
-    "account.session.attach": ({ accessToken }) =>
-      call(async (host) => ({ accountId: await host.attach(accessToken) })),
-    "account.session.detach": () => call((host) => host.detach()),
     "account.session.state": () =>
-      call(async (host) => ({ accountId: host.current()?.accountId ?? null })),
-    "account.connections.list": () => call((host) => connected(host).connections()),
-    "account.connections.connect": ({ provider, scopes, returnTo }) =>
-      call((host) => connected(host).client.connect(provider, scopes, returnTo)),
-    "account.connections.disconnect": ({ connectionId }) =>
       call(async (host) => {
-        await connected(host).client.disconnect(connectionId);
+        const account = host.current();
+        return {
+          accountId: account?.accountId ?? null,
+          email: account?.email ?? null,
+          ...host.status(),
+        };
       }),
+    "account.session.signIn": () => call((host) => host.signIn()),
+    "account.session.signOut": () => call((host) => host.signOut()),
+    "account.connections.list": () =>
+      call(async (host) => [...(await (host.providerAccount()?.connections() ?? []))]),
+    "account.connections.connect": ({ provider }) => call((host) => device(host).connect(provider)),
+    "account.connections.disconnect": ({ connectionId }) =>
+      call((host) => device(host).disconnect(connectionId)),
   });
 });

@@ -17,6 +17,7 @@ import * as Layer from "effect/Layer";
 import * as FetchHttpClient from "effect/http/FetchHttpClient";
 
 import * as BrowserAccount from "./account/BrowserAccount.ts";
+import * as BrowserGoogle from "./account/BrowserGoogle.ts";
 import { layerAccountCredential } from "./account/credential.ts";
 import { layerAccountHandlers } from "./account/handlers.ts";
 import { layerHomeAccount, layerMailFollowsAccount, layerMailHost } from "./account/mailHost.ts";
@@ -76,6 +77,7 @@ export const layerHost =
       Layer.provideMerge(
         Layer.mergeAll(layerAccountCredential, layerMailHost, layerHomeAccount, layerMailPage),
       ),
+      Layer.provideMerge(BrowserGoogle.layer.pipe(Layer.provide(BrowserSecrets.layer))),
       Layer.provideMerge(BrowserAccount.layer),
       Layer.provideMerge(BrowserInstallation.layer),
       Layer.provideMerge(layerHttpClient),

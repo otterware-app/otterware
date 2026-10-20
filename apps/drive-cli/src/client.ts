@@ -1,5 +1,10 @@
 import { apiErrorSchema } from "@otterware/drive-contracts/api";
-import type { Profile } from "./config";
+import { DRIVE_CLOUD_AUDIENCE } from "@otterware/drive-contracts/constants";
+import { driveCapability, freshGrant } from "./account";
+import { profileNameOf, updateProfile, type Profile } from "./config";
+
+/** One capability per process and profile; Cloud's capabilities last 15 minutes. */
+const capabilities = new WeakMap<Profile, { token: string; at: number }>();
 
 export class ApiClient {
   readonly baseUrl: string;
@@ -11,11 +16,18 @@ export class ApiClient {
   }
 
   async request<T>(path: string, init: RequestInit & { raw?: boolean } = {}): Promise<T> {
+    const url = path.startsWith("http") ? path : `${this.baseUrl}${path}`;
+    // Credentials go only to the configured API, never to a server-supplied upload host.
+    if (new URL(url).origin !== new URL(this.baseUrl).origin)
+      throw new Error(`Refusing to send Drive credentials to ${new URL(url).origin}.`);
     const headers = new Headers(init.headers);
     headers.set("accept", init.raw ? "*/*" : "application/json");
     if (this.profile.apiKey) headers.set("x-api-key", this.profile.apiKey);
     if (this.profile.accessToken) {
       headers.set("authorization", `Bearer ${this.profile.accessToken}`);
+    } else if (this.profile.accountGrant && !this.profile.apiKey) {
+      headers.set("authorization", `Bearer ${await this.capability()}`);
+      headers.set("x-otter-audience", DRIVE_CLOUD_AUDIENCE);
     }
     if (this.profile.folderId) {
       headers.set("x-otterdrive-folder", this.profile.folderId);
@@ -24,7 +36,7 @@ export class ApiClient {
       headers.set("content-type", "application/json");
     }
 
-    const response = await fetch(path.startsWith("http") ? path : `${this.baseUrl}${path}`, {
+    const response = await fetch(url, {
       ...init,
       headers,
     });
@@ -34,7 +46,9 @@ export class ApiClient {
       const generic =
         typeof body === "object" && body !== null ? (body as Record<string, unknown>) : null;
       const message = parsed.success
-        ? parsed.data.error.message
+        ? parsed.data.error.code === "identity_conflict"
+          ? "Your Drive account was created before Otter Accounts and needs a one-time migration. Contact Otterware support, or use an API key meanwhile."
+          : parsed.data.error.message
         : typeof generic?.error === "string"
           ? `${generic.error}: ${String(generic.error_description ?? generic.message ?? "")}`
           : `${response.status} ${response.statusText}`;
@@ -43,6 +57,21 @@ export class ApiClient {
     if (init.raw) return response as T;
     if (response.status === 204) return undefined as T;
     return (await response.json()) as T;
+  }
+
+  private async capability(): Promise<string> {
+    const cached = capabilities.get(this.profile);
+    if (cached && Date.now() - cached.at < 14 * 60_000) return cached.token;
+    const previous = this.profile.accountGrant!;
+    const grant = await freshGrant(previous);
+    if (grant !== previous) {
+      this.profile.accountGrant = grant;
+      const name = profileNameOf(this.profile);
+      if (name) await updateProfile(name, { accountGrant: grant }, false);
+    }
+    const token = await driveCapability(grant, this.baseUrl);
+    capabilities.set(this.profile, { token, at: Date.now() });
+    return token;
   }
 
   get<T>(path: string): Promise<T> {

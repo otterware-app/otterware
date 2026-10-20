@@ -1,4 +1,4 @@
-import { mailHost } from "../../host/bridge";
+import { connectMailbox } from "../../host/bridge";
 import { mailRoot } from "../../host/dom";
 import { HintTooltip as ImportedMailTooltip } from "../gmail/ui";
 import { useEffect, useRef, useState } from "react";
@@ -21,7 +21,12 @@ import {
 } from "../gmail/hooks";
 import { RichTextArea, type RichTextRef } from "../gmail/rich-text";
 import { ImapPasswordForm } from "../gmail/add-mailbox";
-import { capabilitiesOf, mailServerName, signsInWithPassword } from "../gmail/capabilities";
+import {
+  capabilitiesOf,
+  mailServerName,
+  signsInWithGoogle,
+  signsInWithPassword,
+} from "../gmail/capabilities";
 import {
   ACCOUNT_COLOR_PALETTE,
   getAccountColor,
@@ -152,6 +157,22 @@ function ColorPicker({
 
 /** Sync state for an account, with a signed-out account called out first. */
 function accountStatus(account: GmailAccount, status: SyncStatus | undefined): StatusLine {
+  // IMAP settings follow the Otter Account; the password never leaves the device that has it.
+  if (account.signedOut && signsInWithPassword(account)) {
+    return {
+      text: "Needs its password on this device",
+      tone: "muted",
+      detail: "Mailbox passwords are never synced. Enter it once here to sync this mailbox.",
+    };
+  }
+  // The mailbox list follows the account; Google authorization is per device.
+  if (account.signedOut && signsInWithGoogle(account)) {
+    return {
+      text: "Needs Google on this device",
+      tone: "muted",
+      detail: "Google is connected per device. Connect it here to sync this mailbox.",
+    };
+  }
   // Never synced here: it was added on another device (through the Otter account).
   if (account.signedOut && status && !status.lastSyncAt) {
     return {
@@ -227,7 +248,7 @@ function AccountAvatar({
  */
 function SignInButton({ email: _email, label }: { email?: string | undefined; label: string }) {
   return (
-    <Btn size="sm" onClick={() => mailHost().navigate("/settings/connections")}>
+    <Btn size="sm" onClick={connectMailbox}>
       {label}
     </Btn>
   );
@@ -461,7 +482,10 @@ function AccountEditor({ account }: { account: GmailAccount }) {
             account.signedOut && signsInWithPassword(account) ? (
               <ImapPasswordForm account={account} />
             ) : account.signedOut ? (
-              <SignInButton email={account.email} label="Sign in" />
+              <SignInButton
+                email={account.email}
+                label={signsInWithGoogle(account) ? "Connect Google on this device" : "Sign in"}
+              />
             ) : (
               <Btn size="sm" disabled={syncing || sync.data?.syncing} onClick={syncNow}>
                 <RotateCwIcon

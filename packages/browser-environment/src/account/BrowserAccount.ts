@@ -50,6 +50,8 @@ export class BrowserAccount extends Context.Service<
     readonly changes: Stream.Stream<BrowserAccountState>;
     /** The page's sign-in, for module engines that exchange it themselves. */
     readonly credential: Effect.Effect<Option.Option<BrowserAccountCredential>>;
+    /** The current suite session token, for Otter services that take it as a bearer. */
+    readonly sessionToken: Effect.Effect<Option.Option<string>>;
     /** The account's Cloud client; fails `signed-out` while none is attached. */
     readonly cloud: Effect.Effect<CloudAccount, BrowserAccountError>;
     /** Channel events (push, `sync.changed`, `connections.changed`) while signed in. */
@@ -230,6 +232,7 @@ export const layer = Layer.effect(
       state: SubscriptionRef.get(state),
       changes: SubscriptionRef.changes(state),
       credential: Effect.sync(() => Option.fromNullishOr(attached?.credential)),
+      sessionToken: Effect.sync(() => Option.fromNullishOr(attached?.session.token)),
       cloud: Effect.suspend(() =>
         attached === null ? Effect.fail(signedOut()) : Effect.succeed(attached.account),
       ),

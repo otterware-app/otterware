@@ -11,7 +11,14 @@ import { MailToolkit, toolHandlers } from "./MailToolkit.ts";
 export { MailRuntime } from "./MailRuntime.ts";
 
 const rpcHandlers = Effect.gen(function* () {
-  const runtime = yield* MailRuntime;
+  const engine = yield* MailRuntime;
+  // Handlers that finish without a value answer null: `undefined` is not JSON, and an
+  // `Unknown` success would fail to encode (Mail preferences never synced).
+  const runtime: typeof engine = {
+    ...engine,
+    call: (operation, input) =>
+      Effect.map(engine.call(operation, input), (value) => (value === undefined ? null : value)),
+  };
   return MailContract.group.of({
     "mail.gmail.addOutlookAccount": (input) => runtime.call("gmail:addOutlookAccount", input),
     "mail.gmail.mailProviders": (input) =>

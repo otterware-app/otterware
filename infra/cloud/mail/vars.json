@@ -8,6 +8,7 @@
   "GOOGLE_LEGACY_CLIENT_IDS": "187875144740-aspevse90oidb4ra3t2fcdfmbagm6jep.apps.googleusercontent.com,187875144740-tegr2te43tofcdogbr72tesmfcg3vbk3.apps.googleusercontent.com,187875144740-vu3ordog4vcqnn0nvh2o4jocvtbkbbdi.apps.googleusercontent.com",
   "GOOGLE_WEB_CLIENT_ID": "187875144740-drhr59ablkv4ovonrjisd7fj5dv28d6o.apps.googleusercontent.com",
   "APP_ORIGIN": "https://mail.otterware.app",
+  "SUITE_ORIGINS": "https://code.otterware.app,https://nightly.code.otterware.app",
   "DRIVE_ORIGIN": "https://drive.otterware.app",
   "COOKIE_DOMAIN": "mail.otterware.app",
   "PUSH_TOPIC": "projects/otterware/topics/gmail-push",

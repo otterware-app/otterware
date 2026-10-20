@@ -187,6 +187,13 @@ export function codeIdentity(env: Env, db: Db) {
               where: eq(oauthRefreshToken.token, refreshHash),
             });
             if (!refresh || refresh.revoked) throw new APIError("INTERNAL_SERVER_ERROR");
+            // Device-flow grants have no authorization code. Rotation copies this ID forward, so
+            // every sign-in is one grant: it can hold a suite session and be listed or revoked.
+            if (!refresh.authorizationCodeId)
+              await db
+                .update(oauthRefreshToken)
+                .set({ authorizationCodeId: `grant:${refresh.id}` })
+                .where(eq(oauthRefreshToken.id, refresh.id));
             // JWTs normally have no revocation record. Code uses the provider's grant table
             // as well so native sign-out revokes access immediately, without a second identity store.
             await db
@@ -281,6 +288,71 @@ export function codeIdentity(env: Env, db: Db) {
           user: { id: user.id, email: user.email, name: user.name || null, image: user.image },
         });
       }),
+      /** Every app, device and command line signed in to this account, one row per sign-in. */
+      codeGrants: createAuthEndpoint("/code/grants", { method: "GET" }, async (ctx) => {
+        const { user, grant } = await identity(ctx);
+        const rows = await db.query.oauthRefreshToken.findMany({
+          where: and(
+            eq(oauthRefreshToken.userId, user.id),
+            isNull(oauthRefreshToken.revoked),
+            gt(oauthRefreshToken.expiresAt, new Date()),
+          ),
+          orderBy: [desc(oauthRefreshToken.createdAt)],
+        });
+        const grants = new Map<string, { clientId: string; usedAt: number }>();
+        for (const row of rows)
+          if (row.authorizationCodeId && !grants.has(row.authorizationCodeId))
+            grants.set(row.authorizationCodeId, {
+              clientId: row.clientId,
+              usedAt: row.createdAt.getTime(),
+            });
+        return ctx.json({
+          grants: [...grants].map(([id, row]) => ({
+            id,
+            clientId: row.clientId,
+            usedAt: row.usedAt,
+            current: id === grant.authorizationCodeId,
+          })),
+        });
+      }),
+      revokeCodeGrant: createAuthEndpoint(
+        "/code/grants/revoke",
+        { method: "POST" },
+        async (ctx) => {
+          const { user } = await identity(ctx);
+          const body: unknown = ctx.body;
+          const id =
+            body && typeof body === "object" && "id" in body && typeof body.id === "string"
+              ? body.id
+              : null;
+          if (!id) throw new APIError("BAD_REQUEST");
+          const now = new Date();
+          const chain = and(
+            eq(oauthRefreshToken.userId, user.id),
+            eq(oauthRefreshToken.authorizationCodeId, id),
+          );
+          const revoked = await db
+            .update(oauthRefreshToken)
+            .set({ revoked: now })
+            .where(and(chain, isNull(oauthRefreshToken.revoked)))
+            .returning({ id: oauthRefreshToken.id });
+          for (const row of revoked)
+            await db
+              .update(oauthAccessToken)
+              .set({ revoked: now })
+              .where(eq(oauthAccessToken.refreshId, row.id));
+          // The suite session derived from this sign-in ends with it (Mail, Calendar, Drive, Cloud).
+          const link = await db.query.suiteSession.findFirst({
+            where: eq(suiteSession.authorizationCodeId, id),
+          });
+          const device = link
+            ? await db.query.session.findFirst({ where: eq(session.id, link.sessionId) })
+            : null;
+          if (device?.userId === user.id)
+            await ctx.context.internalAdapter.deleteSession(device.token);
+          return ctx.json({ revoked: revoked.length > 0 });
+        },
+      ),
       codeSession: createAuthEndpoint("/code/session", { method: "GET" }, async (ctx) => {
         const { user } = await identity(ctx);
         return ctx.json({

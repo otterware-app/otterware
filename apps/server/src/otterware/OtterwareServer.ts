@@ -12,7 +12,6 @@ import * as AccountSession from "./AccountSession.ts";
  * the two hooks contribute nothing.
  */
 import { OtterwareWsRpcGroup } from "@otterware/composition/contracts";
-import * as CalendarAccountCredential from "./CalendarAccountCredential.ts";
 import * as HomeAccount from "./HomeAccount.ts";
 import * as Composition from "@otterware/composition/server";
 import type { ModuleToolCallerScope } from "@otterware/module-kit/engine";
@@ -81,7 +80,6 @@ export const layer = layerHostRpcHandlers.pipe(
       Effect.map(ServerConfig.ServerConfig, (config) => Composition.layer(config.stateDir)),
     ),
   ),
-  Layer.provide(CalendarAccountCredential.layer),
   Layer.provide(HomeAccount.layer),
   Layer.provideMerge(AccountSession.layer),
   Layer.provide(CodeHomeContributor.layerHostContributors),

@@ -40,6 +40,8 @@ export const BrowserAccountCredential = Schema.Struct({
   accountsUrl: Schema.String,
   /** Otter Cloud's origin, e.g. `https://cloud.otterware.app`. */
   cloudOrigin: Schema.String,
+  /** Otter Mail's relay, which seals this browser's Google grants (`BrowserGoogle`). */
+  mailRelayUrl: Schema.optional(Schema.String),
 });
 export type BrowserAccountCredential = typeof BrowserAccountCredential.Type;
 
@@ -50,6 +52,7 @@ export const BROWSER_ACCOUNT_METHODS = {
   connections: "browser.account.connections",
   connect: "browser.account.connect",
   disconnect: "browser.account.disconnect",
+  saveGoogle: "browser.account.saveGoogle",
 } as const;
 
 export const BrowserAccountRpcGroup = RpcGroup.make(
@@ -70,7 +73,7 @@ export const BrowserAccountRpcGroup = RpcGroup.make(
     success: Schema.Struct({ connections: Schema.Array(Connection) }),
     error: BrowserAccountError,
   }),
-  /** Starts connecting a provider account; the page opens the returned URL. */
+  /** Starts connecting Google in this browser; the page opens the returned URL in a popup. */
   Rpc.make(BROWSER_ACCOUNT_METHODS.connect, {
     payload: Schema.Struct({
       provider: Provider,
@@ -80,8 +83,14 @@ export const BrowserAccountRpcGroup = RpcGroup.make(
     success: Schema.Struct({ url: Schema.String }),
     error: BrowserAccountError,
   }),
+  /** Forgets a Google grant in this browser only (Google revokes per project, not per device). */
   Rpc.make(BROWSER_ACCOUNT_METHODS.disconnect, {
     payload: Schema.Struct({ connectionId: Schema.String }),
+    error: BrowserAccountError,
+  }),
+  /** Keeps the sealed grant the relay's popup handed the page. */
+  Rpc.make(BROWSER_ACCOUNT_METHODS.saveGoogle, {
+    payload: Schema.Struct({ email: Schema.String, sealed: Schema.String }),
     error: BrowserAccountError,
   }),
 );
