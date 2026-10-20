@@ -65,34 +65,7 @@ export function AccountProvider({ children }: { readonly children: ReactNode }) 
     signIn: async () => {
       setError(null);
       try {
-        const config = resolveCloudPublicConfig();
-        const redirectUri = makeRedirectUri({
-          native: `${Constants.expoConfig?.scheme ?? "ottercode"}://account/callback`,
-        });
-        const request = new AuthRequest({
-          clientId: ACCOUNT_CLIENT_IDS.mobile,
-          redirectUri,
-          responseType: ResponseType.Code,
-          scopes: [...ACCOUNT_OAUTH_SCOPES],
-          usePKCE: true,
-          extraParams: { resource: config.relay.url! },
-        });
-        const result = await request.promptAsync({
-          authorizationEndpoint: `${config.accounts.url}/oauth2/authorize`,
-        });
-        if (result.type === "cancel" || result.type === "dismiss") return;
-        if (
-          result.type !== "success" ||
-          !result.params.code ||
-          !request.codeVerifier ||
-          result.params.iss !== config.accounts.url
-        )
-          throw new Error("Sign-in could not be completed. Please try again.");
-        await manager.signIn({
-          code: result.params.code,
-          verifier: request.codeVerifier,
-          redirectUri,
-        });
+        await authorizeMobileAccount(manager);
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Sign-in could not be completed.");
       }
@@ -140,3 +113,36 @@ export function AccountProvider({ children }: { readonly children: ReactNode }) 
 }
 
 export const useAuth = () => useContext(AccountContext);
+
+async function authorizeMobileAccount(
+  manager: Pick<ReturnType<typeof createAccountSession>, "signIn">,
+) {
+  const config = resolveCloudPublicConfig();
+  const redirectUri = makeRedirectUri({
+    native: `${Constants.expoConfig?.scheme ?? "ottercode"}://account/callback`,
+  });
+  const request = new AuthRequest({
+    clientId: ACCOUNT_CLIENT_IDS.mobile,
+    redirectUri,
+    responseType: ResponseType.Code,
+    scopes: [...ACCOUNT_OAUTH_SCOPES],
+    usePKCE: true,
+    extraParams: { resource: config.relay.url! },
+  });
+  const result = await request.promptAsync({
+    authorizationEndpoint: `${config.accounts.url}/oauth2/authorize`,
+  });
+  if (result.type === "cancel" || result.type === "dismiss") return;
+  if (
+    result.type !== "success" ||
+    !result.params.code ||
+    !request.codeVerifier ||
+    result.params.iss !== config.accounts.url
+  )
+    throw new Error("Sign-in could not be completed. Please try again.");
+  await manager.signIn({
+    code: result.params.code,
+    verifier: request.codeVerifier,
+    redirectUri,
+  });
+}

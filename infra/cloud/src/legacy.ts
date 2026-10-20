@@ -49,8 +49,10 @@ export function mailEnv(env: Env): MailEnv {
     ACCOUNTS: env.ACCOUNTS,
     USER_HUB: env.LEGACY_USER_HUB,
     AGENT_HUB: env.LEGACY_AGENT_HUB,
-    GOOGLE_WEB_CLIENT_SECRET: env.LEGACY_GOOGLE_WEB_CLIENT_SECRET ?? "",
-    GOOGLE_GMAIL_CLIENT_SECRET: env.GOOGLE_PROVIDER_CLIENT_SECRET,
+    GOOGLE_GMAIL_CLIENT_SECRET: env.GOOGLE_PROVIDER_CLIENT_SECRET ?? "",
+    MICROSOFT_CLIENT_ID: env.MICROSOFT_PROVIDER_CLIENT_ID,
+    MICROSOFT_CLIENT_SECRET: env.MICROSOFT_PROVIDER_CLIENT_SECRET ?? "",
+    MICROSOFT_DESKTOP_CLIENT_IDS: accountsVars.MICROSOFT_CLIENT_ID,
     BETTER_AUTH_SECRET: env.MAIL_SECRET ?? "",
     APNS_TEAM_ID: env.APNS_TEAM_ID,
     APNS_KEY_ID: env.APNS_KEY_ID,
@@ -94,6 +96,8 @@ export async function drive(request: Request, env: Env, parallel: boolean) {
   try {
     if (url.pathname === "/device") return await deviceApproval(request, bindings);
     if (url.pathname.startsWith("/api/v1/")) {
+      if (request.method === "GET" && url.pathname.startsWith("/api/v1/links/"))
+        return driveApi(request, bindings);
       // Provision from the authenticated Accounts subject, never an email match.
       if (request.headers.has("x-otter-audience")) {
         const identity = await cloudAuthenticate(request, env);

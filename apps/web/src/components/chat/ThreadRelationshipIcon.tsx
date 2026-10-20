@@ -1,5 +1,6 @@
 import type { ProviderDriverKind, ServerProvider } from "@t3tools/contracts";
-import { BotIcon, type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "~/lib/icons";
+import { BotIcon } from "~/lib/icons";
 import { cn } from "../../lib/utils";
 import { ProviderInstanceIcon } from "./ProviderInstanceIcon";
 
@@ -42,7 +43,6 @@ export function threadRelationshipStatusLabel(status: string | null): string {
   }
 }
 
-/** Shared by lineage and timeline links, including the provider glyph and status badge. */
 export function ThreadRelationshipIcon({
   driver,
   provider,

@@ -1,3 +1,4 @@
+import { needsSignIn } from "../gmail/sync-health";
 import { connectMailbox } from "../../host/bridge";
 import { mailRoot } from "../../host/dom";
 import { HintTooltip as ImportedMailTooltip } from "../gmail/ui";
@@ -181,7 +182,7 @@ function accountStatus(account: GmailAccount, status: SyncStatus | undefined): S
       detail: "Added on another device. Sign in to use it here.",
     };
   }
-  if (account.signedOut) {
+  if (needsSignIn(account, status)) {
     return {
       text: "Signed out",
       tone: "error",
@@ -254,9 +255,7 @@ function SignInButton({ email: _email, label }: { email?: string | undefined; la
   );
 }
 
-// ---------------------------------------------------------------------------
 // List
-// ---------------------------------------------------------------------------
 
 /** Row reordering (drag the grip): where a dragged mailbox would land. */
 type DropSpot = { email: string; after: boolean } | null;
@@ -392,9 +391,7 @@ function AllMailboxesRow({ on, onToggle }: { on: boolean; onToggle: (on: boolean
   );
 }
 
-// ---------------------------------------------------------------------------
 // Editor
-// ---------------------------------------------------------------------------
 
 /** The editor's signature: empty when it holds neither text nor an image. */
 function editedSignature(editor: RichTextRef): string {
@@ -479,9 +476,9 @@ function AccountEditor({ account }: { account: GmailAccount }) {
           title="Status"
           description={<StatusText status={status} />}
           control={
-            account.signedOut && signsInWithPassword(account) ? (
+            needsSignIn(account, sync.data) && signsInWithPassword(account) ? (
               <ImapPasswordForm account={account} />
-            ) : account.signedOut ? (
+            ) : needsSignIn(account, sync.data) ? (
               <SignInButton
                 email={account.email}
                 label={signsInWithGoogle(account) ? "Connect Google on this device" : "Sign in"}
@@ -606,9 +603,7 @@ function AccountEditor({ account }: { account: GmailAccount }) {
   );
 }
 
-// ---------------------------------------------------------------------------
 // Pane
-// ---------------------------------------------------------------------------
 
 export function AccountsPane() {
   const accountsQuery = useAccounts();

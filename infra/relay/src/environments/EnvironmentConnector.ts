@@ -22,6 +22,7 @@ import {
   type RelayLinearAgentSessionIssue,
   type RelayLinearAgentSessionOutcome,
   type RelayLinearAgentSessionProofPayload,
+  RelayEnvironmentEndpointFailure,
   type RelayEnvironmentConnectResponse,
   type RelayEnvironmentStatusResponse,
   type RelayManagedEndpoint,
@@ -54,6 +55,7 @@ import * as FetchHttpClient from "effect/http/FetchHttpClient";
 import * as HttpClient from "effect/http/HttpClient";
 import * as HttpClientError from "effect/http/HttpClientError";
 
+import { diagnoseEndpointFailure } from "./endpointFailure.ts";
 import * as EnvironmentLinks from "./EnvironmentLinks.ts";
 import * as ManagedEndpointAllocations from "./ManagedEndpointAllocations.ts";
 import * as RelayConfiguration from "../Config.ts";
@@ -113,6 +115,8 @@ export class EnvironmentMintRequestFailed extends Schema.TaggedError<Environment
       "linear_changes",
     ]),
     cause: Schema.Defect(),
+    endpointFailure: Schema.optionalKey(RelayEnvironmentEndpointFailure),
+    endpointStatus: Schema.optionalKey(Schema.Number),
   },
 ) {
   override get message(): string {
@@ -227,10 +231,6 @@ const isEnvironmentHealthError = Schema.is(
   ]),
 );
 
-/**
- * Cleanup deleted this environment's tunnel and nothing has recorded a new
- * one, so the host is unreachable until it updates and requests recovery.
- */
 function offlineReasonFor(
   allocation: ManagedEndpointAllocations.ManagedEndpointAllocation | null,
 ): { readonly offlineReason?: "tunnel_released" } {
@@ -369,14 +369,9 @@ export interface ManagedEndpointValidationFailure {
     RelayEnvironmentConnectNotAuthorizedReason,
     "client_proof_key_thumbprint_missing" | "environment_link_not_found"
   >;
-  /** Diagnostic span attributes; never contains secrets. */
   readonly attributes?: Record<string, string | boolean>;
 }
 
-/**
- * Checks that a link's relay-managed endpoint is backed by a ready allocation
- * on the configured base domain and still matches what the link recorded.
- */
 export function validateManagedEndpoint(input: {
   readonly link: EnvironmentLinks.RelayLinkedEnvironmentRecord;
   readonly allocation: ManagedEndpointAllocations.ManagedEndpointAllocation | null;
@@ -822,21 +817,25 @@ const make = Effect.gen(function* () {
           status: "offline" as const,
           checkedAt,
           error: "Managed endpoint health request timed out.",
+          endpointFailure: "timeout" as const,
           ...offlineReasonFor(allocation),
           traceId,
         };
       }
       if (responseOption.value._tag === "Failure") {
         const failureReason = environmentHealthRequestFailureReason(responseOption.value.cause);
+        const diagnosis = yield* diagnoseEndpointFailure(responseOption.value.cause);
         yield* Effect.annotateCurrentSpan({
           "relay.environment_health.outcome": "failure",
           "relay.environment_health.failure_reason": failureReason,
+          "relay.environment_health.endpoint_failure": diagnosis.endpointFailure,
           "relay.environment_health.trace_id": traceId,
         });
         yield* Effect.logWarning("Managed endpoint health request failed", {
           environmentId: link.environmentId,
           endpoint: endpoint.httpBaseUrl,
           failureReason,
+          endpointFailure: diagnosis.endpointFailure,
           traceId,
         });
         return {
@@ -845,6 +844,7 @@ const make = Effect.gen(function* () {
           status: "offline" as const,
           checkedAt,
           error: environmentHealthRequestFailureMessage(responseOption.value.cause),
+          ...diagnosis,
           ...offlineReasonFor(allocation),
           traceId,
         };
@@ -960,13 +960,19 @@ const make = Effect.gen(function* () {
         .t3MintCredential({ payload: { proof } })
         .pipe(
           withoutRedirects,
-          Effect.mapError(
-            (cause) =>
-              new EnvironmentMintRequestFailed({
-                environmentId: input.environmentId,
-                operation: "connect",
-                cause,
-              }),
+          Effect.catch((cause) =>
+            diagnoseEndpointFailure(cause).pipe(
+              Effect.flatMap((diagnosis) =>
+                Effect.fail(
+                  new EnvironmentMintRequestFailed({
+                    environmentId: input.environmentId,
+                    operation: "connect",
+                    cause,
+                    ...diagnosis,
+                  }),
+                ),
+              ),
+            ),
           ),
           Effect.timeoutOption(Duration.millis(ENVIRONMENT_MINT_REQUEST_TIMEOUT_MS)),
           Effect.flatMap(

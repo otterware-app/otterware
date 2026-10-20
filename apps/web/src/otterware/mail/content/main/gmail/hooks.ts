@@ -120,7 +120,6 @@ export function useExternalMailChanges(): void {
   useEffect(() => mailBridge.on("gmail:mail-changed", () => invalidateMailCaches(qc)), [qc]);
 }
 
-// ---- Query Keys ----
 export const queryKeys = {
   accounts: () => ["gmail:accounts"] as const,
   labels: (accountId: string) => ["gmail:labels", accountId] as const,
@@ -137,7 +136,6 @@ export const queryKeys = {
     ["gmail:combinedCounts", viewId, rules] as const,
 };
 
-// ---- Accounts ----
 export function useAccounts() {
   const qc = useQueryClient();
 
@@ -198,7 +196,6 @@ export function useUpdateAccount() {
   });
 }
 
-// ---- Labels ----
 export function useLabels(accountId: string | null) {
   return useQuery<GmailLabel[]>({
     queryKey: queryKeys.labels(accountId ?? ""),
@@ -327,7 +324,6 @@ export function usePruneThreadRows() {
   };
 }
 
-// ---- Messages (paginated) ----
 export function useMessages(accountId: string | null, labelId?: string) {
   return useInfiniteQuery<
     ListMessagesResult,
@@ -459,8 +455,6 @@ export function useGmailSearch(q: string, accountIds: string[], enabled = true) 
   });
 }
 
-// ---- Combined (cross-account) views ----
-
 /**
  * Cross-account message list for the Combined mailbox. `rules` are the view's
  * per-account filters (union across rules); `viewId` keys the cache per view.
@@ -577,8 +571,6 @@ export function useLabelResolver(
   return (accountId, labelId) => (accountId ? map.get(`${accountId}:${labelId}`) : undefined);
 }
 
-// ---- Threads ----
-
 /** All messages of a thread from the local store, oldest first. */
 export function useThread(accountId: string | null, threadId: string | null) {
   return useQuery<GmailMessageSummary[]>({
@@ -608,7 +600,6 @@ export function useThreads(
   return byKey;
 }
 
-// ---- Message Detail ----
 export function useMessage(accountId: string | null, messageId: string | null) {
   return useQuery<GmailMessageDetail>({
     queryKey: queryKeys.message(accountId ?? "", messageId ?? ""),
@@ -624,7 +615,6 @@ export function useMessage(accountId: string | null, messageId: string | null) {
   });
 }
 
-// ---- Optimistic update helpers ----
 //
 // Mutations below patch the cache in `onMutate` so the UI reacts instantly
 // (star/read/archive/trash felt laggy waiting on the Gmail round trip),
@@ -760,18 +750,31 @@ function applyLabelPatch<T extends GmailMessageSummary>(
   };
 }
 
-// ---- Mutations ----
-
-export function useAddAccount() {
+/**
+ * Adds a mailbox with its provider's sign-in in the browser: Google's for
+ * Gmail, Microsoft's for Outlook. Given an address, signs that mailbox back in.
+ */
+export function useAddAccount(provider: "gmail" | "outlook" = "gmail") {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (email?: string) => {
-      console.log("[hooks:useAddAccount] adding account", { email });
-      return gmailApi.addAccount(email);
+      console.log("[hooks:useAddAccount] adding account", { provider, email });
+      return provider === "outlook"
+        ? gmailApi.addOutlookAccount(email)
+        : gmailApi.addAccount(email);
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: queryKeys.accounts() });
     },
+  });
+}
+
+/** Which kinds of mailbox this app can add besides Gmail and IMAP (Outlook needs an OAuth client). */
+export function useMailProviders() {
+  return useQuery({
+    queryKey: ["gmail:mailProviders"],
+    queryFn: () => gmailApi.mailProviders(),
+    staleTime: Infinity,
   });
 }
 
@@ -1454,8 +1457,6 @@ export function useSuggestContacts(q: string, enabled = true) {
     placeholderData: (prev) => prev,
   });
 }
-
-// ---- Local-first sync ----
 
 /** Status poll cadence: quick while syncing, relaxed while downloading for offline, slow idle. */
 export function syncStatusPollMs(status: SyncStatus | undefined): number {

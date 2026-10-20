@@ -6,31 +6,30 @@ import {
   CircleX,
   Component,
   FileText,
-  Folder,
   Hash,
-  Info,
   KeyRound,
   LetterText,
   ListTree,
   Plug,
   SquareDashed,
-  TriangleAlert,
   Type,
   Variable,
   Wrench,
-  type LucideIcon,
 } from "lucide-react";
-import { memo, Suspense, use, useMemo, type CSSProperties, type ReactNode } from "react";
+import {
+  FolderIcon as Folder,
+  InfoIcon as Info,
+  TriangleAlertIcon as TriangleAlert,
+  type LucideIcon,
+} from "~/lib/icons";
+import { memo, Suspense, use, type CSSProperties, type ReactNode } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
-
 import { useTheme } from "~/hooks/useTheme";
 import { resolveDiffThemeName } from "~/lib/diffRendering";
 import { getSyntaxHighlighterPromise } from "~/lib/syntaxHighlighting";
 import { cn } from "~/lib/utils";
-
 import { RenderErrorBoundary } from "../RenderErrorBoundary";
 import type { PopupAnchor } from "./fileCodeDom";
-
 export interface CodeInfo {
   display: string;
   documentation: string;
@@ -42,23 +41,19 @@ export interface CodeInfo {
   language?: string | undefined;
   anchor: PopupAnchor;
 }
-
 const POPUP_CLASS =
   "fixed z-50 overflow-hidden rounded-sm border border-border bg-popover text-popover-foreground shadow-md";
-
 /** Widest a popup may grow from its anchor without leaving the window. */
 const popupStyle = (anchor: PopupAnchor, width: number): CSSProperties => ({
   ...anchor,
   ...(anchor.bottom === undefined ? {} : { maxHeight: `calc(100vh - ${anchor.bottom + 8}px)` }),
   maxWidth: `min(${width}px, calc(100vw - ${anchor.left + 8}px))`,
 });
-
 /** VS Code's `source(code)` suffix, e.g. `ts(2322)` or `Pyright(reportAttributeAccessIssue)`. */
 export function diagnosticLabel(item: CodeDiagnostic) {
   const source = item.source ?? "ts";
   return item.code === "" ? source : `${source}(${item.code})`;
 }
-
 function SeverityIcon(props: { severity: CodeDiagnostic["severity"] }) {
   const [Icon, color] =
     props.severity === "error"
@@ -68,7 +63,6 @@ function SeverityIcon(props: { severity: CodeDiagnostic["severity"] }) {
         : [Info, "text-info"];
   return <Icon aria-hidden className={cn("mt-[3px] size-3.5 shrink-0", color)} />;
 }
-
 /** One problem: severity icon, message, and a muted source and position. */
 export function ProblemLine(props: { item: CodeDiagnostic; position?: boolean }) {
   const { item } = props;
@@ -85,23 +79,20 @@ export function ProblemLine(props: { item: CodeDiagnostic; position?: boolean })
     </span>
   );
 }
-
 interface CodeToken {
   content: string;
   color?: string;
   fontStyle?: number;
 }
-
 const tokenStyle = (token: CodeToken): CSSProperties => ({
   ...(token.color ? { color: token.color } : {}),
   ...((token.fontStyle ?? 0) & 1 ? { fontStyle: "italic" } : {}),
   ...((token.fontStyle ?? 0) & 2 ? { fontWeight: 600 } : {}),
 });
-
 function ShikiLines(props: { code: string; language: string }) {
   const { resolvedTheme } = useTheme();
   const highlighter = use(getSyntaxHighlighterPromise(props.language));
-  const lines = useMemo(() => {
+  const lines = (() => {
     try {
       return highlighter.codeToTokens(props.code, {
         lang: props.language,
@@ -110,7 +101,7 @@ function ShikiLines(props: { code: string; language: string }) {
     } catch {
       return null;
     }
-  }, [highlighter, props.code, props.language, resolvedTheme]);
+  })();
   if (!lines) return props.code;
   return lines.map((line, row) => (
     // Lines of a fixed snippet never reorder.
@@ -125,7 +116,6 @@ function ShikiLines(props: { code: string; language: string }) {
     </span>
   ));
 }
-
 /** A code snippet colored like the editor, falling back to plain text while Shiki loads. */
 const HighlightedCode = memo(function HighlightedCode(props: {
   code: string;
@@ -140,7 +130,6 @@ const HighlightedCode = memo(function HighlightedCode(props: {
     </RenderErrorBoundary>
   );
 });
-
 /** Signature help renders plainly with the active parameter underlined, as in VS Code. */
 function SignatureLabel(props: { label: string; parameter: string }) {
   const at = props.parameter ? props.label.indexOf(props.parameter) : -1;
@@ -155,9 +144,7 @@ function SignatureLabel(props: { label: string; parameter: string }) {
     </>
   );
 }
-
 const CODE_TEXT = "font-mono text-xs leading-4.5";
-
 function markdownComponents(language: string | undefined): Components {
   return {
     pre: ({ children }) => (
@@ -182,7 +169,6 @@ function markdownComponents(language: string | undefined): Components {
     ol: ({ children }) => <ol className="my-1 list-decimal pl-5">{children}</ol>,
   };
 }
-
 /** A footer link in a hover, like VS Code's "Go to Definition (F12)". */
 export function CodeInfoAction(props: { label: string; shortcut?: string; onClick: () => void }) {
   return (
@@ -198,7 +184,6 @@ export function CodeInfoAction(props: { label: string; shortcut?: string; onClic
     </button>
   );
 }
-
 /** Hover documentation, signature help, and problems under the pointer. */
 export function CodeInfoCard(props: {
   info: CodeInfo;
@@ -208,7 +193,7 @@ export function CodeInfoCard(props: {
   onPointerLeave?: () => void;
 }) {
   const { info } = props;
-  const components = useMemo(() => markdownComponents(info.language), [info.language]);
+  const components = markdownComponents(info.language);
   const sections: ReactNode[] = [];
   if (info.problems?.length)
     sections.push(
@@ -269,7 +254,6 @@ export function CodeInfoCard(props: {
     </div>
   );
 }
-
 const KIND_ICONS: Record<string, [LucideIcon, string]> = {};
 const kindIcon = (kinds: ReadonlyArray<string>, icon: LucideIcon, color: string) => {
   for (const kind of kinds) KIND_ICONS[kind] = [icon, color];
@@ -297,12 +281,10 @@ kindIcon(["keyword"], KeyRound, "text-muted-foreground");
 kindIcon(["snippet"], SquareDashed, "text-muted-foreground");
 kindIcon(["file"], FileText, "text-muted-foreground");
 kindIcon(["folder", "directory"], Folder, "text-muted-foreground");
-
 export function CompletionKindIcon(props: { kind: string }) {
   const [Icon, color] = KIND_ICONS[props.kind] ?? [LetterText, "text-muted-foreground"];
   return <Icon aria-hidden className={cn("size-3.5 shrink-0", color)} />;
 }
-
 /** A completion label with the typed prefix emphasized, as VS Code does. */
 export function CompletionLabel(props: { label: string; prefix: string }) {
   const quote = /^["']/.test(props.label) ? 1 : 0;
@@ -315,17 +297,15 @@ export function CompletionLabel(props: { label: string; prefix: string }) {
     </span>
   );
 }
-
 const fileName = (path: string) => path.slice(path.lastIndexOf("/") + 1);
 const directory = (path: string) => path.slice(0, Math.max(0, path.lastIndexOf("/")));
-
 /** Definition and reference results grouped by file; selecting one navigates to it. */
 export function CodeLocationList(props: {
   items: ReadonlyArray<CodeLocation>;
   emptyText: string;
   onSelect: (item: CodeLocation) => void;
 }) {
-  const groups = useMemo(() => {
+  const groups = (() => {
     const byPath = new Map<string, CodeLocation[]>();
     for (const item of props.items) {
       const group = byPath.get(item.path);
@@ -333,7 +313,7 @@ export function CodeLocationList(props: {
       else byPath.set(item.path, [item]);
     }
     return [...byPath];
-  }, [props.items]);
+  })();
   if (props.items.length === 0)
     return <p className="px-3 py-1.5 text-muted-foreground">{props.emptyText}</p>;
   return groups.map(([path, items]) => (
@@ -371,6 +351,5 @@ export function CodeLocationList(props: {
     </div>
   ));
 }
-
 export const CODE_POPUP_CLASS = POPUP_CLASS;
 export { popupStyle as codePopupStyle };

@@ -38,6 +38,7 @@ const layerDesktopProtocols = (
     openSystemSettings: () => Effect.succeed(false),
     copyText: () => Effect.void,
   },
+  listeners = new Map<string, (...args: unknown[]) => void>(),
 ) => {
   const environment = DesktopEnvironment.DesktopEnvironment.of({
     stateDir: "/tmp/t3-state",
@@ -47,11 +48,28 @@ const layerDesktopProtocols = (
   } as unknown as DesktopEnvironment.DesktopEnvironment["Service"]);
 
   const electronApp = {
-    requestSingleInstanceLock: Effect.succeed(primary),
     setPath: (name: string, value: string) =>
       Effect.sync(() => {
         events.push(`setPath:${name}:${value}`);
       }),
+    requestSingleInstanceLock: Effect.sync(() => {
+      events.push("requestSingleInstanceLock");
+      return primary;
+    }),
+    quit: Effect.sync(() => {
+      events.push("quit");
+    }),
+    on: (name: string, listener: (...args: unknown[]) => void) =>
+      Effect.acquireRelease(
+        Effect.sync(() => {
+          events.push(`on:${name}`);
+          listeners.set(name, listener);
+        }),
+        () =>
+          Effect.sync(() => {
+            listeners.delete(name);
+          }),
+      ).pipe(Effect.asVoid),
   } as unknown as ElectronApp.ElectronApp["Service"];
 
   return DesktopProtocols.layer.pipe(
@@ -68,59 +86,118 @@ const layerDesktopProtocols = (
 };
 
 describe("DesktopProtocols", () => {
-  it.effect("registers the second-instance handler in the primary instance", () => {
-    const quit = vi.fn();
-    const registeredEvents: string[] = [];
+  it.effect.each(["before configure", "after configure"] as const)(
+    "reveals the running window when a second instance launches %s",
+    (entry) => {
+      const quit = vi.fn();
+      const listeners = new Map<string, (...args: unknown[]) => void>();
+      const revealed = Promise.withResolvers<unknown>();
+      const window = { id: 1 };
+      const electronApp = {
+        quit: Effect.sync(quit),
+        on: (eventName: string, listener: (...args: unknown[]) => void) =>
+          Effect.sync(() => {
+            listeners.set(eventName, listener);
+          }),
+      } as unknown as ElectronApp.ElectronApp["Service"];
+      const electronWindow = {
+        currentMainOrFirst: Effect.succeedSome(window),
+        reveal: (value: unknown) => Effect.sync(() => revealed.resolve(value)),
+      } as unknown as ElectronWindow.ElectronWindow["Service"];
+
+      return Effect.gen(function* () {
+        const protocols = yield* DesktopProtocols.DesktopProtocols;
+        if (entry === "before configure") listeners.get("second-instance")?.({}, ["t3"]);
+        yield* protocols.configure;
+
+        assert.equal(quit.mock.calls.length, 0);
+        if (entry === "after configure") listeners.get("second-instance")!({}, ["t3"]);
+        assert.strictEqual(yield* Effect.promise(() => revealed.promise), window);
+      }).pipe(
+        Effect.scoped,
+        Effect.provide(
+          layerDesktopProtocols(true, [], "darwin", undefined, true, undefined, listeners),
+        ),
+        Effect.provideService(ElectronApp.ElectronApp, electronApp),
+        Effect.provideService(ElectronWindow.ElectronWindow, electronWindow),
+        Effect.provideService(DesktopWebLinks.DesktopWebLinks, ignoreWebLinks),
+      );
+    },
+  );
+
+  it.effect("delivers queued startup links and later links once in arrival order", () => {
+    const listeners = new Map<string, (...args: unknown[]) => void>();
+    const received: string[] = [];
+    const first = "ottercode://new?prompt=first";
+    const second = "ottercode://threads/env-1/thread-1";
+    const later = "ottercode://new?prompt=later";
+    const delivered = Promise.withResolvers<void>();
     const electronApp = {
-      quit: Effect.sync(quit),
-      on: (eventName: string) =>
+      on: (name: string, listener: (...args: unknown[]) => void) =>
         Effect.sync(() => {
-          registeredEvents.push(eventName);
+          listeners.set(name, listener);
         }),
     } as unknown as ElectronApp.ElectronApp["Service"];
-    const electronWindow = {} as ElectronWindow.ElectronWindow["Service"];
 
     return Effect.gen(function* () {
       const protocols = yield* DesktopProtocols.DesktopProtocols;
-      const exit = yield* Effect.exit(Effect.scoped(protocols.configure));
+      listeners.get("second-instance")?.({}, ["t3", first]);
+      listeners.get("second-instance")?.({}, ["t3", second]);
+      assert.deepEqual(received, []);
 
-      assert.isTrue(Exit.isSuccess(exit));
-      assert.equal(quit.mock.calls.length, 0);
-      assert.deepEqual(registeredEvents, ["open-url", "open-file", "second-instance"]);
+      yield* protocols.configure;
+      listeners.get("second-instance")!({}, ["t3", later]);
+      yield* Effect.promise(() => delivered.promise);
+
+      assert.deepEqual(received, [first, second, later]);
     }).pipe(
-      Effect.provide(layerDesktopProtocols()),
+      Effect.scoped,
+      Effect.provide(
+        layerDesktopProtocols(true, [], "darwin", undefined, true, undefined, listeners),
+      ),
       Effect.provideService(ElectronApp.ElectronApp, electronApp),
-      Effect.provideService(ElectronWindow.ElectronWindow, electronWindow),
-      Effect.provideService(DesktopWebLinks.DesktopWebLinks, ignoreWebLinks),
-    );
-  });
-
-  it.effect("quits and interrupts startup in a secondary instance", () => {
-    const quit = vi.fn();
-    const registeredEvents: string[] = [];
-    const electronApp = {
-      quit: Effect.sync(quit),
-      on: (eventName: string) =>
-        Effect.sync(() => {
-          registeredEvents.push(eventName);
+      Effect.provideService(
+        ElectronWindow.ElectronWindow,
+        {} as ElectronWindow.ElectronWindow["Service"],
+      ),
+      Effect.provideService(
+        DesktopWebLinks.DesktopWebLinks,
+        DesktopWebLinks.DesktopWebLinks.of({
+          receive: (url) =>
+            Effect.sync(() => {
+              received.push(url);
+              if (url === later) delivered.resolve();
+            }),
+          setRendererReady: () => Effect.void,
         }),
-    } as unknown as ElectronApp.ElectronApp["Service"];
-    const electronWindow = {} as ElectronWindow.ElectronWindow["Service"];
-
-    return Effect.gen(function* () {
-      const protocols = yield* DesktopProtocols.DesktopProtocols;
-      const exit = yield* Effect.exit(Effect.scoped(protocols.configure));
-
-      assert.isTrue(Exit.hasInterrupts(exit));
-      assert.equal(quit.mock.calls.length, 1);
-      assert.deepEqual(registeredEvents, []);
-    }).pipe(
-      Effect.provide(layerDesktopProtocols(true, [], "darwin", undefined, false)),
-      Effect.provideService(ElectronApp.ElectronApp, electronApp),
-      Effect.provideService(ElectronWindow.ElectronWindow, electronWindow),
-      Effect.provideService(DesktopWebLinks.DesktopWebLinks, ignoreWebLinks),
+      ),
     );
   });
+
+  it.effect.each(["darwin", "win32", "linux"] as const)(
+    "quits a second launch before initializing the application runtime on %s",
+    (platform) =>
+      Effect.gen(function* () {
+        const events: string[] = [];
+        const runtime = layerDesktopProtocols(false, events, platform, undefined, false).pipe(
+          Layer.flatMap(() =>
+            Layer.effectDiscard(
+              Effect.sync(() => {
+                events.push("initializeApplicationRuntime");
+              }),
+            ),
+          ),
+        );
+        const exit = yield* Effect.exit(Effect.scoped(Layer.build(runtime)));
+
+        assert.isTrue(Exit.hasInterrupts(exit));
+        assert.deepEqual(events, [
+          "setPath:userData:/tmp/app-data/otter-code",
+          "requestSingleInstanceLock",
+          "quit",
+        ]);
+      }),
+  );
 });
 
 it.effect(
@@ -144,7 +221,7 @@ it.effect(
       const protocols = yield* DesktopProtocols.DesktopProtocols;
       yield* protocols.configure;
       const event = { preventDefault: vi.fn() };
-      listeners.get("open-url")!(event, "ottercode-dev://app/auth/callback?code=unrelated-code");
+      listeners.get("open-url")!(event, "ottercode-dev://app/auth/callback?code=protocols-code");
       listeners.get("open-url")!(event, "ottercode://app/welcome");
       assert.equal(loadURL.mock.calls.length, 0);
       assert.equal(event.preventDefault.mock.calls.length, 0);
@@ -160,7 +237,9 @@ it.effect(
       assert.equal(event.preventDefault.mock.calls.length, 1);
     }).pipe(
       Effect.scoped,
-      Effect.provide(layerDesktopProtocols()),
+      Effect.provide(
+        layerDesktopProtocols(true, [], "darwin", undefined, true, undefined, listeners),
+      ),
       Effect.provideService(ElectronApp.ElectronApp, electronApp),
       Effect.provideService(ElectronWindow.ElectronWindow, electronWindow),
       Effect.provideService(DesktopWebLinks.DesktopWebLinks, ignoreWebLinks),
@@ -168,7 +247,7 @@ it.effect(
   },
 );
 
-it.effect.each(["startup", "open-url"] as const)(
+it.effect.each(["startup", "open-url", "early-second-instance"] as const)(
   "receives hosted web sign-in through the desktop %s handler",
   (entry) =>
     Effect.gen(function* () {
@@ -225,6 +304,9 @@ it.effect.each(["startup", "open-url"] as const)(
       } as unknown as ElectronApp.ElectronApp["Service"];
       yield* Effect.gen(function* () {
         const protocols = yield* DesktopProtocols.DesktopProtocols;
+        if (entry === "early-second-instance") {
+          listeners.get("second-instance")?.({}, ["t3", link]);
+        }
         yield* protocols.configure;
         if (entry === "open-url") {
           const event = { preventDefault: vi.fn() };
@@ -237,7 +319,9 @@ it.effect.each(["startup", "open-url"] as const)(
         assert.strictEqual(delivery?.flowId, request.flowId);
         assert.strictEqual(delivery?.returnUrl, request.returnUrl);
       }).pipe(
-        Effect.provide(layerDesktopProtocols(true, [], "darwin", undefined, true, shell)),
+        Effect.provide(
+          layerDesktopProtocols(true, [], "darwin", undefined, true, shell, listeners),
+        ),
         Effect.provideService(HostProcess.Arguments, entry === "startup" ? ["t3", link] : ["t3"]),
         Effect.provideService(ElectronApp.ElectronApp, electronApp),
         Effect.provideService(
@@ -268,13 +352,10 @@ it.effect("hands web and app links to the renderer and leaves other links alone"
         listeners.get("open-url")!(event, url);
         return event.preventDefault.mock.calls.length;
       };
-      // macOS hands the default browser every web link.
       assert.strictEqual(open("https://example.com/page"), 1);
       assert.strictEqual(open("http://localhost:3000/"), 1);
-      // Prompt and thread links ride the same queue; the renderer routes them in the app.
       assert.strictEqual(open("ottercode://new?prompt=hi"), 1);
       assert.strictEqual(open("ottercode://threads/env-1/thread-1"), 1);
-      // This suite runs as the Code profile, so Mail links stay with the OS.
       assert.strictEqual(open("mailto:hello@example.com"), 0);
       assert.strictEqual(open("ottercode://somewhere-else"), 0);
       yield* Effect.yieldNow;
@@ -285,7 +366,9 @@ it.effect("hands web and app links to the renderer and leaves other links alone"
         "ottercode://threads/env-1/thread-1",
       ]);
     }).pipe(
-      Effect.provide(layerDesktopProtocols(true, [], "darwin")),
+      Effect.provide(
+        layerDesktopProtocols(true, [], "darwin", undefined, true, undefined, listeners),
+      ),
       Effect.provideService(HostProcess.Arguments, ["t3"]),
       Effect.provideService(ElectronApp.ElectronApp, electronApp),
       Effect.provideService(

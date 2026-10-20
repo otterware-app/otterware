@@ -143,3 +143,52 @@ describe("Drive Cloud browser transport", () => {
     ).toContain("usercontent.otterware.app");
   });
 });
+
+describe("public Drive links", () => {
+  it("reads without an account grant and strips supplied authentication", async () => {
+    const requests: RequestInit[] = [];
+    const client = new DriveClient(
+      async () => {
+        throw new Error("Public reads must not request an account grant");
+      },
+      origin,
+      async (_url, init = {}) => {
+        requests.push(init);
+        return Response.json({ data: [] });
+      },
+    );
+    for (const path of [
+      "/api/v1/links/token",
+      "/api/v1/links/token/documents/doc",
+      "/api/v1/links/token/documents/doc/content?path=notes.txt",
+      "/api/v1/links/token/documents/doc/download",
+    ]) {
+      await client.request(path, {
+        headers: { authorization: "Bearer private", "x-otter-audience": "private" },
+        credentials: "include",
+      });
+    }
+    for (const init of requests) {
+      expect(new Headers(init.headers).has("authorization")).toBe(false);
+      expect(new Headers(init.headers).has("x-otter-audience")).toBe(false);
+      expect(init.credentials).toBe("omit");
+    }
+  });
+  it("still requires an account grant for mutations and unrelated routes", async () => {
+    let requests = 0;
+    const client = new DriveClient(
+      async () => null,
+      origin,
+      async () => {
+        requests++;
+        return new Response();
+      },
+    );
+    await expect(client.request("/api/v1/links/token", { method: "POST" })).rejects.toThrow(
+      "Sign in",
+    );
+    await expect(client.request("/api/v1/links/token/admin")).rejects.toThrow("Sign in");
+    await expect(client.request("/api/v1/folders")).rejects.toThrow("Sign in");
+    expect(requests).toBe(0);
+  });
+});

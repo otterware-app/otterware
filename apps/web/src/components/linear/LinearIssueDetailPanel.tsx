@@ -9,22 +9,19 @@ import { useAtomValue } from "@effect/atom-react";
 import { useNavigate } from "@tanstack/react-router";
 import * as Option from "effect/Option";
 import { AsyncResult } from "effect/reactivity";
+import { GitCommitHorizontalIcon, SlackIcon, UserRoundIcon } from "lucide-react";
 import {
   ArrowLeftIcon,
   ArrowUpRightIcon,
   CheckIcon,
   CopyIcon,
   GitBranchIcon,
-  GitCommitHorizontalIcon,
   LinkIcon,
   PaperclipIcon,
   RefreshCwIcon,
   SettingsIcon,
-  SlackIcon,
-  UserRoundIcon,
-} from "lucide-react";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
-
+} from "~/lib/icons";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import { useCopyToClipboard } from "~/hooks/useCopyToClipboard";
 import { cn } from "~/lib/utils";
 import { useOpenPrLink } from "~/lib/openPullRequestLink";
@@ -50,7 +47,6 @@ import { PullRequestGlyph } from "../pullRequest/pullRequestIcons";
 import { LinearPriorityIcon, LinearStatusIcon } from "./LinearStatusIcon";
 import { openInLinear } from "./openInLinear";
 import { linearIssueReviewUrl } from "./useOpenLinearReview";
-
 /**
  * One Linear issue beside its thread, like the pull request page: state,
  * details, description, and the activity log of comments and changes.
@@ -97,7 +93,6 @@ export function LinearIssueDetailPanel({
   useEffect(() => {
     if (change && (change.identifier === identifier || change.issueId === issueId)) refresh();
   }, [change, identifier, issueId, refresh]);
-
   const detail = query.data;
   if (detail === null) {
     return query.error ? (
@@ -108,7 +103,6 @@ export function LinearIssueDetailPanel({
       </div>
     );
   }
-
   return (
     <div className="flex h-full min-h-0 flex-col">
       <IssueHeader
@@ -184,7 +178,6 @@ export function LinearIssueDetailPanel({
     </div>
   );
 }
-
 function IssueHeader({
   detail,
   refreshing,
@@ -234,7 +227,6 @@ function IssueHeader({
     </header>
   );
 }
-
 function PropertyRow({
   label,
   children,
@@ -249,7 +241,6 @@ function PropertyRow({
     </div>
   );
 }
-
 function IssueProperties({ detail }: { readonly detail: LinearIssueDetail }) {
   return (
     <dl className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-x-3">
@@ -312,7 +303,6 @@ function IssueProperties({ detail }: { readonly detail: LinearIssueDetail }) {
     </dl>
   );
 }
-
 /** Copies the branch name, like the app's other copy icons: a check and an anchored toast. */
 function BranchCopyButton({ branchName }: { readonly branchName: string }) {
   const ref = useRef<HTMLButtonElement>(null);
@@ -343,10 +333,8 @@ function BranchCopyButton({ branchName }: { readonly branchName: string }) {
     </Tooltip>
   );
 }
-
 const GITHUB_PULL_REQUEST = /github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/u;
 const GITHUB_COMMIT = /github\.com\/([^/]+\/[^/]+)\/commit\/([0-9a-f]{7,40})/u;
-
 /** What a Linear attachment is, so each link says where it goes. */
 function describeAttachment(attachment: {
   readonly url: string;
@@ -365,7 +353,6 @@ function describeAttachment(attachment: {
   }
   return { kind: "link", detail: attachment.subtitle };
 }
-
 function IssueAttachments({
   threadRef,
   attachments,
@@ -419,12 +406,27 @@ function IssueAttachments({
     </ul>
   );
 }
-
-type CommentActivity = Extract<LinearIssueActivity, { kind: "comment" }>;
+type CommentActivity = Extract<
+  LinearIssueActivity,
+  {
+    kind: "comment";
+  }
+>;
 type ActivityItem =
-  | { readonly kind: "thread"; readonly root: CommentActivity; readonly replies: CommentActivity[] }
-  | { readonly kind: "event"; readonly entry: Exclude<LinearIssueActivity, { kind: "comment" }> };
-
+  | {
+      readonly kind: "thread";
+      readonly root: CommentActivity;
+      readonly replies: CommentActivity[];
+    }
+  | {
+      readonly kind: "event";
+      readonly entry: Exclude<
+        LinearIssueActivity,
+        {
+          kind: "comment";
+        }
+      >;
+    };
 /** Top-level entries in time order, each comment thread grouped under its first comment. */
 function groupIssueActivity(activity: ReadonlyArray<LinearIssueActivity>): ActivityItem[] {
   const commentIds = new Set(
@@ -442,7 +444,6 @@ function groupIssueActivity(activity: ReadonlyArray<LinearIssueActivity>): Activ
     return [{ kind: "thread", root: entry, replies: replies.get(entry.id) ?? [] }];
   });
 }
-
 function IssueActivity({
   threadRef,
   identifier,
@@ -452,7 +453,7 @@ function IssueActivity({
   readonly identifier: string;
   readonly activity: ReadonlyArray<LinearIssueActivity>;
 }) {
-  const items = useMemo(() => groupIssueActivity(activity), [activity]);
+  const items = groupIssueActivity(activity);
   if (items.length === 0) {
     return <p className="text-sm text-muted-foreground">No activity yet.</p>;
   }
@@ -485,7 +486,6 @@ function IssueActivity({
     </ol>
   );
 }
-
 /**
  * A comment and its replies in one card, like Linear. A thread synced with
  * Slack leads with where it's connected instead of Linear's placeholder text.
@@ -576,9 +576,15 @@ function CommentThread({
     </div>
   );
 }
-
 /** What a recorded change says after its actor's name, e.g. "moved from Todo to In Progress". */
-function describeChange(entry: Exclude<LinearIssueActivity, { kind: "comment" }>): ReactNode {
+function describeChange(
+  entry: Exclude<
+    LinearIssueActivity,
+    {
+      kind: "comment";
+    }
+  >,
+): ReactNode {
   switch (entry.kind) {
     case "created":
       return "created the issue";
@@ -611,11 +617,15 @@ function describeChange(entry: Exclude<LinearIssueActivity, { kind: "comment" }>
       return `linked ${entry.title}`;
   }
 }
-
 function StateChip({
   state,
 }: {
-  readonly state: Extract<LinearIssueActivity, { kind: "state" }>["to"] & {};
+  readonly state: Extract<
+    LinearIssueActivity,
+    {
+      kind: "state";
+    }
+  >["to"] & {};
 }) {
   return (
     <span className="inline-flex items-center gap-1 align-middle text-foreground/80">
@@ -624,7 +634,6 @@ function StateChip({
     </span>
   );
 }
-
 /** A person's Linear avatar, or their initials when they have none. */
 function Avatar({
   person,
@@ -655,7 +664,6 @@ function Avatar({
     </span>
   );
 }
-
 /**
  * Marks text the chat's selection toolbar can cite, the way assistant
  * responses are marked; the source id says which issue and part it came from.
@@ -682,7 +690,6 @@ function CitableText({
     </div>
   );
 }
-
 function Section({ title, children }: { readonly title: string; readonly children: ReactNode }) {
   return (
     <section className="flex flex-col gap-2">
@@ -691,7 +698,6 @@ function Section({ title, children }: { readonly title: string; readonly childre
     </section>
   );
 }
-
 function UnavailableState({
   message,
   onRetry,

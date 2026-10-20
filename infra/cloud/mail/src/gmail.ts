@@ -25,7 +25,7 @@ import type { Env } from "./worker.ts";
 const AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 const tokenUrl = (env: Env) => env.GOOGLE_TOKEN_URL || TOKEN_URL;
-const clientId = (env: Env) => env.GOOGLE_GMAIL_CLIENT_ID ?? env.GOOGLE_WEB_CLIENT_ID;
+const clientId = (env: Env) => env.GOOGLE_GMAIL_CLIENT_ID;
 
 export const callbackUrl = (env: Env) => `${env.BETTER_AUTH_URL}/v1/gmail/callback`;
 
@@ -101,24 +101,13 @@ type GoogleTokens = {
   error?: string;
 };
 
-async function tokenRequest(
-  env: Env,
-  params: Record<string, string>,
-  issuedTo = clientId(env),
-): Promise<GoogleTokens> {
-  if (issuedTo !== clientId(env) && issuedTo !== env.GOOGLE_WEB_CLIENT_ID)
-    throw new GoogleTokenError("unsupported_client");
-  const secret =
-    issuedTo === env.GOOGLE_GMAIL_CLIENT_ID
-      ? env.GOOGLE_GMAIL_CLIENT_SECRET
-      : env.GOOGLE_WEB_CLIENT_SECRET;
-  if (!secret) throw new GoogleTokenError("missing_client_secret");
+async function tokenRequest(env: Env, params: Record<string, string>): Promise<GoogleTokens> {
   const response = await fetch(tokenUrl(env), {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
-      client_id: issuedTo,
-      client_secret: secret,
+      client_id: clientId(env),
+      client_secret: env.GOOGLE_GMAIL_CLIENT_SECRET,
       ...params,
     }),
   });
@@ -142,7 +131,6 @@ export type SignInResult = {
   sealed: string;
   accessToken: string;
   expiresIn: number;
-  clientId: string;
 };
 
 /** Exchanges the code, then seals the refresh token for this user. */
@@ -159,7 +147,7 @@ export async function completeSignIn(
   if (!tokens.refresh_token || !tokens.id_token) {
     throw new GoogleTokenError("Google did not return a refresh token.");
   }
-  return sealSignIn(env, userId, clientId(env), tokens.refresh_token, tokens);
+  return sealSignIn(env, userId, tokens.refresh_token, tokens);
 }
 
 /**
@@ -171,26 +159,27 @@ export async function demoSignIn(
   userId: string,
   refreshToken: string,
 ): Promise<SignInResult> {
-  const issuedTo = env.GOOGLE_WEB_CLIENT_ID;
-  const tokens = await tokenRequest(
-    env,
-    { grant_type: "refresh_token", refresh_token: refreshToken },
-    issuedTo,
-  );
+  const tokens = await tokenRequest(env, {
+    grant_type: "refresh_token",
+    refresh_token: refreshToken,
+  });
   if (!tokens.id_token) throw new GoogleTokenError("Google did not return an ID token.");
-  return sealSignIn(env, userId, issuedTo, refreshToken, tokens);
+  return sealSignIn(env, userId, refreshToken, tokens);
 }
 
 /** Seals the refresh token for this user: what the page keeps, with a first access token. */
 async function sealSignIn(
   env: Env,
   userId: string,
-  issuedTo: string,
   refreshToken: string,
   tokens: GoogleTokens,
 ): Promise<SignInResult> {
-  const claims = await verifyGoogleJwt(tokens.id_token!, issuedTo, googleKeys(env));
-  const sealed = await new EncryptJWT({ email: claims.email, refreshToken, clientId: issuedTo })
+  const claims = await verifyGoogleJwt(tokens.id_token!, clientId(env), googleKeys(env));
+  const sealed = await new EncryptJWT({
+    email: claims.email,
+    refreshToken,
+    clientId: clientId(env),
+  })
     .setProtectedHeader({ alg: "dir", enc: "A256GCM" })
     .setSubject(userId)
     .setIssuedAt()
@@ -202,7 +191,6 @@ async function sealSignIn(
     sealed,
     accessToken: tokens.access_token,
     expiresIn: tokens.expires_in,
-    clientId: issuedTo,
   };
 }
 
@@ -215,18 +203,16 @@ export async function refresh(env: Env, userId: string, sealed: string) {
       subject: userId,
     },
   );
-  // Tokens sealed before the migration belong to the original Mail web client.
-  const issuedTo = payload.clientId ?? env.GOOGLE_WEB_CLIENT_ID;
-  const tokens = await tokenRequest(
-    env,
-    { grant_type: "refresh_token", refresh_token: payload.refreshToken },
-    issuedTo,
-  );
+  // A grant sealed for another client can't be refreshed: sign in again.
+  if (payload.clientId !== clientId(env)) throw new GoogleTokenError("invalid_grant");
+  const tokens = await tokenRequest(env, {
+    grant_type: "refresh_token",
+    refresh_token: payload.refreshToken,
+  });
   return {
     accessToken: tokens.access_token,
     expiresIn: tokens.expires_in,
     idToken: tokens.id_token ?? null,
-    clientId: issuedTo,
   };
 }
 
@@ -236,7 +222,17 @@ export function popupResponse(
   message: { result?: SignInResult; error?: string },
   suiteOrigin: string | null = null,
 ) {
-  const payload = JSON.stringify({ type: "otter:gmail-sign-in", ...message }).replace(
+  return popupPage(env, "gmail", message, suiteOrigin);
+}
+
+/** Shared result transport; suite origins were validated in the signed consent state. */
+export function popupPage(
+  env: Env,
+  provider: "gmail" | "outlook",
+  message: { result?: unknown; error?: string },
+  suiteOrigin: string | null = null,
+) {
+  const payload = JSON.stringify({ type: `otter:${provider}-sign-in`, ...message }).replace(
     /</g,
     "\\u003c",
   );
@@ -250,7 +246,7 @@ if (window.opener) {
   window.close();
 } else if (${JSON.stringify(suiteOrigin === null)}) {
   // Signed in in the app's own tab (the browser blocked the popup): take the answer back there.
-  location.replace(${JSON.stringify(`${env.APP_ORIGIN}/app`)} + "#gmail-sign-in=" + encodeURIComponent(JSON.stringify(message)));
+  location.replace(${JSON.stringify(`${env.APP_ORIGIN}/app`)} + "#${provider}-sign-in=" + encodeURIComponent(JSON.stringify(message)));
 }
 </script>`;
   return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } });

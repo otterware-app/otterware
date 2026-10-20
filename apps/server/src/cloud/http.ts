@@ -39,6 +39,7 @@ import {
   RELAY_URL_SECRET,
 } from "./config.ts";
 import { hasBoundedCloudProofLifetime } from "./linkChecks.ts";
+import * as ConnectReachability from "./ConnectReachability.ts";
 import type { RelayRequestError } from "./relayResponse.ts";
 import { traceRelayRequest } from "./traceRelayRequest.ts";
 
@@ -78,7 +79,6 @@ const unauthorized = (error: { readonly message: string }) =>
 const conflict = (error: { readonly message: string }) =>
   Effect.fail(new EnvironmentHttpConflictError({ message: error.message }));
 
-/** How a connect route answers each CloudLink failure. Messages carry through unchanged. */
 const connectErrorCases = {
   CloudLinkRelayConfigInvalidError: badRequest,
   CloudLinkOriginInvalidError: badRequest,
@@ -98,7 +98,6 @@ type ConnectFailure =
   | EnvironmentAuth.ServerAuthInternalError
   | RelayRequestError;
 
-/** Internal failures are logged with their cause before the route answers 500. */
 const toHttpError = <A, R>(effect: Effect.Effect<A, ConnectFailure, R>) =>
   effect.pipe(
     Effect.catchTags(connectErrorCases),
@@ -107,7 +106,6 @@ const toHttpError = <A, R>(effect: Effect.Effect<A, ConnectFailure, R>) =>
     ),
   );
 
-/** Relay configuration is the one route that answers 503 when the tunnel cannot serve. */
 const toHttpErrorOrUnavailable = <A, R>(
   effect: Effect.Effect<A, ConnectFailure | CloudLink.CloudLinkEndpointUnavailableError, R>,
 ) =>
@@ -202,6 +200,13 @@ export const layer = HttpApiBuilder.group(
       yield* ServerSecretStore.ServerSecretStore,
       yield* ServerEnvironment.ServerEnvironment,
     );
+    const reachability = yield* ConnectReachability.ConnectReachability;
+    // Capture host services when the routes are built, as the other handlers do.
+    const linearServices = yield* Effect.context<
+      | Effect.Services<ReturnType<typeof launchLinearAgentSession>>
+      | Effect.Services<ReturnType<typeof deliverLinearAgentPrompt>>
+    >();
+    const linearReactor = yield* LinearIssueSyncReactor.LinearIssueSyncReactor;
     return handlers
       .handle("linkProof", ({ payload }) =>
         Effect.gen(function* () {
@@ -221,6 +226,9 @@ export const layer = HttpApiBuilder.group(
         requireEnvironmentScope(AuthRelayReadScope).pipe(
           Effect.andThen(toHttpError(cloudLink.linkState())),
         ),
+      )
+      .handle("checkReachability", () =>
+        requireEnvironmentScope(AuthRelayReadScope).pipe(Effect.andThen(reachability.check)),
       )
       .handle("unlink", () =>
         requireEnvironmentScope(AuthRelayWriteScope).pipe(
@@ -257,6 +265,7 @@ export const layer = HttpApiBuilder.group(
           ).pipe(
             Effect.tap(() => appendCloudCredentialResponseHeaders),
             toLinearHttpError("Could not start the delegated Linear issue."),
+            Effect.provideContext(linearServices),
           ),
         ),
       )
@@ -268,6 +277,7 @@ export const layer = HttpApiBuilder.group(
           ).pipe(
             Effect.tap(() => appendCloudCredentialResponseHeaders),
             toLinearHttpError("Could not deliver the Linear message."),
+            Effect.provideContext(linearServices),
           ),
         ),
       )
@@ -280,10 +290,7 @@ export const layer = HttpApiBuilder.group(
               // environment already follows, and these arrive for every Linear edit, so
               // they skip the replay guards that would otherwise pile up in the secret store.
               consumeReplayGuards: () => Effect.succeed(true),
-              deliver: (changes) =>
-                LinearIssueSyncReactor.LinearIssueSyncReactor.pipe(
-                  Effect.flatMap((reactor) => reactor.publishIssueChanges(changes)),
-                ),
+              deliver: (changes) => linearReactor.publishIssueChanges(changes),
             },
             payload,
           ).pipe(toLinearHttpError("Could not accept Linear issue changes.")),

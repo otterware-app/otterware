@@ -30,6 +30,7 @@ import {
 import { useInboxUnread } from "./content/main/gmail/unread";
 import { useRailUnreadDots } from "./content/main/gmail/rail-preferences";
 import { startSyncedPreferences } from "./content/main/synced-preferences";
+import { useSignInAlerts } from "./content/main/gmail/sync-health";
 import { useMailStore, type MailSnapshot } from "./mailStore";
 import MailBackground from "./MailBackground";
 import { useConnectProvider } from "../account/useConnectProvider";
@@ -110,6 +111,7 @@ function MailData({ host, session }: Pick<MailSnapshot, "host" | "session">) {
   const [dots] = useRailUnreadDots();
   useExternalMailChanges();
   useGmailWriteFailureToasts();
+  useSignInAlerts();
   useEffect(() => startSyncedPreferences(), [host]);
   useEffect(() => {
     useMailStore.setState((state) => ({

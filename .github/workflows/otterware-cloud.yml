@@ -1,14 +1,6 @@
 name: Deploy Otter Cloud
 on:
-  push:
-    branches: [main]
-    paths:
-      - infra/cloud/**
-      - packages/otter-cloud-client/**
-      - modules/drive/contracts/**
-      - modules/drive/web/**
-      - profiles/drive.ts
-      - .github/workflows/otterware-cloud.yml
+  # Deployment and remote migrations require an explicit manual dispatch.
   workflow_dispatch:
 permissions:
   contents: read

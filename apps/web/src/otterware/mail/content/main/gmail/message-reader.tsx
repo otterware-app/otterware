@@ -545,12 +545,7 @@ type InlineImageSource = {
   byCid: Map<string, MessageAttachment>;
 };
 
-/**
- * Pairs each `<img src="cid:…">` in the body with the attachment it embeds. By
- * Content-ID when known; details cached before Content-IDs were recorded fall
- * back to the image's alt text (Gmail sets it to the filename), then to the
- * only image attachment when there's exactly one of each.
- */
+/** Pairs each `<img src="cid:…">` in the body with the attachment it embeds, by Content-ID. */
 function matchInlineImages(
   html: string | null,
   attachments: MessageAttachment[],
@@ -558,18 +553,11 @@ function matchInlineImages(
   const byCid = new Map<string, MessageAttachment>();
   if (!html || attachments.length === 0) return byCid;
   const images = attachments.filter((a) => a.mimeType.startsWith("image/"));
-  const refs: { cid: string; alt: string }[] = [];
   for (const tag of html.match(/<img\b[^>]*>/gi) ?? []) {
     const src = /\bsrc\s*=\s*["']?cid:([^"'\s>]+)/i.exec(tag)?.[1];
     if (!src) continue;
-    const alt = /\balt\s*=\s*["']([^"']*)["']/i.exec(tag)?.[1] ?? "";
-    refs.push({ cid: decodeURIComponent(src).toLowerCase(), alt });
-  }
-  for (const { cid, alt } of refs) {
-    const match =
-      images.find((a) => a.contentId?.toLowerCase() === cid) ??
-      (alt ? images.find((a) => !a.contentId && a.filename === alt) : undefined) ??
-      (refs.length === 1 && images.length === 1 && !images[0]!.contentId ? images[0] : undefined);
+    const cid = decodeURIComponent(src).toLowerCase();
+    const match = images.find((a) => a.contentId?.toLowerCase() === cid);
     if (match) byCid.set(cid, match);
   }
   return byCid;
@@ -873,18 +861,46 @@ function splitPlainQuote(text: string): [string, string] {
   return [text, ""];
 }
 
+const URL_RE = /\bhttps?:\/\/[^\s<>"]+[^\s<>".,;:!?)\]}'*]/g;
+
+/** Plain text with its URLs as links that open like the HTML body's. */
+function Linkified({ text }: { text: string }) {
+  const parts: ReactNode[] = [];
+  let last = 0;
+  for (const match of text.matchAll(URL_RE)) {
+    const url = match[0];
+    parts.push(text.slice(last, match.index));
+    parts.push(
+      <a
+        key={match.index}
+        href={url}
+        onClick={(e) => {
+          e.preventDefault();
+          openLink(url, { flip: isModClick(e) });
+        }}
+        className="text-primary underline underline-offset-2 hover:opacity-80"
+      >
+        {url}
+      </a>,
+    );
+    last = match.index + url.length;
+  }
+  parts.push(text.slice(last));
+  return parts;
+}
+
 function PlainBody({ text }: { text: string }) {
   const [main, quote] = splitPlainQuote(text);
   const [open, setOpen] = useState(false);
   return (
     <div>
-      <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground/90">
-        {main}
+      <pre className="whitespace-pre-wrap font-sans text-sm leading-relaxed text-foreground/90 [overflow-wrap:anywhere]">
+        <Linkified text={main} />
       </pre>
       {quote ? <QuoteToggle open={open} onToggle={() => setOpen((o) => !o)} /> : null}
       {quote && open ? (
-        <pre className="mt-2 whitespace-pre-wrap border-l-2 border-border pl-3 font-sans text-sm leading-relaxed text-muted-foreground">
-          {quote}
+        <pre className="mt-2 whitespace-pre-wrap border-l-2 border-border pl-3 font-sans text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+          <Linkified text={quote} />
         </pre>
       ) : null}
     </div>
@@ -2141,7 +2157,7 @@ export function MessageReader({
   const modifyThread = useModifyThread();
   // No inbox categories (IMAP): no category chips. One folder per message: a
   // folder chip can't just come off.
-  const { categories, multipleLabels } = useCapabilities(accountId);
+  const { categories, multipleLabels, foldersAndCategories } = useCapabilities(accountId);
   const trashThread = useTrashThread();
   const untrashThread = useUntrashThread();
   const untrashMessage = useUntrashMessage();
@@ -2687,7 +2703,15 @@ export function MessageReader({
                 threadId={conversationId}
                 labelIds={conversationLabelIds}
               >
-                <IconBtn label={multipleLabels ? "Label" : "Move to folder"}>
+                <IconBtn
+                  label={
+                    foldersAndCategories
+                      ? "Categorize"
+                      : multipleLabels
+                        ? "Label"
+                        : "Move to folder"
+                  }
+                >
                   <FolderIcon className="size-4" />
                 </IconBtn>
               </LabelPickerMenu>

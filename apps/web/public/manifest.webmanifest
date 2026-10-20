@@ -1,5 +1,7 @@
 {
   "id": "/",
+  "name": "Otter Code",
+  "short_name": "Otter Code",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

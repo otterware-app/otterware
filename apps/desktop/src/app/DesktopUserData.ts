@@ -33,7 +33,6 @@ export class DesktopUserDataInitializationError extends Schema.TaggedError<Deskt
   }
 }
 
-/** Select Electron's profile independently of the server's T3 home. */
 export const resolveUserDataPath = Effect.fn("desktop.userData.resolveUserDataPath")(
   function* (input: {
     readonly appDataDirectory: string;
@@ -43,8 +42,9 @@ export const resolveUserDataPath = Effect.fn("desktop.userData.resolveUserDataPa
   }) {
     const fs = yield* FileSystem.FileSystem;
     const path = yield* Path.Path;
-    // Otterware seam: suite client files stay outside the shared Code server home.
-    if (activeProfile.id !== "code" && input.stateDir) return path.join(input.stateDir, "electron");
+    // Otterware seam: keep each profile and development worktree's credentials isolated.
+    if (input.stateDir && (activeProfile.id !== "code" || input.isDevelopment))
+      return path.join(input.stateDir, "electron");
     const identity = profileAppIdentity(activeProfile, input.isDevelopment);
     const names = { current: identity.slug, legacy: identity.displayName };
     const destinationPath = path.join(input.appDataDirectory, names.current);

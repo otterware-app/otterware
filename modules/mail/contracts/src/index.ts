@@ -7,6 +7,7 @@
 
 export * from "./google.ts";
 export * from "./mail.ts";
+export * from "./microsoft.ts";
 export * from "./settings.ts";
 
 export type ThemeSource = "system" | "light" | "dark";
@@ -27,6 +28,8 @@ export type UpdateStatus =
   | "downloaded"
   | "up-to-date"
   | "error";
+
+export type UpdateChannel = "stable" | "nightly";
 
 export interface UpdateState {
   status: UpdateStatus;

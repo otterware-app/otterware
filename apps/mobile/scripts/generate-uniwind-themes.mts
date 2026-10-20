@@ -21,6 +21,7 @@ const GENERATED_DEFAULT_VARIABLES_PATH = NodePath.resolve(
   import.meta.dirname,
   "../generated-uniwind-default-theme-variables.json",
 );
+const GENERATED_TYPES_PATH = NodePath.resolve(import.meta.dirname, "../uniwind-types.d.ts");
 
 type TailwindColorFamily = keyof typeof tailwindColors;
 type TailwindColorShade = 50 | 100 | 200 | 300 | 400 | 500 | 600 | 700 | 800 | 900 | 950;
@@ -48,9 +49,9 @@ const color = (family: TailwindColorFamily, shade?: TailwindColorShade, opacity 
   return `color-mix(in srgb, ${value} ${percentage}%, transparent)`;
 };
 
-// These replace the remaining dark:* utility pairs. A registered palette theme is
-// neither literally `light` nor `dark`, so appearance-sensitive values must also be
-// represented as semantic variables for custom themes.
+// A registered palette theme is neither literally `light` nor `dark`, so
+// appearance-sensitive values must also be represented as semantic variables for
+// custom themes.
 const ADAPTIVE_COLORS: Readonly<Record<string, readonly [light: string, dark: string]>> = {
   "--color-adaptive-amber-50-950-a40": [color("amber", 50), color("amber", 950, 0.4)],
   "--color-adaptive-amber-200-900-a60": [color("amber", 200), color("amber", 900, 0.6)],
@@ -218,6 +219,19 @@ export const getGeneratedUniwindThemeOutputs = (): ReadonlyArray<
   [GENERATED_CSS_PATH, renderUniwindThemesCSS()],
   [GENERATED_NAMES_PATH, `${JSON.stringify(customThemeNames, null, 2)}\n`],
   [GENERATED_DEFAULT_VARIABLES_PATH, renderDefaultThemeVariablesJSON()],
+  [
+    GENERATED_TYPES_PATH,
+    `/// <reference types="uniwind/types" />
+
+declare module 'uniwind' {
+    export interface UniwindConfig {
+        themes: readonly [${["light", "dark", ...customThemeNames].map((name) => `'${name}'`).join(", ")}]
+    }
+}
+
+export {}
+`,
+  ],
 ];
 
 const writeFileAtomically = (filename: string, contents: string) => {

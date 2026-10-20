@@ -1,8 +1,18 @@
 // @effect-diagnostics nodeBuiltinImport:off - Reads the committed seam list; no Effect runtime.
 import * as NodeFS from "node:fs";
+import * as NodeOS from "node:os";
+import * as NodePath from "node:path";
+import * as NodeChildProcess from "node:child_process";
 import { describe, expect, it } from "vite-plus/test";
 
-import { findViolations, parseSeams, SEAMS_FILE, seamMatches } from "./check-upstream-seams.ts";
+import {
+  main,
+  filterSyncChanges,
+  findViolations,
+  parseSeams,
+  SEAMS_FILE,
+  seamMatches,
+} from "./check-upstream-seams.ts";
 
 describe("check-upstream-seams", () => {
   it("matches literal paths and globs", () => {
@@ -35,6 +45,105 @@ describe("check-upstream-seams", () => {
         seams,
       }),
     ).toEqual(["apps/server/src/server.ts"]);
+  });
+
+  it("limits the sync exception to exact source/overlay tree entries at the approved base", () => {
+    const source = "100644 blob " + "a".repeat(40);
+    const overlay = "100644 blob " + "b".repeat(40);
+    const changed = [
+      "import.ts",
+      "resolved.ts",
+      "deleted.ts",
+      "edited.ts",
+      "chmod.ts",
+      "unstaged.ts",
+    ];
+    const input = {
+      changed,
+      active: true,
+      current: new Map([
+        ["import.ts", source],
+        ["resolved.ts", overlay],
+        ["edited.ts", source],
+        ["chmod.ts", "100755 blob " + "b".repeat(40)],
+        ["unstaged.ts", overlay],
+      ]),
+      incoming: new Map([
+        ["import.ts", source],
+        ["resolved.ts", source],
+        ["edited.ts", overlay],
+        ["chmod.ts", source],
+        ["unstaged.ts", source],
+      ]),
+      overlay: {
+        "resolved.ts": overlay,
+        "deleted.ts": null,
+        "edited.ts": overlay,
+        "chmod.ts": overlay,
+        "unstaged.ts": overlay,
+      },
+      unstaged: new Set(["unstaged.ts"]),
+    };
+    expect(filterSyncChanges(input)).toEqual(["edited.ts", "chmod.ts", "unstaged.ts"]);
+    // Even the identical frozen overlay grants no permission on the next PR.
+    expect(filterSyncChanges({ ...input, active: false })).toEqual(changed);
+  });
+
+  it("checks a protected sync against a real Git index and expires the exception after merging", () => {
+    const cwd = NodeFS.mkdtempSync(NodePath.join(NodeOS.tmpdir(), "otter-seams-"));
+    const git = (...args: Array<string>) =>
+      NodeChildProcess.execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
+    const commit = () =>
+      git(
+        "-c",
+        "user.name=Fixture",
+        "-c",
+        "user.email=fixture@example.test",
+        "commit",
+        "-qm",
+        "fixture",
+      );
+    const write = (content: string) => NodeFS.writeFileSync(NodePath.join(cwd, "host.ts"), content);
+    try {
+      git("init", "-q", "-b", "main");
+      write("original");
+      git("add", ".");
+      commit();
+      const base = git("rev-parse", "HEAD");
+      write("upstream");
+      git("add", ".");
+      commit();
+      const upstream = git("rev-parse", "HEAD");
+      git("checkout", "-qb", "integration", base);
+      write("resolved overlay");
+      git("add", ".");
+      const overlay = "100644 blob " + git("hash-object", "host.ts");
+      NodeFS.mkdirSync(NodePath.join(cwd, "scripts/otterware"), { recursive: true });
+      NodeFS.writeFileSync(
+        NodePath.join(cwd, "scripts/otterware/source-baseline.json"),
+        JSON.stringify({
+          upstream,
+          preservedUpstreamBase: base,
+          protectedSync: {
+            baseMain: base,
+            preparedCandidate: upstream,
+            overlay: { "host.ts": overlay },
+          },
+        }),
+      );
+      git("add", ".");
+      expect(main(["--base", base], cwd)).toBe(0);
+      write("unreviewed unstaged edit");
+      expect(main(["--base", base], cwd)).toBe(1);
+      write("resolved overlay");
+      git("add", ".");
+      commit();
+      write("next feature edit");
+      git("add", ".");
+      expect(main(["--base", "HEAD"], cwd)).toBe(1);
+    } finally {
+      NodeFS.rmSync(cwd, { recursive: true, force: true });
+    }
   });
 
   it("keeps the committed list short and parseable", () => {

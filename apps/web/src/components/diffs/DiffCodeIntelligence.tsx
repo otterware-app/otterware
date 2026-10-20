@@ -12,7 +12,7 @@ import {
   type LanguageResult,
 } from "@t3tools/contracts";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
-import { X } from "lucide-react";
+import { XIcon as X } from "~/lib/icons";
 import { useEffect, useRef, useState, type RefObject } from "react";
 
 import { Button } from "~/components/ui/button";
@@ -156,7 +156,8 @@ export function DiffCodeIntelligence(props: Props) {
             if (read._tag === "Success" && !read.value.truncated) contents = read.value.contents;
           }
           if (contents === null) return null;
-          const analyzed = { target: { cwd, relativePath }, contents, version: ++version };
+          version += 1;
+          const analyzed = { target: { cwd, relativePath }, contents, version };
           resolved.set(file.fileDiff, analyzed);
           return analyzed;
         })();
@@ -316,7 +317,7 @@ export function DiffCodeIntelligence(props: Props) {
     const clearHover = () => {
       clearTimeout(hoverTimer);
       clearTimeout(leaveTimer);
-      hoverSequence++;
+      hoverSequence += 1;
       hoverKey = "";
       infoHit = undefined;
       cardHovered = false;
@@ -436,7 +437,7 @@ export function DiffCodeIntelligence(props: Props) {
         return;
       }
       clearTimeout(hoverTimer);
-      hoverSequence++;
+      hoverSequence += 1;
       hoverKey = "";
       clearLink();
       clearTimeout(leaveTimer);

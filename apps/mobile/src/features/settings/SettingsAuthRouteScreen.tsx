@@ -1,8 +1,8 @@
 import { Linking, View } from "react-native";
 import { useAuth } from "../accounts/AccountProvider";
 import { OTTER_ACCOUNTS_URL } from "@t3tools/shared/otterAccounts";
-import { AppText as Text } from "../../components/AppText";
-import { ScreenScrollView } from "../../components/ScreenScrollView";
+import { AppText as Text } from "../../components/ui/AppText";
+import { ScreenScrollView } from "../../components/ui/ScreenScrollView";
 import { SettingsSection } from "./components/SettingsSection";
 import { SettingsRow } from "./components/SettingsRow";
 import { T3ConnectProfilePage } from "../cloud/T3ConnectProfilePage";

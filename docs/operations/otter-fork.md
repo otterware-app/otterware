@@ -67,6 +67,26 @@ git diff --check "$new_base"..HEAD
 Typecheck the packages with resolved conflicts and run the focused tests next to them (through
 `scripts/otterware/heavy.sh`); leave the full suite to CI.
 
+### 2026-10-20 protected publication exception
+
+Laurin authorized an ordinary protected squash PR for the 2026-10-20 Code/Mail/Drive sync.
+It preserves main's merged history and leaves `upstream-base` at
+`339179f50a84dc599cce373dbb48f172f182f44e`. The newly integrated T3 revision is
+`67c0fc0cdaf963b103518862dd7b68a9c758ecf2`, recorded in
+`scripts/otterware/source-baseline.json`, with the reviewed module source revisions.
+This is a one-time exception to the one-commit reconstruction/publication procedure below;
+it does not authorize a shared history rewrite or relax branch protection.
+
+The seam check uses that explicit source baseline for ownership, including newly upstream-owned
+files. For this sync alone, against the recorded previous main, it verifies byte-identical upstream
+imports and exact, mode-sensitive Git tree entries for resolved overlay files. Stage the reviewed
+integration, then run `node scripts/otterware/check-upstream-seams.ts --record-sync-overlay` to
+regenerate those entries. An unstaged edit or different tree entry cannot use an exception.
+The overlay exceptions expire once main advances past the recorded base, so subsequent PRs must
+use the ordinary seam list. Do not extend that list with hundreds of sync-only branding changes.
+The PR still requires the normal green `CI gate` before squash merging. The next authorized
+reconstruction must start from the integrated baseline and preserve every subsequently merged PR.
+
 ### Publishing a prepared sync
 
 A sync rewrites `main`. Update `main` and `upstream-base` together with explicit leases; the push

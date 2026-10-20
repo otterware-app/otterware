@@ -1,10 +1,10 @@
 /**
  * The Otter Mail relay: Otter accounts (better-auth, auth.ts), the mailboxes
- * (Gmail, IMAP) linked to them, realtime mail notifications, the web app's
- * Gmail sign-in (gmail.ts) and its tunnel to IMAP/SMTP servers (tunnel.ts). Gmail publishes mailbox changes to a Pub/Sub
+ * (Gmail, IMAP, Outlook) linked to them, realtime mail notifications, the web app's
+ * Gmail and Outlook sign-ins (gmail.ts, outlook.ts) and its tunnel to IMAP/SMTP servers (tunnel.ts). Gmail publishes mailbox changes to a Pub/Sub
  * topic, Pub/Sub pushes them here, and the relay forwards them to the
- * signed-in devices over WebSocket. The API is described in
- * packages/contracts/src/relay.ts.
+ * signed-in devices over WebSocket; Microsoft Graph notifies here directly.
+ * The API is described in packages/contracts/src/relay.ts.
  */
 
 import { zValidator } from "@hono/zod-validator";
@@ -21,6 +21,7 @@ import {
   type ListAccountsResponse,
   type ListAgentTokensResponse,
   type MeResponse,
+  type OutlookWatchResponse,
   type PreferencesResponse,
   type RelayEvent,
   type RelayUser,
@@ -31,9 +32,11 @@ import { PROJECT_LIMITS, type ListProjectsResponse } from "../contracts/projects
 
 import { createAuth, googleClientIds, googleKeys, type Auth } from "./auth.ts";
 import * as gmail from "./gmail.ts";
-import { InvalidTokenError, verifyGoogleJwt } from "./google-jwt.ts";
+import { InvalidTokenError, remoteKeys, verifyGoogleJwt } from "./google-jwt.ts";
 import identity from "./identity.ts";
 import * as mcp from "./mcp.ts";
+import { MICROSOFT_JWKS_URL, provesMailbox, verifyMicrosoftJwt } from "./microsoft-jwt.ts";
+import * as outlook from "./outlook.ts";
 import * as preferences from "./preferences.ts";
 import * as projects from "./projects.ts";
 import * as store from "./store.ts";
@@ -62,14 +65,8 @@ export interface Env {
   /** The iPhone app's Google OAuth clients ("iOS", no secret), comma-separated: one per bundle ID. */
   GOOGLE_IOS_CLIENT_ID?: string;
   /** The web app's Google OAuth client ("Web application"): Otter and Gmail sign-in. */
-  GOOGLE_WEB_CLIENT_ID: string;
-  /** Its secret (a Worker secret). */
-  GOOGLE_WEB_CLIENT_SECRET: string;
-  /** Current Gmail web client; GOOGLE_WEB_CLIENT_* refreshes existing sealed grants. */
-  GOOGLE_GMAIL_CLIENT_ID?: string;
-  GOOGLE_GMAIL_CLIENT_SECRET?: string;
-  /** OAuth audiences accepted from older installed apps. */
-  GOOGLE_LEGACY_CLIENT_IDS?: string;
+  GOOGLE_GMAIL_CLIENT_ID: string;
+  GOOGLE_GMAIL_CLIENT_SECRET: string;
   /** Where the web app runs (https://mail.otterware.app): trusted for CORS and redirects. */
   APP_ORIGIN: string;
   /** Otterware app origins (comma-separated) that connect Google here with a bearer session. */
@@ -80,13 +77,10 @@ export interface Env {
   COOKIE_DOMAIN?: string;
   /** Pub/Sub topic Gmail publishes to (`projects/…/topics/…`). */
   PUSH_TOPIC: string;
-  /** Kept as /v1/me's default for installed clients using the previous Google project. */
-  PUSH_TOPIC_LEGACY?: string;
   /** Audience of the OIDC token on Pub/Sub push requests (the push route's URL). */
   PUSH_AUDIENCE: string;
   /** Service account Pub/Sub signs push requests as. */
   PUSH_SERVICE_ACCOUNT: string;
-  PUSH_SERVICE_ACCOUNT_LEGACY?: string;
   APNS_TEAM_ID?: string;
   APNS_KEY_ID?: string;
   /** PKCS#8 .p8 contents, a Worker secret. */
@@ -103,6 +97,22 @@ export interface Env {
   GOOGLE_JWKS_URL?: string;
   /** Google's OAuth token endpoint; only tests change it. */
   GOOGLE_TOKEN_URL?: string;
+  /**
+   * The web app's Microsoft OAuth client (an Entra app registration, "Web"
+   * platform): its Outlook sign-in. Without it and its secret, the web app
+   * has no Outlook.
+   */
+  MICROSOFT_CLIENT_ID?: string;
+  /** Its secret (a Worker secret). */
+  MICROSOFT_CLIENT_SECRET?: string;
+  /** The desktop and iPhone apps' Microsoft clients, comma-separated: audiences of their ID tokens. */
+  MICROSOFT_DESKTOP_CLIENT_IDS?: string;
+  /** Where Microsoft's signing keys are published; only tests change it. */
+  MICROSOFT_JWKS_URL?: string;
+  /** Microsoft's OAuth token endpoint; only tests change it. */
+  MICROSOFT_TOKEN_URL?: string;
+  /** Microsoft Graph's origin (https://graph.microsoft.com); only tests change it. */
+  MICROSOFT_GRAPH_URL?: string;
   /** Tunnels a minute per user to the servers of their IMAP mailboxes (wrangler.jsonc). */
   TUNNEL_LIMIT: RateLimit;
   /** Tunnels a minute per user to any other host: adding a mailbox, before it's linked. */
@@ -130,6 +140,23 @@ export type App = { Bindings: Env; Variables: { db: store.Db; auth: Auth; sessio
 async function verifyIdToken(env: Env, idToken: string) {
   try {
     return await verifyGoogleJwt(idToken, googleClientIds(env), googleKeys(env));
+  } catch (err) {
+    if (err instanceof InvalidTokenError) {
+      throw new HTTPException(401, { message: `Invalid ID token (${err.message}).` });
+    }
+    throw err;
+  }
+}
+
+/** Whether a Microsoft ID token issued to one of the apps proves the caller signed in to `email`. */
+async function provesOutlook(env: Env, idToken: string, email: string) {
+  const audiences = [
+    env.MICROSOFT_CLIENT_ID,
+    ...(env.MICROSOFT_DESKTOP_CLIENT_IDS ?? "").split(","),
+  ].filter((id): id is string => Boolean(id));
+  try {
+    const keys = remoteKeys(env.MICROSOFT_JWKS_URL || MICROSOFT_JWKS_URL);
+    return provesMailbox(await verifyMicrosoftJwt(idToken, audiences, keys), email);
   } catch (err) {
     if (err instanceof InvalidTokenError) {
       throw new HTTPException(401, { message: `Invalid ID token (${err.message}).` });
@@ -371,21 +398,84 @@ authed.post(
     c.json(await gmail.demoSignIn(c.env, c.var.session.user.id, c.req.valid("json").refreshToken)),
 );
 
+authed.post(
+  "/dev/outlook",
+  demoOnly,
+  zValidator("json", z.object({ refreshToken: z.string().min(1) }), rejectInvalid),
+  async (c) =>
+    c.json(
+      await outlook.demoSignIn(c.env, c.var.session.user.id, c.req.valid("json").refreshToken),
+    ),
+);
+
+// ── Outlook sign-in for the web app, and Graph's notifications (outlook.ts) ─
+
+authed.get("/outlook/authorize", async (c) => {
+  if (!outlook.configured(c.env))
+    throw new HTTPException(503, { message: "Outlook sign-in is not configured." });
+  return c.redirect(
+    await outlook.authorizeUrl(c.env, c.var.session.user.id, c.req.query("login_hint")),
+  );
+});
+
+authed.get("/outlook/callback", async (c) => {
+  const { code, state, error } = c.req.query();
+  try {
+    if (error === "access_denied")
+      return outlook.popupResponse(c.env, { error: GMAIL_SIGN_IN_CANCELLED });
+    if (error || !code || !state) throw new Error(error ?? "missing code");
+    if ((await outlook.stateUser(c.env, state)) !== c.var.session.user.id) {
+      throw new Error("signed in as someone else");
+    }
+    return outlook.popupResponse(c.env, {
+      result: await outlook.completeSignIn(c.env, c.var.session.user.id, code),
+    });
+  } catch (err) {
+    console.warn("Outlook sign-in failed", String(err));
+    return outlook.popupResponse(c.env, { error: String(err) });
+  }
+});
+
+authed.post(
+  "/outlook/token",
+  zValidator("json", z.object({ sealed: z.string() }), rejectInvalid),
+  async (c) => {
+    try {
+      return c.json(
+        await outlook.refresh(c.env, c.var.session.user.id, c.req.valid("json").sealed),
+      );
+    } catch (err) {
+      if (err instanceof outlook.MicrosoftTokenError && err.revoked) {
+        throw new HTTPException(410, { message: "Microsoft revoked this sign-in." });
+      }
+      if (err instanceof outlook.MicrosoftTokenError)
+        throw new HTTPException(502, { message: err.message });
+      throw new HTTPException(400, { message: "Invalid sealed token." });
+    }
+  },
+);
+
+authed.post(
+  "/outlook/watch",
+  zValidator("json", z.object({ email: mailbox }), rejectInvalid),
+  async (c) => {
+    const { email } = c.req.valid("json");
+    if ((await store.linkedProvider(c.var.db, c.var.session.user.id, email)) !== "outlook") {
+      throw new HTTPException(404, { message: "No such Outlook mailbox." });
+    }
+    return c.json({
+      notificationUrl: outlook.notificationUrl(c.env, email),
+      clientState: await outlook.clientState(c.env, email),
+    } satisfies OutlookWatchResponse);
+  },
+);
+
 authed.get("/me", (c) => {
   const env = c.env;
   return c.json({
     user: c.var.session.user,
-    pushTopic: env.PUSH_TOPIC_LEGACY ?? env.PUSH_TOPIC,
-    ...(env.GOOGLE_GMAIL_CLIENT_ID
-      ? {
-          pushTopics: {
-            [env.GOOGLE_GMAIL_CLIENT_ID.split("-")[0]!]: env.PUSH_TOPIC,
-            ...(env.PUSH_TOPIC_LEGACY
-              ? { [env.GOOGLE_WEB_CLIENT_ID.split("-")[0]!]: env.PUSH_TOPIC_LEGACY }
-              : {}),
-          },
-        }
-      : {}),
+    pushTopic: env.PUSH_TOPIC,
+    outlook: outlook.configured(env),
   } satisfies MeResponse);
 });
 
@@ -421,8 +511,9 @@ authed.delete("/push/device", async (c) => {
 });
 
 /**
- * `?providers=gmail,imap`: the providers the client knows. Builds from before
- * IMAP don't send it, and would take an IMAP mailbox for a Gmail account.
+ * `?providers=gmail,imap,outlook`: the providers the client knows. Builds
+ * from before IMAP don't send it, and would take any mailbox for a Gmail
+ * account.
  */
 const providersQuery = z.object({
   providers: z
@@ -431,7 +522,7 @@ const providersQuery = z.object({
     .transform((list) =>
       (list ?? "gmail")
         .split(",")
-        .filter((p): p is MailProviderKind => p === "gmail" || p === "imap"),
+        .filter((p): p is MailProviderKind => p === "gmail" || p === "imap" || p === "outlook"),
     ),
 });
 
@@ -448,9 +539,10 @@ const mailServer = z.object({
 });
 
 /**
- * Link a mailbox, or update its profile. Linking a Gmail account needs an ID
- * token for that address (the caller signed in to it); linking an IMAP one
- * needs its settings. Later edits need neither, and can't change the provider.
+ * Link a mailbox, or update its profile. Linking a Gmail or Outlook account
+ * needs an ID token (Google's, Microsoft's) for that address: the caller
+ * signed in to it. Linking an IMAP one needs its settings. Later edits need
+ * neither, and can't change the provider.
  */
 authed.put(
   "/accounts/:email",
@@ -459,7 +551,7 @@ authed.put(
     "json",
     z.object({
       idToken: z.string().optional(),
-      provider: z.enum(["gmail", "imap"]).optional(),
+      provider: z.enum(["gmail", "imap", "outlook"]).optional(),
       imap: z
         .object({ username: z.string().min(1).max(320), imap: mailServer, smtp: mailServer })
         .optional(),
@@ -479,7 +571,7 @@ authed.put(
     if (linked && linked !== provider) {
       throw new HTTPException(409, { message: `Linked as ${linked}: unlink it first.` });
     }
-    if (provider === "gmail" && patch.imap) {
+    if (provider !== "imap" && patch.imap) {
       throw new HTTPException(400, { message: "IMAP settings are for IMAP mailboxes." });
     }
     if (!linked && provider === "imap" && !patch.imap) {
@@ -489,6 +581,12 @@ authed.put(
       if (!idToken) throw new HTTPException(403, { message: "Linking needs an ID token." });
       if ((await verifyIdToken(c.env, idToken)).email !== email) {
         throw new HTTPException(403, { message: "The ID token is for another address." });
+      }
+    }
+    if (!linked && provider === "outlook") {
+      if (!idToken) throw new HTTPException(403, { message: "Linking needs an ID token." });
+      if (!(await provesOutlook(c.env, idToken, email))) {
+        throw new HTTPException(403, { message: "The ID token doesn't prove this address." });
       }
     }
     await store.putAccount(db, session.user.id, email, patch);
@@ -791,7 +889,7 @@ app.post(
       const env = c.env as Env;
       try {
         const claims = await verifyGoogleJwt(token, env.PUSH_AUDIENCE, googleKeys(env));
-        return [env.PUSH_SERVICE_ACCOUNT, env.PUSH_SERVICE_ACCOUNT_LEGACY].includes(claims.email);
+        return claims.email === env.PUSH_SERVICE_ACCOUNT;
       } catch (err) {
         if (err instanceof InvalidTokenError) return false;
         throw err;
@@ -813,7 +911,7 @@ app.post(
 
     const email = parsed.data.emailAddress.toLowerCase();
     const event: RelayEvent = { type: "mail", email, historyId: parsed.data.historyId };
-    const users = await store.usersWithGmail(c.var.db, email);
+    const users = await store.usersWithMailbox(c.var.db, email, "gmail");
     await Promise.all(
       users.map(async (userId) => {
         const target = hub(c.env, userId);
@@ -822,6 +920,47 @@ app.post(
       }),
     );
     return c.body(null, 204);
+  },
+);
+
+// ── Outlook push ────────────────────────────────────────────────────────────
+
+/**
+ * Microsoft Graph's change notifications for an Outlook mailbox (a
+ * subscription a device made with `/v1/outlook/watch`'s answer), sent on as
+ * a `mail` event to every device of everyone who linked it as Outlook. Only
+ * notifications carrying the mailbox's clientState count; everything is
+ * acknowledged (202), or Graph would retry it for hours.
+ */
+app.post(
+  "/push/outlook/:email",
+  zValidator("param", z.object({ email: mailbox }), (result, c) => {
+    if (!result.success) return c.body(null, 202);
+  }),
+  async (c) => {
+    // A new subscription: Graph checks the URL answers within 10 seconds, echoing its token.
+    const validationToken = c.req.query("validationToken");
+    if (validationToken !== undefined) {
+      c.header("X-Content-Type-Options", "nosniff");
+      return c.text(validationToken);
+    }
+    const { email } = c.req.valid("param");
+    const body = (await c.req.json().catch(() => null)) as { value?: unknown } | null;
+    const notifications = Array.isArray(body?.value) ? (body.value as unknown[]) : [];
+    let genuine = false;
+    for (const note of notifications.slice(0, 100)) {
+      const state = (note as { clientState?: unknown } | null)?.clientState;
+      if (typeof state === "string" && (await outlook.checkClientState(c.env, email, state))) {
+        genuine = true;
+        break;
+      }
+    }
+    if (!genuine) return c.body(null, 202);
+
+    const event: RelayEvent = { type: "mail", email, historyId: "" };
+    const users = await store.usersWithMailbox(c.var.db, email, "outlook");
+    await Promise.all(users.map((userId) => hub(c.env, userId).publish(event)));
+    return c.body(null, 202);
   },
 );
 

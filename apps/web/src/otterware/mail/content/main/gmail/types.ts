@@ -76,6 +76,8 @@ export type ContactSuggestion = {
 };
 
 export type GmailMessageDetail = GmailMessageSummary & {
+  /** Provider revision of this cached draft body (Outlook keeps its message ID). */
+  draftRevision?: string;
   bodyHtml: string | null;
   bodyText: string | null;
   cc?: string | undefined;
@@ -148,6 +150,8 @@ export type SyncStatus = {
   lastSyncAt: number | null;
   fullSyncDone: boolean;
   error: string | null;
+  /** Sync can't go on until the user signs in to the mailbox again (or enters its password). */
+  signInNeeded: boolean;
   /** Offline body download pass in progress (runs apart from `syncing`). */
   download: { done: number; total: number } | null;
   /** Bumped whenever sync changed what lists show; refetch when it moves. */

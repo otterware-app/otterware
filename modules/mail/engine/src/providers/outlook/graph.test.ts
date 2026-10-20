@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vite-plus/test";
-import { graph, graphAll } from "./graph.ts";
+import { graph, graphAll, GraphError, errorKind } from "./graph.ts";
 
 const auth = vi.hoisted(() => ({ getAccessToken: vi.fn(async () => "host-token") }));
 vi.mock("../../platform.ts", () => ({
@@ -43,4 +43,12 @@ it("rejects pagination outside Graph before sending a token", async () => {
   );
   expect(fetcher).toHaveBeenCalledTimes(1);
   expect(auth.getAccessToken).toHaveBeenCalledTimes(1);
+});
+
+it("asks for sign-in only for refused credentials, while transient failures remain retryable", () => {
+  expect(errorKind(new GraphError(401, "InvalidAuthenticationToken", "expired"))).toBe("auth");
+  expect(errorKind(new GraphError(403, "ErrorAccessDenied", "consent needed"))).toBe("auth");
+  expect(errorKind(new GraphError(429, "TooManyRequests", "limited"))).toBe("rateLimit");
+  expect(errorKind(new GraphError(503, "ServiceUnavailable", "retry"))).toBe("rateLimit");
+  expect(errorKind(new Error("fetch failed"))).toBe("network");
 });

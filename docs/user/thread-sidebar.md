@@ -43,21 +43,24 @@ in a new thread's model picker to add or remove them. A regular click returns to
 single model. Choose a base branch and send. Each selection starts a separate thread
 and worktree while you stay in the new thread composer. This requires a Git project.
 
-## Switch projects
+## Spaces and projects
 
-On web and desktop, the rail down the window's left edge holds **All projects**,
-**Chats** (threads without a project), your project groups, and **Pull requests**.
-Pick a space to list only its threads in the sidebar. In a project group, new threads
-start in one of the group's projects, and the project picker offers only those. In
-**Chats**, new threads start without a project. The sidebar's heading names the space;
-click it to narrow the list to one of its projects. **Usage** and **Settings** sit at
-the foot of the rail. In a narrow browser window, the rail runs down the edge of the
-sidebar. With **Sidebar (legacy)** on, which groups threads by project itself, the
-rail holds no spaces.
+The sidebar shows thread activity. Use its project picker or select a Space to
+focus on a group of projects.
 
-To make a group, open **Settings → Project groups**, choose **New group**, name it,
-and add projects. A project can belong to several groups. Groups are saved on every
-connected server, so each device shows the same ones.
+A Space is a saved group of projects. Open **Spaces** in the rail to create one, give it a name,
+and move projects into it. Existing project groups keep their projects and become
+Spaces. **Home** shows all projects, including unassigned projects. Choose a Space
+from the rail or its **More** menu to select its projects. Use the project picker
+to narrow that selection. **Chats** keeps conversations
+that have no project separate from project work.
+
+Move a project through its context menu or drag it onto a Space. Moving it out of a
+Space keeps it in Home. Deleting a Space keeps its projects and conversations.
+Spaces are saved across connected environments.
+
+Pin project or Space shortcuts from the rail's **More** menu, then drag their icons
+to change their order.
 
 ## Pin and reorder threads
 
@@ -80,7 +83,7 @@ scroll position instead of following the thread to its new place in the list.
 
 Pinning does not prevent automatic settlement. Settling a thread removes its pin.
 
-On web and desktop, drag a thread between sections to change its state. Drag a thread up into
+In Activity on web and desktop, drag a thread between sections to change its state. Drag a thread up into
 the pinned section to pin it at the spot you drop it; drag a pinned thread down into the active
 list to unpin it. Dragging a thread onto the **Settled** header settles it, and dragging a settled
 thread into the active list un-settles it. A snoozed thread can be dragged out of the snoozed
@@ -101,7 +104,7 @@ spot where the thread will land. Drops into either section keep the position you
 mobile, open a thread's menu and choose **Arrange threads**. Drag a handle within or between
 **Pinned** and **Active** to reorder, pin, or unpin. Drop onto the **Settled** divider to
 settle a thread. The dragged card shows the action before you release it. Expand **Snoozed**
-or **Settled** to drag a parked thread back into either live section. Each drop saves; **Done** returns to the thread list.
+or **Settled** to drag a parked thread back into either live section. Each drop saves; close the sheet to return to the thread list.
 **Move up** and **Move down** are also available in the thread menu. The server
 saves the order, so it survives a refresh and appears on your other connected devices.
 
@@ -164,7 +167,8 @@ Press `Escape` while dragging to cancel.
 
 By default, environments settle inactive threads after three days and settle
 threads whose pull request merged. A closed pull request can also settle an idle
-thread. Work in progress, pending questions or approvals, and live background work
+thread. An empty thread's inactivity counts from when it was created.
+Work in progress, pending questions or approvals, and live background work
 prevent automatic settlement. An open pull request does not prevent inactivity
 settlement unless you turn on **Keep threads with a PR** in **Settings → General**,
 but an old closed or merged pull request does not settle work you
@@ -221,8 +225,8 @@ continuation. You can cancel it from the thread. Enable **Auto-resume limited
 threads** in **Settings → General** on web and desktop, or **Settings → Thread
 behavior** on mobile, to schedule limit stops by default.
 The environment must be running when the reset arrives; it resumes overdue
-continuations after a restart. Sending a new message, archiving, or settling the
-thread prevents a pending continuation from starting.
+continuations after a restart. Stopping the thread, sending a new message,
+archiving, or settling it prevents a pending continuation from starting.
 
 Choose **Snooze until reset** to hide the thread until its allowance returns.
 Snooze and auto-resume are independent: snooze alone wakes the thread without
@@ -248,3 +252,6 @@ Choose **Snooze → Custom…** from a thread's menu to pick a date and time in 
 local time zone, or a duration in minutes, hours, or days. Durations start when
 you confirm; one day means 24 hours. On web and desktop, you can also snooze
 several selected threads together. Choose **Wake thread** to bring a thread back early.
+A snoozed thread keeps working and stays hidden until its wake time, even while
+its agent wakes itself for background work. It comes back early only when it needs
+an approval or answer from you, when a run fails, or when you send it a message.

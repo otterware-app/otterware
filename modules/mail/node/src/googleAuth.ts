@@ -72,7 +72,6 @@ export function localGoogleAuth(options: {
       if (!t.idToken) throw new Error("Google did not return an identity token.");
       return t.idToken;
     },
-    getClientId: async () => options.clientId,
     async removeTokens(id) {
       delete tokens[id];
       await save();

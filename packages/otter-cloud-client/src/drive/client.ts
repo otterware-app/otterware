@@ -139,8 +139,18 @@ export class DriveClient {
     if (url.origin !== this.origin || !url.pathname.startsWith("/api/v1/"))
       throw new Error("Invalid Drive API URL.");
     const headers = new Headers(init.headers);
-    headers.set("authorization", `Bearer ${await this.capability(init.signal ?? undefined)}`);
-    headers.set("x-otter-audience", DRIVE_CLOUD_AUDIENCE);
+    const publicLink =
+      (init.method ?? "GET") === "GET" &&
+      /^\/api\/v1\/links\/[^/]+(?:\/documents\/[^/]+(?:\/(?:content|download))?)?\/?$/.test(
+        url.pathname,
+      );
+    if (publicLink) {
+      headers.delete("authorization");
+      headers.delete("x-otter-audience");
+    } else {
+      headers.set("authorization", `Bearer ${await this.capability(init.signal ?? undefined)}`);
+      headers.set("x-otter-audience", DRIVE_CLOUD_AUDIENCE);
+    }
     if (folderId) headers.set("x-otterdrive-folder", folderId);
     if (typeof init.body === "string" && !headers.has("content-type"))
       headers.set("content-type", "application/json");

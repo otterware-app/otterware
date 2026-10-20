@@ -12,6 +12,7 @@
     "typecheck": "tsc-rs --noEmit"
   },
   "dependencies": {
+    "@distilled.cloud/cloudflare": "catalog:",
     "@effect/sql-pg": "catalog:",
     "@effect/sql-sqlite-do": "catalog:",
     "@noble/curves": "catalog:",

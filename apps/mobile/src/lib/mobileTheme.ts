@@ -31,8 +31,6 @@ export const MOBILE_THEME_OPTIONS: ReadonlyArray<{
   ...BUILT_IN_THEMES.map((theme) => ({ id: theme.id as MobileThemeId, label: theme.label })),
 ];
 
-// Closed set: every key `createMobileThemeVariables` writes. Reads of a
-// misspelled variable then fail to compile instead of yielding undefined.
 export type MobileThemeVariable = keyof ReturnType<typeof createMobileThemeVariables>;
 export type MobileThemeVariables = Readonly<Record<MobileThemeVariable, string>>;
 
@@ -77,7 +75,6 @@ export function createMobileThemeSelectionPatch(
   return {
     lightThemeId: nextThemeIds.light,
     darkThemeId: nextThemeIds.dark,
-    // Keep older OTA bundles on the theme for the appearance currently in use.
     themeId: nextThemeIds[activeAppearance],
   };
 }
@@ -146,9 +143,9 @@ function rgbChannels(color: string): readonly [number, number, number] | null {
 }
 
 /**
- * An opaque form of a theme colour, composited over the surface behind it. Native chip drawing
- * parses only opaque hex — an `rgba()` string falls back to a default that is nothing like the
- * colour asked for — so a translucent role like `--color-border` has to be flattened first.
+ * Native chip drawing parses only opaque hex — an `rgba()` string falls back to a default that
+ * is nothing like the colour asked for — so a translucent role like `--color-border` has to be
+ * flattened first.
  */
 export function flattenThemeColor(color: string, surface: string): string {
   const alphaHex = /^#([\da-f]{6})([\da-f]{2})$/i.exec(color);
@@ -191,7 +188,6 @@ function contrastRatio(
   );
 }
 
-/** Keep the theme tint while adjusting lightness to contrast with every supplied surface. */
 export function themeColorWithContrast(
   accent: string,
   surface: string | ReadonlyArray<string>,
@@ -321,10 +317,10 @@ export function createMobileThemeVariables(
     "--color-switch-inactive-thumb": c.mutedForeground,
     "--color-warning": c.warningSurface,
     "--color-warning-border": withAlpha(c.warning, 0.32),
-    "--color-warning-foreground": c.warningForeground,
+    "--color-warning-foreground": themeColorWithContrast(c.warningForeground, c.warningSurface),
     "--color-danger": c.errorSurface,
     "--color-danger-border": withAlpha(c.error, 0.32),
-    "--color-danger-foreground": c.errorForeground,
+    "--color-danger-foreground": themeColorWithContrast(c.errorForeground, c.errorSurface),
     "--color-update": c.updateSurface,
     "--color-update-foreground": c.updateForeground,
     "--color-input": c.surface,
@@ -392,11 +388,24 @@ export function getMobileThemeVariables(
   appearance: MobileThemeAppearance,
   overrides: Partial<MobileThemeVariables> | null = null,
 ): MobileThemeVariables {
-  const colors = getMobileThemeColors(themeId, appearance);
-  // Mobile groups and floating controls need a tonal fill, rather than the
-  // nearly neutral raised surface used by desktop outlined cards.
-  const groupedCard =
-    themeId === DEFAULT_MOBILE_THEME_ID
+  const palette = getMobileThemeColors(themeId, appearance);
+  // Synara uses translucent roles over its canvas.
+  // Native contrast and opacity controls need the resulting color, otherwise
+  // replacing an alpha makes a pale surface turn into its dark tint color.
+  const colors =
+    themeId === "synara"
+      ? (Object.fromEntries(
+          Object.entries(palette).map(([role, value]) => [
+            role,
+            flattenThemeColor(
+              themeColorToNativeColor(value),
+              themeColorToNativeColor(palette.canvas),
+            ),
+          ]),
+        ) as ThemeColors)
+      : palette;
+  const groupedSurface =
+    themeId === DEFAULT_MOBILE_THEME_ID || themeId === "synara"
       ? appearance === "light"
         ? colors.toolbarControlHover
         : colors.sidebarRowActive
@@ -407,13 +416,19 @@ export function getMobileThemeVariables(
         : themeId === "chatgpt"
           ? colors.surface
           : colors.muted;
+  const groupedCard =
+    themeId === "synara"
+      ? themeColorWithContrast(groupedSurface, [colors.chrome, colors.canvas], 1.08)
+      : groupedSurface;
   const mobileColors =
-    themeId === DEFAULT_MOBILE_THEME_ID
+    themeId === DEFAULT_MOBILE_THEME_ID || themeId === "synara"
       ? {
           ...colors,
           messageSurface: flattenThemeColor(
             themeColorWithAlpha(
-              appearance === "dark" ? colors.sidebarRowActive : colors.border,
+              themeId === "synara" || appearance === "light"
+                ? colors.border
+                : colors.sidebarRowActive,
               0.3,
             ),
             colors.messageSurface,
@@ -426,12 +441,18 @@ export function getMobileThemeVariables(
     groupedCard,
     themeId === "t3-chat" && appearance === "dark"
       ? [colors.messageActionForeground, colors.messageAction]
-      : themeId !== DEFAULT_MOBILE_THEME_ID && themeId !== "t3-chat"
+      : themeId !== DEFAULT_MOBILE_THEME_ID && themeId !== "t3-chat" && themeId !== "synara"
         ? [colors.messageAction, colors.messageActionForeground]
         : undefined,
   );
+  if (themeId === "synara") {
+    baseVariables["--color-md-link"] = themeColorWithContrast(colors.update, colors.canvas);
+    baseVariables["--color-user-bubble-skill-foreground"] = themeColorWithContrast(
+      colors.update,
+      baseVariables["--color-user-bubble"],
+    );
+  }
 
-  // The complete base record guarantees that optional overrides cannot leave a token undefined.
   return overrides ? ({ ...baseVariables, ...overrides } as MobileThemeVariables) : baseVariables;
 }
 

@@ -1,3 +1,5 @@
+import { MailboxHealth } from "../main/gmail/sync-health";
+import { useMailboxes } from "../main/mailboxes";
 import { READING_WIDTHS, useReadingWidth } from "../main/reading-preferences";
 import { createContext, useContext, type ReactNode } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -21,12 +23,16 @@ export function MailContentProvider({
 }
 function MailContent() {
   const width = useReadingWidth();
+  const { accounts } = useMailboxes();
   return (
     <div
-      className="flex min-h-0 min-w-0 flex-1"
+      className="flex min-h-0 min-w-0 flex-1 flex-col"
       style={{ "--reading-width": READING_WIDTHS[width].maxWidth } as React.CSSProperties}
     >
-      <HomeView />
+      <div className="flex min-h-0 flex-1">
+        <HomeView />
+      </div>
+      <MailboxHealth accountIds={accounts.map((account) => account.id)} />
     </div>
   );
 }

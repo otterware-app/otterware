@@ -1,9 +1,14 @@
 import { HttpError } from "./http";
-import { artifactAccess } from "./access";
+import { artifactAccess, linkOpensDocument } from "./access";
 import type { Env } from "./types";
+import { storageFor } from "./storage";
 
 interface GrantPayload {
-  principal: { userId: string; keyId?: string } | { service: true };
+  principal:
+    | { userId: string; keyId?: string }
+    | { service: true }
+    /** Anyone holding a link, signed in or not. */
+    | { linkId: string };
   artifactId: string;
   versionId: string;
   entryPath: string;
@@ -21,6 +26,7 @@ interface ContentFileRow {
   content_type: string;
   size: number;
   r2_key: string;
+  storage_backend_id: string | null;
 }
 
 const encoder = new TextEncoder();
@@ -109,6 +115,11 @@ async function verifyContentGrant(env: Env, token: string): Promise<GrantPayload
 
 async function assertGrantAccess(env: Env, grant: GrantPayload) {
   if ("service" in grant.principal) return;
+  if ("linkId" in grant.principal) {
+    if (!(await linkOpensDocument(env, grant.principal.linkId, grant.artifactId)))
+      throw new HttpError(403, "access_revoked", "This link no longer works.");
+    return;
+  }
   const { userId, keyId } = grant.principal;
   const row = await env.DB.prepare(
     `SELECT a.folder_id FROM artifact a JOIN user u ON u.id=? WHERE a.id=? AND coalesce(u.banned,0)=0`,
@@ -289,7 +300,7 @@ async function serveVersionFile(
   resourcePolicy: "same-site" | "cross-origin",
 ): Promise<Response> {
   const file = await env.DB.prepare(
-    `SELECT path, content_type, size, r2_key FROM artifact_file
+    `SELECT path, content_type, size, r2_key, storage_backend_id FROM artifact_file
      WHERE version_id = ? AND path = ?`,
   )
     .bind(versionId, path)
@@ -306,7 +317,9 @@ async function serveVersionFile(
       },
     });
   }
-  const object = await env.ARTIFACTS.get(file.r2_key, range ? { range } : undefined);
+  const object = await (
+    await storageFor(env, file.storage_backend_id)
+  ).get(file.r2_key, range ?? undefined);
   if (!object) throw new HttpError(404, "file_not_found", "Document body not found.");
   const headers = new Headers({
     "content-type": file.content_type,
@@ -337,11 +350,19 @@ export async function serveThumbnail(request: Request, env: Env, token: string):
   if (!grant.r2Key.startsWith("previews/")) {
     throw new HttpError(401, "invalid_grant", "Invalid thumbnail grant.");
   }
-  const object = await env.ARTIFACTS.get(grant.r2Key);
+  // previews/<artifact>/<version>.jpg: its version says where it's stored.
+  const versionId = grant.r2Key.split("/")[2]?.replace(/\.jpg$/, "") ?? "";
+  const version = await env.DB.prepare(
+    "SELECT preview_storage_backend_id FROM artifact_version WHERE id = ? AND preview_r2_key = ?",
+  )
+    .bind(versionId, grant.r2Key)
+    .first<{ preview_storage_backend_id: string | null }>();
+  if (!version) throw new HttpError(404, "thumbnail_not_found", "Thumbnail not found.");
+  const object = await (await storageFor(env, version.preview_storage_backend_id)).get(grant.r2Key);
   if (!object) throw new HttpError(404, "thumbnail_not_found", "Thumbnail not found.");
   return new Response(object.body, {
     headers: {
-      "content-type": object.httpMetadata?.contentType ?? "image/jpeg",
+      "content-type": object.contentType ?? "image/jpeg",
       "content-length": String(object.size),
       "cache-control": "private, max-age=300",
       "x-content-type-options": "nosniff",

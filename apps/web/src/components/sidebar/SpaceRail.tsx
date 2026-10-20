@@ -11,7 +11,6 @@ import { useLocation, useNavigate } from "@tanstack/react-router";
 import { ChartNoAxesColumnIcon, LayersIcon, MessagesSquareIcon, SettingsIcon } from "lucide-react";
 import { memo, type MouseEvent, type ReactNode } from "react";
 
-import { useLegacySidebarEnabled } from "../../hooks/useSettings";
 import { useProjectGroups } from "../../hooks/useProjectSpace";
 import { cn } from "../../lib/utils";
 import { deriveProjectIdentity } from "../../projectIdentity";
@@ -99,7 +98,7 @@ export const SpaceRail = memo(function SpaceRail({ className }: { className?: st
   const activeModule = activeApp === "code" ? null : moduleRegistry.byId(activeApp);
   const pullRequestsSupported = usePullRequestsSupported();
   // The legacy sidebar groups threads by project itself and ignores the scope.
-  const legacySidebarEnabled = useLegacySidebarEnabled();
+  const legacySidebarEnabled = false;
   const { groups } = useProjectGroups();
   const storedSpaceId = useUiStateStore((store) => store.sidebarProjectSpaceId);
   const setSpaceId = useUiStateStore((store) => store.setSidebarProjectSpaceId);

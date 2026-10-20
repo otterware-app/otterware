@@ -30,6 +30,8 @@ import {
   updateArtifact,
   uploadFile,
 } from "./server/artifacts";
+import { openLink } from "./server/public-links";
+import { driveStorage } from "./server/storage-backends";
 import { createAuth } from "./server/auth";
 import {
   acceptLink,
@@ -83,6 +85,10 @@ async function route(
     request.headers.get("origin") !== new URL(env.APP_URL).origin
   )
     throw new HttpError(403, "invalid_origin", "Use the Drive app to make this request.");
+  // Public links are bearer capabilities; opening them never creates membership.
+  if (segments[0] === "links" && segments[1] && request.method === "GET")
+    return openLink(request, env, segments[1], segments.slice(2));
+
   const auth = createAuth(env);
   const actor = suppliedActor ?? (await authenticate(request, env, auth));
 
@@ -93,6 +99,8 @@ async function route(
     if (id && segments[2] === "owner" && request.method === "POST")
       return transferDrive(request, env, actor, id);
     if (id && segments[2] === "members") return driveMembers(request, env, actor, id, segments[3]);
+    if (id && segments[2] === "storage")
+      return driveStorage(request, env, actor, id, segments.slice(3));
     if (id && segments[2] === "sharing")
       return folderSharing(request, env, actor, id, segments.slice(3));
     if (id && request.method === "PATCH") return updateFolder(request, env, actor, id);

@@ -1,5 +1,6 @@
 import { apiErrorSchema } from "../../contracts/index.ts";
 import { ZodError } from "zod";
+import { StorageError } from "./storage/driver";
 
 export class HttpError extends Error {
   readonly status: number;
@@ -32,6 +33,10 @@ export function errorResponse(error: unknown): Response {
       }),
       { status: error.status },
     );
+  }
+  if (error instanceof StorageError) {
+    // A connected bucket refused or failed; its reason helps its owner fix it.
+    return json({ error: { code: "storage_error", message: error.message } }, { status: 502 });
   }
   if (error instanceof ZodError) {
     return json(
