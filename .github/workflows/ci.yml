@@ -283,13 +283,23 @@ jobs:
   test_web:
     needs: plan
     if: ${{ needs.plan.outputs.test_web == 'true' }}
-    name: Test Web (${{ matrix.project }})
+    name: Test Web (${{ matrix.project }} ${{ matrix.shard }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: ${{ matrix.project == 'browser' && 10 || 20 }}
     strategy:
       fail-fast: false
       matrix:
-        project: [unit, browser]
+        include:
+          - project: unit
+            shard: 1/1
+          - project: browser
+            shard: 1/4
+          - project: browser
+            shard: 2/4
+          - project: browser
+            shard: 3/4
+          - project: browser
+            shard: 4/4
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -312,8 +322,7 @@ jobs:
 
       - name: Test
         working-directory: apps/web
-        # Verbose prints failure messages immediately, even if another worker stalls.
-        run: vp test run --passWithNoTests --project ${{ matrix.project }} --maxWorkers=2 --reporter=verbose
+        run: vp test run --passWithNoTests --project ${{ matrix.project }} --shard=${{ matrix.shard }} --maxWorkers=2
 
   # apps/server sets `fileParallelism: false`, so its test files run strictly
   # one at a time. Sharding spreads them over separate runners instead of

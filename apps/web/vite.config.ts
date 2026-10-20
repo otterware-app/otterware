@@ -7,6 +7,7 @@ import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import compression from "compression";
 import { playwright } from "vite-plus/test/browser-playwright";
 import { defineProject, type TestProjectInlineConfiguration } from "vite-plus/test/config";
+import type { Reporter } from "vite-plus/test/node";
 import "vite-plus/test/config";
 import { defineConfig, type Connect, type Plugin } from "vite-plus";
 import * as Hash from "effect/Hash";
@@ -117,6 +118,39 @@ const browserTestProject = {
     },
   },
 } satisfies TestProjectInlineConfiguration;
+
+// Collection can stall before a test's timeout starts. Keep the pending imports and
+// current test visible from the Node runner, even when a browser page stops responding.
+function ciProgressReporter(): Reporter {
+  const pending = new Map<string, string>();
+  let timer: ReturnType<typeof setInterval> | undefined;
+  return {
+    onTestRunStart() {
+      timer = setInterval(() => {
+        if (pending.size > 0) {
+          console.info("Pending web tests:", Object.fromEntries(pending));
+        }
+      }, 60_000);
+      timer.unref();
+    },
+    onTestModuleQueued(module) {
+      pending.set(module.moduleId, "loading");
+      console.info("Loading web test:", module.moduleId);
+    },
+    onTestModuleStart(module) {
+      pending.set(module.moduleId, "running");
+    },
+    onTestCaseReady(test) {
+      pending.set(test.module.moduleId, test.fullName);
+    },
+    onTestModuleEnd(module) {
+      pending.delete(module.moduleId);
+    },
+    onTestRunEnd() {
+      clearInterval(timer);
+    },
+  };
+}
 
 function resolveDevProxyTarget(
   backendPort: string | undefined,
@@ -297,6 +331,7 @@ export default defineConfig(() => {
       sourcemap: buildSourcemap,
     },
     test: {
+      reporters: process.env.CI ? ["verbose", ciProgressReporter()] : ["default"],
       projects: [defineProject(unitTestProject), defineProject(browserTestProject)],
     },
   };
