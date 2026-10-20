@@ -592,7 +592,8 @@ export default function DiffPanel({
       fileVersion,
       // Header-only placeholders use the viewer's collapsed geometry until their patch arrives.
       collapsed:
-        collapsedDiffFileKeys.has(fileKey) || fileDiff.cacheKey?.endsWith(":pending") === true,
+        !singleFileEntry &&
+        (collapsedDiffFileKeys.has(fileKey) || fileDiff.cacheKey?.endsWith(":pending") === true),
     };
   });
   const codeViewFileKeys = codeViewFiles.map((file) => file.fileKey);

@@ -288,7 +288,7 @@ describe("right panel tab middle click", () => {
     const onCloseSurface = vi.fn();
     const files = { id: "files" as const, kind: "files" as const };
     await renderPanel({ surfaces: [files], activeSurfaceId: files.id, onActivate, onCloseSurface });
-    const tabLabel = container.querySelector("[data-active-tab] span.truncate")!;
+    const tabLabel = container.querySelector("[data-surface-tab-active] button")!;
     const mouse = async (type: string, button: number) => {
       const event = new MouseEvent(type, { button, bubbles: true, cancelable: true });
       await act(() => tabLabel.dispatchEvent(event));

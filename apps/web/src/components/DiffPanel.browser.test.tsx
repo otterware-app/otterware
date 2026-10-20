@@ -32,6 +32,7 @@ vi.mock("../state/vcs", () => ({ vcsEnvironment: { status: () => null, listRefs:
 vi.mock("../state/review", () => ({
   reviewEnvironment: {
     diffPreview: () => previewAtom,
+    commits: () => null,
     diffFilePatch: ({ input }: { input: { request: { file: { path: string } } } }) =>
       patchAtoms(input.request.file.path),
   },
@@ -58,7 +59,7 @@ vi.mock("../lib/checkpointDiffState", () => ({
 }));
 
 import DiffPanel from "./DiffPanel";
-import { useDiffPanelStore } from "../diffPanelStore";
+import { useDiffPanelSessionStore, useDiffPanelStore } from "../diffPanelStore";
 
 const threadRef = scopeThreadRef(EnvironmentId.make("environment"), ThreadId.make("thread"));
 const thread = { ...threadRef, worktreePath: "/repo" };
@@ -118,8 +119,14 @@ let root: Root;
 
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
-  localStorage.setItem("t3code.diffFileTreeOpen", "true");
-  useDiffPanelStore.setState({ byThreadKey: {}, branchBaseRefByThreadKey: {} });
+  localStorage.setItem("t3code.diffFileTreeOpen", "false");
+  useDiffPanelStore.setState({
+    byThreadKey: {},
+    branchBaseRefByThreadKey: {},
+    openFileByThreadKey: {},
+    viewedByThreadKey: {},
+  });
+  useDiffPanelSessionStore.setState({ collapsedFileKeysByScopeKey: {} });
   registry = AtomRegistry.make();
   container = document.createElement("div");
   container.style.cssText = "width: 1000px; height: 300px";
@@ -171,13 +178,7 @@ async function scrollToStart() {
   });
 }
 async function selectTreeFile(path: string) {
-  const tree = container.querySelector("file-tree-container")!;
-  const row = tree.shadowRoot!.querySelector<HTMLElement>(`[data-item-path="${path}"]`)!;
-  await act(async () =>
-    row.dispatchEvent(
-      new MouseEvent("click", { bubbles: true, composed: true, button: 0, detail: 1 }),
-    ),
-  );
+  await page.getByRole("button", { name: `Open diff for ${path}`, exact: true }).click();
 }
 
 it("reveals a delayed turn selection, preserves siblings, and repeats after scope changes", async () => {
@@ -211,24 +212,31 @@ it("reveals a delayed turn selection, preserves siblings, and repeats after scop
   await expect.element(toggle("e.txt", false)).toBeInTheDocument();
 });
 
-it("waits for a lazy Git patch while preserving sibling choices and expanded defaults", async () => {
-  registry.set(collapsedAtom, false);
+it("opens one tree file at a time, waits for its patch, and ignores stream collapse defaults", async () => {
+  localStorage.setItem("t3code.diffFileTreeOpen", "true");
+  const displayedFiles = () =>
+    Array.from(container.querySelectorAll("diffs-container")).flatMap((host) => {
+      const title = host.shadowRoot?.querySelector("[data-diffs-header] [data-title]");
+      return title ? [title.textContent?.trim()] : [];
+    });
+  const displayedCode = () =>
+    Array.from(container.querySelectorAll("diffs-container"))
+      .map((host) => host.shadowRoot?.querySelector("[data-content]")?.textContent ?? "")
+      .join("");
   await render();
-  await toggle("b.txt", true).click();
+  await expect.poll(displayedFiles).toEqual(["a.txt"]);
+  await expect.poll(displayedCode).toContain("after 0");
   await selectTreeFile("b.txt");
-  await expect.element(toggle("b.txt", true)).toBeInTheDocument();
-  await toggle("b.txt", true).click();
-  await scrollToStart();
+  await expect.poll(displayedFiles).toEqual(["b.txt"]);
   await selectTreeFile("e.txt");
-  expect(viewport().scrollTop).toBe(0);
-  await expect.element(toggle("e.txt", true)).not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("status", { name: "Loading file diff..." }))
+    .toBeInTheDocument();
   await act(async () =>
     registry.set(patchAtoms("e.txt"), AsyncResult.success(loadedPatch("e.txt"))),
   );
-  await expectRevealed("e.txt");
-  await scrollToStart();
-  await expect.element(toggle("a.txt", true)).toBeInTheDocument();
-  await expect.element(toggle("b.txt", false)).toBeInTheDocument();
+  await expect.poll(displayedFiles).toEqual(["e.txt"]);
+  await expect.poll(displayedCode).toContain("after 0");
   await act(async () => useDiffPanelStore.getState().selectGitScope(threadRef, "unstaged"));
-  await expect.element(toggle("b.txt", true)).toBeInTheDocument();
+  await expect.poll(displayedFiles).toEqual(["a.txt"]);
 });
