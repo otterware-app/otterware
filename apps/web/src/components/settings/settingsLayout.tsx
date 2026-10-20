@@ -8,6 +8,8 @@ import * as Equal from "effect/Equal";
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import {
   createContext,
+  lazy,
+  Suspense,
   type ComponentPropsWithoutRef,
   type ReactNode,
   useContext,
@@ -39,8 +41,15 @@ import {
   type SettingInheritanceState,
   type SettingOverridingProject,
 } from "./SettingInheritance";
-import { ModuleSettingsMerges } from "../../otterware/ModuleSettingsMerges";
 import { showsSettingsScopeSentence } from "../../otterware/settingsRegistry";
+
+// The extension uses these settings primitives itself. Load it after this module
+// initializes so partial host mocks and page imports cannot wait on that cycle.
+const ModuleSettingsMerges = lazy(() =>
+  import("../../otterware/ModuleSettingsMerges").then(({ ModuleSettingsMerges }) => ({
+    default: ModuleSettingsMerges,
+  })),
+);
 
 const EMPTY_SETTING_KEYS: readonly (keyof ServerSettings)[] = [];
 
@@ -604,7 +613,9 @@ export function SettingsPageContainer({
           ) : null}
           {children}
           {/* Otterware seam: module settings pages merged into this host page. */}
-          <ModuleSettingsMerges />
+          <Suspense fallback={null}>
+            <ModuleSettingsMerges />
+          </Suspense>
         </WorkspacePageContainer>
       </div>
     </SettingsSearchTargetProvider>
