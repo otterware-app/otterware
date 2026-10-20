@@ -48,9 +48,11 @@ jobs:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+          T3CODE_GOOGLE_CLIENT_ID: ${{ vars.T3CODE_GOOGLE_CLIENT_ID }}
+          T3CODE_GOOGLE_CLIENT_SECRET: ${{ secrets.T3CODE_GOOGLE_CLIENT_SECRET }}
         run: |
           set -euo pipefail
-          for name in GH_TOKEN CSC_LINK CSC_KEY_PASSWORD APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER APPLE_TEAM_ID; do
+          for name in GH_TOKEN CSC_LINK CSC_KEY_PASSWORD APPLE_API_KEY APPLE_API_KEY_ID APPLE_API_ISSUER APPLE_TEAM_ID T3CODE_GOOGLE_CLIENT_ID T3CODE_GOOGLE_CLIENT_SECRET; do
             test -n "${!name}" || { echo "::error::Missing $name"; exit 1; }
           done
           gh api repos/otterware-app/otterware --jq '.permissions.push' | grep -qx true
@@ -77,6 +79,8 @@ jobs:
       T3CODE_ACCOUNTS_URL: ${{ vars.ACCOUNTS_URL || 'https://accounts.otterware.app/v1/auth' }}
       T3CODE_ACCOUNTS_CLI_CLIENT_ID: ${{ vars.ACCOUNTS_CLI_CLIENT_ID || 'otter-code-cli' }}
       T3CODE_RELAY_URL: https://relay.code.otterware.app
+      T3CODE_GOOGLE_CLIENT_ID: ${{ vars.T3CODE_GOOGLE_CLIENT_ID }}
+      T3CODE_GOOGLE_CLIENT_SECRET: ${{ secrets.T3CODE_GOOGLE_CLIENT_SECRET }}
     steps:
       - uses: actions/checkout@v6
         with:
