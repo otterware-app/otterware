@@ -72,6 +72,8 @@ export interface Env {
   GOOGLE_LEGACY_CLIENT_IDS?: string;
   /** Where the web app runs (https://mail.otterware.app): trusted for CORS and redirects. */
   APP_ORIGIN: string;
+  /** Otterware app origins (comma-separated) that connect Google here with a bearer session. */
+  SUITE_ORIGINS?: string;
   /** The first-party Drive app, for the shared account lifecycle. */
   DRIVE_ORIGIN: string;
   /** The session cookie's domain, shared with the web app ("mail.otterware.app"); unset locally. */
@@ -151,9 +153,17 @@ const mailbox = z
 
 const app = new Hono<App>();
 
-// The web app calls the relay from its own origin, with its session cookie.
+// The web app calls the relay from its own origin, with its session cookie; Otterware's apps
+// call it with a bearer session.
 app.use("/v1/*", (c, next) =>
-  cors({ origin: c.env.APP_ORIGIN, credentials: true, maxAge: 86_400 })(c, next),
+  cors({
+    origin: (origin) =>
+      origin === c.env.APP_ORIGIN || gmail.suiteOrigins(c.env).includes(origin)
+        ? origin
+        : c.env.APP_ORIGIN,
+    credentials: true,
+    maxAge: 86_400,
+  })(c, next),
 );
 
 app.use(async (c, next) => {
@@ -248,6 +258,27 @@ app.post(
 app.get("/.well-known/*", (c) => c.var.auth.handler(c.req.raw));
 app.route("/otter", identity);
 
+// Otterware's apps sign in with a bearer session, so Google's redirect back carries no cookie:
+// the signed state names the user and the app, and the sealed token goes only to that app.
+app.get("/v1/gmail/callback", async (c, next) => {
+  const { code, state, error } = c.req.query();
+  const signed = state ? await gmail.readState(c.env, state).catch(() => null) : null;
+  if (!signed?.origin) return next();
+  try {
+    if (error === "access_denied")
+      return gmail.popupResponse(c.env, { error: GMAIL_SIGN_IN_CANCELLED }, signed.origin);
+    if (error || !code) throw new Error(error ?? "missing code");
+    return gmail.popupResponse(
+      c.env,
+      { result: await gmail.completeSignIn(c.env, signed.userId, code) },
+      signed.origin,
+    );
+  } catch (err) {
+    console.warn("Gmail sign-in failed", String(err));
+    return gmail.popupResponse(c.env, { error: String(err) }, signed.origin);
+  }
+});
+
 // ── Signed-in routes ────────────────────────────────────────────────────────
 
 const authed = new Hono<App>();
@@ -289,6 +320,13 @@ authed.get("/gmail/authorize", (c) =>
     .authorizeUrl(c.env, c.var.session.user.id, c.req.query("login_hint"))
     .then((url) => c.redirect(url)),
 );
+
+authed.post("/gmail/start", async (c) => {
+  const origin = c.req.header("origin");
+  if (!origin || !gmail.suiteOrigins(c.env).includes(origin))
+    throw new HTTPException(403, { message: "Not from an Otterware app." });
+  return c.json({ url: await gmail.authorizeUrl(c.env, c.var.session.user.id, undefined, origin) });
+});
 
 authed.get("/gmail/callback", async (c) => {
   const { code, state, error } = c.req.query();

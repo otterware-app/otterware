@@ -23,6 +23,8 @@ export interface CalendarAccountCredential {
   readonly accountsUrl: string;
   readonly cloudOrigin: string;
   readonly audience: string;
+  /** This device's Google grants (the browser's); without them, Cloud-held grants. */
+  readonly providers?: CalendarProviders;
 }
 /** Where Google grants come from: this device on a host, Cloud only without one. */
 export interface CalendarProviders {
@@ -189,7 +191,7 @@ export const accountSessionLayer = <E, R>(
             accountId: session.user.id,
             client,
             cloudOrigin: key.cloudOrigin,
-            providers: cloudProviders(client, key.cloudOrigin),
+            providers: key.providers ?? cloudProviders(client, key.cloudOrigin),
           };
           cached = { credential: key, expiresAt: session.expiresAt, context, abort };
           return Option.some(context);

@@ -6,11 +6,14 @@
  * nothing. The desktop app signs in to Gmail itself and never comes here.
  *
  *   GET  /v1/gmail/authorize  (popup) → Google's consent
+ *   POST /v1/gmail/start      Otterware's apps (bearer session): `{ url }` of the same consent,
+ *                             asking for Mail, Calendar and contacts at once
  *   GET  /v1/gmail/callback   → posts the sealed token and a first access token to the page
  *   POST /v1/gmail/token      `{ sealed }` → a fresh access token (410 once Google revoked it)
  *   POST /v1/dev/gmail        `pnpm dev:demo` only: a saved sign-in, sealed as the popup would
  */
 
+import { PROVIDER_SCOPES } from "@otterware/otter-cloud-client/scopes";
 import { GMAIL_SCOPES } from "../contracts/google.ts";
 import { EncryptJWT, jwtDecrypt, jwtVerify, SignJWT } from "jose";
 
@@ -30,9 +33,27 @@ export const callbackUrl = (env: Env) => `${env.BETTER_AUTH_URL}/v1/gmail/callba
 const key = (env: Env, purpose: "state" | "seal") =>
   derivedKey(env.BETTER_AUTH_SECRET, `otter-mail gmail ${purpose}`);
 
-/** Google's consent screen for the web client, for the signed-in user. */
-export async function authorizeUrl(env: Env, userId: string, loginHint?: string): Promise<string> {
-  const state = await new SignJWT({})
+/** Otterware's browser apps: one consent covers Mail, Calendar and contacts in that browser. */
+const SUITE_SCOPES = ["openid", "email", "profile", ...PROVIDER_SCOPES.google];
+
+/** Otterware app origins that sign in here with a bearer session (no relay cookie). */
+export const suiteOrigins = (env: Env) =>
+  (env.SUITE_ORIGINS ?? "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+/**
+ * Google's consent screen for the web client, for the signed-in user. `suiteOrigin` is the
+ * Otterware app that asked; the state carries it, since Google's redirect back has no cookie.
+ */
+export async function authorizeUrl(
+  env: Env,
+  userId: string,
+  loginHint?: string,
+  suiteOrigin?: string,
+): Promise<string> {
+  const state = await new SignJWT(suiteOrigin ? { origin: suiteOrigin } : {})
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(userId)
     .setExpirationTime("10m")
@@ -42,7 +63,7 @@ export async function authorizeUrl(env: Env, userId: string, loginHint?: string)
     client_id: clientId(env),
     redirect_uri: callbackUrl(env),
     response_type: "code",
-    scope: GMAIL_SCOPES.join(" "),
+    scope: (suiteOrigin ? SUITE_SCOPES : GMAIL_SCOPES).join(" "),
     access_type: "offline",
     // Consent every time, so Google always returns a refresh token.
     prompt: "consent",
@@ -52,10 +73,24 @@ export async function authorizeUrl(env: Env, userId: string, loginHint?: string)
   return url.toString();
 }
 
+/** Who a sign-in state was issued to, and for which Otterware app; throws if forged or stale. */
+export async function readState(
+  env: Env,
+  state: string,
+): Promise<{ userId: string; origin: string | null }> {
+  const { payload } = await jwtVerify<{ origin?: string }>(state, await key(env, "state"), {
+    algorithms: ["HS256"],
+  });
+  const origin = typeof payload.origin === "string" ? payload.origin : null;
+  return {
+    userId: payload.sub!,
+    origin: origin && suiteOrigins(env).includes(origin) ? origin : null,
+  };
+}
+
 /** The Otter user a sign-in state was issued to; throws if forged or stale. */
 export async function stateUser(env: Env, state: string): Promise<string> {
-  const { payload } = await jwtVerify(state, await key(env, "state"), { algorithms: ["HS256"] });
-  return payload.sub!;
+  return (await readState(env, state)).userId;
 }
 
 type GoogleTokens = {
@@ -196,7 +231,11 @@ export async function refresh(env: Env, userId: string, sealed: string) {
 }
 
 /** The popup's last page: hands the result (or error) to the app and closes. */
-export function popupResponse(env: Env, message: { result?: SignInResult; error?: string }) {
+export function popupResponse(
+  env: Env,
+  message: { result?: SignInResult; error?: string },
+  suiteOrigin: string | null = null,
+) {
   const payload = JSON.stringify({ type: "otter:gmail-sign-in", ...message }).replace(
     /</g,
     "\\u003c",
@@ -207,9 +246,9 @@ export function popupResponse(env: Env, message: { result?: SignInResult; error?
 <script>
 const message = ${payload};
 if (window.opener) {
-  window.opener.postMessage(message, ${JSON.stringify(env.APP_ORIGIN)});
+  window.opener.postMessage(message, ${JSON.stringify(suiteOrigin ?? env.APP_ORIGIN)});
   window.close();
-} else {
+} else if (${JSON.stringify(suiteOrigin === null)}) {
   // Signed in in the app's own tab (the browser blocked the popup): take the answer back there.
   location.replace(${JSON.stringify(`${env.APP_ORIGIN}/app`)} + "#gmail-sign-in=" + encodeURIComponent(JSON.stringify(message)));
 }

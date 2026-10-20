@@ -50,6 +50,7 @@ const IOS_CLIENT_ID = "test-ios-client.apps.googleusercontent.com";
 const IOS_STORE_CLIENT_ID = "test-ios-store-client.apps.googleusercontent.com";
 const APP_ORIGIN = "http://app.test";
 const PUSH_AUDIENCE = "https://relay.test/push/gmail";
+const SUITE_ORIGIN = "http://otterware.test";
 const PUSH_SERVICE_ACCOUNT = "push@test.iam.gserviceaccount.com";
 const LEGACY_PUSH_SERVICE_ACCOUNT = "push@legacy.iam.gserviceaccount.com";
 const root = NodePath.resolve(import.meta.dirname, "..");
@@ -184,6 +185,7 @@ beforeAll(async () => {
       GOOGLE_GMAIL_CLIENT_ID: { type: "plain_text", value: WEB_CLIENT_ID },
       GOOGLE_GMAIL_CLIENT_SECRET: { type: "plain_text", value: "web-secret" },
       APP_ORIGIN: { type: "plain_text", value: APP_ORIGIN },
+      SUITE_ORIGINS: { type: "plain_text", value: SUITE_ORIGIN },
       COOKIE_DOMAIN: { type: "plain_text", value: "" },
       TUNNEL_TEST_TARGET: { type: "plain_text", value: mailTarget },
       PUSH_AUDIENCE: { type: "plain_text", value: PUSH_AUDIENCE },
@@ -1112,6 +1114,34 @@ describe("web app", () => {
     expect(
       (await call("POST", "/v1/gmail/token", owner.token, { sealed: result!.sealed })).status,
     ).toBe(410);
+  });
+
+  it("connects Google for an Otterware app that has only a bearer session", async () => {
+    const owner = await signIn("suite-owner@example.com");
+    const start = (origin: string) =>
+      fetch(`${base}/v1/gmail/start`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${owner.token}`, origin },
+      });
+    expect((await start("https://evil.example")).status).toBe(403);
+    const started = await start(SUITE_ORIGIN);
+    expect(started.status).toBe(200);
+    const url = new URL(((await started.json()) as { url: string }).url);
+    expect(url.searchParams.get("scope")).toContain("https://www.googleapis.com/auth/calendar");
+    // Google's redirect back carries no session: the signed state names the user and the app.
+    const html = await (
+      await fetch(
+        `${base}/v1/gmail/callback?code=code:suite%40example.com&state=${url.searchParams.get("state")}`,
+      )
+    ).text();
+    expect(html).toContain(`postMessage(message, "${SUITE_ORIGIN}")`);
+    const message = JSON.parse(/const message = (\{.*?\});\n/s.exec(html)![1]!) as {
+      result: { sealed: string };
+    };
+    const refreshed = await call("POST", "/v1/gmail/token", owner.token, {
+      sealed: message.result.sealed,
+    });
+    expect(refreshed.status).toBe(200);
   });
 
   it("refuses a sign-in state issued to someone else, and reports declined consent", async () => {

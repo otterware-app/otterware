@@ -8,6 +8,7 @@ import * as Effect from "effect/Effect";
 
 import { useAuth } from "../../accounts/AccountProvider";
 import { resolveCloudPublicConfig } from "../../cloud/publicConfig";
+import { MAIL_RELAY_URL } from "../account/browserGoogle";
 import { browserClient, runInBrowser } from "./runtime";
 
 const CLOUD_ORIGIN =
@@ -32,7 +33,12 @@ export function BrowserAccountBridge() {
       if (!active || accessToken === null) return;
       await runInBrowser(
         Effect.flatMap(browserClient, (client) =>
-          client["browser.account.attach"]({ accessToken, accountsUrl, cloudOrigin: CLOUD_ORIGIN }),
+          client["browser.account.attach"]({
+            accessToken,
+            accountsUrl,
+            cloudOrigin: CLOUD_ORIGIN,
+            mailRelayUrl: MAIL_RELAY_URL,
+          }),
         ),
       ).catch(() => {});
     };

@@ -4,8 +4,9 @@
  * refresh token kept in this environment's secret store. It never reaches Otter Cloud and does
  * not follow the account to other devices; each device connects Google itself.
  *
- * The client is a Google "Desktop app" OAuth client (`T3CODE_GOOGLE_CLIENT_ID`/`_SECRET`, the
- * same configuration Calendar's local sign-in reads); its loopback redirect runs on this machine.
+ * The client is a Google "Desktop app" OAuth client: `T3CODE_GOOGLE_CLIENT_ID`/`_SECRET` when
+ * set, otherwise the one baked into the build (the same values Calendar's local sign-in reads).
+ * Google treats a desktop client's secret as not confidential. Its loopback redirect runs here.
  *
  * @module DeviceGoogle
  */
@@ -17,6 +18,9 @@ import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import { ServerSecretStore } from "../auth/ServerSecretStore.ts";
+
+declare const __T3CODE_BUILD_GOOGLE_CLIENT_ID__: string | undefined;
+declare const __T3CODE_BUILD_GOOGLE_CLIENT_SECRET__: string | undefined;
 
 const SECRET = "otterware-device-google";
 const ID_PREFIX = "device:google:";
@@ -36,10 +40,22 @@ interface TokenResponse {
 
 export const make = Effect.gen(function* () {
   const secrets = yield* ServerSecretStore;
-  const client = yield* Config.all({
+  const configured = yield* Config.all({
     clientId: Config.String("T3CODE_GOOGLE_CLIENT_ID").pipe(Config.withDefault("")),
     clientSecret: Config.String("T3CODE_GOOGLE_CLIENT_SECRET").pipe(Config.withDefault("")),
   });
+  const client = configured.clientId
+    ? configured
+    : {
+        clientId:
+          typeof __T3CODE_BUILD_GOOGLE_CLIENT_ID__ === "undefined"
+            ? ""
+            : __T3CODE_BUILD_GOOGLE_CLIENT_ID__,
+        clientSecret:
+          typeof __T3CODE_BUILD_GOOGLE_CLIENT_SECRET__ === "undefined"
+            ? ""
+            : __T3CODE_BUILD_GOOGLE_CLIENT_SECRET__,
+      };
   const listeners = new Set<() => void>();
   const access = new Map<string, { accessToken: string; expiresAt: number }>();
   let cancel: (() => void) | undefined;

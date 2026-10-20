@@ -73,6 +73,45 @@ it.layer(layerConnectedWorker, { timeout: 30_000 })(
       }),
     );
 
+    it.effect("keeps Google as this browser's own grant, started at Mail's relay", () =>
+      Effect.gen(function* () {
+        const client = yield* makeBrowserEnvironmentClient;
+        const relay = "https://relay.mail.test";
+        cloud.external = (url) =>
+          url === `${relay}/v1/gmail/start`
+            ? Response.json({ url: "https://accounts.google.com/o/oauth2/v2/auth?state=s" })
+            : Response.json({ error: "not found" }, { status: 404 });
+        yield* client["browser.account.attach"]({
+          accessToken: "oauth-ada",
+          accountsUrl: ACCOUNTS_URL,
+          cloudOrigin: CLOUD_ORIGIN,
+          mailRelayUrl: relay,
+        });
+        const started = yield* client["browser.account.connect"]({
+          provider: "google",
+          scopes: [],
+          returnTo: "https://code.otterware.app/settings/account",
+        });
+        assert.strictEqual(started.url, "https://accounts.google.com/o/oauth2/v2/auth?state=s");
+        // The relay knows the account by its suite session; no Cloud grant is created.
+        const asked = cloud.requests.find((request) => request.url === `${relay}/v1/gmail/start`)!;
+        assert.strictEqual(asked.headers.get("authorization"), "Bearer session-user-ada");
+
+        yield* client["browser.account.saveGoogle"]({ email: "ada@gmail.test", sealed: "sealed" });
+        const saved = yield* client["browser.account.connections"]({});
+        assert.deepStrictEqual(
+          saved.connections.map((connection) => [connection.id, connection.email]),
+          [["browser:google:ada@gmail.test", "ada@gmail.test"]],
+        );
+        yield* client["browser.account.disconnect"]({
+          connectionId: "browser:google:ada@gmail.test",
+        });
+        const removed = yield* client["browser.account.connections"]({});
+        assert.deepStrictEqual(removed.connections, []);
+        yield* client["browser.account.detach"]({});
+      }),
+    );
+
     it.effect("signs the browser in to Otter Cloud as its own device", () =>
       Effect.gen(function* () {
         const client = yield* makeBrowserEnvironmentClient;
@@ -93,6 +132,7 @@ it.layer(layerConnectedWorker, { timeout: 30_000 })(
 
         const refused = yield* Effect.flip(client["browser.account.connections"]({}));
         assert.strictEqual(refused.reason, "signed-out");
+        const channel = cloud.sockets.length;
 
         const state = yield* client["browser.account.attach"]({
           accessToken: "oauth-ada",
@@ -101,12 +141,15 @@ it.layer(layerConnectedWorker, { timeout: 30_000 })(
         });
         assert.deepStrictEqual(state, { status: "connected", userId: "user-ada", message: null });
 
+        // Google is this browser's own grant; the account's Cloud-held ones are not read.
         const { connections } = yield* client["browser.account.connections"]({});
-        assert.deepStrictEqual(
-          connections.map((connection) => connection.email),
-          ["ada@example.com"],
-        );
-        const listed = cloud.requests.find((request) => request.url.endsWith("/connections"))!;
+        assert.deepStrictEqual(connections, []);
+        assert.isFalse(cloud.requests.some((request) => request.url.endsWith("/connections")));
+        // The channel opens with this browser's own Cloud audience.
+        yield* Effect.promise(() => cloud.socket(channel));
+        const listed = cloud.requests.findLast((request) =>
+          request.url.endsWith("/channel-ticket"),
+        )!;
         const audience = listed.headers.get("x-otter-audience")!;
         assert.match(audience, /^browser:[0-9a-f-]{36}$/);
         assert.strictEqual(listed.headers.get("authorization"), `Bearer cloud-${audience}`);

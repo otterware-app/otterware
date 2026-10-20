@@ -13,7 +13,6 @@ import {
   SelectItem,
 } from "~/components/ui/select";
 import { Undo2Icon } from "lucide-react";
-export { SettingsGroup } from "~/components/settings/SettingsGroup";
 export { SettingsSearchTarget } from "~/components/settings/settingsLayout";
 export const MailSettingScope = createContext<"account" | "environment" | "client">("account");
 export function SettingsRow(props: ComponentProps<typeof HostRow>) {

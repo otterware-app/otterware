@@ -458,7 +458,31 @@ jobs:
       T3CODE_ACCOUNTS_URL: ${{ needs.relay_public_config.outputs.accounts_url }}
       T3CODE_ACCOUNTS_CLI_CLIENT_ID: ${{ needs.relay_public_config.outputs.accounts_cli_client_id }}
       T3CODE_RELAY_URL: ${{ needs.relay_public_config.outputs.relay_url }}
+      # The desktop app's Google client ("Desktop app" type; Google treats its secret as not
+      # confidential), baked into the server bundle for "Connect Google on this device".
+      T3CODE_GOOGLE_CLIENT_ID: ${{ vars.T3CODE_GOOGLE_CLIENT_ID }}
+      T3CODE_GOOGLE_CLIENT_SECRET: ${{ secrets.T3CODE_GOOGLE_CLIENT_SECRET }}
     steps:
+      # A bogus code proves the pair: Google answers invalid_grant only once the client and its
+      # secret check out, so a wrong or missing secret stops the release before anything ships.
+      - name: Check the Google client
+        shell: bash
+        run: |
+          if [[ -z "$T3CODE_GOOGLE_CLIENT_ID" || -z "$T3CODE_GOOGLE_CLIENT_SECRET" ]]; then
+            echo "::error::Set the T3CODE_GOOGLE_CLIENT_ID variable and T3CODE_GOOGLE_CLIENT_SECRET secret; without them the app can't connect Google."
+            exit 1
+          fi
+          error="$(curl -sS https://oauth2.googleapis.com/token \
+            --data-urlencode grant_type=authorization_code \
+            --data-urlencode code=release-check \
+            --data-urlencode redirect_uri=http://127.0.0.1 \
+            --data-urlencode "client_id=$T3CODE_GOOGLE_CLIENT_ID" \
+            --data-urlencode "client_secret=$T3CODE_GOOGLE_CLIENT_SECRET" | jq -r .error)"
+          if [[ "$error" != "invalid_grant" ]]; then
+            echo "::error::Google rejected T3CODE_GOOGLE_CLIENT_ID with T3CODE_GOOGLE_CLIENT_SECRET ($error)."
+            exit 1
+          fi
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
