@@ -1,4 +1,4 @@
-import { needsSignIn } from "../gmail/sync-health";
+import { needsSignIn, takeRequestedMailbox } from "../gmail/sync-health";
 import { connectMailbox } from "../../host/bridge";
 import { mailRoot } from "../../host/dom";
 import { HintTooltip as ImportedMailTooltip } from "../gmail/ui";
@@ -624,7 +624,8 @@ export function AccountsPane() {
     setDragEmail(null);
     setDropSpot(null);
   };
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // A mailbox asked for its local password from the sidebar or a sync alert.
+  const [selectedId, setSelectedId] = useState<string | null>(takeRequestedMailbox);
   const current = accounts.find((a) => a.id === selectedId) ?? accounts[0];
   // Signatures live in Gmail: pick up edits made there.
   useEffect(() => void gmailApi.refreshSignatures().catch(() => {}), []);

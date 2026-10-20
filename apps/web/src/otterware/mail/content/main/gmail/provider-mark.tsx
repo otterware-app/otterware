@@ -3,12 +3,12 @@ import { ServerIcon } from "lucide-react";
 import gmailMark from "../assets/gmail.svg";
 import microsoftMark from "../assets/microsoft.svg";
 
-export function GmailMark({ className = "size-4" }: { className?: string }) {
+function GmailMark({ className = "size-4" }: { className?: string }) {
   return <img src={gmailMark} className={`${className} object-contain`} alt="" aria-hidden />;
 }
 
 /** Microsoft's four squares, for Outlook. */
-export function MicrosoftMark({ className = "size-4" }: { className?: string }) {
+function MicrosoftMark({ className = "size-4" }: { className?: string }) {
   return <img src={microsoftMark} className={`${className} object-contain`} alt="" aria-hidden />;
 }
 

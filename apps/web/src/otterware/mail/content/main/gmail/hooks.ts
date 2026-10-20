@@ -769,15 +769,6 @@ export function useAddAccount(provider: "gmail" | "outlook" = "gmail") {
   });
 }
 
-/** Which kinds of mailbox this app can add besides Gmail and IMAP (Outlook needs an OAuth client). */
-export function useMailProviders() {
-  return useQuery({
-    queryKey: ["gmail:mailProviders"],
-    queryFn: () => gmailApi.mailProviders(),
-    staleTime: Infinity,
-  });
-}
-
 export function useAddImapAccount() {
   const qc = useQueryClient();
   return useMutation({

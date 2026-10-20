@@ -190,7 +190,7 @@
       "apps/web/src/components/ServerUpdateAction.browser.test.tsx": "100644 blob 77f6cc9afd78373567c105831342392ec0073b07",
       "apps/web/src/components/ServerUpdateAction.tsx": "100644 blob 97a96d714dbc3de74f1f828b5dd53ef563702ab4",
       "apps/web/src/components/Sidebar.logic.test.ts": "100644 blob 3e3915644f1aff77619b5553e0a2fc250424bf88",
-      "apps/web/src/components/Sidebar.logic.ts": "100644 blob 4077860f796078f81f8a0d409cd61ac139395da6",
+      "apps/web/src/components/Sidebar.logic.ts": "100644 blob bf24f48afdc4bc3d46e800699cedf23847386732",
       "apps/web/src/components/Sidebar.tsx": "100644 blob 94a712711f907267392b9d0e1d1a735cba28a36b",
       "apps/web/src/components/ThreadCommandSubtitle.tsx": "100644 blob fd531167e83f638d65653511955560ad29ffc092",
       "apps/web/src/components/ThreadNotificationCoordinator.tsx": "100644 blob c627079c04245eddc5c3ca98d7a99088a8dda470",

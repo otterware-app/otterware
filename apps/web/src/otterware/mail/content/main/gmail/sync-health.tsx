@@ -21,7 +21,7 @@ import { Btn, cn } from "./ui";
  * fix, a refused sign-in, raised as a toast that stays until it's fixed.
  */
 
-export function timeAgo(ts: number): string {
+function timeAgo(ts: number): string {
   const mins = Math.floor((Date.now() - ts) / 60_000);
   if (mins < 1) return "just now";
   if (mins < 60) return `${mins}m ago`;
@@ -69,7 +69,7 @@ export function needsSignIn(account: GmailAccount, status: SyncStatus | undefine
 }
 
 /** Sync state for an account, with a signed-out account called out first. */
-export function accountStatus(account: GmailAccount, status: SyncStatus | undefined): StatusLine {
+function accountStatus(account: GmailAccount, status: SyncStatus | undefined): StatusLine {
   if (notOnThisDevice(account, status)) {
     return {
       text: "Not signed in on this device",
@@ -87,7 +87,7 @@ export function accountStatus(account: GmailAccount, status: SyncStatus | undefi
   return syncLine(status);
 }
 
-export function StatusText({ status, className }: { status: StatusLine; className?: string }) {
+function StatusText({ status, className }: { status: StatusLine; className?: string }) {
   return (
     <Tooltip>
       <TooltipTrigger
@@ -150,7 +150,7 @@ const signInLabel = (account: GmailAccount) =>
  * Signs a mailbox back in: Google or Microsoft in the browser, with the
  * address filled in; an IMAP mailbox's password in Settings › Mailboxes.
  */
-export function useSignInAgain() {
+function useSignInAgain() {
   const google = useAddAccount("gmail");
   const microsoft = useAddAccount("outlook");
   const navigate = useNavigate();

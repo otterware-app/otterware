@@ -85,12 +85,8 @@ export const WorkflowIcon: LucideIcon = centralIconWrapper("agents");
 export const NewThreadIcon: LucideIcon = centralIconWrapper("compose-pencil");
 export const FullAccessIcon: LucideIcon = centralIconWrapper("shield-access");
 
-export const UsageGaugeIcon: LucideIcon = centralIconWrapper("gauge");
-
 /** The "+" affordance behind every add/create action (Add project, activity header). */
 export const AddPlusIcon: LucideIcon = centralIconWrapper("plus-medium");
-/** 2x3 dot grip for drag-to-reorder handles (provider rows, sidebar nav customize). */
-export const DragHandleIcon: LucideIcon = centralIconWrapper("dot-grid-2x3");
 
 export const ArrowLeftIcon = adaptIcon(IconArrowLeft);
 export const ArrowRightIcon = adaptIcon(IconArrowRight);
@@ -217,7 +213,6 @@ export const XIcon = adaptIcon(IconX);
 export const ZapIcon = adaptIcon(IconBolt);
 
 export {
-  ClockHour7Icon as ClockIcon,
   Folder02Icon as FolderOpenIcon,
   FolderAddIcon,
   FolderClosedIcon as FolderIcon,
@@ -226,7 +221,6 @@ export {
   GitPullRequestDraftIcon,
   WorkflowCircle05Icon as GitBranchIcon,
   WorkflowCircle05Icon as GitForkIcon,
-  GitCompareArrowsIcon as CodeReviewIcon,
   Home07Icon as HomeIcon,
   InboxIcon,
   MoreHorizontalIcon,

@@ -124,7 +124,7 @@ export function documentKind(artifact: Artifact): DocumentKind {
 }
 
 /** What a document is, from its entry file's extension. */
-export function entryKind(entryPath: string): DocumentKind {
+function entryKind(entryPath: string): DocumentKind {
   const extension = entryPath.split(".").pop()?.toLowerCase();
   return KIND_BY_EXTENSION[extension ?? ""] ?? "other";
 }

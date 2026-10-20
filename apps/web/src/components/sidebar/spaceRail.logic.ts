@@ -3,12 +3,6 @@ import { LEGACY_VOID_SPACE_ID, type ProjectSpace } from "../../projectSpaces";
 
 export const RAIL_ITEM_IDS = ["home", "spaces", "pullRequests", "automations"] as const;
 export type RailItemId = (typeof RAIL_ITEM_IDS)[number];
-export const RAIL_ITEM_LABELS: Readonly<Record<RailItemId, string>> = {
-  home: "Home",
-  spaces: "Spaces",
-  pullRequests: "Code review",
-  automations: "Automations",
-};
 
 function isRailItemId(value: string): value is RailItemId {
   return RAIL_ITEM_IDS.some((id) => id === value);
