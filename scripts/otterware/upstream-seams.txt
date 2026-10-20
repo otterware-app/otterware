@@ -85,3 +85,6 @@ apps/web/src/components/ui/scroll-area.tsx
 
 # Mail editor keys reuse the host predicate evaluator.
 apps/web/src/keybindings.ts
+
+# Upstream's status-before-send fix to the ACP replay agent, ported ahead of the next sync.
+apps/server/scripts/acp-replay-agent.ts
