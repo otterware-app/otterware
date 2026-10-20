@@ -1,4 +1,5 @@
 export const BUILT_IN_THEME_IDS = [
+  "synara",
   "chatgpt",
   "t3-chat",
   "grove",
@@ -7,14 +8,8 @@ export const BUILT_IN_THEME_IDS = [
   "iris",
 ] as const;
 
-/** The standard T3 Code palette, kept separate from the optional built-in theme library. */
 export const MOBILE_DEFAULT_THEME_ID = "t3-code";
 
-/**
- * Every palette the mobile app can render. Declared here so host-side tooling
- * (the app-store screenshot harness) can validate a requested theme without
- * importing React Native application code.
- */
 export const MOBILE_THEME_IDS = [MOBILE_DEFAULT_THEME_ID, ...BUILT_IN_THEME_IDS] as const;
 
 /**
@@ -50,7 +45,6 @@ export type BuiltInThemeId = (typeof BUILT_IN_THEME_IDS)[number];
 export type MobileThemeId = (typeof MOBILE_THEME_IDS)[number];
 export type ThemeAppearance = "light" | "dark";
 
-/** Product roles shared by web CSS, React Native tokens, and native surfaces. */
 export const THEME_COLOR_ROLES = [
   "canvas",
   "chrome",
@@ -124,23 +118,11 @@ export type ThemeDefinition = Readonly<{
   appearance: ThemeAppearance;
   colors: ThemeColors;
   variants?: ThemeVariants;
-  /** Groups related imported variants into one library card. */
   collection?: Readonly<{ id: string; label: string }>;
-  /** Allows reviewed built-ins to render product artwork over their sidebar. */
   sidebarArtwork?: boolean;
-  /** Generated from the guided editor's canvas and accent roles. */
   managed?: boolean;
 }>;
 
-/**
- * The palette T3 Code wears with no theme installed, captured from the app's
- * stock tokens (index.css) so a draft seeded from the default look paints the
- * pixels the user is already seeing. Alpha-bearing tokens are flattened over
- * their real backdrops (canvas, or the sidebar for its rows) because theme
- * colors are stored as opaque OKLCH tokens.
- * Search uses amber across built-ins to separate matches from accent-tinted
- * inline code. The current match uses a stronger gold with dark text.
- */
 export const T3_CODE_LIGHT_THEME_COLORS: ThemeColors = {
   searchMatchBackground: "#ffde8b",
   searchMatchForeground: "#21180a",
@@ -267,6 +249,142 @@ export const T3_CODE_DARK_THEME_COLORS: ThemeColors = {
   terminalSelection: "#343a47",
   terminalScrollbar: "#222222",
   terminalScrollbarHover: "#363636",
+};
+
+const SYNARA_LIGHT_THEME_COLORS: ThemeColors = {
+  searchMatchBackground: "oklch(0.910441 0.108498 88.529)",
+  searchMatchForeground: "oklch(0.216164 0.028283 77.423)",
+  searchMatchActiveBackground: "oklch(0.774202 0.151946 74.331)",
+  searchMatchActiveForeground: "oklch(0.216164 0.028283 77.423)",
+  canvas: "oklch(1 0 0)",
+  chrome: "oklch(1 0 0)",
+  toolbar: "oklch(1 0 0)",
+  toolbarForeground: "oklch(0.159066 0 0)",
+  toolbarBorder: "oklch(0.159066 0 0 / 0.069)",
+  toolbarControl: "oklch(1 0 0)",
+  toolbarControlForeground: "oklch(0.159066 0 0)",
+  toolbarControlHover: "oklch(0.159066 0 0 / 0.03)",
+  surface: "oklch(1 0 0)",
+  surfaceRaised: "oklch(1 0 0)",
+  surfaceOverlay: "oklch(1 0 0)",
+  text: "oklch(0.159066 0 0)",
+  textMuted: "oklch(0.159066 0 0 / 0.598)",
+  border: "oklch(0.159066 0 0 / 0.069)",
+  input: "oklch(0.159066 0 0 / 0.059)",
+  focus: "oklch(0.568029 0.173703 38.506)",
+  accent: "oklch(0.159066 0 0)",
+  accentForeground: "oklch(1 0 0)",
+  secondary: "oklch(0.159066 0 0 / 0.03)",
+  secondaryForeground: "oklch(0.159066 0 0)",
+  muted: "oklch(0.159066 0 0 / 0.04)",
+  mutedForeground: "oklch(0.159066 0 0 / 0.598)",
+  placeholder: "oklch(0.159066 0 0 / 0.398)",
+  secondaryLabel: "oklch(0.159066 0 0 / 0.598)",
+  iconMuted: "oklch(0.159066 0 0 / 0.598)",
+  error: "oklch(0.589896 0.213434 27.671)",
+  errorForeground: "oklch(0.589896 0.213434 27.671)",
+  errorSurface: "oklch(0.953832 0.018524 13.379)",
+  warning: "oklch(0.66584 0.157422 58.318)",
+  warningForeground: "oklch(0.66584 0.157422 58.318)",
+  warningSurface: "oklch(0.970123 0.018056 78.243)",
+  update: "oklch(0.568029 0.173703 38.506)",
+  updateForeground: "oklch(0.568029 0.173703 38.506)",
+  updateSurface: "oklch(0.92544 0.023947 270.334)",
+  accentSurface: "oklch(0.159066 0 0 / 0.03)",
+  accentSurfaceForeground: "oklch(0.159066 0 0)",
+  messageSurface: "oklch(0.159066 0 0 / 0.03)",
+  messageForeground: "oklch(0.159066 0 0)",
+  messageAction: "oklch(0.159066 0 0)",
+  messageActionForeground: "oklch(1 0 0)",
+  messageActionHover: "oklch(0.26448 0 0)",
+  codeBackground: "oklch(0.159066 0 0 / 0.03)",
+  codeForeground: "oklch(0.159066 0 0)",
+  sidebar: "oklch(1 0 0)",
+  sidebarForeground: "oklch(0.159066 0 0)",
+  sidebarMutedForeground: "oklch(0.159066 0 0 / 0.598)",
+  sidebarControlSurface: "oklch(0.159066 0 0 / 0.03)",
+  sidebarRowHover: "oklch(0.159066 0 0 / 0.03)",
+  sidebarRowActive: "oklch(0.159066 0 0 / 0.03)",
+  sidebarRowSelected: "oklch(0.159066 0 0 / 0.03)",
+  sidebarBorder: "oklch(0.159066 0 0 / 0.069)",
+  terminalBackground: "oklch(1 0 0)",
+  terminalForeground: "oklch(0.159066 0 0)",
+  terminalCursor: "oklch(0.159066 0 0)",
+  terminalSelection: "oklch(0.873532 0.011656 252.099)",
+  terminalScrollbar: "oklch(0.876096 0 0)",
+  terminalScrollbarHover: "oklch(0.798372 0 0)",
+};
+
+const SYNARA_DARK_THEME_COLORS: ThemeColors = {
+  searchMatchBackground: "oklch(0.549168 0.09987 84.95)",
+  searchMatchForeground: "oklch(0.970151 0 0)",
+  searchMatchActiveBackground: "oklch(0.774202 0.151946 74.331)",
+  searchMatchActiveForeground: "oklch(0.216164 0.028283 77.423)",
+  canvas: "oklch(0.177638 0 0)",
+  chrome: "oklch(0.173042 0 0)",
+  toolbar: "oklch(0.173042 0 0)",
+  toolbarForeground: "oklch(0.991069 0 0)",
+  toolbarBorder: "oklch(0.991069 0 0 / 0.072)",
+  toolbarControl: "oklch(0.204627 0 0)",
+  toolbarControlForeground: "oklch(0.991069 0 0)",
+  toolbarControlHover: "oklch(0.991069 0 0 / 0.039)",
+  surface: "oklch(0.186741 0 0)",
+  surfaceRaised: "oklch(0.204627 0 0)",
+  surfaceOverlay: "oklch(0.204627 0 0)",
+  text: "oklch(0.991069 0 0)",
+  textMuted: "oklch(0.991069 0 0 / 0.58)",
+  border: "oklch(0.991069 0 0 / 0.072)",
+  input: "oklch(0.991069 0 0 / 0.118)",
+  focus: "oklch(0.723826 0.154373 40.089 / 0.63)",
+  accent: "oklch(0.991069 0 0)",
+  accentForeground: "oklch(0.177638 0 0)",
+  secondary: "oklch(0.991069 0 0 / 0.026)",
+  secondaryForeground: "oklch(0.991069 0 0)",
+  muted: "oklch(0.991069 0 0 / 0.006)",
+  mutedForeground: "oklch(0.991069 0 0 / 0.58)",
+  placeholder: "oklch(0.991069 0 0 / 0.329)",
+  secondaryLabel: "oklch(0.991069 0 0 / 0.58)",
+  iconMuted: "oklch(0.991069 0 0 / 0.58)",
+  error: "oklch(0.589896 0.213434 27.671)",
+  errorForeground: "oklch(0.589896 0.213434 27.671)",
+  errorSurface: "oklch(0.22916 0.048994 17.612)",
+  warning: "oklch(0.812031 0.141146 76.322)",
+  warningForeground: "oklch(0.812031 0.141146 76.322)",
+  warningSurface: "oklch(0.261724 0.045129 75.465)",
+  update: "oklch(0.671393 0.189703 38.76)",
+  updateForeground: "oklch(0.723826 0.154373 40.089)",
+  updateSurface: "oklch(0.228194 0.050378 267.415)",
+  accentSurface: "oklch(0.991069 0 0 / 0.026)",
+  accentSurfaceForeground: "oklch(0.991069 0 0)",
+  messageSurface: "oklch(0.991069 0 0 / 0.026)",
+  messageForeground: "oklch(0.991069 0 0)",
+  messageAction: "oklch(0.991069 0 0)",
+  messageActionForeground: "oklch(0.177638 0 0)",
+  messageActionHover: "oklch(0.921906 0 0)",
+  codeBackground: "oklch(0.991069 0 0 / 0.026)",
+  codeForeground: "oklch(0.991069 0 0)",
+  sidebar: "oklch(0.177638 0 0)",
+  sidebarForeground: "oklch(0.991069 0 0)",
+  sidebarMutedForeground: "oklch(0.991069 0 0 / 0.58)",
+  sidebarControlSurface: "oklch(0.991069 0 0 / 0.026)",
+  sidebarRowHover: "oklch(0.991069 0 0 / 0.039)",
+  sidebarRowActive: "oklch(0.991069 0 0 / 0.026)",
+  sidebarRowSelected: "oklch(0.991069 0 0 / 0.026)",
+  sidebarBorder: "oklch(0.991069 0 0 / 0.072)",
+  terminalBackground: "oklch(0.177638 0 0)",
+  terminalForeground: "oklch(0.991069 0 0)",
+  terminalCursor: "oklch(0.991069 0 0)",
+  terminalSelection: "oklch(0.348185 0.024175 265.624)",
+  terminalScrollbar: "oklch(0.251965 0 0)",
+  terminalScrollbarHover: "oklch(0.33289 0 0)",
+};
+
+export const SYNARA_THEME: ThemeDefinition = {
+  id: "synara",
+  label: "Synara",
+  appearance: "light",
+  colors: SYNARA_LIGHT_THEME_COLORS,
+  variants: { dark: SYNARA_DARK_THEME_COLORS },
 };
 
 /** ChatGPT's neutral grays, with its blue for focus and accents. */
@@ -1082,6 +1200,7 @@ export const IRIS_THEME: ThemeDefinition = {
 };
 
 export const BUILT_IN_THEMES: ReadonlyArray<ThemeDefinition> = [
+  SYNARA_THEME,
   CHATGPT_THEME,
   T3_CHAT_THEME,
   GROVE_THEME,

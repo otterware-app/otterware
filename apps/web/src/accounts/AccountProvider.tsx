@@ -2,7 +2,6 @@ import {
   createContext,
   useContext,
   useEffect,
-  useMemo,
   useState,
   useSyncExternalStore,
   type ReactNode,
@@ -15,11 +14,9 @@ import {
   createAccountAuthorization,
 } from "@t3tools/shared/otterAccounts";
 import type { OtterAccountUser } from "@t3tools/contracts/accounts";
-
 import { consumeBrowserAuthorization, saveBrowserAuthorization } from "./browserAuthorization";
 import { isElectron } from "../env";
 import { resolveCloudPublicConfig } from "../cloud/publicConfig";
-
 const SESSION_KEY = "otter-account-session-v1";
 const callbackUrl = `${OTTER_CODE_WEB_URL}/account/callback`;
 type AccountContextValue = {
@@ -44,7 +41,6 @@ const AccountContext = createContext<AccountContextValue>({
   signOut: async () => {},
   completeSignIn: async () => null,
 });
-
 export function AccountProvider({ children }: { readonly children: ReactNode }) {
   const [manager] = useState(() => {
     const config = resolveCloudPublicConfig();
@@ -92,8 +88,10 @@ export function AccountProvider({ children }: { readonly children: ReactNode }) 
         const config = resolveCloudPublicConfig();
         const request = await createAccountAuthorization(crypto);
         if (isElectron) {
-          if (!window.desktopBridge?.authorizeAccount)
-            throw new Error("Update Otter Code to sign in.");
+          if (!window.desktopBridge?.authorizeAccount) {
+            setError("Update Otter Code to sign in.");
+            return;
+          }
           const result = await window.desktopBridge.authorizeAccount({
             state: request.state,
             challenge: request.challenge,
@@ -104,7 +102,7 @@ export function AccountProvider({ children }: { readonly children: ReactNode }) 
           saveBrowserAuthorization(sessionStorage, {
             state,
             verifier: request.verifier,
-            expiresAt: Date.now() + 10 * 60_000,
+            expiresAt: Date.now() + 10 * 60000,
             returnTo: window.location.pathname + window.location.search,
           });
           window.location.assign(
@@ -138,7 +136,6 @@ export function AccountProvider({ children }: { readonly children: ReactNode }) 
       if (!isElectron) window.location.assign(`${OTTER_CODE_WEB_URL}/account/sign-out`);
     },
   }));
-
   useEffect(() => {
     let active = true;
     const report = (cause: unknown) => {
@@ -163,19 +160,15 @@ export function AccountProvider({ children }: { readonly children: ReactNode }) 
       window.removeEventListener("storage", storage);
     };
   }, [manager]);
-  const value = useMemo(
-    () => ({
-      isLoaded: snapshot.loaded,
-      isSignedIn: snapshot.user !== null,
-      userId: snapshot.user?.id ?? null,
-      user: snapshot.user,
-      error,
-      getToken: manager.readToken,
-      ...actions,
-    }),
-    [snapshot, error, manager, actions],
-  );
+  const value = {
+    isLoaded: snapshot.loaded,
+    isSignedIn: snapshot.user !== null,
+    userId: snapshot.user?.id ?? null,
+    user: snapshot.user,
+    error,
+    getToken: manager.readToken,
+    ...actions,
+  };
   return <AccountContext.Provider value={value}>{children}</AccountContext.Provider>;
 }
-
 export const useAuth = () => useContext(AccountContext);

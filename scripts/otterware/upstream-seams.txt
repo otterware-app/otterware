@@ -20,8 +20,11 @@ packages/contracts/src/keybindings.ts
 
 # Web: shell (ADR 0020) — rail, layout, palette, settings tables and nav, keybindings page, branding
 apps/web/src/components/AppSidebarLayout.tsx
-apps/web/src/components/sidebar/SpaceRail.tsx
 apps/web/src/components/CommandPalette.tsx
+# Compact module assistants filter global chat shortcuts to their own focused surface.
+apps/web/src/components/chat/useChatShortcuts.ts
+# The host retains a measured compiler bailout baseline for integrated module renderers.
+apps/web/src/reactCompilerCoverage.test.ts
 apps/web/src/components/settings/settingsSearch.ts
 apps/web/src/components/settings/settingsLayout.tsx
 apps/web/src/components/settings/SettingsSidebarNav.tsx
@@ -71,10 +74,6 @@ pnpm-*.yaml
 **/tsconfig.json
 knip.jsonc
 third-party-licenses.config.json
-
-# Rebrand: upstream tests that assert the product name or the renamed account token field
-apps/mobile/src/features/connection/environmentStatusText.test.ts
-packages/client-runtime/src/relay/managedRelay.test.ts
 
 # Mail contributes its built-in palette to the web theme library and the Appearance list.
 apps/web/src/themePalette.ts

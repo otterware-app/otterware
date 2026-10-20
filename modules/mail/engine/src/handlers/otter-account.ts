@@ -18,6 +18,9 @@ import { broadcast, handle } from "../ipc.js";
 import { logger } from "../logger.js";
 import { platform } from "../platform.js";
 import { listAccounts } from "../services/account-store.js";
+import { getAccount } from "../services/account-store.js";
+import { getImapPassword } from "../services/imap-passwords.js";
+import type { NotificationConnection } from "@otterware/mail-contracts/relay";
 import { findProvider, isSignedIn } from "../providers/index.js";
 import {
   clearLinkedSnapshot,
@@ -80,7 +83,7 @@ function refresh(): Promise<void> {
 
 async function refreshOnce(): Promise<void> {
   try {
-    const { pushTopic, pushTopics } = await relayRequest<MeResponse>("GET", "/v1/me");
+    const { pushTopic } = await relayRequest<MeResponse>("GET", "/v1/me");
     await reconcileAccounts(removeLocalAccount);
     const linked = linkedAccountIds();
     const pushed: string[] = [];
@@ -88,9 +91,7 @@ async function refreshOnce(): Promise<void> {
       const watch = findProvider(account)?.watchViaRelay;
       if (!watch || !linked.has(account.email.toLowerCase()) || !isSignedIn(account)) continue;
       try {
-        const clientId = pushTopics ? await platform().google.getClientId?.(account.id) : undefined;
-        const topic = (clientId && pushTopics?.[clientId.split("-")[0]!]) || pushTopic;
-        if (await watch(account.id, topic)) pushed.push(account.id);
+        if (await watch(account.id, pushTopic)) pushed.push(account.id);
       } catch (err) {
         logger.info("otter-account", `Couldn't watch ${account.id}: ${String(err)}`);
       }
@@ -173,6 +174,44 @@ export function registerOtterAccountHandlers(): void {
   });
 
   handle("otter:getState", async () => otterState());
+
+  handle("otter:notificationConnections", async () => {
+    if (!getOtterUser())
+      return { connections: [], providers: { gmail: false, outlook: false, imap: false } };
+    return relayRequest<{
+      connections: NotificationConnection[];
+      providers: Record<string, boolean>;
+    }>("GET", "/v1/notification-connections");
+  });
+  handle("otter:connectNotifications", async (params: unknown) => {
+    const { accountId } = params as { accountId: string };
+    const account = await getAccount(accountId);
+    if (!account || !getOtterUser()) throw new Error("Sign in to your Otter account first.");
+    if (!isSignedIn(account)) throw new Error("Sign in to this mailbox first.");
+    if (account.provider === "imap") {
+      const password = getImapPassword(accountId);
+      if (!password || !account.imap) throw new Error("Reconnect this IMAP mailbox first.");
+      await relayRequest("PUT", "/v1/notification-connections/imap", {
+        email: account.email,
+        password,
+        settings: account.imap,
+      });
+      return { connected: true };
+    }
+    return relayRequest<{ url: string }>("POST", "/v1/notification-connections/authorize", {
+      email: account.email,
+      returnTo: platform().kind === "web" ? "web" : "desktop",
+    });
+  });
+  handle("otter:disconnectNotifications", async (params: unknown) => {
+    const { accountId } = params as { accountId: string };
+    const account = await getAccount(accountId);
+    if (!account) return;
+    await relayRequest(
+      "DELETE",
+      "/v1/notification-connections/" + encodeURIComponent(account.email),
+    );
+  });
 
   // otter:signIn — "Sign in with Google", for the Otter account only (never
   // a mailbox). The desktop opens Google in the browser; the web app answers

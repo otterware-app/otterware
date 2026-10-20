@@ -19,6 +19,7 @@ import { acceptLinkResponseSchema } from "@otterware/drive-contracts/api";
 
 import { DriveHostProvider, useDriveHost, type DriveHost } from "./host";
 import { api, setDriveClient } from "./lib/api";
+import { LinkView } from "./main/drive/link-view";
 import { DocumentRoute } from "./main/drive/document-route";
 import { parseDriveSearch, type DriveSearch } from "./main/drive/documents";
 import { Overview, SharedOverview } from "./main/drive/overview";
@@ -58,7 +59,9 @@ export function DriveApp({ host }: { host: DriveHost }) {
             </Empty>
           }
         >
-          {host.accountPending ? (
+          {parsePlace(host.location.pathname).kind === "shared-link" ? (
+            <PublicLinkRoute />
+          ) : host.accountPending ? (
             <p className="p-6">Loading Drive…</p>
           ) : !host.account ? (
             <Empty>
@@ -79,6 +82,19 @@ export function DriveApp({ host }: { host: DriveHost }) {
       </QueryClientProvider>
     </DriveHostProvider>
   );
+}
+
+function PublicLinkRoute() {
+  const host = useDriveHost();
+  const route = parsePlace(host.location.pathname);
+  const search = new URLSearchParams(host.location.search);
+  return route.kind === "shared-link" ? (
+    <LinkView
+      token={route.token}
+      {...(search.get("folder") ? { folder: search.get("folder")! } : {})}
+      {...(search.get("doc") ? { doc: search.get("doc")! } : {})}
+    />
+  ) : null;
 }
 
 function DriveRoutes() {

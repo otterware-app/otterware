@@ -3,3 +3,10 @@
 # Batch files need CRLF for cmd.exe to parse them reliably.
 *.cmd text eol=crlf
 *.bat text eol=crlf
+# GitHub's and Expo's GraphQL schemas and the operations graphqlgen writes from them.
+packages/source-control-github/schema/** linguist-generated
+apps/server/schema/** linguist-generated
+**/*.graphql.ts linguist-generated
+
+# Recorded SSE events end with a blank line that terminates the last event.
+packages/provider-api-agents/src/protocol/fixtures/*.sse whitespace=-blank-at-eof

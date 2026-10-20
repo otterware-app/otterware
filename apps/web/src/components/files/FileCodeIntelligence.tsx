@@ -8,7 +8,7 @@ import type {
 } from "@t3tools/contracts";
 import { getFiletypeFromFileName } from "@pierre/diffs";
 import type { Editor } from "@pierre/diffs/edit";
-import { ArrowLeft, ArrowRight, X } from "lucide-react";
+import { ArrowLeftIcon as ArrowLeft, ArrowRightIcon as ArrowRight, XIcon as X } from "~/lib/icons";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
 import { projectEnvironment } from "~/state/projects";
 import { useAtomCommand } from "~/state/use-atom-command";
@@ -180,7 +180,7 @@ export default function FileCodeIntelligence(props: Props) {
     };
     const clearHover = () => {
       clearTimeout(hoverTimer);
-      hoverSequence++;
+      hoverSequence += 1;
       hoverKey = "";
       setLinks([]);
       if (linkContent) linkContent.style.cursor = previousCursor;
@@ -189,8 +189,8 @@ export default function FileCodeIntelligence(props: Props) {
     };
     const dismiss = () => {
       clearTimeout(completionTimer);
-      suggestionSequence++;
-      signatureSequence++;
+      suggestionSequence += 1;
+      signatureSequence += 1;
       signatureVisible = false;
       updateSuggestions(null);
       clearHover();
@@ -240,7 +240,8 @@ export default function FileCodeIntelligence(props: Props) {
     const showSuggestions = async () => {
       const position = cursor();
       if (!position || composing) return;
-      const sequence = ++suggestionSequence;
+      suggestionSequence += 1;
+      const sequence = suggestionSequence;
       const text = editor.getText();
       const result = await query(
         "completions",
@@ -261,7 +262,8 @@ export default function FileCodeIntelligence(props: Props) {
     const showSignature = async () => {
       const position = cursor();
       if (!position) return;
-      const sequence = ++signatureSequence;
+      signatureSequence += 1;
+      const sequence = signatureSequence;
       const result = await query(
         "signature",
         position,
@@ -313,7 +315,7 @@ export default function FileCodeIntelligence(props: Props) {
       diagnosticsTimer = setTimeout(() => {
         void checkDiagnostics();
       }, 600);
-      suggestionSequence++;
+      suggestionSequence += 1;
       updateSuggestions(null);
       clearHover();
       clearTimeout(completionTimer);
@@ -550,18 +552,6 @@ export default function FileCodeIntelligence(props: Props) {
     };
   }, [listId, root, suggestions]);
 
-  const toolbarAction = (label: string, title: string, onClick: () => void) => (
-    <Button
-      variant="ghost"
-      size="xs"
-      aria-label={title}
-      title={title}
-      onMouseDown={(event) => event.preventDefault()}
-      onClick={onClick}
-    >
-      {label}
-    </Button>
-  );
   const selectLocation = (item: CodeLocation) => {
     const selection = editor.getViewState().selections?.at(-1);
     const point = selection
@@ -592,13 +582,21 @@ export default function FileCodeIntelligence(props: Props) {
         >
           <ArrowRight />
         </Button>
-        {toolbarAction("Definition", "Go to definition (F12)", () =>
-          actions.current?.navigate("definition"),
-        )}
-        {toolbarAction("References", "Find references (Shift+F12)", () =>
-          actions.current?.navigate("references"),
-        )}
-        {toolbarAction("Format", "Format document (Shift+Alt+F)", () => actions.current?.format())}
+        <FileCodeToolbarAction
+          label="Definition"
+          title="Go to definition (F12)"
+          onClick={() => actions.current?.navigate("definition")}
+        />
+        <FileCodeToolbarAction
+          label="References"
+          title="Find references (Shift+F12)"
+          onClick={() => actions.current?.navigate("references")}
+        />
+        <FileCodeToolbarAction
+          label="Format"
+          title="Format document (Shift+Alt+F)"
+          onClick={() => actions.current?.format()}
+        />
         <Button
           variant="ghost"
           size="xs"
@@ -732,5 +730,28 @@ export default function FileCodeIntelligence(props: Props) {
         </div>
       ) : null}
     </>
+  );
+}
+
+function FileCodeToolbarAction({
+  label,
+  title,
+  onClick,
+}: {
+  label: string;
+  title: string;
+  onClick: () => void;
+}) {
+  return (
+    <Button
+      variant="ghost"
+      size="xs"
+      aria-label={title}
+      title={title}
+      onMouseDown={(event) => event.preventDefault()}
+      onClick={onClick}
+    >
+      {label}
+    </Button>
   );
 }

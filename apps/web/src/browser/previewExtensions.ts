@@ -4,19 +4,15 @@
  * extensions and their buttons current.
  */
 import type { DesktopPreviewExtension, DesktopPreviewExtensionAction } from "@t3tools/contracts";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-
 import { resolveStorage } from "~/lib/storage";
 import { readLocalApi } from "~/localApi";
-
 /** `null` on the web build, and on desktop builds without extensions. */
 export const previewExtensions =
   typeof window === "undefined" ? null : (window.desktopBridge?.previewExtensions ?? null);
-
 export const CHROME_WEB_STORE_URL = "https://chromewebstore.google.com/category/extensions";
-
 interface PreviewExtensionsUiState {
   /** Extensions whose buttons sit on the toolbar, in order. */
   readonly pinned: ReadonlyArray<string>;
@@ -28,7 +24,6 @@ interface PreviewExtensionsUiState {
   readonly setExtensionsButton: (shown: boolean) => void;
   readonly setDeveloperMode: (on: boolean) => void;
 }
-
 export const usePreviewExtensionsUi = create<PreviewExtensionsUiState>()(
   persist(
     (set) => ({
@@ -58,7 +53,6 @@ export const usePreviewExtensionsUi = create<PreviewExtensionsUiState>()(
     },
   ),
 );
-
 /** What `read` returns, read again whenever extensions or their buttons change. */
 function useWhenExtensionsChange<T>(read: (() => Promise<T>) | null, initial: T): T {
   const [value, setValue] = useState(initial);
@@ -81,37 +75,28 @@ function useWhenExtensionsChange<T>(read: (() => Promise<T>) | null, initial: T)
   }, [read]);
   return value;
 }
-
 const listInstalled = previewExtensions ? () => previewExtensions.list() : null;
-
 /** Every installed extension, on or off; `null` until read. */
 export function useInstalledPreviewExtensions(): ReadonlyArray<DesktopPreviewExtension> | null {
   return useWhenExtensionsChange(listInstalled, null);
 }
-
 const NO_ACTIONS: ReadonlyArray<DesktopPreviewExtensionAction> = [];
-
 /** The toolbar's buttons for the tab showing in `webContentsId`. */
 export function usePreviewExtensionActions(
   webContentsId: number | null,
 ): ReadonlyArray<DesktopPreviewExtensionAction> {
-  const read = useMemo(
-    () =>
-      previewExtensions && webContentsId !== null
-        ? () => previewExtensions.actions(webContentsId)
-        : null,
-    [webContentsId],
-  );
+  const read =
+    previewExtensions && webContentsId !== null
+      ? () => previewExtensions.actions(webContentsId)
+      : null;
   return useWhenExtensionsChange(read, NO_ACTIONS);
 }
-
 /**
  * Pages extensions open go to the preview showing (the newest one asking);
  * with none showing, to the system browser.
  */
 const openTabHandlers: Array<(url: string) => void> = [];
 let listeningForTabs = false;
-
 export function useOpenExtensionTabs(handler: ((url: string) => void) | null): void {
   useEffect(() => {
     if (!handler || !previewExtensions) return;

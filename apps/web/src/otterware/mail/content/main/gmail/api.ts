@@ -317,6 +317,7 @@ export type SaveDraftParams = {
   /** The draft version this edit is based on: the backend refuses to
       overwrite a newer one (changed elsewhere) and reports a conflict. */
   expectMessageId?: string | undefined;
+  expectRevision?: string | undefined;
   to: string;
   cc?: string | undefined;
   bcc?: string | undefined;
@@ -328,7 +329,12 @@ export type SaveDraftParams = {
 };
 
 export type SaveDraftResult =
-  | { draftId: string; messageId?: string | undefined; threadId?: string | undefined }
+  | {
+      draftId: string;
+      messageId?: string | undefined;
+      threadId?: string | undefined;
+      revision?: string | undefined;
+    }
   /** Edited elsewhere since `expectMessageId`: nothing was saved. */
   | { conflict: true; draftId: string; messageId: string }
   /** Sent or deleted elsewhere: nothing was saved. */
@@ -429,6 +435,9 @@ export const createGmailApi = (ipcCall = ipc, taskCall = task) => {
     saveSupportReport: (contents: string, filename?: "Otter Mail diagnostics.json") =>
       task<boolean>("support:saveReport", { contents, filename }),
     listAccounts: (): Promise<GmailAccount[]> => ipc("gmail:listAccounts"),
+    addOutlookAccount: (email?: string): Promise<GmailAccount | null> =>
+      ipc("gmail:addOutlookAccount", email ? { email } : undefined),
+    mailProviders: (): Promise<{ outlook: boolean }> => ipc("gmail:mailProviders"),
 
     /** Browser sign-in; `email` signs an existing account back in. */
     /** Resolves null when the sign-in was cancelled. */
@@ -564,7 +573,10 @@ export const createGmailApi = (ipcCall = ipc, taskCall = task) => {
       ipc("gmail:saveDraft", params),
 
     /** The message backing a draft right now; null = the draft is gone. */
-    getDraftVersion: (accountId: string, draftId: string): Promise<{ messageId: string | null }> =>
+    getDraftVersion: (
+      accountId: string,
+      draftId: string,
+    ): Promise<{ messageId: string | null; revision?: string | null }> =>
       ipc("gmail:getDraftVersion", { accountId, draftId }),
 
     /** A draft's content at a given version (also refreshes the cache). */

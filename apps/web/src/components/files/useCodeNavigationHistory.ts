@@ -1,12 +1,10 @@
 import type { CodeLocation } from "@t3tools/contracts";
-import { useCallback, useMemo, useState } from "react";
-
+import { useState } from "react";
 interface CodeHistory {
   entries: ReadonlyArray<CodeLocation>;
   index: number;
   id: number;
 }
-
 /**
  * Back/forward history for code navigation across file surfaces. The panel outlives
  * individual file tabs, so a definition in another file keeps its way back.
@@ -19,20 +17,17 @@ export function useCodeNavigationHistory(input: {
 }) {
   const { relativePath, revealLine, revealRequestId, onOpenFile } = input;
   const [history, setHistory] = useState<CodeHistory>({ entries: [], index: -1, id: 0 });
-  const navigate = useCallback(
-    (target: CodeLocation, source: CodeLocation) => {
-      setHistory((current) => {
-        const previous = current.index < 0 ? [] : current.entries.slice(0, current.index);
-        return {
-          entries: [...previous, source, target],
-          index: previous.length + 1,
-          id: current.id + 1,
-        };
-      });
-      onOpenFile(target.path);
-    },
-    [onOpenFile],
-  );
+  const navigate = (target: CodeLocation, source: CodeLocation) => {
+    setHistory((current) => {
+      const previous = current.index < 0 ? [] : current.entries.slice(0, current.index);
+      return {
+        entries: [...previous, source, target],
+        index: previous.length + 1,
+        id: current.id + 1,
+      };
+    });
+    onOpenFile(target.path);
+  };
   const move = (direction: -1 | 1) => {
     const target = history.entries[history.index + direction];
     if (!target) return;
@@ -45,19 +40,16 @@ export function useCodeNavigationHistory(input: {
   };
   const destination = history.entries[history.index];
   // A reveal requested by a link wins over the navigation destination.
-  const reveal = useMemo(
-    () =>
-      revealLine !== null
-        ? { line: revealLine, column: 1, id: revealRequestId }
-        : destination?.path === relativePath
-          ? {
-              line: destination.range.start.line,
-              column: destination.range.start.column,
-              id: history.id,
-            }
-          : null,
-    [destination, history.id, relativePath, revealLine, revealRequestId],
-  );
+  const reveal =
+    revealLine !== null
+      ? { line: revealLine, column: 1, id: revealRequestId }
+      : destination?.path === relativePath
+        ? {
+            line: destination.range.start.line,
+            column: destination.range.start.column,
+            id: history.id,
+          }
+        : null;
   return {
     reveal,
     navigate,

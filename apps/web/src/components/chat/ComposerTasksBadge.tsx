@@ -1,4 +1,5 @@
-import { CheckIcon, CircleDotIcon, CircleIcon, ListTodoIcon } from "lucide-react";
+import { CircleDotIcon, CircleIcon } from "lucide-react";
+import { CheckIcon, ListTodoIcon } from "~/lib/icons";
 import { memo, type ComponentProps } from "react";
 
 import { formatDuration } from "../../session-logic";
@@ -9,6 +10,7 @@ export interface ComposerTasksProgress {
   readonly step: string;
   readonly completedSteps: number;
   readonly totalSteps: number;
+  readonly live: boolean;
 }
 
 export interface ComposerTaskStep {
@@ -205,7 +207,7 @@ export const ComposerTasksContent = memo(function ComposerTasksContent({
                   >
                     {step.durationMs !== undefined
                       ? formatDuration(step.durationMs)
-                      : step.status === "inProgress"
+                      : step.status === "inProgress" && progress.live
                         ? "now"
                         : null}
                   </span>

@@ -37,9 +37,13 @@ struct OtterMailApp: App {
         }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
-            case .active: Task { await session.relay.retrySignOuts(); await session.refreshAccount() }
+            case .active:
+                Task { await session.relay.retrySignOuts(); await session.refreshAccount() }
+                // An OpenClaw reply the app let go of: as far as it got, then the rest.
+                Task { await session.agent.resumeOpenClaw() }
             case .background:
                 session.disconnect()
+                session.agent.suspendOpenClaw()
                 Task { await Self.scheduleRefresh() }
             default: break
             }
@@ -94,7 +98,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         let info = response.notification.request.content.userInfo
         let metadata = info["otter"] as? [String: Any]
         let destination = Session.NotificationDestination(userId: metadata?["userId"] as? String,
-            email: (info["mailbox"] as? String) ?? (metadata?["email"] as? String), thread: info["thread"] as? String)
+            email: (info["mailbox"] as? String) ?? (metadata?["email"] as? String), thread: info["thread"] as? String, message: info["message"] as? String)
         if let session { session.opening = destination } else { tapped = destination }
         completionHandler()
     }

@@ -12,13 +12,14 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import { Check, Copy } from "lucide";
-import { Activity, useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { Activity, useEffect, useEffectEvent, useRef, useState } from "react";
 
 import { APP_BASE_NAME, APP_DISPLAY_NAME, APP_STAGE_LABEL, APP_VERSION } from "../branding";
 import { resolveServerBackedAppDisplayName } from "../branding.logic";
 import { AppSidebarLayout } from "../components/AppSidebarLayout";
 import { CommandPalette } from "../components/CommandPalette";
 import { CustomSnoozeDialogHost } from "../components/CustomSnoozeDialog";
+import { AddProjectToMachineDialogHost } from "../components/AddProjectToMachineDialog";
 import { ConfirmDialogHost } from "../components/ConfirmDialogHost";
 import { KeybindingsConfigWarning } from "../components/KeybindingsConfigWarning";
 import { FirstRunGate } from "../components/onboarding/FirstRunGate";
@@ -30,14 +31,15 @@ import { ThreadDeepLinkCoordinator } from "../components/desktop/ThreadDeepLinkC
 import { DesktopAppActivationCoordinator } from "../components/desktop/DesktopAppActivationCoordinator";
 import { DesktopWebLinkCoordinator } from "../components/desktop/DesktopWebLinkCoordinator";
 import { RunningThreadKeepAlive } from "../components/desktop/RunningThreadKeepAlive";
+import { WindowMaterialSync } from "../components/desktop/WindowMaterialSync";
 import { ProviderUpdateLaunchNotification } from "../components/ProviderUpdateLaunchNotification";
 import { DesktopUpdateLaunchNotice } from "../components/sidebar/updateEverythingRun";
-import { NightlyMobileBetaNotice } from "../components/NightlyMobileBeta";
 import { LegacyThreadMigrationToast } from "../components/LegacyThreadMigrationToast";
 import { ThreadNotificationCoordinator } from "../components/ThreadNotificationCoordinator";
 import { ReopenClosedViewShortcut } from "../components/ReopenClosedViewShortcut";
 import { ProjectCloneToastCoordinator } from "../components/ProjectCloneToastCoordinator";
 import { PullRequestGuideRunCoordinator } from "../components/pullRequest/guide/PullRequestGuideRunCoordinator";
+import { HostFreezeToastCoordinator } from "../components/HostFreezeToastCoordinator";
 import { SlowRpcRequestToastCoordinator } from "../components/SlowRpcRequestToastCoordinator";
 import { ChatGptWelcomeCoordinator } from "../components/settings/ChatGptWelcomeCoordinator";
 import { ProviderAuthCallbackCoordinator } from "../components/settings/ProviderAuthCallbackCoordinator";
@@ -61,7 +63,6 @@ import { applyAppearanceContrast } from "~/appearanceContrast";
 import { useClientSettings } from "../hooks/useSettings";
 import {
   deriveLogicalProjectKeyFromSettings,
-  derivePhysicalProjectKeyFromPath,
   selectProjectGroupingSettings,
 } from "../logicalProject";
 import { useUiStateStore } from "../uiStateStore";
@@ -147,17 +148,13 @@ function RootRouteView() {
   const pathname = useLocation({ select: (location) => location.pathname });
   const { authGateState } = Route.useRouteContext();
   const primaryEnvironmentAuthenticated = authGateState.status === "authenticated";
-  const returningFromWelcomeRef = useRef(pathname === "/welcome");
+  const [returningFromWelcome, setReturningFromWelcome] = useState(pathname === "/welcome");
+  if (pathname === "/welcome" && !returningFromWelcome) setReturningFromWelcome(true);
   const hostedPromptLinkLanding = useHostedPromptLinkLanding(
     authGateState.status === "hosted-static",
   );
 
-  useEffect(() => {
-    if (pathname === "/welcome") {
-      returningFromWelcomeRef.current = true;
-    }
-  }, [pathname]);
-
+  // Theme synchronization runs after navigation commits.
   useEffect(() => {
     const frame = window.requestAnimationFrame(() => {
       syncBrowserChromeTheme();
@@ -165,6 +162,7 @@ function RootRouteView() {
     return () => {
       window.cancelAnimationFrame(frame);
     };
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Navigation triggers synchronization of the current browser state.
   }, [pathname]);
 
   // Otterware seam: retain the shell through pairing and auth transitions.
@@ -202,6 +200,7 @@ function RootRouteView() {
         <ContrastAppearanceSync />
         <EnvironmentThemeSync />
         <GlassAppearanceSync />
+        <WindowMaterialSync />
         <FontAppearanceSync />
         <ProviderAuthCallbackCoordinator />
         <ChatGptWelcomeCoordinator />
@@ -224,18 +223,19 @@ function RootRouteView() {
             <ConfirmDialogHost />
             <CustomSnoozeDialogHost />
             <SlowRpcRequestToastCoordinator />
+            <HostFreezeToastCoordinator />
             <PermissionUpdateNotice />
             {primaryEnvironmentAuthenticated ? <LegacyThreadMigrationToast /> : null}
             <ProjectCloneToastCoordinator />
+            <AddProjectToMachineDialogHost />
             <PullRequestGuideRunCoordinator />
             <HostedStaticEnvironmentBootstrap />
             {primaryEnvironmentAuthenticated ? (
-              <EventRouter skipInitialBootstrapNavigation={returningFromWelcomeRef.current} />
+              <EventRouter skipInitialBootstrapNavigation={returningFromWelcome} />
             ) : null}
             {primaryEnvironmentAuthenticated ? <ProviderUpdateLaunchNotification /> : null}
             {isElectron ? <DesktopUpdateLaunchNotice /> : null}
             {/* Hosted Nightly is "hosted-static", not authenticated, and needs it too. */}
-            <NightlyMobileBetaNotice />
             <AppShellReadiness onChange={setShellReady} />
             {/* Above the router: a theme draft is judged by walking the app, so the
               editor has to survive navigation away from settings. */}
@@ -384,7 +384,7 @@ function RootRouteErrorView({ error }: ErrorComponentProps) {
   const message = errorMessage(error);
   // Router pathname rather than window.location: desktop uses hash history, where the window path is always "/".
   const pathname = useLocation({ select: (location) => location.pathname });
-  const report = useMemo(() => errorReport(error, pathname), [error, pathname]);
+  const report = (() => errorReport(error, pathname))();
 
   return (
     <StandalonePage tone="error">
@@ -513,21 +513,6 @@ function EventRouter({
       if (!payload.bootstrapProjectId || !payload.bootstrapThreadId) {
         return;
       }
-      const bootstrapProject = readProject(
-        scopeProjectRef(payload.environment.environmentId, payload.bootstrapProjectId),
-      );
-      const bootstrapProjectKey =
-        (bootstrapProject
-          ? deriveLogicalProjectKeyFromSettings(bootstrapProject, projectGroupingSettings)
-          : null) ??
-        (serverConfig?.cwd
-          ? derivePhysicalProjectKeyFromPath(payload.environment.environmentId, serverConfig.cwd)
-          : null) ??
-        scopedProjectKey(
-          scopeProjectRef(payload.environment.environmentId, payload.bootstrapProjectId),
-        );
-      useUiStateStore.getState().setProjectExpanded(bootstrapProjectKey, true);
-
       if (readPathname() !== "/") {
         return;
       }

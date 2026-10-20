@@ -1,10 +1,8 @@
 import type { CodeIntelligenceServerId, LanguageServerStatus } from "@t3tools/contracts";
 import { squashAtomCommandFailure } from "@t3tools/client-runtime/state/runtime";
-import { useCallback, useEffect, useState } from "react";
-
+import { useEffect, useState } from "react";
 import { projectEnvironment } from "~/state/projects";
 import { useAtomCommand } from "~/state/use-atom-command";
-
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { RefreshIcon } from "../ui/refresh-icon";
@@ -14,14 +12,12 @@ import { SettingsPageContainer, SettingsRow, SettingsSection } from "./settingsL
 import { searchableSetting } from "./settingsSearch";
 import { useSettingsScope } from "./SettingsScopeContext";
 import { useScopedSettings, useUpdateScopedSettings } from "./useScopedSettings";
-
 function statusText(server: LanguageServerStatus) {
   if (server.bundled)
     return `Built in${server.version ? ` · v${server.version}` : ""} · ${server.languages.join(" ")}`;
   if (!server.path) return `${server.command} was not found. ${server.installHint}`;
   return `${server.version ?? "Installed"} · ${server.path}`;
 }
-
 /** Commits on blur or Enter so each keystroke does not rewrite settings on every machine. */
 function CommandInput(props: {
   label: string;
@@ -54,7 +50,6 @@ function CommandInput(props: {
     />
   );
 }
-
 export function CodeIntelligenceSettingsPanel() {
   const { scope, environment, connectedEnvironments } = useSettingsScope();
   const settings = useScopedSettings((value) => value.codeIntelligence);
@@ -65,31 +60,44 @@ export function CodeIntelligenceSettingsPanel() {
   // Availability is probed on one machine; the rows below still fan out to the selection.
   const aggregate = scope.environmentIds.length !== 1 && connectedEnvironments.length > 1;
   const environmentSuffix = aggregate && environment ? ` · ${environment.label}` : "";
-  const [servers, setServers] = useState<ReadonlyArray<LanguageServerStatus> | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [checking, setChecking] = useState(false);
-
-  const scan = useCallback(async () => {
-    if (environmentId === null) return;
-    setChecking(true);
-    const result = await loadStatus({ environmentId, input: {} });
-    setChecking(false);
-    if (result._tag === "Success") {
-      setServers(result.value.servers);
-      setError(null);
-    } else {
-      const cause = squashAtomCommandFailure(result);
-      setError(cause instanceof Error ? cause.message : "Unable to check language servers.");
-    }
-  }, [environmentId, loadStatus]);
-  // Settings change which command runs, so re-probe whenever they do.
+  const [generation, setGeneration] = useState(0);
+  const [scanResult, setScanResult] = useState<{
+    environmentId: NonNullable<typeof environmentId>;
+    settings: typeof settings;
+    generation: number;
+    result: Awaited<ReturnType<typeof loadStatus>>;
+  } | null>(null);
   useEffect(() => {
-    void scan();
-  }, [scan, settings]);
-
-  const update = (id: CodeIntelligenceServerId, patch: { enabled?: boolean; command?: string }) =>
-    updateSettings({ codeIntelligence: { [id]: { ...settings[id], ...patch } } });
-
+    if (environmentId === null) return;
+    let active = true;
+    void loadStatus({ environmentId, input: {} }).then((result) => {
+      if (active) setScanResult({ environmentId, settings, generation, result });
+    });
+    return () => {
+      active = false;
+    };
+  }, [environmentId, settings, generation, loadStatus]);
+  const current =
+    scanResult?.environmentId === environmentId && scanResult.settings === settings
+      ? scanResult
+      : null;
+  const checking = environmentId !== null && current?.generation !== generation;
+  const servers = current?.result._tag === "Success" ? current.result.value.servers : null;
+  const failure =
+    current?.result._tag === "Failure" ? squashAtomCommandFailure(current.result) : null;
+  const error =
+    failure instanceof Error
+      ? failure.message
+      : failure === null
+        ? null
+        : "Unable to check language servers.";
+  const update = (
+    id: CodeIntelligenceServerId,
+    patch: {
+      enabled?: boolean;
+      command?: string;
+    },
+  ) => updateSettings({ codeIntelligence: { [id]: { ...settings[id], ...patch } } });
   const scanButton = (
     <Tooltip>
       <TooltipTrigger
@@ -97,7 +105,7 @@ export function CodeIntelligenceSettingsPanel() {
           <Button
             size="icon-xs"
             variant="ghost-muted"
-            onClick={() => void scan()}
+            onClick={() => setGeneration((value) => value + 1)}
             disabled={checking || environmentId === null}
             aria-label="Check language servers again"
           />
@@ -108,7 +116,6 @@ export function CodeIntelligenceSettingsPanel() {
       <TooltipPopup side="top">Check language servers again</TooltipPopup>
     </Tooltip>
   );
-
   return (
     <SettingsPageContainer>
       <SettingsSection

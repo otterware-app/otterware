@@ -1,24 +1,18 @@
 import type { FileDiffMetadata } from "@pierre/diffs";
+import { SquareArrowRightIcon, SquareDotIcon, SquareMinusIcon, SquarePlusIcon } from "lucide-react";
 import {
   CheckIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   FolderIcon,
   FolderOpenIcon,
-  SquareArrowRightIcon,
-  SquareDotIcon,
-  SquareMinusIcon,
-  SquarePlusIcon,
-} from "lucide-react";
-import { memo, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-
+} from "~/lib/icons";
+import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import { cn } from "~/lib/utils";
-
 import { DiffStatLabel } from "../chat/DiffStatLabel";
 import { Button } from "../ui/button";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "../ui/menu";
 import { buildDiffChangesTreeRows } from "./diffChangesTree.logic";
-
 /** One changed file as the tree lists it. */
 export interface DiffChangesTreeFile {
   readonly filePath: string;
@@ -28,12 +22,9 @@ export interface DiffChangesTreeFile {
   /** Marked viewed and unchanged since. */
   readonly viewed: boolean;
 }
-
 const INDENT_PX = 12;
 const BASE_PADDING_PX = 6;
-
 const filePathOf = (file: DiffChangesTreeFile) => file.filePath;
-
 function FileStatusIcon({ type }: { readonly type: FileDiffMetadata["type"] }) {
   switch (type) {
     case "new":
@@ -49,7 +40,6 @@ function FileStatusIcon({ type }: { readonly type: FileDiffMetadata["type"] }) {
       return <SquareDotIcon aria-label="Modified" className="size-3.5 shrink-0 text-warning" />;
   }
 }
-
 /** Vertical guides for each ancestor level, like the file explorer's indent rails. */
 function IndentGuides({ depth }: { readonly depth: number }) {
   if (depth === 0) return null;
@@ -66,13 +56,11 @@ function IndentGuides({ depth }: { readonly depth: number }) {
     </>
   );
 }
-
 export interface DiffChangesTreeFileActions {
   readonly onOpenFile: (filePath: string) => void;
   readonly onOpenInFiles: (filePath: string) => void;
   readonly onCopyPath: (filePath: string) => void;
 }
-
 const DiffChangesFileRow = memo(function DiffChangesFileRow(props: {
   readonly file: DiffChangesTreeFile;
   readonly name: string;
@@ -143,7 +131,6 @@ const DiffChangesFileRow = memo(function DiffChangesFileRow(props: {
     </div>
   );
 });
-
 /** A collapsed folder's totals, in the spot its files' stats would take. */
 function CollapsedDirectoryStats({
   files,
@@ -173,7 +160,6 @@ function CollapsedDirectoryStats({
     </span>
   );
 }
-
 /**
  * The changed files as a folder tree. A row opens the file's diff; the chevron that replaces its
  * stats on hover holds the rest of the file's actions.
@@ -203,11 +189,7 @@ export function DiffChangesTree(props: {
       ?.querySelector<HTMLElement>(`[data-diff-file-path="${CSS.escape(props.selectedPath)}"]`)
       ?.scrollIntoView({ block: "nearest" });
   }, [props.selectedPath]);
-  const rows = useMemo(
-    () => buildDiffChangesTreeRows(props.files, filePathOf, collapsedPaths),
-    [collapsedPaths, props.files],
-  );
-
+  const rows = buildDiffChangesTreeRows(props.files, filePathOf, collapsedPaths);
   const toggleDirectory = (path: string) =>
     setCollapsedPaths((current) => {
       const next = new Set(current);
@@ -215,7 +197,6 @@ export function DiffChangesTree(props: {
       else next.add(path);
       return next;
     });
-
   return (
     <div ref={containerRef} role="tree" aria-label={props.ariaLabel} className="px-1 pb-2">
       {rows.map((row) =>

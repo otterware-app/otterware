@@ -43,8 +43,9 @@ const layerElectronApp = (calls: ElectronAppCalls) =>
     metadata: Effect.die("unexpected metadata read"),
     name: Effect.succeed("Otter Code"),
     systemLocale: Effect.succeed("en-US"),
-    requestSingleInstanceLock: Effect.succeed(true),
+
     whenReady: Effect.void,
+    requestSingleInstanceLock: Effect.succeed(true),
     quit: Effect.void,
     exit: () => Effect.void,
     relaunch: () => Effect.void,
@@ -112,7 +113,7 @@ const withIdentity = <A, E, R>(
     readonly calls?: ElectronAppCalls;
     readonly environment?: TestEnvironmentInput;
     readonly legacyPathExists?: boolean;
-    readonly legacyPathProbeError?: PlatformError.PlatformError;
+    readonly pathProbeError?: PlatformError.PlatformError;
     readonly packageJson?: string;
     readonly pngIconPath?: Option.Option<string>;
   } = {},
@@ -130,8 +131,8 @@ const withIdentity = <A, E, R>(
         Layer.provideMerge(
           FileSystem.layerNoop({
             exists: (path) =>
-              input.legacyPathProbeError
-                ? Effect.fail(input.legacyPathProbeError)
+              input.pathProbeError
+                ? Effect.fail(input.pathProbeError)
                 : Effect.succeed(
                     input.legacyPathExists === true && /Otter Code( \(Dev\))?$/.test(path),
                   ),
@@ -160,30 +161,68 @@ describe("DesktopAppIdentity", () => {
     ),
   );
 
-  it.effect("keeps using the legacy development profile", () =>
-    withIdentity(
-      Effect.gen(function* () {
-        const identity = yield* DesktopAppIdentity.DesktopAppIdentity;
-        assert.equal(
-          yield* identity.resolveUserDataPath,
-          "/Users/alice/Library/Application Support/Otter Code (Dev)",
-        );
-      }),
-      {
-        legacyPathExists: true,
-        environment: { env: { VITE_DEV_SERVER_URL: "http://localhost:5173" } },
+  it.effect.each([
+    {
+      label: "default development state",
+      env: { VITE_DEV_SERVER_URL: "http://localhost:5173" },
+      expectedPath: "/Users/alice/.otter-code/dev/electron",
+    },
+    {
+      label: "an isolated worktree",
+      env: {
+        VITE_DEV_SERVER_URL: "http://localhost:5173",
+        T3CODE_HOME: "/worktree/.t3",
       },
-    ),
+      expectedPath: "/worktree/.t3/userdata/electron",
+    },
+  ])(
+    "uses the isolated Chromium profile for $label even when the legacy profile exists",
+    ({ env, expectedPath }) =>
+      withIdentity(
+        Effect.gen(function* () {
+          const identity = yield* DesktopAppIdentity.DesktopAppIdentity;
+          assert.equal(yield* identity.resolveUserDataPath, expectedPath);
+        }),
+        {
+          legacyPathExists: true,
+          environment: { env },
+        },
+      ),
   );
 
-  it.effect("preserves failures while inspecting the legacy userData path", () => {
-    const legacyPath = "/Users/alice/Library/Application Support/Otter Code (Dev)";
+  it.effect(
+    "does not inspect the legacy development profile when its permissions are denied",
+    () => {
+      const cause = PlatformError.systemError({
+        _tag: "PermissionDenied",
+        module: "FileSystem",
+        method: "exists",
+        pathOrDescriptor: "/Users/alice/Library/Application Support/Otter Code (Dev)",
+      });
+      return withIdentity(
+        Effect.gen(function* () {
+          const identity = yield* DesktopAppIdentity.DesktopAppIdentity;
+          assert.equal(
+            yield* identity.resolveUserDataPath,
+            "/Users/alice/.otter-code/dev/electron",
+          );
+        }),
+        {
+          pathProbeError: cause,
+          environment: { env: { VITE_DEV_SERVER_URL: "http://localhost:5173" } },
+        },
+      );
+    },
+  );
+
+  it.effect("preserves failures while inspecting production Windows credential state", () => {
+    const statePath = "/Users/alice/AppData/Roaming/otter-code/Local State";
     const cause = PlatformError.systemError({
       _tag: "PermissionDenied",
       module: "FileSystem",
       method: "exists",
       description: "permission denied",
-      pathOrDescriptor: legacyPath,
+      pathOrDescriptor: statePath,
     });
 
     return withIdentity(
@@ -192,16 +231,16 @@ describe("DesktopAppIdentity", () => {
         const error = yield* identity.resolveUserDataPath.pipe(Effect.flip);
 
         assert.instanceOf(error, DesktopUserData.DesktopUserDataInitializationError);
-        assert.equal(error.resourcePath, legacyPath);
+        assert.equal(error.resourcePath, statePath);
         assert.strictEqual(error.cause, cause);
         assert.equal(
           error.message,
-          `Could not initialize Electron user data during inspect at ${legacyPath} (PermissionDenied).`,
+          `Could not initialize Electron user data during inspect at ${statePath} (PermissionDenied).`,
         );
       }),
       {
-        legacyPathProbeError: cause,
-        environment: { env: { VITE_DEV_SERVER_URL: "http://localhost:5173" } },
+        pathProbeError: cause,
+        environment: { platform: "win32" },
       },
     );
   });
@@ -222,8 +261,6 @@ describe("DesktopAppIdentity", () => {
         assert.equal(calls.setAboutPanelOptions[0]?.applicationName, "Otter Code");
         assert.equal(calls.setAboutPanelOptions[0]?.applicationVersion, "1.2.3");
         assert.equal(calls.setAboutPanelOptions[0]?.version, "0123456789ab");
-        // Packaged: the bundle's own icon stands, so a custom one the user
-        // attached survives.
         assert.deepEqual(calls.setDockIcon, []);
       }),
       {
@@ -239,7 +276,7 @@ describe("DesktopAppIdentity", () => {
   });
 
   it.effect.each([
-    { stage: "Alpha", name: "Otter Code", aboutName: "Otter Code", environment: {} },
+    { stage: "Beta", name: "Otter Code", aboutName: "Otter Code", environment: {} },
     {
       stage: "Nightly",
       name: "Otter Code",
@@ -269,7 +306,6 @@ describe("DesktopAppIdentity", () => {
           const runtimeName = calls.setName[0];
           assert.isDefined(runtimeName);
           assert.equal(runtimeName, name);
-          // RFC 9110's token grammar, after Electron removes ASCII spaces.
           assert.match(runtimeName.replaceAll(" ", ""), /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/);
           assert.equal(calls.setAboutPanelOptions[0]?.applicationName, aboutName);
         }),
@@ -290,8 +326,6 @@ describe("DesktopAppIdentity", () => {
         const identity = yield* DesktopAppIdentity.DesktopAppIdentity;
         yield* identity.configure;
 
-        // Electron shows a generic icon for an unpackaged run, which is the
-        // reason this call exists at all.
         assert.deepEqual(calls.setDockIcon, ["/icon.png"]);
       }),
       {

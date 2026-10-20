@@ -28,7 +28,13 @@ import {
   type Mailbox,
 } from "./folders.js";
 import { GraphError, graph, type Page } from "./graph.js";
-import { getApiMessages, SUMMARY_FIELDS, toSummary, type ApiMessage } from "./messages.js";
+import {
+  getApiMessages,
+  getSummaries,
+  SUMMARY_FIELDS,
+  toSummary,
+  type ApiMessage,
+} from "./messages.js";
 
 /** Messages a delta page carries. */
 const PAGE_SIZE = 100;
@@ -203,7 +209,10 @@ async function followDelta(
   }
 
   ctx.assertActive();
-  const summaries = present.map((m) => toSummary(accountId, m));
+  // Read/flag changes can carry only part of a message. Resolve the current
+  // summaries in batches before replacing any cached headers or labels.
+  const summaries = await getSummaries(accountId, [...new Set(present.map((m) => m.id))]);
+  ctx.assertActive();
   const fresh = new Set(
     store.filterUnknownIds(
       accountId,

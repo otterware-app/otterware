@@ -2,6 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { DriveHostProvider, type DriveHost } from "./host";
 import { useDriveStore } from "./driveStore";
 import { FolderPane } from "./main/settings/folder-pane";
+import { StoragePane } from "./main/settings/storage-pane";
 import { MembersPane } from "./main/settings/members-pane";
 import { ListDensityRow } from "./main/settings/density-row";
 import { FolderDialogsHost } from "./main/drive/folder-dialogs";
@@ -27,6 +28,7 @@ function Content({ page }: { page: string }) {
         />
       </SettingsSection>
     );
+  if (page === "storage") return <StoragePane />;
   if (page === "appearance")
     return (
       <SettingsSection title="Drive">

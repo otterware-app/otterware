@@ -278,14 +278,28 @@ jobs:
       - name: Test
         run: node scripts/otterware/check-changed.mjs --part test
 
-  # The web suite is the largest outside the server. In the shared Test job it
-  # started last and ran alone for about 40s after everything else finished.
+  # Keep unit and browser workers on separate runners: both suites are substantial,
+  # and a stalled browser worker must not hide the unit result or failure details.
   test_web:
     needs: plan
     if: ${{ needs.plan.outputs.test_web == 'true' }}
-    name: Test Web
+    name: Test Web (${{ matrix.project }} ${{ matrix.shard }})
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: ${{ matrix.project == 'browser' && 10 || 20 }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: unit
+            shard: 1/1
+          - project: browser
+            shard: 1/4
+          - project: browser
+            shard: 2/4
+          - project: browser
+            shard: 3/4
+          - project: browser
+            shard: 4/4
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -302,8 +316,13 @@ jobs:
           cache: true
           run-install: true
 
+      - name: Install Chromium for web browser tests
+        if: ${{ matrix.project == 'browser' }}
+        run: node apps/web/node_modules/playwright/cli.js install --with-deps --only-shell chromium
+
       - name: Test
-        run: vp run --filter @t3tools/web test --maxWorkers=2
+        working-directory: apps/web
+        run: vp test run --passWithNoTests --project ${{ matrix.project }} --shard=${{ matrix.shard }} --maxWorkers=2
 
   # apps/server sets `fileParallelism: false`, so its test files run strictly
   # one at a time. Sharding spreads them over separate runners instead of

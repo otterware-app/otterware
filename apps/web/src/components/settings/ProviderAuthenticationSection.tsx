@@ -11,7 +11,7 @@ import type {
   ServerProvider,
 } from "@t3tools/contracts";
 import { lazy, Suspense, useRef, useState } from "react";
-import { CopyIcon } from "lucide-react";
+import { CopyIcon } from "~/lib/icons";
 
 import { writeTextToClipboard } from "../../hooks/useCopyToClipboard";
 import { ensureLocalApi } from "../../localApi";
@@ -27,7 +27,6 @@ import { RedactedSensitiveText } from "./RedactedSensitiveText";
 
 const ProviderAuthTerminal = lazy(() => import("./ProviderAuthTerminal"));
 
-/** All actions target the provider's environment, even when the browser is on another device. */
 export function ProviderAuthenticationSection({
   environmentId,
   environmentLabel,
@@ -141,7 +140,6 @@ export function ProviderAuthenticationSection({
     const pending = requiresConsent && !window.desktopBridge ? window.open("", "_blank") : null;
     if (pending) pending.opener = null;
     try {
-      // Consent is checked on the environment before opening a provider URL locally.
       if (requiresConsent && !(await send({ type: "browser", action: "accept" }))) {
         pending?.close();
         return;

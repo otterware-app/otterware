@@ -10,7 +10,6 @@ import {
   archiveSelectedThreadEntries,
   buildBulkTitleRegenerationContextMenuItem,
   buildBulkUnpinContextMenuItem,
-  buildMultiSelectThreadContextMenuItems,
   createThreadJumpHintVisibilityController,
   deleteSelectedThreadEntries,
   filterSidebarProjectScopeItems,
@@ -19,9 +18,7 @@ import {
   getFallbackThreadIdAfterDelete,
   getProjectSortTimestamp,
   getSidebarForkParentThreadId,
-  getSidebarThreadIdsToPrewarm,
   hasUnseenCompletion,
-  isContextMenuPointerDown,
   isSidebarSubagentThread,
   isSidebarThreadWorking,
   isTrailingDoubleClick,
@@ -29,7 +26,6 @@ import {
   pinOrderKeyBetween,
   reduceSidebarProjectScopeMenuState,
   resolveAdjacentThreadId,
-  resolveProjectStatusIndicator,
   resolveSidebarSweepKeys,
   resolveSidebarStageBadgeLabel,
   resolveSidebarThreadSection,
@@ -37,12 +33,10 @@ import {
   resolveSidebarThreadStatus,
   resolveSidebarV2TopStatus,
   resolveThreadLastVisitedAt,
-  resolveThreadRowClassName,
   resolveThreadStatusPill,
   resolveWorkingStartedAt,
   pullRequestMatchesSearchQuery,
   searchSidebarThreads,
-  shouldClearThreadSelectionOnMouseDown,
   shouldShowSidebarV2Duration,
   shouldRecedeSidebarThread,
   sortLogicalProjectsForSidebar,
@@ -50,10 +44,8 @@ import {
   resolveSidebarDropTarget,
   planSidebarThreadDrop,
   sortPinnedThreadsForSidebar,
-  sortProjectsForSidebar,
   sortScopedProjectsForSidebar,
   sortSidebarV2ProjectGroups,
-  shouldCreateNewThreadInCurrentProject,
   shouldNavigateAfterThreadPark,
   THREAD_JUMP_HINT_SHOW_DELAY_MS,
   type SidebarListItem,
@@ -62,7 +54,6 @@ import {
   resolveSidebarDropVerb,
 } from "./Sidebar.logic";
 import { threadSearchMatchKey } from "@t3tools/client-runtime/state/thread-search";
-import { sortSettledThreads } from "@t3tools/client-runtime/state/thread-sort";
 import { EnvironmentId, ProjectId, ProviderInstanceId, RunId, ThreadId } from "@t3tools/contracts";
 
 import {
@@ -342,20 +333,6 @@ describe("buildBulkTitleRegenerationContextMenuItem", () => {
         actionableCount: 0,
       }),
     ).toBeNull();
-  });
-});
-
-describe("buildMultiSelectThreadContextMenuItems", () => {
-  it("offers bulk archive with the selected count", () => {
-    expect(
-      buildMultiSelectThreadContextMenuItems({ count: 3, hasRunningThread: false }),
-    ).toContainEqual({ id: "archive", label: "Archive (3)", disabled: false });
-  });
-
-  it("disables bulk archive when a selected thread is running", () => {
-    expect(
-      buildMultiSelectThreadContextMenuItems({ count: 2, hasRunningThread: true }),
-    ).toContainEqual({ id: "archive", label: "Archive (2)", disabled: true });
   });
 });
 
@@ -651,48 +628,6 @@ describe("createThreadJumpHintVisibilityController", () => {
   });
 });
 
-describe("getSidebarThreadIdsToPrewarm", () => {
-  it("returns only the first visible thread ids up to the prewarm limit", () => {
-    expect(getSidebarThreadIdsToPrewarm(["t1", "t2", "t3"], 2)).toEqual(["t1", "t2"]);
-  });
-
-  it("returns all visible thread ids when they fit within the limit", () => {
-    expect(getSidebarThreadIdsToPrewarm(["t1", "t2"], 10)).toEqual(["t1", "t2"]);
-  });
-
-  it("returns no thread ids when the limit is zero", () => {
-    expect(getSidebarThreadIdsToPrewarm(["t1", "t2"], 0)).toEqual([]);
-  });
-});
-
-describe("shouldClearThreadSelectionOnMouseDown", () => {
-  it("preserves selection for thread items", () => {
-    const child = {
-      closest: (selector: string) =>
-        selector.includes("[data-thread-item]") ? ({} as Element) : null,
-    } as unknown as HTMLElement;
-
-    expect(shouldClearThreadSelectionOnMouseDown(child)).toBe(false);
-  });
-
-  it("preserves selection for thread list toggle controls", () => {
-    const selectionSafe = {
-      closest: (selector: string) =>
-        selector.includes("[data-thread-selection-safe]") ? ({} as Element) : null,
-    } as unknown as HTMLElement;
-
-    expect(shouldClearThreadSelectionOnMouseDown(selectionSafe)).toBe(false);
-  });
-
-  it("clears selection for unrelated sidebar clicks", () => {
-    const unrelated = {
-      closest: () => null,
-    } as unknown as HTMLElement;
-
-    expect(shouldClearThreadSelectionOnMouseDown(unrelated)).toBe(true);
-  });
-});
-
 describe("isTrailingDoubleClick", () => {
   it("treats a single click as a normal activation", () => {
     expect(isTrailingDoubleClick(1)).toBe(false);
@@ -755,10 +690,6 @@ describe("orderItemsByPreferredIds", () => {
   });
 
   it("honors projectOrder physical keys via getProjectOrderKey", async () => {
-    // Regression guard for #1904 / the regression introduced by #2055:
-    // `projectOrder` is populated with physical keys (envId + cwd-derived)
-    // by the store and by drag-end handlers. Readers must identify projects
-    // with the same key format, or manual sort silently snaps back.
     const { getProjectOrderKey } = await import("../logicalProject");
     const projects = [
       {
@@ -853,38 +784,6 @@ describe("resolveAdjacentThreadId", () => {
         direction: "previous",
       }),
     ).toBeNull();
-  });
-});
-
-describe("isContextMenuPointerDown", () => {
-  it("treats secondary-button presses as context menu gestures on all platforms", () => {
-    expect(
-      isContextMenuPointerDown({
-        button: 2,
-        ctrlKey: false,
-        isMac: false,
-      }),
-    ).toBe(true);
-  });
-
-  it("treats ctrl+primary-click as a context menu gesture on macOS", () => {
-    expect(
-      isContextMenuPointerDown({
-        button: 0,
-        ctrlKey: true,
-        isMac: true,
-      }),
-    ).toBe(true);
-  });
-
-  it("does not treat ctrl+primary-click as a context menu gesture off macOS", () => {
-    expect(
-      isContextMenuPointerDown({
-        button: 0,
-        ctrlKey: true,
-        isMac: false,
-      }),
-    ).toBe(false);
   });
 });
 
@@ -1195,7 +1094,6 @@ describe("resolveWorkingStartedAt", () => {
           activityStartedAt,
         );
       }
-      // A server-owned run without a valid start must not borrow a local dispatch clock.
       expect(
         deriveActiveWorkStartedAt(
           latestRun,
@@ -1372,87 +1270,66 @@ describe("resolveThreadStatusPill", () => {
       }),
     ).toMatchObject({ label: "Completed", pulse: false });
   });
-});
 
-describe("resolveProjectStatusIndicator", () => {
-  it("returns null when no threads have a notable status", () => {
-    expect(resolveProjectStatusIndicator([null, null])).toBeNull();
+  it("shows failed, not completed, when the unseen run failed", () => {
+    expect(
+      resolveThreadStatusPill({
+        thread: {
+          ...baseThread,
+          interactionMode: "default",
+          latestRun: { ...makeLatestRun(), status: "failed" },
+          lastVisitedAt: "2026-03-09T10:04:00.000Z",
+          runtime: {
+            ...baseThread.runtime,
+            status: "failed",
+            activeRunId: null,
+            lastError: "Provider turn failed.",
+          },
+        },
+      }),
+    ).toMatchObject({ label: "Failed", pulse: false });
   });
 
-  it("surfaces the highest-priority actionable state across project threads", () => {
+  it("shows failed for a thread nobody has opened yet", () => {
     expect(
-      resolveProjectStatusIndicator([
-        {
-          label: "Completed",
-          colorClass: "text-emerald-600",
-          dotClass: "bg-emerald-500",
-          pulse: false,
+      resolveThreadStatusPill({
+        thread: {
+          ...baseThread,
+          interactionMode: "default",
+          latestRun: { ...makeLatestRun(), status: "failed" },
+          lastVisitedAt: null,
+          runtime: { ...baseThread.runtime, status: "failed", activeRunId: null },
         },
-        {
-          label: "Pending Approval",
-          colorClass: "text-amber-600",
-          dotClass: "bg-amber-500",
-          pulse: false,
-        },
-        {
-          label: "Working",
-          colorClass: "text-sky-600",
-          dotClass: "bg-sky-500",
-          pulse: true,
-        },
-      ]),
-    ).toMatchObject({ label: "Pending Approval", dotClass: "bg-amber-500" });
+      }),
+    ).toMatchObject({ label: "Failed" });
   });
 
-  it("prefers plan-ready over completed when no stronger action is needed", () => {
+  it("shows failed, not plan ready, when a plan run proposed a plan and then failed", () => {
     expect(
-      resolveProjectStatusIndicator([
-        {
-          label: "Completed",
-          colorClass: "text-emerald-600",
-          dotClass: "bg-emerald-500",
-          pulse: false,
+      resolveThreadStatusPill({
+        thread: {
+          ...baseThread,
+          hasActionableProposedPlan: true,
+          latestRun: { ...makeLatestRun(), status: "failed" },
+          lastVisitedAt: "2026-03-09T10:04:00.000Z",
+          runtime: { ...baseThread.runtime, status: "failed", activeRunId: null },
         },
-        {
-          label: "Plan Ready",
-          colorClass: "text-violet-600",
-          dotClass: "bg-violet-500",
-          pulse: false,
-        },
-      ]),
-    ).toMatchObject({ label: "Plan Ready", dotClass: "bg-violet-500" });
+      }),
+    ).toMatchObject({ label: "Failed" });
   });
 
-  it("ranks waiting below active work and above plan-ready", () => {
-    const waiting = {
-      label: "Waiting" as const,
-      colorClass: "text-sidebar-muted-foreground",
-      dotClass: "bg-sidebar-muted-foreground",
-      pulse: false,
-    };
-
+  it("drops the failed pill once the failure has been seen", () => {
     expect(
-      resolveProjectStatusIndicator([
-        waiting,
-        {
-          label: "Working",
-          colorClass: "text-sky-600",
-          dotClass: "bg-sky-500",
-          pulse: true,
+      resolveThreadStatusPill({
+        thread: {
+          ...baseThread,
+          interactionMode: "default",
+          latestRun: { ...makeLatestRun(), status: "failed" },
+          lastVisitedAt: "2026-03-09T10:06:00.000Z",
+          runtime: { ...baseThread.runtime, status: "failed", activeRunId: null },
         },
-      ]),
-    ).toMatchObject({ label: "Working" });
-    expect(
-      resolveProjectStatusIndicator([
-        {
-          label: "Plan Ready",
-          colorClass: "text-violet-600",
-          dotClass: "bg-violet-500",
-          pulse: false,
-        },
-        waiting,
-      ]),
-    ).toMatchObject({ label: "Waiting" });
+      }),
+    ).toBeNull();
   });
 });
 
@@ -1571,198 +1448,7 @@ describe("getFallbackThreadIdAfterDelete", () => {
     expect(fallbackThreadId).toBe(ThreadId.make("thread-next"));
   });
 });
-describe("sortProjectsForSidebar", () => {
-  it("sorts projects by the most recent user message across their threads", () => {
-    const projects = [
-      makeProject({ id: ProjectId.make("project-1"), title: "Older project" }),
-      makeProject({ id: ProjectId.make("project-2"), title: "Newer project" }),
-    ];
-    const threads = [
-      makeThread({
-        projectId: ProjectId.make("project-1"),
-        updatedAt: "2026-03-09T10:20:00.000Z",
-        messages: [
-          {
-            id: "message-1" as never,
-            role: "user",
-            text: "older project user message",
-            runId: null,
-            createdAt: "2026-03-09T10:01:00.000Z",
-            updatedAt: "2026-03-09T10:01:00.000Z",
-            streaming: false,
-          },
-        ],
-      }),
-      makeThread({
-        id: ThreadId.make("thread-2"),
-        projectId: ProjectId.make("project-2"),
-        updatedAt: "2026-03-09T10:05:00.000Z",
-        messages: [
-          {
-            id: "message-2" as never,
-            role: "user",
-            text: "newer project user message",
-            runId: null,
-            createdAt: "2026-03-09T10:05:00.000Z",
-            updatedAt: "2026-03-09T10:05:00.000Z",
-            streaming: false,
-          },
-        ],
-      }),
-    ];
-
-    const sorted = sortProjectsForSidebar(projects, threads, "updated_at");
-
-    expect(sorted.map((project) => project.id)).toEqual([
-      ProjectId.make("project-2"),
-      ProjectId.make("project-1"),
-    ]);
-  });
-
-  it("falls back to project timestamps when a project has no threads", () => {
-    const sorted = sortProjectsForSidebar(
-      [
-        makeProject({
-          id: ProjectId.make("project-1"),
-          title: "Older project",
-          updatedAt: "2026-03-09T10:01:00.000Z",
-        }),
-        makeProject({
-          id: ProjectId.make("project-2"),
-          title: "Newer project",
-          updatedAt: "2026-03-09T10:05:00.000Z",
-        }),
-      ],
-      [],
-      "updated_at",
-    );
-
-    expect(sorted.map((project) => project.id)).toEqual([
-      ProjectId.make("project-2"),
-      ProjectId.make("project-1"),
-    ]);
-  });
-
-  it("falls back to name and id ordering when projects have no sortable timestamps", () => {
-    const sorted = sortProjectsForSidebar(
-      [
-        makeProject({
-          id: ProjectId.make("project-2"),
-          title: "Beta",
-          createdAt: "invalid-created-at" as never,
-          updatedAt: "invalid-updated-at" as never,
-        }),
-        makeProject({
-          id: ProjectId.make("project-1"),
-          title: "Alpha",
-          createdAt: "invalid-created-at" as never,
-          updatedAt: "invalid-updated-at" as never,
-        }),
-      ],
-      [],
-      "updated_at",
-    );
-
-    expect(sorted.map((project) => project.id)).toEqual([
-      ProjectId.make("project-1"),
-      ProjectId.make("project-2"),
-    ]);
-  });
-
-  it("preserves manual project ordering", () => {
-    const projects = [
-      makeProject({ id: ProjectId.make("project-2"), title: "Second" }),
-      makeProject({ id: ProjectId.make("project-1"), title: "First" }),
-    ];
-
-    const sorted = sortProjectsForSidebar(projects, [], "manual");
-
-    expect(sorted.map((project) => project.id)).toEqual([
-      ProjectId.make("project-2"),
-      ProjectId.make("project-1"),
-    ]);
-  });
-
-  it("ignores archived threads when sorting projects", () => {
-    const sorted = sortProjectsForSidebar(
-      [
-        makeProject({
-          id: ProjectId.make("project-1"),
-          title: "Visible project",
-          updatedAt: "2026-03-09T10:01:00.000Z",
-        }),
-        makeProject({
-          id: ProjectId.make("project-2"),
-          title: "Archived-only project",
-          updatedAt: "2026-03-09T10:00:00.000Z",
-        }),
-      ],
-      [
-        makeThread({
-          id: ThreadId.make("thread-visible"),
-          projectId: ProjectId.make("project-1"),
-          updatedAt: "2026-03-09T10:02:00.000Z",
-          archivedAt: null,
-        }),
-        makeThread({
-          id: ThreadId.make("thread-archived"),
-          projectId: ProjectId.make("project-2"),
-          updatedAt: "2026-03-09T10:10:00.000Z",
-          archivedAt: "2026-03-09T10:11:00.000Z",
-        }),
-      ].filter((thread) => thread.archivedAt === null),
-      "updated_at",
-    );
-
-    expect(sorted.map((project) => project.id)).toEqual([
-      ProjectId.make("project-1"),
-      ProjectId.make("project-2"),
-    ]);
-  });
-
-  it.each(["updated_at", "created_at"] as const)(
-    "matches the per-comparison %s order on a shuffled list with ties",
-    (sortOrder) => {
-      const minute = (value: number) => `2026-03-09T10:0${value}:00.000Z`;
-      // (index * 7) % 24 scrambles the input order. Titles repeat, and
-      // projects 16-23 have no threads, so they use their own stamps.
-      const projects = Array.from({ length: 24 }, (_, index) => {
-        const n = (index * 7) % 24;
-        return makeProject({
-          id: ProjectId.make(`project-${n}`),
-          title: n % 2 === 0 ? "Alpha" : "Beta",
-          createdAt: minute(n % 3),
-          updatedAt: n % 5 === 0 ? "invalid" : minute(n % 2),
-        });
-      });
-      const threads = Array.from({ length: 48 }, (_, n) => ({
-        projectId: ProjectId.make(`project-${n % 16}`),
-        createdAt: minute(n % 6),
-        updatedAt: minute(n % 3),
-        latestUserMessageAt: n % 4 === 0 ? null : minute(n % 5),
-      }));
-      // The comparator this sort replaced: it walked each project's threads
-      // on every call.
-      const timestamp = (project: Project) =>
-        getProjectSortTimestamp(
-          project,
-          threads.filter((thread) => thread.projectId === project.id),
-          sortOrder,
-        );
-      const expected = projects.toSorted((left, right) => {
-        const rightTimestamp = timestamp(right);
-        const leftTimestamp = timestamp(left);
-        const byTimestamp =
-          rightTimestamp === leftTimestamp ? 0 : rightTimestamp > leftTimestamp ? 1 : -1;
-        return (
-          byTimestamp || left.title.localeCompare(right.title) || left.id.localeCompare(right.id)
-        );
-      });
-
-      expect(sortProjectsForSidebar(projects, threads, sortOrder)).toEqual(expected);
-    },
-  );
-
+describe("getProjectSortTimestamp", () => {
   it("returns the project timestamp when no threads are present", () => {
     const timestamp = getProjectSortTimestamp(
       makeProject({ updatedAt: "2026-03-09T10:10:00.000Z" }),
@@ -1938,8 +1624,6 @@ describe("resolveThreadLastVisitedAt", () => {
   });
 
   it("keeps the server watermark authoritative when visited tracking exists", () => {
-    // A rewound server value (mark-unread) must win even over a newer local
-    // watermark left behind by earlier viewing on this device.
     expect(resolveThreadLastVisitedAt("2026-07-30T10:00:00.000Z", "2026-07-30T10:00:05.000Z")).toBe(
       "2026-07-30T10:00:00.000Z",
     );
@@ -1971,8 +1655,6 @@ describe("pinOrderKeyBetween", () => {
   });
 
   it("stays strictly ordered under repeated top insertion", () => {
-    // Every new pin lands at the head of the arranged run; keys must keep
-    // sorting before the previous head without ever bottoming out.
     let head: string | null = null;
     const keys: string[] = [];
     for (let i = 0; i < 100; i += 1) {
@@ -2145,7 +1827,6 @@ describe("Working shelf (beta)", () => {
     latestRun: makeLatestRun(),
     runtime: null,
   };
-  // Stopped with background tasks still open: V2's "waiting" sidebar status.
   const waiting = {
     ...idle,
     runtime: { ...runtime, status: "idle" as const },
@@ -2234,7 +1915,6 @@ describe("Working shelf (beta)", () => {
       key,
       section,
     });
-    // Pinned p1 | Active a1 a2 | Working w1 | Settled s1
     const items: readonly SidebarListItem[] = [
       marker("pinned-header"),
       row("p1", "pinned"),
@@ -2257,9 +1937,34 @@ describe("Working shelf (beta)", () => {
       expect(resolveSidebarDropVerb("active", "working")).toBeNull();
     });
 
+    it.each([
+      ["pinned", "p1"],
+      ["active", "a2"],
+      ["settled", "s1"],
+    ] as const)(
+      "does not move a Working thread into %s when its reference drag ends in the sidebar",
+      (section, overKey) => {
+        const target = resolveSidebarDropTarget(items, "w1", overKey);
+        expect(target?.section).toBe(section);
+        expect(
+          planSidebarThreadDrop({
+            activeKey: "w1",
+            activeSection: "working",
+            target: target!,
+            pinnedOrder: ["p1"],
+            pinnedKeysById: new Map([["p1", "m"]]),
+            activeOrder: ["a1", "a2"],
+            activeKeysById: new Map([
+              ["a1", "f"],
+              ["a2", "t"],
+            ]),
+            activeTimeOrdered: true,
+          }),
+        ).toEqual({ kind: "none" });
+      },
+    );
+
     it("arranges the rows it can write when another row's server cannot store an order", () => {
-      // None of the rows has a key yet, so the drop needs keys for its
-      // neighbors too. "offline" sits on a server that cannot take them.
       const plan = planSidebarThreadDrop({
         activeKey: "a2",
         activeSection: "active",
@@ -2284,7 +1989,6 @@ describe("Working shelf (beta)", () => {
       const [a2, a1] = plan.assignments.map(({ orderKey }) => orderKey);
       expect(a2! < a1!).toBe(true);
 
-      // A keyed row on that server still sorts by its key, so it stays a bound.
       const above = planSidebarThreadDrop({
         activeKey: "a2",
         activeSection: "active",

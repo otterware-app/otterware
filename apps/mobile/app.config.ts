@@ -182,7 +182,6 @@ const widgetsPlugin: NonNullable<ExpoConfig["plugins"]>[number] = [
         name: "AgentActivity",
         displayName: "Agent Activity",
         description: "Shows the current state of active Otter Code agents.",
-        // Live Activity companion; there is no Android presentation for it.
         android: null,
         ios: { supportedFamilies: ["systemSmall", "systemMedium", "accessoryRectangular"] },
       },
@@ -225,7 +224,7 @@ const config: ExpoConfig = {
   slug: "otter-code",
   platforms: ["ios", "android"],
   scheme: variant.scheme,
-  version: "2.0.0",
+  version: repoEnv.T3CODE_MOBILE_VERSION ?? "2.0.0",
   runtimeVersion: {
     // Development manifests resolve on every launch, so avoid fingerprint's
     // expensive native-project calculation there. Preview and production stay
@@ -244,8 +243,6 @@ const config: ExpoConfig = {
   ios: {
     icon: variant.assets.iosIcon,
     supportsTablet: true,
-    // Multitasking-capable iPad apps cannot rotate programmatically, so the
-    // showcase capture build requires full screen (see infoPlist below).
     requireFullScreen: process.env.T3_SHOWCASE_CAPTURE_BUILD === "1",
     bundleIdentifier: iosBundleIdentifier,
     // Pin code signing to the Clary team so non-interactive `expo run:ios`
@@ -314,6 +311,7 @@ const config: ExpoConfig = {
   },
   plugins: [
     "expo-asset",
+    "react-native-pdf-jsi",
     [
       "expo-font",
       {
@@ -415,16 +413,13 @@ const config: ExpoConfig = {
       "expo-build-properties",
       {
         android: {
-          // Keep the supported floor explicit and covered by native notification tests.
           minSdkVersion: 24,
           // kotlinx-io uses Kotlin 2.3's return-value checker annotation, while
           // SDK 58 builds with Kotlin 2.2. It has no runtime behavior.
-          //
           // WorkManager 2.9 keeps InputMerger classes but not their constructors,
           // and R8 full mode no longer keeps a default constructor implicitly.
           // Without it no work request can start, so the Glance session behind
-          // the widget never renders and it stays on "Loading widget". WorkManager
-          // 2.10 ships this rule itself; drop it once the resolved version gets there.
+          // the widget never renders and it stays on "Loading widget".
           extraProguardRules: [
             "-dontwarn kotlin.MustUseReturnValues",
             "-keep class * extends androidx.work.InputMerger { <init>(); }",
@@ -452,6 +447,7 @@ const config: ExpoConfig = {
     ...(!isIosPersonalTeamBuild ? ["./plugins/withWidgetLogoAsset.cjs", widgetsPlugin] : []),
     "./plugins/withAndroidCleartextTraffic.cjs",
     "./plugins/withAndroidGradleHeap.cjs",
+    "./plugins/withAndroidFbjniVersion.cjs",
     "./plugins/withAndroidInputBackground.cjs",
     "./plugins/withAndroidModernPopupMenu.cjs",
     "./plugins/withAndroidModernAlertDialog.cjs",
@@ -476,6 +472,10 @@ const config: ExpoConfig = {
     },
   },
   owner: "clary-so",
+  experiments: {
+    // Metro only runs babel-plugin-react-compiler when this is set; see src/reactCompilerCoverage.test.ts.
+    reactCompiler: true,
+  },
 };
 
 export default config;

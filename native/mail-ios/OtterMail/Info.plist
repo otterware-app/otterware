@@ -8,8 +8,6 @@
 	</array>
 	<key>GoogleClientID</key>
 	<string>$(GOOGLE_IOS_CLIENT_ID)</string>
-	<key>GoogleLegacyClientID</key>
-	<string>$(GOOGLE_IOS_LEGACY_CLIENT_ID)</string>
 	<key>GooglePushTopic</key>
 	<string>projects/otterware/topics/gmail-push</string>
 	<key>NotificationAppGroup</key>

@@ -5,44 +5,32 @@ import {
   type LinearTeamProject,
   type ProjectId,
 } from "@t3tools/contracts";
-import { PlusIcon, XIcon } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
-
+import { PlusIcon, XIcon } from "~/lib/icons";
+import { useState } from "react";
 import { useEnvironmentSettings, useUpdateEnvironmentSettings } from "~/hooks/useSettings";
 import { useProjects } from "~/state/entities";
-
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Select, SelectItem, SelectPopup, SelectTrigger, SelectValue } from "../ui/select";
 import { Textarea } from "../ui/textarea";
 import { SettingResetButton, SettingsRow } from "./settingsLayout";
-
 const NO_PROJECT = "none";
-
 /**
  * Where issues delegated through one Linear link run on its machine, and the
  * message that starts them. These settings live on that machine, which is
  * often not this one, so they are edited on it directly.
  */
 export function LinearProjectRows({ environmentId }: { readonly environmentId: EnvironmentId }) {
-  const linear = useEnvironmentSettings(
-    environmentId,
-    useCallback((settings) => settings.linear, []),
-  );
+  const linear = useEnvironmentSettings(environmentId, (settings) => settings.linear);
   const updateSettings = useUpdateEnvironmentSettings(environmentId);
   const allProjects = useProjects();
-  const projects = useMemo(
-    () =>
-      allProjects
-        .filter((project) => project.environmentId === environmentId)
-        .toSorted((left, right) => left.title.localeCompare(right.title)),
-    [allProjects, environmentId],
-  );
+  const projects = allProjects
+    .filter((project) => project.environmentId === environmentId)
+    .toSorted((left, right) => left.title.localeCompare(right.title));
   const projectTitle = (projectId: ProjectId) =>
     projects.find((project) => project.id === projectId)?.title ?? "Removed project";
   const updateTeamProjects = (teamProjects: ReadonlyArray<LinearTeamProject>) =>
     updateSettings({ linear: { teamProjects } });
-
   return (
     <>
       <SettingsRow
@@ -152,12 +140,14 @@ export function LinearProjectRows({ environmentId }: { readonly environmentId: E
     </>
   );
 }
-
 function AddTeamProjectRow({
   projects,
   onAdd,
 }: {
-  readonly projects: ReadonlyArray<{ readonly id: ProjectId; readonly title: string }>;
+  readonly projects: ReadonlyArray<{
+    readonly id: ProjectId;
+    readonly title: string;
+  }>;
   readonly onAdd: (mapping: LinearTeamProject) => void;
 }) {
   const [teamKey, setTeamKey] = useState("");
@@ -170,7 +160,6 @@ function AddTeamProjectRow({
     setTeamKey("");
     setProjectId(null);
   };
-
   return (
     <form
       className="flex items-center gap-3 px-3 py-2"
@@ -208,7 +197,6 @@ function AddTeamProjectRow({
     </form>
   );
 }
-
 function ProjectSelect({
   ariaLabel,
   projects,
@@ -218,7 +206,10 @@ function ProjectSelect({
   onChange,
 }: {
   readonly ariaLabel: string;
-  readonly projects: ReadonlyArray<{ readonly id: ProjectId; readonly title: string }>;
+  readonly projects: ReadonlyArray<{
+    readonly id: ProjectId;
+    readonly title: string;
+  }>;
   readonly value: ProjectId | null;
   readonly label: string;
   readonly allowNone?: boolean;

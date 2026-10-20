@@ -1,10 +1,9 @@
 "use client";
-
 import type { DesktopPreviewExtensionAction, ScopedThreadRef } from "@t3tools/contracts";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowUpRight, EyeOff, MoreVertical, Pin, PinOff, Puzzle, Settings2 } from "lucide-react";
-import { useCallback, useEffect, useRef } from "react";
-
+import { EyeOff, MoreVertical, PinOff, Puzzle, Settings2 } from "lucide-react";
+import { ArrowUpRightIcon as ArrowUpRight, PinIcon as Pin } from "~/lib/icons";
+import { useEffect, useRef } from "react";
 import {
   CHROME_WEB_STORE_URL,
   previewExtensions,
@@ -31,7 +30,6 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "~/components/ui/tooltip";
 import { cn } from "~/lib/utils";
 import { previewEnvironment } from "~/state/preview";
 import { useAtomCommand } from "~/state/use-atom-command";
-
 interface Props {
   threadRef: ScopedThreadRef;
   /** The tab's guest, once the desktop has one: extensions act on it. */
@@ -39,7 +37,6 @@ interface Props {
   /** Whether this preview is the one showing; only it opens the pages extensions ask for. */
   visible: boolean;
 }
-
 function ActionIcon({ action }: { action: DesktopPreviewExtensionAction }) {
   return (
     <span className="relative flex size-4 shrink-0 items-center justify-center">
@@ -59,7 +56,6 @@ function ActionIcon({ action }: { action: DesktopPreviewExtensionAction }) {
     </span>
   );
 }
-
 /**
  * The extensions' end of the preview's toolbar, as in Otter Mail (and
  * Chrome): pinned extensions' buttons, then the Extensions menu listing them
@@ -74,7 +70,6 @@ export function PreviewExtensionToolbar({ threadRef, webContentsId, visible }: P
   const navigate = useNavigate();
   const openPreview = useAtomCommand(previewEnvironment.open, { reportFailure: false });
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
-
   // The preview showing is Chrome's active tab, and gets the pages extensions open.
   useEffect(() => {
     if (visible && webContentsId !== null) {
@@ -82,18 +77,13 @@ export function PreviewExtensionToolbar({ threadRef, webContentsId, visible }: P
     }
   }, [visible, webContentsId]);
   // A tab beside this thread, as Chrome opens one beside the current tab.
-  const openTab = useCallback(
-    (url: string) =>
-      void openUrlInPreview({ threadRef, url, openPreview }).then((result) => {
-        if (result._tag === "Success") recordVisitForThread(threadRef, url);
-      }),
-    [openPreview, threadRef],
-  );
+  const openTab = (url: string) =>
+    void openUrlInPreview({ threadRef, url, openPreview }).then((result) => {
+      if (result._tag === "Success") recordVisitForThread(threadRef, url);
+    });
   useOpenExtensionTabs(visible ? openTab : null);
-
   if (!previewExtensions) return null;
   const bridge = previewExtensions;
-
   const run = (extensionId: string, anchor: Element | null) => {
     const rect = anchor?.getBoundingClientRect();
     if (!rect || webContentsId === null) return;
@@ -105,13 +95,11 @@ export function PreviewExtensionToolbar({ threadRef, webContentsId, visible }: P
       })
       .catch(() => undefined);
   };
-
   const onToolbar = pinned
     .map((id) => actions.find((action) => action.id === id))
     .filter((action): action is DesktopPreviewExtensionAction => action !== undefined);
   const manage = () => void navigate({ to: "/settings/extensions" });
   if (onToolbar.length === 0 && !showButton) return null;
-
   return (
     <div className="flex shrink-0 items-center gap-0.5 rounded-full bg-foreground/[0.06] p-0.5 [--control-radius:9999px]">
       {onToolbar.map((action) => (

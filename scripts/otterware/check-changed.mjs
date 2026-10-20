@@ -62,6 +62,7 @@ function focusedTests(owner, files) {
 }
 
 const args = process.argv.slice(2);
+const noBrowser = args.includes("--no-browser");
 const baseIndex = args.indexOf("--base");
 const partIndex = args.indexOf("--part");
 const part = partIndex < 0 ? "local" : args[partIndex + 1];
@@ -107,8 +108,25 @@ if (part === "test" || part === "local") {
     run("node", ["--test", "scripts/otterware/fast-loop.node-test.mjs"]);
   if (part === "local") {
     for (const owner of ownedPackages(plan.files)) {
-      const tests = focusedTests(owner, plan.files);
-      if (tests.length) heavy("vp", ["test", "run", "--maxWorkers=2", ...tests], owner.dir);
+      const allTests = focusedTests(owner, plan.files);
+      const tests = noBrowser
+        ? allTests.filter((file) => !file.includes(".browser.test."))
+        : allTests;
+      if (tests.length)
+        // Keep each workspace's Vitest config, setup files and timeouts.
+        heavy("vp", [
+          "run",
+          "--filter",
+          owner.name,
+          "test",
+          "--maxWorkers=2",
+          ...(noBrowser && owner.name === "@t3tools/web" ? ["--project", "unit"] : []),
+          ...tests,
+        ]);
+      if (tests.length !== allTests.length)
+        console.log(
+          `Browser tests deferred: ${allTests.length - tests.length} (explicit --no-browser).`,
+        );
     }
   } else if (plan.tests.length) {
     run("vp", [

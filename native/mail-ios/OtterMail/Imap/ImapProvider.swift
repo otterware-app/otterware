@@ -37,7 +37,6 @@ final class ImapProvider: MailProvider {
     init(email: String, settings: ImapSettings) {
         self.email = email
         self.settings = settings
-        Self.migratePassword(email)
     }
 
     var capabilities: MailCapabilities { .imap }
@@ -49,8 +48,6 @@ final class ImapProvider: MailProvider {
     static func password(_ email: String) -> String? { Keychain.get(key(email)) }
     /** Kept on this iPhone alone: not in backups, nor restored to another device. */
     static func setPassword(_ password: String?, for email: String) { Keychain.set(key(email), password, thisDeviceOnly: true) }
-    /** A password kept before it was this iPhone's alone. */
-    static func migratePassword(_ email: String) { Keychain.makeThisDeviceOnly(key(email)) }
 
     /** Logs in to the IMAP and SMTP servers, to check settings before they're saved. */
     static func verify(_ settings: ImapSettings, password: String) async throws {

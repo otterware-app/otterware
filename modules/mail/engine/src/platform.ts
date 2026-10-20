@@ -7,7 +7,7 @@
  */
 
 import type { GmailAccount } from "./types.js";
-import type { DemoGmailMailbox } from "@otterware/mail-contracts/demo";
+import type { DemoGmailMailbox, DemoOutlookMailbox } from "@otterware/mail-contracts/demo";
 import type { SupportError } from "@otterware/mail-contracts/shared/support";
 
 export type SqlValue = string | number | bigint | null | Uint8Array;
@@ -45,8 +45,6 @@ export interface GoogleAuth {
   getAccessToken(accountId: string, opts?: { forceRefresh?: boolean }): Promise<string>;
   /** A fresh Google ID token for the account, proving the sign-in to the relay. */
   getIdToken(accountId: string): Promise<string>;
-  /** Which OAuth client issued this mailbox's tokens, for its matching Gmail push topic. */
-  getClientId?(accountId: string): Promise<string | undefined>;
   /**
    * The desktop's Otter sign-in with another Google account: Google in the
    * browser, identity only. (The web app signs in by redirect instead.)
@@ -110,14 +108,19 @@ export type MicrosoftSignIn = { email: string; name: string };
 export interface MicrosoftAuth {
   /** Whether this build can sign in to Microsoft (it has an OAuth client). */
   available(): Promise<boolean>;
-  watchTarget?(accountId: string): Promise<{ notificationUrl: string; clientState: string }>;
   /** Reads stored sign-ins; call once at startup so `isSignedIn` answers right away. */
+  watchTarget?(accountId: string): Promise<{ notificationUrl: string; clientState: string }>;
   load(): Promise<void>;
   /**
    * Signs a mailbox in (or back in: `loginHint`) in the browser, learns its
    * address from Graph's /me and stores its tokens under it.
    */
   addAccount(loginHint?: string): Promise<MicrosoftSignIn>;
+  /**
+   * Development's demo mailbox (`pnpm dev:demo`): signs it in with its saved
+   * Microsoft sign-in for this shell's OAuth client, instead of the browser.
+   */
+  addDemoAccount?(mailbox: DemoOutlookMailbox): Promise<MicrosoftSignIn>;
   /** Stops waiting for a sign-in in progress; `addAccount` rejects with SignInCancelledError. */
   cancelSignIn(): void;
   isSignedIn(accountId: string): boolean;
@@ -128,7 +131,6 @@ export interface MicrosoftAuth {
 }
 
 export interface Platform {
-  microsoft?: MicrosoftAuth;
   kind: "desktop" | "web";
   appVersion: string;
   /** Environment and classified errors only; no raw mail or credentials. */
@@ -164,6 +166,8 @@ export interface Platform {
   };
 
   google: GoogleAuth;
+  /** Absent where Outlook can't be signed in to. */
+  microsoft?: MicrosoftAuth;
   /** Opens browser consent and returns its callback URL; the backend builds the PKCE URL. */
   todoistSignIn?: (authorize: (redirectUri: string) => Promise<string>) => Promise<string>;
   /**

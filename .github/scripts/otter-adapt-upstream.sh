@@ -134,23 +134,25 @@ perl -0pi -e '
 
 # Otter Code publishes its CLI with an npm token (no npm trusted publisher exists
 # for new packages), and tags each nightly as latest so plain `npx otter-code` works.
-OTTER_NPM_AUTH_STEP='      - name: Configure npm token (Otter Code)
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -n "$NPM_TOKEN" ]; then
-            printf "//registry.npmjs.org/:_authToken=%s\n" "$NPM_TOKEN" >> ~/.npmrc
-          fi
+python3 - <<'PY_NPM'
+from pathlib import Path
+import re
 
-' OTTER_NPM_TAG_STEP='
-      - name: Tag nightly as latest (Otter Code)
-        if: needs.preflight.outputs.release_channel == '"'"'nightly'"'"'
-        run: npm dist-tag add "otter-code@${{ needs.preflight.outputs.version }}" latest
-' perl -0pi -e '
-  s/(      - name: Build npm packages from CLI archives\n)/$ENV{OTTER_NPM_AUTH_STEP}$1/ unless /Configure npm token \(Otter Code\)/;
-  s/(      - name: Publish CLI packages\n        run: [^\n]*\n)/$1$ENV{OTTER_NPM_TAG_STEP}/ unless /Tag nightly as latest \(Otter Code\)/;
-' .github/workflows/release.yml
-perl -0pi -e '
-  s/(node scripts\/build-npm-platform-packages\.ts [^\n]*--output-dir npm-packages)\n/$1 --allow-missing\n/
-    unless /--output-dir npm-packages --allow-missing/;
-' .github/workflows/release.yml
+path = Path('.github/workflows/release.yml')
+text = path.read_text()
+match = re.search(r'(^  publish_cli:\n.*?)(?=^  [a-zA-Z0-9_]+:\n|\Z)', text, re.M | re.S)
+if not match:
+    raise SystemExit('Missing upstream npm publish job')
+job = match[0]
+if 'Configure npm token (Otter Code)' not in job:
+    anchor = '      - name: Build the npm launcher\n'
+    if anchor not in job:
+        raise SystemExit('Missing upstream npm launcher build step')
+    job = job.replace(anchor, '      - name: Configure npm token (Otter Code)\n        env:\n          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}\n        run: |\n          if [ -n "$NPM_TOKEN" ]; then\n            printf "//registry.npmjs.org/:_authToken=%s\\n" "$NPM_TOKEN" >> ~/.npmrc\n          fi\n\n' + anchor, 1)
+if 'Tag nightly as latest (Otter Code)' not in job:
+    job = job.rstrip() + '\n\n      - name: Tag nightly as latest (Otter Code)\n        if: needs.preflight.outputs.release_channel == \'nightly\'\n        run: npm dist-tag add "otter-code@${{ needs.preflight.outputs.version }}" latest\n\n'
+job = job.replace('Make sure package t3 has a trusted publisher registered for .github/workflows/release.yml (see docs/operations/release.md).',
+                  'Check the Otter Code NPM_TOKEN and npm publish access.')
+text = text[:match.start()] + job + text[match.end():]
+path.write_text(text)
+PY_NPM

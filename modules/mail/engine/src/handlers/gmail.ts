@@ -16,13 +16,14 @@ import {
   futureTime,
 } from "../services/mail-schedule.js";
 
-import { GMAIL_CAPABILITIES, IMAP_CAPABILITIES } from "@otterware/mail-contracts";
+import { GMAIL_CAPABILITIES } from "@otterware/mail-contracts";
 
 import { fromBase64 } from "../bytes.js";
 import { SignInCancelledError } from "../google.js";
 import { broadcast, handle, registeredHandlers } from "../ipc.js";
 import { platform } from "../platform.js";
 import { findProvider, isSignedIn, providerFor } from "../providers/index.js";
+import { DraftChanged } from "../providers/provider.js";
 import {
   getAccount,
   listAccounts,
@@ -60,7 +61,7 @@ import { refreshProfiles } from "../services/google-profile.js";
 import { refreshSignatures, saveSignature } from "../services/signatures.js";
 import * as viewsStore from "../services/views-store.js";
 import { ALL_MAIL_LABEL_ID } from "../types.js";
-import type { ComposeAttachment, MailView, ViewRule } from "../types.js";
+import type { ComposeAttachment, ViewRule } from "../types.js";
 
 const LOCAL_PAGE_SIZE = 50;
 
@@ -256,7 +257,7 @@ export function registerGmailHandlers(): void {
       const accounts = await listAccounts();
       return accounts.map((account) => ({
         ...account,
-        capabilities: account.provider === "imap" ? IMAP_CAPABILITIES : GMAIL_CAPABILITIES,
+        capabilities: findProvider(account)?.capabilities ?? GMAIL_CAPABILITIES,
         ...(isSignedIn(account) ? {} : { signedOut: true }),
       }));
     } catch (err) {
@@ -294,6 +295,7 @@ export function registerGmailHandlers(): void {
 
   handle("gmail:cancelAddAccount", async () => {
     platform().google.cancelSignIn();
+    platform().microsoft?.cancelSignIn();
   });
 
   // gmail:removeAccount
@@ -415,12 +417,16 @@ export function registerGmailHandlers(): void {
     try {
       const accountId = assertString(p?.accountId, "accountId");
       const labelId = assertString(p?.labelId, "labelId");
-      const revert = mailStore.removeLabelLocally(accountId, labelId);
+      const provider = providerFor(accountId);
+      // Outlook folder deletion moves its mail to Trash; keep the source
+      // mappings until the provider relabels them after the server confirms.
+      const revert =
+        provider.capabilities.foldersAndCategories && labelId.startsWith("folder:")
+          ? () => {}
+          : mailStore.removeLabelLocally(accountId, labelId);
       return await settleGmailWrite(
         "gmail:deleteLabel",
-        providerFor(accountId)
-          .deleteLabel(accountId, labelId)
-          .then(() => refreshLabels(accountId)),
+        provider.deleteLabel(accountId, labelId).then(() => refreshLabels(accountId)),
         revert,
       );
     } catch (err) {
@@ -617,43 +623,6 @@ export function registerGmailHandlers(): void {
       return { ok: true };
     } catch (err) {
       console.log("[gmail:resetView] error", { error: String(err) });
-      throw err;
-    }
-  });
-
-  // gmail:importViews — one-time migration of the renderer's legacy
-  // localStorage view store; no-op once views.json exists.
-  handle("gmail:importViews", async (params: unknown) => {
-    const p = params as Record<string, unknown>;
-    try {
-      const raw = Array.isArray(p?.views) ? p.views : [];
-      const views = raw
-        .map((v) => v as Record<string, unknown>)
-        .filter(
-          (v) =>
-            typeof v?.id === "string" &&
-            typeof v?.name === "string" &&
-            (v.kind === "inbox" ||
-              v.kind === "starred" ||
-              v.kind === "sent" ||
-              v.kind === "drafts" ||
-              v.kind === "important" ||
-              v.kind === "junk" ||
-              v.kind === "trash" ||
-              v.kind === "custom"),
-        )
-        .map((v): MailView => ({
-          id: v.id as string,
-          name: v.name as string,
-          kind: v.kind as MailView["kind"],
-          rules: v.rules === null ? null : parseRules(v.rules),
-        }));
-      await viewsStore.importViews(views);
-      broadcast("gmail:views-changed");
-      preferenceChanged("views");
-      return await viewsStore.listViews();
-    } catch (err) {
-      console.log("[gmail:importViews] error", { error: String(err) });
       throw err;
     }
   });
@@ -945,21 +914,46 @@ export function registerGmailHandlers(): void {
           asString(p?.draftId) ?? sessionDraftId(draftSessionId(accountId, sessionKey));
         // Someone else (Hermes, Gmail web, a phone) may have edited this draft
         // since the composer last saw it: never overwrite that silently.
-        if (draftId && expectMessageId) {
-          const current = await providerFor(accountId).getDraftVersion(accountId, draftId);
+        const provider = providerFor(accountId);
+        const expectRevision = asString(p?.expectRevision);
+        const conflict = async () => {
+          const messageId = await provider.getDraftVersion(accountId, draftId!);
+          if (messageId === null) return { gone: true as const, draftId: draftId! };
+          return {
+            conflict: true as const,
+            draftId: draftId!,
+            messageId,
+            revision: (await provider.getDraftRevision?.(accountId, draftId!)) ?? messageId,
+          };
+        };
+        if (draftId && (expectMessageId || expectRevision)) {
+          const current = await provider.getDraftVersion(accountId, draftId);
           if (current === null) return { gone: true as const, draftId };
-          if (current !== expectMessageId) {
-            return { conflict: true as const, draftId, messageId: current };
-          }
+          const revision = expectRevision
+            ? ((await provider.getDraftRevision?.(accountId, draftId)) ?? current)
+            : current;
+          if (revision !== (expectRevision ?? expectMessageId)) return conflict();
         }
-        const res = await providerFor(accountId).saveDraft(accountId, {
-          ...content,
-          draftId,
-          threadId: asString(p?.threadId),
-        });
+        let res: Awaited<ReturnType<typeof provider.saveDraft>>;
+        try {
+          res = await provider.saveDraft(accountId, {
+            ...content,
+            draftId,
+            expectRevision,
+            threadId: asString(p?.threadId),
+          });
+        } catch (error) {
+          if (error instanceof DraftChanged && draftId) return conflict();
+          throw error;
+        }
         rememberSessionDraft(draftSessionId(accountId, sessionKey), res.draftId);
         await mirrorDraft(accountId, res, content);
-        return { draftId: res.draftId, messageId: res.messageId, threadId: res.threadId };
+        return {
+          draftId: res.draftId,
+          messageId: res.messageId,
+          threadId: res.threadId,
+          revision: res.revision,
+        };
       };
       return await queueDraftSave(draftSessionId(accountId, sessionKey), save);
     } catch (err) {
@@ -975,7 +969,14 @@ export function registerGmailHandlers(): void {
     try {
       const accountId = assertString(p?.accountId, "accountId");
       const draftId = assertString(p?.draftId, "draftId");
-      return { messageId: await providerFor(accountId).getDraftVersion(accountId, draftId) };
+      const provider = providerFor(accountId);
+      const messageId = await provider.getDraftVersion(accountId, draftId);
+      return {
+        messageId,
+        revision: messageId
+          ? ((await provider.getDraftRevision?.(accountId, draftId)) ?? messageId)
+          : null,
+      };
     } catch (err) {
       console.log("[gmail:getDraftVersion] error", { error: String(err) });
       throw err;

@@ -113,44 +113,61 @@ struct SidebarView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 2) {
                 if let mailbox = scope.flatMap(store.mailbox), mailbox.signedOut {
-                    Label("Sign in to \(mailbox.email) in Settings › Mailboxes", systemImage: "exclamationmark.circle")
-                        .font(.subheadline)
-                        .foregroundStyle(palette.warning)
-                        .padding(12)
+                    HStack(spacing: 10) {
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(palette.warning)
+                        Text(signedOutTitle(mailbox)).font(.subheadline).lineLimit(1)
+                        Spacer(minLength: 8)
+                        SignInAgainButton(mailbox: mailbox)
+                    }
+                    .foregroundStyle(palette.sidebarText)
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 48)
+                    .background(palette.sidebarSelected, in: .rect(cornerRadius: 12))
+                    .padding(.bottom, 8)
                 }
-                // Important is Gmail's sorting; a mailbox without it (IMAP) doesn't show it.
-                let sorts = scope.flatMap(store.mailbox)?.capabilities.categories ?? true
+                // Important is Gmail's sorting, and Outlook's high importance; IMAP has neither.
+                let sorts = scope.flatMap(store.mailbox)?.provider != .imap
                 ForEach(Folder.system.filter { sorts || $0 != .important }, id: \.self) { folder in
                     row(folder, scope: scope)
                 }
                 let labels = scope.flatMap(store.mailbox)?.labels ?? []
-                if !labels.isEmpty {
-                    Text("Labels")
-                        .font(.footnote)
-                        .foregroundStyle(palette.sidebarMuted)
-                        .padding(.horizontal, 12)
-                        .padding(.top, 20)
-                        .padding(.bottom, 4)
-                    ForEach(labels) { label in
-                        row(.label(id: label.id, name: label.name), scope: scope, color: label.color, indent: label.depth)
-                    }
+                if scope.flatMap(store.mailbox)?.provider == .outlook {
+                    labelSection("Folders", labels: labels.filter { $0.id.hasPrefix(OutlookFolders.folderPrefix) }, scope: scope)
+                    labelSection("Categories", labels: labels.filter { $0.id.hasPrefix(OutlookFolders.categoryPrefix) }, scope: scope, flat: true)
+                } else {
+                    labelSection(sorts ? "Labels" : "Folders", labels: labels, scope: scope)
                 }
             }
             .padding(.horizontal, 12)
         }
         .scrollIndicators(.hidden)
         .contentMargins(.top, 4, for: .scrollContent)
-        .contentMargins(.bottom, 96, for: .scrollContent)
+        .contentMargins(.bottom, 126, for: .scrollContent)
         // iOS's soft edge under the chips, only once rows scroll there.
         .scrollEdgeEffectStyle(.soft, for: .top)
-        // Rows fade only as they slide under Compose (at rest the last one sits above it).
+        // Rows fade only as they slide under the status line and Compose (at rest the last one sits above them).
         .mask {
             VStack(spacing: 0) {
                 Color.black
                 LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom).frame(height: 28)
-                Color.clear.frame(height: 60)
+                Color.clear.frame(height: 112)
             }
             .ignoresSafeArea()
+        }
+    }
+
+    @ViewBuilder
+    private func labelSection(_ title: String, labels: [MailLabel], scope: String?, flat: Bool = false) -> some View {
+        if !labels.isEmpty {
+            Text(title)
+                .font(.footnote)
+                .foregroundStyle(palette.sidebarMuted)
+                .padding(.horizontal, 12)
+                .padding(.top, 20)
+                .padding(.bottom, 4)
+            ForEach(labels) { label in
+                row(.label(id: label.id, name: label.name), scope: scope, color: label.color, indent: flat ? 0 : label.depth)
+            }
         }
     }
 
@@ -188,6 +205,16 @@ struct SidebarView: View {
     }
 
     private var footer: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SyncStatusLine(scope: page == Self.all ? nil : page)
+                .padding(.horizontal, 4)
+            footerButtons
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 8)
+    }
+
+    private var footerButtons: some View {
         HStack {
             Button(action: onCompose) {
                 Label("Compose", systemImage: "square.and.pencil")
@@ -207,8 +234,6 @@ struct SidebarView: View {
                 .foregroundStyle(palette.sidebarText)
                 .glassEffect(.regular.interactive(), in: .circle)
         }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 8)
     }
 }
 

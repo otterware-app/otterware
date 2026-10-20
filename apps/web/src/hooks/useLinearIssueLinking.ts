@@ -1,14 +1,11 @@
-import { useMemo } from "react";
 import type { EnvironmentId, ScopedThreadRef } from "@t3tools/contracts";
 import {
   isAtomCommandInterrupted,
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
-
 import { useServerConfigs } from "~/state/entities";
 import { threadEnvironment } from "~/state/threads";
 import { useAtomCommand } from "~/state/use-atom-command";
-
 /** Link and unlink Linear issues on threads of environments that advertise `threadLinearIssues`. */
 export function useLinearIssueLinking(environmentId: EnvironmentId | null | undefined) {
   const configs = useServerConfigs();
@@ -17,11 +14,14 @@ export function useLinearIssueLinking(environmentId: EnvironmentId | null | unde
     configs.get(environmentId)?.environment.capabilities.threadLinearIssues === true;
   const link = useAtomCommand(threadEnvironment.linkLinearIssue, { reportFailure: false });
   const unlink = useAtomCommand(threadEnvironment.unlinkLinearIssue, { reportFailure: true });
-  return useMemo(() => {
+  return (() => {
     /** Rejects with a readable error so the link dialog can show it inline. */
     const linkIssue = async (
       threadRef: ScopedThreadRef,
-      issue: { readonly identifier: string; readonly url: string },
+      issue: {
+        readonly identifier: string;
+        readonly url: string;
+      },
     ) => {
       if (!supported || threadRef.environmentId !== environmentId)
         throw new Error("This environment does not support linking Linear issues.");
@@ -42,5 +42,5 @@ export function useLinearIssueLinking(environmentId: EnvironmentId | null | unde
       });
     };
     return { supported, linkIssue, unlinkIssue };
-  }, [environmentId, link, supported, unlink]);
+  })();
 }

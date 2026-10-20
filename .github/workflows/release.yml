@@ -50,6 +50,7 @@ jobs:
   # have already run. Scheduled runs also decide here whether a nightly is due.
   resolve_commit:
     name: Resolve release commit
+    if: github.repository == 'pingdotgg/t3code'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -128,12 +129,8 @@ jobs:
             !/.repos/
           sparse-checkout-cone-mode: false
 
-      - name: Setup Vite+
-        uses: voidzero-dev/setup-vp@v1
-        with:
-          node-version-file: package.json
-          cache: true
-          run-install: true
+      - name: Setup dependencies
+        uses: ./.github/actions/setup-ci-deps
         env:
           pnpm_config_cache_dir: ${{ runner.temp }}/pnpm-metadata
 
@@ -203,7 +200,7 @@ jobs:
             echo "release_channel=stable" >> "$GITHUB_OUTPUT"
             echo "version=$version" >> "$GITHUB_OUTPUT"
             echo "tag=v$version" >> "$GITHUB_OUTPUT"
-            echo "name=Otter Code v$version" >> "$GITHUB_OUTPUT"
+            echo "name=T3 Code v$version" >> "$GITHUB_OUTPUT"
             echo "cli_dist_tag=latest" >> "$GITHUB_OUTPUT"
             if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
               echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
@@ -246,12 +243,8 @@ jobs:
             !/.repos/
           sparse-checkout-cone-mode: false
 
-      - name: Setup Vite+
-        uses: voidzero-dev/setup-vp@v1
-        with:
-          node-version-file: package.json
-          cache: true
-          run-install: true
+      - name: Setup dependencies
+        uses: ./.github/actions/setup-ci-deps
 
       - name: Ensure Electron runtime is installed
         run: vp run --filter @t3tools/desktop ensure:electron
@@ -280,12 +273,8 @@ jobs:
             !/.repos/
           sparse-checkout-cone-mode: false
 
-      - name: Setup Vite+
-        uses: voidzero-dev/setup-vp@v1
-        with:
-          node-version-file: package.json
-          cache: true
-          run-install: true
+      - name: Setup dependencies
+        uses: ./.github/actions/setup-ci-deps
 
       - name: Ensure Electron runtime is installed
         run: vp run --filter @t3tools/desktop ensure:electron
@@ -296,6 +285,10 @@ jobs:
         run: |
           sudo sed -i 's|http://|https://|g' /etc/apt/blacksmith-ubuntu-mirrors.txt /etc/apt/sources.list.d/ubuntu.sources
           sudo apt-get update && sudo apt-get install -y libsecret-1-dev pkg-config build-essential
+
+      # The web package's browser project runs React tests in headless Chromium.
+      - name: Install Chromium for web browser tests
+        run: node apps/web/node_modules/playwright/cli.js install --with-deps --only-shell chromium
 
       - name: Test
         run: vp run --parallel --concurrency-limit 4 --filter '!t3' --filter '!@t3tools/monorepo' test
@@ -320,12 +313,8 @@ jobs:
             !/.repos/
           sparse-checkout-cone-mode: false
 
-      - name: Setup Vite+
-        uses: voidzero-dev/setup-vp@v1
-        with:
-          node-version-file: package.json
-          cache: true
-          run-install: true
+      - name: Setup dependencies
+        uses: ./.github/actions/setup-ci-deps
 
       # No Electron setup here: `t3` (apps/server) has no Electron dependency
       # and none of its tests touch the runtime. Only the non-server `test`
@@ -349,16 +338,18 @@ jobs:
     environment:
       name: production
     outputs:
-      accounts_url: ${{ steps.public_config.outputs.accounts_url }}
-      accounts_cli_client_id: ${{ steps.public_config.outputs.accounts_cli_client_id }}
+      clerk_publishable_key: ${{ steps.public_config.outputs.clerk_publishable_key }}
+      clerk_jwt_template: ${{ steps.public_config.outputs.clerk_jwt_template }}
+      clerk_cli_oauth_client_id: ${{ steps.public_config.outputs.clerk_cli_oauth_client_id }}
       relay_url: ${{ steps.public_config.outputs.relay_url }}
     env:
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       RELAY_DOMAIN: ${{ vars.RELAY_DOMAIN }}
       RELAY_API_ZONE_NAME: ${{ vars.RELAY_API_ZONE_NAME }}
-      ACCOUNTS_URL: ${{ vars.ACCOUNTS_URL }}
-      ACCOUNTS_CLI_CLIENT_ID: ${{ vars.ACCOUNTS_CLI_CLIENT_ID }}
+      CLERK_PUBLISHABLE_KEY: ${{ vars.CLERK_PUBLISHABLE_KEY }}
+      CLERK_JWT_TEMPLATE: ${{ vars.CLERK_JWT_TEMPLATE }}
+      CLERK_CLI_OAUTH_CLIENT_ID: ${{ vars.CLERK_CLI_OAUTH_CLIENT_ID }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -424,8 +415,9 @@ jobs:
           fi
           required=(
             relay_domain
-            ACCOUNTS_URL
-            ACCOUNTS_CLI_CLIENT_ID
+            CLERK_PUBLISHABLE_KEY
+            CLERK_JWT_TEMPLATE
+            CLERK_CLI_OAUTH_CLIENT_ID
           )
           missing=()
           for name in "${required[@]}"; do
@@ -438,13 +430,14 @@ jobs:
             exit 1
           fi
 
-          echo "accounts_url=$ACCOUNTS_URL" >> "$GITHUB_OUTPUT"
-          echo "accounts_cli_client_id=$ACCOUNTS_CLI_CLIENT_ID" >> "$GITHUB_OUTPUT"
+          echo "clerk_publishable_key=$CLERK_PUBLISHABLE_KEY" >> "$GITHUB_OUTPUT"
+          echo "clerk_jwt_template=$CLERK_JWT_TEMPLATE" >> "$GITHUB_OUTPUT"
+          echo "clerk_cli_oauth_client_id=$CLERK_CLI_OAUTH_CLIENT_ID" >> "$GITHUB_OUTPUT"
           echo "relay_url=https://$relay_domain" >> "$GITHUB_OUTPUT"
 
   # The platform-independent JS (server bundle, web client, Electron main) is
   # built exactly once here and handed to every platform job as `js-bundle`.
-  # The relay/Accounts values are baked into the bundle, so they belong to this
+  # The relay/Clerk values are baked into the bundle, so they belong to this
   # job rather than to the packaging jobs.
   build_bundle:
     name: Build JS bundle
@@ -455,34 +448,11 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
-      T3CODE_ACCOUNTS_URL: ${{ needs.relay_public_config.outputs.accounts_url }}
-      T3CODE_ACCOUNTS_CLI_CLIENT_ID: ${{ needs.relay_public_config.outputs.accounts_cli_client_id }}
+      T3CODE_CLERK_PUBLISHABLE_KEY: ${{ needs.relay_public_config.outputs.clerk_publishable_key }}
+      T3CODE_CLERK_JWT_TEMPLATE: ${{ needs.relay_public_config.outputs.clerk_jwt_template }}
+      T3CODE_CLERK_CLI_OAUTH_CLIENT_ID: ${{ needs.relay_public_config.outputs.clerk_cli_oauth_client_id }}
       T3CODE_RELAY_URL: ${{ needs.relay_public_config.outputs.relay_url }}
-      # The desktop app's Google client ("Desktop app" type; Google treats its secret as not
-      # confidential), baked into the server bundle for "Connect Google on this device".
-      T3CODE_GOOGLE_CLIENT_ID: ${{ vars.T3CODE_GOOGLE_CLIENT_ID }}
-      T3CODE_GOOGLE_CLIENT_SECRET: ${{ secrets.T3CODE_GOOGLE_CLIENT_SECRET }}
     steps:
-      # A bogus code proves the pair: Google answers invalid_grant only once the client and its
-      # secret check out, so a wrong or missing secret stops the release before anything ships.
-      - name: Check the Google client
-        shell: bash
-        run: |
-          if [[ -z "$T3CODE_GOOGLE_CLIENT_ID" || -z "$T3CODE_GOOGLE_CLIENT_SECRET" ]]; then
-            echo "::error::Set the T3CODE_GOOGLE_CLIENT_ID variable and T3CODE_GOOGLE_CLIENT_SECRET secret; without them the app can't connect Google."
-            exit 1
-          fi
-          error="$(curl -sS https://oauth2.googleapis.com/token \
-            --data-urlencode grant_type=authorization_code \
-            --data-urlencode code=release-check \
-            --data-urlencode redirect_uri=http://127.0.0.1 \
-            --data-urlencode "client_id=$T3CODE_GOOGLE_CLIENT_ID" \
-            --data-urlencode "client_secret=$T3CODE_GOOGLE_CLIENT_SECRET" | jq -r .error)"
-          if [[ "$error" != "invalid_grant" ]]; then
-            echo "::error::Google rejected T3CODE_GOOGLE_CLIENT_ID with T3CODE_GOOGLE_CLIENT_SECRET ($error)."
-            exit 1
-          fi
-
       - name: Checkout
         uses: actions/checkout@v6
         with:
@@ -540,7 +510,11 @@ jobs:
       # Runs t3#build (which depends on @t3tools/web#build) and
       # @t3tools/desktop#build, so apps/server/dist holds the server bundle
       # plus the web client and apps/desktop/dist-electron the Electron main.
+      # The release channel is already stable, nightly, or preview. Builds in
+      # other repositories report "dev" telemetry.
       - name: Build JS bundle
+        env:
+          T3CODE_TELEMETRY_CHANNEL: ${{ github.repository == 'pingdotgg/t3code' && needs.preflight.outputs.release_channel || 'dev' }}
         run: vp run build:desktop
 
       # Two paths under apps/ so the artifact root is apps/; consumers download
@@ -572,11 +546,12 @@ jobs:
       version: ${{ needs.preflight.outputs.version }}
       ref: ${{ needs.preflight.outputs.ref }}
       release_channel: ${{ needs.preflight.outputs.release_channel }}
-      accounts_url: ${{ needs.relay_public_config.outputs.accounts_url }}
-      accounts_cli_client_id: ${{ needs.relay_public_config.outputs.accounts_cli_client_id }}
+      clerk_publishable_key: ${{ needs.relay_public_config.outputs.clerk_publishable_key }}
+      clerk_jwt_template: ${{ needs.relay_public_config.outputs.clerk_jwt_template }}
+      clerk_cli_oauth_client_id: ${{ needs.relay_public_config.outputs.clerk_cli_oauth_client_id }}
       relay_url: ${{ needs.relay_public_config.outputs.relay_url }}
       label: macOS arm64
-      runner: macos-15
+      runner: macos-26-xlarge
       platform: mac
       target: dmg
       arch: arm64
@@ -594,11 +569,12 @@ jobs:
       version: ${{ needs.preflight.outputs.version }}
       ref: ${{ needs.preflight.outputs.ref }}
       release_channel: ${{ needs.preflight.outputs.release_channel }}
-      accounts_url: ${{ needs.relay_public_config.outputs.accounts_url }}
-      accounts_cli_client_id: ${{ needs.relay_public_config.outputs.accounts_cli_client_id }}
+      clerk_publishable_key: ${{ needs.relay_public_config.outputs.clerk_publishable_key }}
+      clerk_jwt_template: ${{ needs.relay_public_config.outputs.clerk_jwt_template }}
+      clerk_cli_oauth_client_id: ${{ needs.relay_public_config.outputs.clerk_cli_oauth_client_id }}
       relay_url: ${{ needs.relay_public_config.outputs.relay_url }}
       label: macOS x64
-      runner: macos-15
+      runner: macos-26-xlarge
       platform: mac
       target: dmg
       arch: x64
@@ -619,8 +595,9 @@ jobs:
       version: ${{ needs.preflight.outputs.version }}
       ref: ${{ needs.preflight.outputs.ref }}
       release_channel: ${{ needs.preflight.outputs.release_channel }}
-      accounts_url: ${{ needs.relay_public_config.outputs.accounts_url }}
-      accounts_cli_client_id: ${{ needs.relay_public_config.outputs.accounts_cli_client_id }}
+      clerk_publishable_key: ${{ needs.relay_public_config.outputs.clerk_publishable_key }}
+      clerk_jwt_template: ${{ needs.relay_public_config.outputs.clerk_jwt_template }}
+      clerk_cli_oauth_client_id: ${{ needs.relay_public_config.outputs.clerk_cli_oauth_client_id }}
       relay_url: ${{ needs.relay_public_config.outputs.relay_url }}
       label: Linux x64
       runner: ubuntu-24.04
@@ -643,8 +620,9 @@ jobs:
       version: ${{ needs.preflight.outputs.version }}
       ref: ${{ needs.preflight.outputs.ref }}
       release_channel: ${{ needs.preflight.outputs.release_channel }}
-      accounts_url: ${{ needs.relay_public_config.outputs.accounts_url }}
-      accounts_cli_client_id: ${{ needs.relay_public_config.outputs.accounts_cli_client_id }}
+      clerk_publishable_key: ${{ needs.relay_public_config.outputs.clerk_publishable_key }}
+      clerk_jwt_template: ${{ needs.relay_public_config.outputs.clerk_jwt_template }}
+      clerk_cli_oauth_client_id: ${{ needs.relay_public_config.outputs.clerk_cli_oauth_client_id }}
       relay_url: ${{ needs.relay_public_config.outputs.relay_url }}
       label: Linux arm64
       runner: ubuntu-24.04-arm
@@ -668,8 +646,9 @@ jobs:
       version: ${{ needs.preflight.outputs.version }}
       ref: ${{ needs.preflight.outputs.ref }}
       release_channel: ${{ needs.preflight.outputs.release_channel }}
-      accounts_url: ${{ needs.relay_public_config.outputs.accounts_url }}
-      accounts_cli_client_id: ${{ needs.relay_public_config.outputs.accounts_cli_client_id }}
+      clerk_publishable_key: ${{ needs.relay_public_config.outputs.clerk_publishable_key }}
+      clerk_jwt_template: ${{ needs.relay_public_config.outputs.clerk_jwt_template }}
+      clerk_cli_oauth_client_id: ${{ needs.relay_public_config.outputs.clerk_cli_oauth_client_id }}
       relay_url: ${{ needs.relay_public_config.outputs.relay_url }}
       label: Windows x64
       runner: windows-2025
@@ -690,8 +669,9 @@ jobs:
       version: ${{ needs.preflight.outputs.version }}
       ref: ${{ needs.preflight.outputs.ref }}
       release_channel: ${{ needs.preflight.outputs.release_channel }}
-      accounts_url: ${{ needs.relay_public_config.outputs.accounts_url }}
-      accounts_cli_client_id: ${{ needs.relay_public_config.outputs.accounts_cli_client_id }}
+      clerk_publishable_key: ${{ needs.relay_public_config.outputs.clerk_publishable_key }}
+      clerk_jwt_template: ${{ needs.relay_public_config.outputs.clerk_jwt_template }}
+      clerk_cli_oauth_client_id: ${{ needs.relay_public_config.outputs.clerk_cli_oauth_client_id }}
       relay_url: ${{ needs.relay_public_config.outputs.relay_url }}
       label: Windows arm64
       runner: windows-11-arm
@@ -702,11 +682,8 @@ jobs:
       resource_key: win32-arm64
       cli_archive: true
 
-  # npm gets the same bytes as the GitHub Release: the launcher plus one
-  # package per CLI archive. Preview publishes too, under the `preview`
-  # dist-tag, which nothing resolves unless asked for by name.
-  publish_cli:
-    name: Publish CLI to npm
+  release:
+    name: Publish GitHub Release
     needs:
       [
         preflight,
@@ -715,86 +692,13 @@ jobs:
         test,
         test_server,
         desktop_mac_arm64,
-        desktop_linux_x64,
-        desktop_linux_arm64,
-        desktop_win_x64,
-        desktop_win_arm64,
-      ]
-    if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result == 'success' && needs.quality.result == 'success' && needs.test.result == 'success' && needs.test_server.result == 'success' && needs.desktop_mac_arm64.result == 'success' && needs.desktop_linux_x64.result == 'success' && needs.desktop_linux_arm64.result == 'success' && needs.desktop_win_x64.result != 'failure' && needs.desktop_win_arm64.result != 'failure' }}
-    runs-on: ubuntu-24.04 # ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      id-token: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          ref: ${{ needs.preflight.outputs.ref }}
-          sparse-checkout: |
-            /*
-            !/.repos/
-          sparse-checkout-cone-mode: false
-
-      - name: Setup Vite+
-        uses: voidzero-dev/setup-vp@v1
-        with:
-          node-version-file: package.json
-          cache: true
-          run-install: |
-            args:
-              - --filter=t3...
-              - --filter=@t3tools/scripts...
-
-      - name: Download all CLI archives
-        uses: actions/download-artifact@v8
-        with:
-          pattern: cli-*
-          merge-multiple: true
-          path: release-cli
-
-      - name: Configure npm token (Otter Code)
-        env:
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: |
-          if [ -n "$NPM_TOKEN" ]; then
-            printf "//registry.npmjs.org/:_authToken=%s\n" "$NPM_TOKEN" >> ~/.npmrc
-          fi
-
-      - name: Build npm packages from CLI archives
-        run: node scripts/build-npm-platform-packages.ts --archives-dir release-cli --version "${{ needs.preflight.outputs.version }}" --output-dir npm-packages --allow-missing
-
-      # A dry run of every package first: an auth or scope error here (the
-      # @t3code org missing, a package without a trusted publisher) fails
-      # before anything is live, instead of after some platforms already are.
-      - name: Check npm publish access (dry run)
-        run: |
-          if ! node apps/server/scripts/cli.ts publish --packages-dir npm-packages --tag "${{ needs.preflight.outputs.cli_dist_tag }}" --provenance --dry-run --verbose; then
-            echo "::error::npm publish --dry-run failed. Make sure the @t3code npm org exists and that t3 and every @t3code/t3-<platform> package has a trusted publisher registered for .github/workflows/release.yml (see docs/operations/release.md)." >&2
-            exit 1
-          fi
-
-      - name: Publish CLI packages
-        run: node apps/server/scripts/cli.ts publish --packages-dir npm-packages --tag "${{ needs.preflight.outputs.cli_dist_tag }}" --provenance --verbose
-
-      - name: Tag nightly as latest (Otter Code)
-        if: needs.preflight.outputs.release_channel == 'nightly'
-        run: npm dist-tag add "otter-code@${{ needs.preflight.outputs.version }}" latest
-
-  release:
-    name: Publish GitHub Release
-    needs:
-      [
-        preflight,
-        desktop_mac_arm64,
         desktop_mac_x64,
         desktop_linux_x64,
         desktop_linux_arm64,
         desktop_win_x64,
         desktop_win_arm64,
-        publish_cli,
       ]
-    if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.desktop_mac_arm64.result == 'success' && needs.desktop_mac_x64.result == 'success' && needs.desktop_linux_x64.result == 'success' && needs.desktop_linux_arm64.result == 'success' && needs.desktop_win_x64.result != 'failure' && needs.desktop_win_arm64.result != 'failure' && (needs.publish_cli.result == 'success' || needs.publish_cli.result == 'skipped') }}
+    if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.relay_public_config.result == 'success' && needs.quality.result == 'success' && needs.test.result == 'success' && needs.test_server.result == 'success' && needs.desktop_mac_arm64.result == 'success' && needs.desktop_mac_x64.result == 'success' && needs.desktop_linux_x64.result == 'success' && needs.desktop_linux_arm64.result == 'success' && needs.desktop_win_x64.result != 'failure' && needs.desktop_win_arm64.result != 'failure' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -831,6 +735,18 @@ jobs:
           pattern: cli-*
           merge-multiple: true
           path: release-assets
+
+      - name: Download internal Android APK for Nightly
+        if: needs.preflight.outputs.release_channel == 'nightly'
+        continue-on-error: true
+        env:
+          GOOGLE_PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          PACKAGE_NAME: com.t3tools.t3code
+          APK_OUTPUT_DIR: release-assets
+        run: |
+          if [ -n "$GOOGLE_PLAY_SERVICE_ACCOUNT_JSON" ]; then
+            node .github/scripts/mirror-play-apk.cjs
+          fi
 
       # Installers verify archives against this file, so it is written from the
       # signed bytes that get uploaded, never from an earlier stage.
@@ -912,6 +828,10 @@ jobs:
               echo 'release-assets/*.yml'
             fi
             echo 'release-assets/*.tar.gz'
+            # Only list APKs when Play has a processed internal build available.
+            for apk in release-assets/*.apk; do
+              [[ -f "$apk" ]] && echo "$apk"
+            done
             echo 'release-assets/SHA256SUMS'
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
@@ -965,10 +885,65 @@ jobs:
           fail_on_unmatched_files: true
           token: ${{ github.token }}
 
+  # The `t3` npm package is a launcher that downloads this version's CLI
+  # archive from the GitHub Release, so it publishes only once that release
+  # exists. Preview publishes too, under the `preview` dist-tag, which
+  # nothing resolves unless asked for by name.
+  publish_cli:
+    name: Publish CLI to npm
+    needs: [preflight, release]
+    if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.release.result == 'success' }}
+    runs-on: ubuntu-24.04 # ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ needs.preflight.outputs.ref }}
+          sparse-checkout: |
+            /*
+            !/.repos/
+          sparse-checkout-cone-mode: false
+
+      - name: Setup Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version-file: package.json
+          cache: true
+          run-install: |
+            args:
+              - --filter=t3...
+              - --filter=@t3tools/scripts...
+
+      - name: Configure npm token (Otter Code)
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -n "$NPM_TOKEN" ]; then
+            printf "//registry.npmjs.org/:_authToken=%s\n" "$NPM_TOKEN" >> ~/.npmrc
+          fi
+
+      - name: Build the npm launcher
+        run: node scripts/build-npm-launcher.ts --version "${{ needs.preflight.outputs.version }}" --output-dir npm-packages
+
+      - name: Publish the npm launcher
+        run: |
+          if ! node apps/server/scripts/cli.ts publish --packages-dir npm-packages --tag "${{ needs.preflight.outputs.cli_dist_tag }}" --provenance --verbose; then
+            echo "::error::npm publish failed. Check the Otter Code NPM_TOKEN and npm publish access." >&2
+            exit 1
+          fi
+
+      - name: Tag nightly as latest (Otter Code)
+        if: needs.preflight.outputs.release_channel == 'nightly'
+        run: npm dist-tag add "otter-code@${{ needs.preflight.outputs.version }}" latest
+
   publish_aur:
     name: Publish AUR package
     needs: [preflight, release]
-    if: ${{ github.repository == 'pingdotgg/t3code' && !failure() && !cancelled() && needs.preflight.result == 'success' && needs.release.result == 'success' && needs.preflight.outputs.release_channel != 'preview' }}
+    if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.release.result == 'success' && needs.preflight.outputs.release_channel != 'preview' }}
     uses: ./.github/workflows/publish-aur.yml
     with:
       release_tag: ${{ needs.preflight.outputs.tag }}
@@ -994,8 +969,9 @@ jobs:
       VITE_HOSTED_APP_CHANNEL: ${{ needs.preflight.outputs.release_channel == 'stable' && 'latest' || 'nightly' }}
       APP_VERSION: ${{ needs.preflight.outputs.version }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      T3CODE_ACCOUNTS_URL: ${{ needs.relay_public_config.outputs.accounts_url }}
-      T3CODE_ACCOUNTS_CLI_CLIENT_ID: ${{ needs.relay_public_config.outputs.accounts_cli_client_id }}
+      T3CODE_CLERK_PUBLISHABLE_KEY: ${{ needs.relay_public_config.outputs.clerk_publishable_key }}
+      T3CODE_CLERK_JWT_TEMPLATE: ${{ needs.relay_public_config.outputs.clerk_jwt_template }}
+      T3CODE_CLERK_CLI_OAUTH_CLIENT_ID: ${{ needs.relay_public_config.outputs.clerk_cli_oauth_client_id }}
       T3CODE_RELAY_URL: ${{ needs.relay_public_config.outputs.relay_url }}
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
@@ -1075,8 +1051,9 @@ jobs:
               --token "$VERCEL_TOKEN" \
               --scope "${VERCEL_TEAM_SLUG:-$VERCEL_ORG_ID}" \
               --build-env "APP_VERSION=${{ needs.preflight.outputs.version }}" \
-              --build-env "T3CODE_ACCOUNTS_URL=${T3CODE_ACCOUNTS_URL:-}" \
-              --build-env "T3CODE_ACCOUNTS_CLI_CLIENT_ID=${T3CODE_ACCOUNTS_CLI_CLIENT_ID:-}" \
+              --build-env "T3CODE_CLERK_PUBLISHABLE_KEY=${T3CODE_CLERK_PUBLISHABLE_KEY:-}" \
+              --build-env "T3CODE_CLERK_JWT_TEMPLATE=${T3CODE_CLERK_JWT_TEMPLATE:-}" \
+              --build-env "T3CODE_CLERK_CLI_OAUTH_CLIENT_ID=${T3CODE_CLERK_CLI_OAUTH_CLIENT_ID:-}" \
               --build-env "T3CODE_RELAY_URL=${T3CODE_RELAY_URL:-}" \
               --build-env "T3CODE_RELAY_CLIENT_OTLP_TRACES_URL=${T3CODE_RELAY_CLIENT_OTLP_TRACES_URL:-}" \
               --build-env "T3CODE_RELAY_CLIENT_OTLP_TRACES_DATASET=${T3CODE_RELAY_CLIENT_OTLP_TRACES_DATASET:-}" \
@@ -1089,8 +1066,8 @@ jobs:
 
   deploy_web:
     name: Deploy hosted web app
-    needs: [preflight, build_web, release]
-    if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.build_web.result == 'success' && needs.release.result == 'success' && needs.preflight.outputs.release_channel != 'preview' }}
+    needs: [preflight, build_web, release, publish_cli]
+    if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.build_web.result == 'success' && needs.release.result == 'success' && needs.publish_cli.result == 'success' && needs.preflight.outputs.release_channel != 'preview' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -1171,7 +1148,7 @@ jobs:
   build_marketing:
     name: Build marketing site
     needs: [preflight]
-    if: ${{ github.repository == 'pingdotgg/t3code' && !cancelled() && needs.preflight.result == 'success' && needs.preflight.outputs.release_channel == 'nightly' }}
+    if: ${{ !cancelled() && needs.preflight.result == 'success' && needs.preflight.outputs.release_channel == 'nightly' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     outputs:
@@ -1235,7 +1212,7 @@ jobs:
   deploy_marketing:
     name: Deploy marketing site
     needs: [preflight, build_marketing, release]
-    if: ${{ github.repository == 'pingdotgg/t3code' && !failure() && !cancelled() && needs.preflight.result == 'success' && needs.build_marketing.result == 'success' && needs.release.result == 'success' && needs.preflight.outputs.release_channel == 'nightly' }}
+    if: ${{ !failure() && !cancelled() && needs.preflight.result == 'success' && needs.build_marketing.result == 'success' && needs.release.result == 'success' && needs.preflight.outputs.release_channel == 'nightly' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -1359,7 +1336,7 @@ jobs:
   announce_discord:
     name: Announce release on Discord
     if: |
-      github.repository == 'pingdotgg/t3code' && always() && !cancelled() &&
+      always() && !cancelled() &&
       needs.preflight.result == 'success' &&
       needs.preflight.outputs.release_channel != 'preview' &&
       needs.relay_public_config.result == 'success' &&

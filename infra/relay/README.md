@@ -142,6 +142,10 @@ The `production` GitHub environment must define these Actions variables:
 - `RELAY_TUNNEL_ZONE_NAME`
 - `RELAY_DOMAIN` if overriding the derived production relay domain
 - `ACCOUNTS_URL`
+- `RELAY_ALERT_NOTIFIER_ID`, the Axiom notifier that relay alerts page. Without it the deployment
+  creates no monitors or health dashboard. See
+  [Relay alerts](../../docs/operations/relay-observability.md#alerts).
+- `RELAY_WARNING_NOTIFIER_ID`, optional, the Axiom notifier for relay warnings
 - `APNS_ENVIRONMENT`
 - `APNS_TEAM_ID`
 - `APNS_KEY_ID`

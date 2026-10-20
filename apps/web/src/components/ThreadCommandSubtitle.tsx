@@ -1,17 +1,12 @@
 import type { ProviderDriverKind } from "@t3tools/contracts";
-import { FolderGit2Icon, FolderIcon, GitBranchIcon } from "lucide-react";
+import { FolderGit2Icon } from "lucide-react";
+import { FolderIcon, GitBranchIcon } from "~/lib/icons";
 import { ProjectFavicon, type ProjectFaviconProject } from "./ProjectFavicon";
 import { ProviderInstanceIcon } from "./chat/ProviderInstanceIcon";
 import { cn } from "~/lib/utils";
 
 import { MiddleTruncate } from "./ui/middle-truncate";
 
-/**
- * Flip this while reviewing command-palette thread subtitles.
- * - favicon-workspace-harness: favicon + Folder/FolderGit2 + branch + harness (default)
- * - favicon-workspace: same without harness
- * - favicon-branch-harness: GitBranch for local, FolderGit2 for worktrees, + harness
- */
 export type ThreadCommandSubtitleVariant =
   | "favicon-workspace-harness"
   | "favicon-workspace"

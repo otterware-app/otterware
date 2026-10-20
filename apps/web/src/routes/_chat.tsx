@@ -1,13 +1,11 @@
 import { AuthPreviewOperateScope } from "@t3tools/contracts";
-import { Outlet, createFileRoute, redirect, useParams } from "@tanstack/react-router";
+import { Outlet, createFileRoute, redirect } from "@tanstack/react-router";
 import { useAtomValue } from "@effect/atom-react";
-import { useEffect, useMemo } from "react";
-
+import { useEffect } from "react";
 import { isCommandPaletteOpen } from "../commandPaletteBus";
 import { ThreadRouteView } from "../components/ThreadRouteView";
 import { ThreadLinkPrompt } from "../components/promptLinks/ThreadLinkPrompt";
-import { resolveThreadRouteTarget } from "../threadRoutes";
-import { useClientSettings, useLegacySidebarEnabled } from "../hooks/useSettings";
+import { useClientSettings } from "../hooks/useSettings";
 import { openCommandPalette } from "../commandPaletteBus";
 import { useProjects } from "../state/entities";
 import { isPreviewAvailableFor } from "../browser/previewRuntime";
@@ -30,8 +28,8 @@ import { selectActiveRightPanel, useRightPanelStore } from "../rightPanelStore";
 import { useThreadSelectionStore } from "../threadSelectionStore";
 import { stackedThreadToast, toastManager } from "~/components/ui/toast";
 import { primaryServerKeybindingsAtom } from "~/state/server";
+import { useThreadRouteTarget } from "../hooks/useThreadRouteTarget";
 import { useActiveProjectSpace } from "~/hooks/useProjectSpace";
-
 function ChatRouteGlobalShortcuts() {
   const clearSelection = useThreadSelectionStore((state) => state.clearSelection);
   const selectedThreadKeysSize = useThreadSelectionStore((state) => state.selectedThreadKeys.size);
@@ -48,23 +46,20 @@ function ChatRouteGlobalShortcuts() {
     AuthPreviewOperateScope,
   );
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
-  const legacySidebarEnabled = useLegacySidebarEnabled();
   const projectGroupingSettings = useClientSettings(selectProjectGroupingSettings);
   const projects = useProjects();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const { scratchEnvironmentId, startScratchThread } = useScratchProject();
   const { space, projectFilter } = useActiveProjectSpace();
-  // Counted within the rail's space: a group of one project has no choice to
-  // make. A space with no projects counts every project, as new threads do.
-  const projectGroupCount = useMemo(() => {
+  const projectGroupCount = (() => {
     const spaceProjects = projectFilter === null ? projects : projects.filter(projectFilter);
     return buildSidebarProjectSnapshots({
-      projects: spaceProjects.length > 0 ? spaceProjects : projects,
+      projects: spaceProjects,
       settings: projectGroupingSettings,
       primaryEnvironmentId,
       resolveEnvironmentLabel: () => null,
     }).length;
-  }, [primaryEnvironmentId, projectFilter, projectGroupingSettings, projects]);
+  })();
   const terminalOpen = useTerminalUiStateStore((state) =>
     routeThreadRef
       ? selectThreadTerminalUiState(state.terminalUiStateByThreadKey, routeThreadRef).terminalOpen
@@ -91,11 +86,9 @@ function ChatRouteGlobalShortcuts() {
           modelPickerOpen: isModelPickerOpen(),
         },
       });
-
       if (isCommandPaletteOpen()) {
         return;
       }
-
       if (command === "thread.undo") {
         if (event.repeat || isModelPickerOpen()) return;
         if (undoLatestThreadAction()) {
@@ -104,10 +97,29 @@ function ChatRouteGlobalShortcuts() {
         }
         return;
       }
-
       if (event.key === "Escape" && selectedThreadKeysSize > 0) {
         event.preventDefault();
         clearSelection();
+        return;
+      }
+
+      if (
+        (command === "chat.new" || command === "chat.newLocal") &&
+        projectGroupCount === 0 &&
+        space.kind !== "chats"
+      ) {
+        event.preventDefault();
+        event.stopPropagation();
+        const scratchTarget =
+          space.kind === "all"
+            ? scratchEnvironmentId(
+                activeThread?.environmentId ??
+                  activeDraftThread?.environmentId ??
+                  primaryEnvironmentId,
+              )
+            : null;
+        if (scratchTarget !== null) void startScratchThread(scratchTarget);
+        else openCommandPalette({ open: "add-project" });
         return;
       }
 
@@ -123,7 +135,6 @@ function ChatRouteGlobalShortcuts() {
         });
         return;
       }
-
       // In Chats, chat.new starts without a project too, unless the machine
       // offers no such home; then it falls through to the ordinary new thread.
       const scratchTarget =
@@ -142,14 +153,10 @@ function ChatRouteGlobalShortcuts() {
         void startScratchThread(environmentId);
         return;
       }
-
       if (command === "chat.new") {
         event.preventDefault();
         event.stopPropagation();
-        // The default sidebar routes creation through the command palette
-        // whenever there is a real choice to make; the legacy sidebar (and
-        // single-project setups) keep the immediate contextual create.
-        if (!legacySidebarEnabled && projectGroupCount > 1) {
+        if (projectGroupCount > 1) {
           openCommandPalette({ open: "new-thread-in" });
           return;
         }
@@ -162,7 +169,6 @@ function ChatRouteGlobalShortcuts() {
         });
         return;
       }
-
       if (command === "preview.toggle") {
         event.preventDefault();
         event.stopPropagation();
@@ -180,10 +186,6 @@ function ChatRouteGlobalShortcuts() {
         dispatchPreviewAction("toggle-panel");
         return;
       }
-
-      // The remaining preview commands only fire when the panel is the
-      // currently-focused tenant. The `when: previewFocus` rule already
-      // gates this, but defend against the keybinding being misconfigured.
       if (
         command === "preview.refresh" ||
         command === "preview.focusUrl" ||
@@ -207,7 +209,6 @@ function ChatRouteGlobalShortcuts() {
         dispatchPreviewAction(action);
       }
     };
-
     window.addEventListener("keydown", onWindowKeyDown);
     return () => {
       window.removeEventListener("keydown", onWindowKeyDown);
@@ -229,20 +230,14 @@ function ChatRouteGlobalShortcuts() {
     selectedThreadKeysSize,
     space.kind,
     startScratchThread,
-    legacySidebarEnabled,
     terminalOpen,
   ]);
-
   return null;
 }
-
 function ChatRouteLayout() {
   // Both thread routes render here, not in their own leaf components, so the
   // draft-to-thread promotion keeps one ChatView mounted across the swap.
-  const threadTarget = useParams({
-    strict: false,
-    select: (params) => resolveThreadRouteTarget(params),
-  });
+  const threadTarget = useThreadRouteTarget();
   return (
     <>
       <ChatRouteGlobalShortcuts />
@@ -253,7 +248,6 @@ function ChatRouteLayout() {
     </>
   );
 }
-
 export const Route = createFileRoute("/_chat")({
   beforeLoad: async ({ context }) => {
     if (

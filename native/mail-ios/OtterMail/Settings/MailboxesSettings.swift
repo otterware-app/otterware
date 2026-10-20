@@ -40,7 +40,10 @@ struct MailboxesSettings: View {
                         HStack(spacing: 12) {
                             MailboxMark(mailbox: mailbox, size: 30)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(mailbox.displayName).foregroundStyle(palette.text)
+                                HStack(spacing: 6) {
+                                    ProviderMark(provider: mailbox.provider, size: 14)
+                                    Text(mailbox.displayName).foregroundStyle(palette.text)
+                                }
                                 Text(mailbox.signedOut ? "Sign in on this iPhone" : mailbox.email)
                                     .font(.subheadline)
                                     .foregroundStyle(mailbox.signedOut ? palette.warning : palette.muted)
@@ -66,7 +69,17 @@ struct MailboxesSettings: View {
                             }
                         }
                     } label: {
-                        Label(session.busy ?? "Add Gmail mailbox", systemImage: "plus")
+                        Label { Text(session.busy ?? "Add Gmail mailbox") } icon: { GmailMark() }
+                    }
+                    .disabled(session.busy != nil)
+                    Button {
+                        Task {
+                            do { try await session.addOutlookMailbox() } catch MicrosoftAuth.Failure.cancelled {} catch {
+                                self.error = error.localizedDescription
+                            }
+                        }
+                    } label: {
+                        Label { Text("Add Outlook mailbox") } icon: { MicrosoftMark() }
                     }
                     .disabled(session.busy != nil)
                     NavigationLink {
@@ -112,6 +125,15 @@ struct MailboxSettings: View {
 
     private func form(_ mailbox: Mailbox) -> some View {
         SettingsForm {
+            // Signed out, the sign-in below says so; signed in, a failing sync may still need it.
+            if !mailbox.signedOut, let failure = store.health[email]?.failure {
+                Section {
+                    LabeledContent("Sync", value: "\(failure) — will retry")
+                    SignInAgainButton(mailbox: mailbox, title: mailbox.imap != nil ? "Enter password" : "Sign in again")
+                } footer: {
+                    Text("If it keeps failing, signing in again may fix it.")
+                }
+            }
             if mailbox.signedOut, let imap = mailbox.imap {
                 Section {
                     SecureField("Password", text: $password)
@@ -129,19 +151,25 @@ struct MailboxSettings: View {
                     Text("This iPhone needs the password: the mailbox is new here, the server refused it, or its servers changed. It stays on this iPhone; your mail goes straight between it and \(imap.imap.host).")
                 }
             } else if mailbox.signedOut {
+                let outlook = mailbox.provider == .outlook
                 Section {
                     Button {
                         Task {
-                            do { try await session.signIn(mailbox: email) } catch GoogleAuth.Failure.cancelled {} catch {
+                            do { try await session.signIn(mailbox: email) }
+                            catch GoogleAuth.Failure.cancelled {} catch MicrosoftAuth.Failure.cancelled {} catch {
                                 self.error = error.localizedDescription
                             }
                         }
                     } label: {
-                        Label(session.busy ?? "Sign in to \(email)", systemImage: "person.crop.circle.badge.checkmark")
+                        if outlook {
+                            Label { Text(session.busy ?? "Sign in with Microsoft") } icon: { MicrosoftMark() }
+                        } else {
+                            Label(session.busy ?? "Sign in to \(email)", systemImage: "person.crop.circle.badge.checkmark")
+                        }
                     }
                     .disabled(session.busy != nil)
                 } footer: {
-                    Text("Linked to your Otter account, but this iPhone isn't signed in to it yet. Your mail goes straight between the iPhone and Gmail.")
+                    Text("Linked to your Otter account, but this iPhone isn't signed in to it yet. Your mail goes straight between the iPhone and \(outlook ? "Outlook" : "Gmail").")
                 }
             }
 
@@ -164,7 +192,7 @@ struct MailboxSettings: View {
                     SignatureEditor(
                         html: mailbox.signature,
                         savedIn: mailbox.capabilities.serverSignatures ? "Gmail" : "your Otter account",
-                        signIn: mailbox.imap == nil ? { try await session.signIn(mailbox: email) } : nil
+                        signIn: mailbox.provider == .gmail ? { try await session.signIn(mailbox: email) } : nil
                     ) { html in
                         try await session.setSignature(html, for: email)
                     }
@@ -185,7 +213,7 @@ struct MailboxSettings: View {
                             Task { await session.remove(mailbox) }
                         }
                     } message: {
-                        Text("Removes it from your Otter account on every device and signs this iPhone out of it. Nothing is deleted from \(mailbox.imap == nil ? "Gmail" : "the server").")
+                        Text("Removes it from your Otter account on every device and signs this iPhone out of it. Nothing is deleted from \(Self.server(mailbox)).")
                     }
             }
         }
@@ -197,6 +225,18 @@ struct MailboxSettings: View {
             Button("OK") { error = nil }
         } message: {
             Text(error ?? "")
+        }
+    }
+
+
+
+
+    /** Where the mailbox's mail stays. */
+    private static func server(_ mailbox: Mailbox) -> String {
+        switch mailbox.provider {
+        case .gmail: "Gmail"
+        case .outlook: "Outlook"
+        case .imap: "the server"
         }
     }
 
@@ -265,6 +305,58 @@ struct LanguagesSettings: View {
         var list = list
         list.move(fromOffsets: from, toOffset: to)
         return list
+    }
+}
+
+struct GmailMark: View {
+    var size: CGFloat = 18
+
+    var body: some View {
+        Image("GmailMark")
+            .renderingMode(.original)
+            .resizable()
+            .scaledToFit()
+            .frame(width: size, height: size)
+            .accessibilityHidden(true)
+    }
+}
+
+struct ProviderMark: View {
+    let provider: MailProviderKind
+    var size: CGFloat = 14
+
+    var body: some View {
+        Group {
+            switch provider {
+            case .gmail: GmailMark(size: size)
+            case .outlook: MicrosoftMark(size: size)
+            case .imap: Image(systemName: "server.rack").font(.system(size: size))
+            }
+        }
+        .frame(width: size, height: size)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(provider == .gmail ? "Gmail" : provider == .outlook ? "Outlook" : "IMAP")
+    }
+}
+
+/** Microsoft's four squares, beside what signs in with Microsoft. */
+struct MicrosoftMark: View {
+    var size: CGFloat = 18
+
+    var body: some View {
+        let square = size * 0.46
+        Grid(horizontalSpacing: size * 0.08, verticalSpacing: size * 0.08) {
+            GridRow {
+                Rectangle().fill(Color(hex: "#f25022")).frame(width: square, height: square)
+                Rectangle().fill(Color(hex: "#7fba00")).frame(width: square, height: square)
+            }
+            GridRow {
+                Rectangle().fill(Color(hex: "#00a4ef")).frame(width: square, height: square)
+                Rectangle().fill(Color(hex: "#ffb900")).frame(width: square, height: square)
+            }
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
     }
 }
 

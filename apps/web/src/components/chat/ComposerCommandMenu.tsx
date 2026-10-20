@@ -1,4 +1,5 @@
 import { formatProviderSkillDisplayName } from "@t3tools/shared/inlineSkills";
+import type { ComposerPathSearchTarget } from "@t3tools/client-runtime/state/threads";
 import {
   resolveProviderSkillSourceKind,
   type ProviderSkillSourceKind,
@@ -11,15 +12,9 @@ import {
   type ServerProviderSkill,
   type ServerProviderSlashCommand,
 } from "@t3tools/contracts";
-import {
-  BlocksIcon,
-  FolderIcon,
-  MessagesSquareIcon,
-  PackageIcon,
-  SettingsIcon,
-  UserRoundIcon,
-  type LucideIcon,
-} from "lucide-react";
+import { BlocksIcon, MessagesSquareIcon, PackageIcon, UserRoundIcon } from "lucide-react";
+import type { LucideIcon } from "~/lib/icons";
+import { FolderIcon, SettingsIcon } from "~/lib/icons";
 import { memo, useLayoutEffect, useRef } from "react";
 
 import { type ComposerSlashCommand, type ComposerTriggerKind } from "../../composer-logic";
@@ -36,6 +31,7 @@ export type ComposerCommandItem =
       type: "path";
       path: string;
       pathKind: ProjectEntry["kind"];
+      searchTarget: ComposerPathSearchTarget;
       label: string;
       description: string;
     }

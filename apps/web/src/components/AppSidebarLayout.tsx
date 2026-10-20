@@ -2,13 +2,13 @@ import { useAtomValue } from "@effect/atom-react";
 import * as Schema from "effect/Schema";
 import {
   useEffect,
-  useMemo,
+  useLayoutEffect,
   useState,
   useSyncExternalStore,
   type CSSProperties,
   type ReactNode,
 } from "react";
-import { useLocation, useNavigate, useParams } from "@tanstack/react-router";
+import { useLocation, useNavigate } from "@tanstack/react-router";
 
 import { isElectron } from "../env";
 import { getLocalStorageItem, removeLocalStorageItem } from "../hooks/useLocalStorage";
@@ -23,16 +23,15 @@ import { isTerminalFocused } from "../lib/terminalFocus";
 import { isModelPickerOpen } from "../modelPickerVisibility";
 import { selectActiveRightPanel, useRightPanelStore } from "../rightPanelStore";
 import { selectThreadTerminalUiState, useTerminalUiStateStore } from "../terminalUiStateStore";
-import { resolveThreadRouteRef } from "../threadRoutes";
 import { cn, isMacPlatform } from "../lib/utils";
+import { observeResize } from "../lib/observeResize";
 import { primaryServerKeybindingsAtom } from "../state/server";
-import { useEnvironmentIdentificationMode, useLegacySidebarEnabled } from "../hooks/useSettings";
+import { useEnvironmentIdentificationMode } from "../hooks/useSettings";
 import {
   PanelAnimationSuppressionProvider,
   usePanelAnimationSettings,
   usePanelNavigationSuppression,
 } from "../panelAnimations";
-import LegacyThreadSidebar from "./LegacySidebar";
 import { useThreadVisitedMigration } from "../hooks/useThreadVisitedMigration";
 import ThreadSidebar from "./Sidebar";
 import { SettingsSidebarNav } from "./settings/SettingsSidebarNav";
@@ -40,7 +39,11 @@ import { SidebarChromeHeader, SidebarSpaceTitle } from "./sidebar/SidebarChrome"
 import { MainAppLocationTracker } from "./sidebar/mainAppLocation";
 import { SpaceRail } from "./sidebar/SpaceRail";
 import { useAppFrame } from "./sidebar/appFrame";
-import { useSidebarStageBackdropVariant } from "./SidebarStageBackdrop";
+import {
+  resolveEnvironmentIdentificationPillLabel,
+  useEnvironmentStageLabel,
+  useSidebarStageBackdropVariant,
+} from "./SidebarStageBackdrop";
 import { useProjects } from "../state/entities";
 import {
   clampThreadSidebarWidth,
@@ -59,10 +62,14 @@ import {
   useSidebarVisibility,
 } from "./ui/sidebar";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
+import { useThreadRouteRef } from "../hooks/useThreadRouteTarget";
+import { Button } from "./ui/button";
+import { Badge } from "./ui/badge";
+import { ArrowLeftIcon, ArrowRightIcon } from "../lib/icons";
 
-const MACOS_TRAFFIC_LIGHTS_LEFT_INSET = "var(--desktop-window-controls-inset, 82px)";
+const MACOS_TRAFFIC_LIGHTS_LEFT_INSET = "var(--desktop-window-controls-inset, 90px)";
 /** The rail's width (appFrame.css's --workspace-rail-width). */
-const SPACE_RAIL_WIDTH = 52;
+const SPACE_RAIL_WIDTH = 51;
 /** Where the pinned sidebar toggle sits without traffic lights to clear: past the rail. */
 const FRAMED_CONTROLS_LEFT =
   "calc(env(safe-area-inset-left, 0px) + env(titlebar-area-x, 0px) + var(--workspace-rail-width) + 0.75rem)";
@@ -74,6 +81,44 @@ function subscribeToViewportWidth(onChange: () => void): () => void {
 
 function readViewportWidth(): number {
   return window.innerWidth;
+}
+
+// getWindowFullscreenState is a synchronous IPC round trip, so the snapshot is cached
+// and only re-read when a subscription starts.
+let windowFullscreenSnapshot: boolean | null = null;
+
+function macosDesktopBridge() {
+  if (!isElectron || !isMacPlatform(navigator.platform)) return null;
+  return window.desktopBridge ?? null;
+}
+
+function subscribeToWindowFullscreen(onChange: () => void): () => void {
+  const bridge = macosDesktopBridge();
+  if (
+    typeof bridge?.getWindowFullscreenState !== "function" ||
+    typeof bridge.onWindowFullscreenStateChange !== "function"
+  ) {
+    return () => {};
+  }
+  const unsubscribe = bridge.onWindowFullscreenStateChange((fullscreen) => {
+    windowFullscreenSnapshot = fullscreen;
+    onChange();
+  });
+  // The window may have changed state between the first render and this subscription.
+  windowFullscreenSnapshot = bridge.getWindowFullscreenState();
+  return () => {
+    unsubscribe();
+    windowFullscreenSnapshot = null;
+  };
+}
+
+function readWindowFullscreen(): boolean {
+  if (windowFullscreenSnapshot === null) {
+    const getWindowFullscreenState = macosDesktopBridge()?.getWindowFullscreenState;
+    windowFullscreenSnapshot =
+      typeof getWindowFullscreenState === "function" ? getWindowFullscreenState() : false;
+  }
+  return windowFullscreenSnapshot;
 }
 
 function readInitialThreadSidebarWidth(): number {
@@ -88,7 +133,7 @@ function readInitialThreadSidebarWidth(): number {
   }
 }
 
-function SidebarControl() {
+function SidebarControl({ onWidthChange }: { onWidthChange: (width: number) => void }) {
   const usagePageOpen = useLocation({ select: (location) => location.pathname === "/usage" });
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
   const { toggleSidebar, isMobile, mobileSheetMounted } = useSidebar();
@@ -99,10 +144,23 @@ function SidebarControl() {
   );
   // In the desktop app's frame the toggle sits on the title band, above the art.
   const frame = useAppFrame();
+  const stageLabel = useEnvironmentStageLabel();
+  const pillLabel =
+    frame === "window" && environmentIdentificationMode !== "none"
+      ? resolveEnvironmentIdentificationPillLabel(stageLabel)
+      : null;
+  const [controlsElement, setControlsElement] = useState<HTMLDivElement | null>(null);
   const overArtwork = isSidebarVisible && stageBackdropVariant !== null && frame !== "window";
   const shortcutLabel = shortcutLabelForCommand(keybindings, "sidebar.toggle", {
     context: { usagePageOpen },
   });
+
+  useLayoutEffect(() => {
+    if (!controlsElement) return;
+    const measure = () => onWidthChange(controlsElement.getBoundingClientRect().width);
+    measure();
+    return observeResize(controlsElement, measure);
+  }, [controlsElement, onWidthChange]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -133,9 +191,7 @@ function SidebarControl() {
       toggleSidebar();
     };
 
-    // Capture before focused editors consume commands such as Mod+B for rich-text formatting.
     window.addEventListener("keydown", onKeyDown, true);
-    // A focused desktop browser page forwards the chord as a menu action.
     const unsubscribe = window.desktopBridge?.onMenuAction((action) => {
       if (action === "sidebar.toggle") toggleSidebar();
     });
@@ -146,11 +202,8 @@ function SidebarControl() {
   }, [keybindings, toggleSidebar, usagePageOpen]);
 
   return (
-    // The right-side layout controls carry mr-px (border compensation inside
-    // the panel), so the trigger mirrors it: both clusters sit one extra pixel
-    // off their edge and the titlebar reads symmetric.
-    // The sheet owns its trigger until its closing transition unmounts it.
     <div
+      ref={setControlsElement}
       className={cn(
         "pointer-events-none fixed left-[var(--workspace-controls-left)] top-[var(--workspace-controls-top)] z-50 ml-px flex h-[var(--workspace-topbar-height)] items-center",
         isMobile && mobileSheetMounted && "hidden",
@@ -176,17 +229,38 @@ function SidebarControl() {
           Toggle main sidebar{shortcutLabel ? ` (${shortcutLabel})` : ""}
         </TooltipPopup>
       </Tooltip>
+      <div className="pointer-events-auto ml-1 hidden items-center gap-0.5 md:flex">
+        <Button
+          size="icon-sm"
+          variant="ghost-muted"
+          aria-label="Back"
+          onClick={() => window.history.back()}
+        >
+          <ArrowLeftIcon className="size-4" />
+        </Button>
+        <Button
+          size="icon-sm"
+          variant="ghost-muted"
+          aria-label="Forward"
+          onClick={() => window.history.forward()}
+        >
+          <ArrowRightIcon className="size-4" />
+        </Button>
+        {pillLabel ? (
+          <div className="drag-region ml-2 flex items-center">
+            <Badge data-environment-identification="pill" size="sm" variant="secondary">
+              {pillLabel}
+            </Badge>
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
 
-// Moves through the app's route history like a browser's back/forward buttons.
 function NavigationHistoryShortcuts() {
   const keybindings = useAtomValue(primaryServerKeybindingsAtom);
-  const routeThreadRef = useParams({
-    strict: false,
-    select: (params) => resolveThreadRouteRef(params),
-  });
+  const routeThreadRef = useThreadRouteRef();
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -276,12 +350,8 @@ import { activeProfile } from "@otterware/profiles/active";
 
 export function AppSidebarLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
-  const legacySidebarEnabled = useLegacySidebarEnabled();
   const { active: panelAnimationsActive, durationMs: panelAnimationDurationMs } =
     usePanelAnimationSettings();
-  // Settings routes show the settings nav in place of whichever thread
-  // sidebar is active.
-  // Seeds server-side visited tracking from this browser's localStorage the
   useThreadVisitedMigration();
   const pathname = useLocation({ select: (location) => location.pathname });
   const panelAnimationsSuppressed = usePanelNavigationSuppression(pathname);
@@ -304,8 +374,10 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
     (moduleLocation !== null
       ? !hasModuleSidebar
       : !activeProfile.codeVisible ||
-        (frame !== null && (pathname === "/usage" || pathname === "/pull-requests")));
+        (frame !== null &&
+          (pathname === "/usage" || pathname === "/pull-requests" || pathname === "/spaces")));
   const [sidebarWidth, setSidebarWidth] = useState(readInitialThreadSidebarWidth);
+  const [titlebarControlsWidth, setTitlebarControlsWidth] = useState<number | null>(null);
   // Subscribed rather than read once: the clamp must track live window size,
   // and a clamped drag ends with an unchanged width, which skips the re-render
   // that would otherwise refresh a render-time snapshot.
@@ -323,12 +395,10 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
     }
     setSidebarWidth(resolveInitialThreadSidebarWidth(null, viewportWidth));
   };
-  const [isWindowFullscreen, setIsWindowFullscreen] = useState(() => {
-    const getWindowFullscreenState = window.desktopBridge?.getWindowFullscreenState;
-    return isMacosDesktop && typeof getWindowFullscreenState === "function"
-      ? getWindowFullscreenState()
-      : false;
-  });
+  const isWindowFullscreen = useSyncExternalStore(
+    subscribeToWindowFullscreen,
+    readWindowFullscreen,
+  );
   const windowControlsInsetStyle = (
     isMacosDesktop && !isWindowFullscreen
       ? { "--workspace-controls-left": MACOS_TRAFFIC_LIGHTS_LEFT_INSET }
@@ -343,56 +413,27 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
     // coordinates: the panes start after the rail.
     ...(frame
       ? {
+          "--workspace-titlebar-controls-width":
+            titlebarControlsWidth === null
+              ? "calc(3 * var(--workspace-titlebar-control-size) + var(--workspace-titlebar-control-gap))"
+              : `${titlebarControlsWidth}px`,
           "--workspace-titlebar-content-left":
-            "calc(var(--workspace-controls-left) + var(--workspace-titlebar-control-size) + var(--workspace-titlebar-control-gap) - var(--workspace-rail-width))",
+            "calc(var(--workspace-controls-left) + var(--workspace-titlebar-controls-width) + 0.25rem - var(--workspace-rail-width))",
         }
       : {}),
   } as CSSProperties;
 
-  useEffect(() => {
-    if (!isMacosDesktop) return;
-    const bridge = window.desktopBridge;
-    if (!bridge) return;
-    const { getWindowFullscreenState, onWindowFullscreenStateChange } = bridge;
-    if (
-      typeof getWindowFullscreenState !== "function" ||
-      typeof onWindowFullscreenStateChange !== "function"
-    ) {
-      return;
-    }
-
-    const unsubscribe = onWindowFullscreenStateChange(setIsWindowFullscreen);
-    setIsWindowFullscreen(getWindowFullscreenState());
-    return unsubscribe;
-  }, [isMacosDesktop]);
-
-  // The layout re-renders on every window resize (the sidebar's width limits
-  // follow it); the sidebar's content does not depend on it, so it keeps one
-  // element and React skips it.
-  const sidebarContent = useMemo(
-    () =>
-      isOnSettings ? (
-        <>
-          <SidebarChromeHeader isElectron={isElectron}>
-            <SidebarSpaceTitle>Settings</SidebarSpaceTitle>
-          </SidebarChromeHeader>
-          <SettingsSidebarNav pathname={pathname} />
-        </>
-      ) : moduleLocation !== null && moduleSidebarOwner !== null && hasModuleSidebar ? (
-        <ModuleSidebar owner={moduleSidebarOwner} location={moduleLocation} />
-      ) : legacySidebarEnabled ? (
-        <LegacyThreadSidebar />
-      ) : (
-        <ThreadSidebar />
-      ),
-    [
-      hasModuleSidebar,
-      isOnSettings,
-      legacySidebarEnabled,
-      moduleLocation,
-      moduleSidebarOwner,
-      pathname,
-    ],
+  const sidebarContent = isOnSettings ? (
+    <>
+      <SidebarChromeHeader isElectron={isElectron}>
+        <SidebarSpaceTitle>Settings</SidebarSpaceTitle>
+      </SidebarChromeHeader>
+      <SettingsSidebarNav pathname={pathname} />
+    </>
+  ) : moduleLocation !== null && moduleSidebarOwner !== null && hasModuleSidebar ? (
+    <ModuleSidebar owner={moduleSidebarOwner} location={moduleLocation} />
+  ) : (
+    <ThreadSidebar />
   );
 
   useEffect(() => {
@@ -432,31 +473,40 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
         {/* No stacking context here: the desktop's browser webviews are drawn at the
             app root, and the panes' floating controls must stack with them. */}
         <div className="relative flex min-h-0 min-w-0 flex-1" data-app-panel="">
-          <Sidebar
-            side="left"
-            collapsible="offcanvas"
-            data-app-sidebar=""
-            role="navigation"
-            aria-label={isOnSettings ? "Settings" : (moduleSidebarOwner?.label ?? "Threads")}
-            resizable={{
-              maxWidth: sidebarMaximumWidth,
-              minWidth: sidebarMinimumWidth,
-              shouldAcceptWidth: ({ currentWidth, nextWidth, wrapper }) =>
-                nextWidth <= currentWidth ||
-                wrapper.clientWidth - railWidth - nextWidth >= THREAD_MAIN_CONTENT_MIN_WIDTH,
-              storageKey: THREAD_SIDEBAR_WIDTH_STORAGE_KEY,
-              onResize: setSidebarWidth,
-            }}
-            // The narrow-window sidebar is a sheet, portaled outside the provider's styles.
-            style={windowControlsInsetStyle}
+          {/* Paint containment anchors the off-canvas sidebar to this clipping
+              column, so translucent rails cannot reveal rows sliding behind them. */}
+          <div
+            data-sidebar-panel=""
+            className={cn("relative shrink-0", frame && "overflow-clip [contain:paint]")}
           >
-            <MobileSpaceRailLayout enabled={frame === null}>{sidebarContent}</MobileSpaceRailLayout>
-            <SidebarRail onDoubleClick={resetSidebarWidth} />
-          </Sidebar>
+            <Sidebar
+              side="left"
+              collapsible="offcanvas"
+              data-app-sidebar=""
+              role="navigation"
+              aria-label={isOnSettings ? "Settings" : (moduleSidebarOwner?.label ?? "Threads")}
+              resizable={{
+                maxWidth: sidebarMaximumWidth,
+                minWidth: sidebarMinimumWidth,
+                shouldAcceptWidth: ({ currentWidth, nextWidth, wrapper }) =>
+                  nextWidth <= currentWidth ||
+                  wrapper.clientWidth - railWidth - nextWidth >= THREAD_MAIN_CONTENT_MIN_WIDTH,
+                storageKey: THREAD_SIDEBAR_WIDTH_STORAGE_KEY,
+                onResize: setSidebarWidth,
+              }}
+              // The narrow-window sidebar is a sheet, portaled outside the provider's styles.
+              style={windowControlsInsetStyle}
+            >
+              <MobileSpaceRailLayout enabled={frame === null}>
+                {sidebarContent}
+              </MobileSpaceRailLayout>
+              <SidebarRail onDoubleClick={resetSidebarWidth} />
+            </Sidebar>
+          </div>
           <ModulePagesHost>{children}</ModulePagesHost>
           {frame ? <AppFramePanelEdge /> : null}
         </div>
-        {sidebarHidden ? null : <SidebarControl />}
+        {sidebarHidden ? null : <SidebarControl onWidthChange={setTitlebarControlsWidth} />}
         <NavigationHistoryShortcuts />
         <MainAppLocationTracker />
         <ShellAppTracker />

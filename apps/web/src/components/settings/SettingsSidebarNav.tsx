@@ -1,9 +1,7 @@
 import {
   lazy,
   Suspense,
-  useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
   type ComponentType,
@@ -131,35 +129,32 @@ const navItem = (to: SettingsPath): SettingsNavItem => ({
 /** The sidebar's sections: one flat list, or App, Code and a group per module that is on. */
 function useSettingsNavGroups() {
   const onModuleIds = useOnModuleIds();
-  return useMemo(
-    () =>
-      settingsNavLayout({ upstreamOrder: UPSTREAM_SETTINGS_ORDER, onModuleIds }).map((group) => ({
-        id: group.id,
-        label: group.label,
-        keybindingsApp: group.keybindingsApp,
-        items: [
-          ...(group.paths as ReadonlyArray<SettingsPath>)
-            .filter((to) => isProfileSettingsPathVisible(to))
-            .map(navItem),
-          ...(group.keybindingsApp === undefined
-            ? []
-            : [{ ...navItem("/settings/keybindings"), keybindingsApp: group.keybindingsApp }]),
-        ],
-      })),
-    [onModuleIds],
-  );
+  return (() =>
+    settingsNavLayout({ upstreamOrder: UPSTREAM_SETTINGS_ORDER, onModuleIds }).map((group) => ({
+      id: group.id,
+      label: group.label,
+      keybindingsApp: group.keybindingsApp,
+      items: [
+        ...(group.paths as ReadonlyArray<SettingsPath>)
+          .filter((to) => isProfileSettingsPathVisible(to))
+          .map(navItem),
+        ...(group.keybindingsApp === undefined
+          ? []
+          : [{ ...navItem("/settings/keybindings"), keybindingsApp: group.keybindingsApp }]),
+      ],
+    })))();
 }
 
 function SettingsSectionIcon({ to }: { to: SettingsPath }) {
   const Icon = SETTINGS_SECTION_ICONS[to];
-  return <Icon className="mt-0.5 size-3.5 shrink-0 text-sidebar-muted-foreground/60" />;
+  return <Icon className="size-3.5 h-5 shrink-0 text-sidebar-muted-foreground/60" />;
 }
 
 export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   const navigate = useNavigate();
   const currentHash = useLocation({ select: (location) => location.hash });
   const currentSearch = useLocation({ select: (location) => location.search });
-  const scopeSearch = useMemo(() => validateSettingsScopeSearch(currentSearch), [currentSearch]);
+  const scopeSearch = (() => validateSettingsScopeSearch(currentSearch))();
   const navGroups = useSettingsNavGroups();
   const keybindingsChip = useKeybindingsChip();
   const isNavItemVisible = (item: SettingsNavItem) =>
@@ -171,13 +166,12 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   const [query, setQuery] = useState("");
   const [activeResultIndex, setActiveResultIndex] = useState(0);
   const searchableItems = useAvailableSettingsSearchItems(scopeSearch);
-  const results = useMemo(() => searchSettings(query, searchableItems), [query, searchableItems]);
+  const results = (() => searchSettings(query, searchableItems))();
   const isSearching = query.trim().length > 0;
   const hasResults = results.length > 0;
 
-  useEffect(() => {
-    setActiveResultIndex((index) => Math.min(index, Math.max(results.length - 1, 0)));
-  }, [results.length]);
+  const lastResultIndex = Math.max(results.length - 1, 0);
+  if (activeResultIndex > lastResultIndex) setActiveResultIndex(lastResultIndex);
 
   useEffect(() => {
     const result = results[activeResultIndex];
@@ -230,73 +224,64 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isMobile, open, setOpen, setOpenMobile]);
 
-  const handleSectionClick = useCallback(
-    (item: SettingsNavItem) => {
-      if (isMobile) {
-        setOpenMobile(false);
-      }
-      if (item.to === "/settings/keybindings") setKeybindingsChip(item.keybindingsApp ?? "all");
-      void navigate({
-        href: item.to,
-        hash: "",
-        replace: true,
-        hashScrollIntoView: false,
-      });
-    },
-    [isMobile, navigate, setOpenMobile],
-  );
-  const clearSearch = useCallback(() => {
+  const handleSectionClick = (item: SettingsNavItem) => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+    if (item.to === "/settings/keybindings") setKeybindingsChip(item.keybindingsApp ?? "all");
+    void navigate({
+      href: item.to,
+      hash: "",
+      replace: true,
+      hashScrollIntoView: false,
+    });
+  };
+  const clearSearch = () => {
     setQuery("");
     setActiveResultIndex(0);
-  }, []);
-  const handleSearchResultClick = useCallback(
-    (item: SettingsSearchItem) => {
+  };
+  const handleSearchResultClick = (item: SettingsSearchItem) => {
+    clearSearch();
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+    const targetId = item.targetId ?? item.id;
+    if (pathname === item.to && currentHash.replace(/^#/, "") === targetId) {
+      scrollToSettingsTarget(targetId);
+      return;
+    }
+    void navigate({
+      href: item.to,
+      hash: targetId,
+      replace: true,
+      hashScrollIntoView: false,
+      state: { settingsTargetHighlight: true },
+    });
+  };
+  const handleSearchKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Escape" && isSearching) {
+      event.preventDefault();
+      event.stopPropagation();
       clearSearch();
-      if (isMobile) {
-        setOpenMobile(false);
-      }
-      const targetId = item.targetId ?? item.id;
-      if (pathname === item.to && currentHash.replace(/^#/, "") === targetId) {
-        scrollToSettingsTarget(targetId);
-        return;
-      }
-      void navigate({
-        href: item.to,
-        hash: targetId,
-        replace: true,
-        hashScrollIntoView: false,
-        state: { settingsTargetHighlight: true },
-      });
-    },
-    [clearSearch, currentHash, isMobile, navigate, pathname, setOpenMobile],
-  );
-  const handleSearchKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === "Escape" && isSearching) {
-        event.preventDefault();
-        event.stopPropagation();
-        clearSearch();
-        return;
-      }
-      if (results.length === 0) return;
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        setActiveResultIndex((index) => (index + 1) % results.length);
-        return;
-      }
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        setActiveResultIndex((index) => (index - 1 + results.length) % results.length);
-        return;
-      }
-      if (event.key === "Enter") {
-        event.preventDefault();
-        const result = results[activeResultIndex];
-        if (result) handleSearchResultClick(result);
-      }
-    },
-    [activeResultIndex, clearSearch, handleSearchResultClick, isSearching, results],
-  );
+      return;
+    }
+    if (results.length === 0) return;
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      setActiveResultIndex((index) => (index + 1) % results.length);
+      return;
+    }
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      setActiveResultIndex((index) => (index - 1 + results.length) % results.length);
+      return;
+    }
+    if (event.key === "Enter") {
+      event.preventDefault();
+      const result = results[activeResultIndex];
+      if (result) handleSearchResultClick(result);
+    }
+  };
   return (
     <>
       <SidebarContent className="overflow-x-hidden">

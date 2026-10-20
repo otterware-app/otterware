@@ -4,6 +4,7 @@ import {
   DEFAULT_HOSTED_APP_URL,
 } from "@t3tools/shared/connectAuth";
 import { ACCOUNT_CLIENT_IDS, normalizeAccountsUrl } from "@t3tools/shared/otterAccounts";
+import { isRelayTracingEnabled } from "@t3tools/shared/otelEnvironment";
 import { normalizeSecureRelayUrl } from "@t3tools/shared/relayUrl";
 import * as Config from "effect/Config";
 import * as Effect from "effect/Effect";
@@ -82,6 +83,10 @@ export function resolveRelayClientTracingConfig(
   env: Readonly<Record<string, string | undefined>> = process.env,
   fallback = buildTimeRelayClientTracing,
 ) {
+  if (!isRelayTracingEnabled(env)) {
+    return null;
+  }
+
   const tracesUrl = env.T3CODE_RELAY_CLIENT_OTLP_TRACES_URL?.trim() || fallback.tracesUrl;
   const tracesDataset =
     env.T3CODE_RELAY_CLIENT_OTLP_TRACES_DATASET?.trim() || fallback.tracesDataset;
@@ -101,11 +106,6 @@ export function makeRelayUrlConfig(fallback = buildTimeRelayUrl) {
 
 export const relayUrlConfig = makeRelayUrlConfig();
 
-/**
- * Hosted app origin used for out-of-band OAuth on headless
- * machines. Overridable so staging/nightly builds can point their CLIs at a
- * matching hosted deployment.
- */
 export const hostedAppUrlConfig = makePublicValueConfig(
   "T3CODE_HOSTED_APP_URL",
   DEFAULT_HOSTED_APP_URL,

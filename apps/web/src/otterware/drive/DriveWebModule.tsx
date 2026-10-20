@@ -139,6 +139,12 @@ export const DriveWebModule = createDriveWebModule({
         placement: "page",
         rows: ["People with access", "Invite"],
       },
+      {
+        id: "storage",
+        label: "Storage",
+        placement: "page",
+        rows: ["Connect storage", "New uploads", "Storage credentials"],
+      },
       { id: "appearance", label: "Drive display", placement: "appearance", rows: ["List density"] },
       {
         id: "command-line",

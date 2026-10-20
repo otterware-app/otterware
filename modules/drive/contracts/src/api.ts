@@ -256,12 +256,10 @@ export const driveMembersResponseSchema = z.object({
 
 export const transferDriveInputSchema = z.object({ userId: z.string().min(1) });
 
-// ---------------------------------------------------------------------------
 // Sharing (Google Drive's model): a folder, with everything inside it, or a
 // single document is shared with people by email as a viewer or an editor,
 // or with anyone who has its link. Shared drive members have access to the
 // whole drive; sharing never makes someone a member.
-// ---------------------------------------------------------------------------
 
 export const shareRoleSchema = z.enum(["viewer", "editor"]);
 export type ShareRole = z.infer<typeof shareRoleSchema>;
@@ -367,4 +365,185 @@ export const acceptLinkResponseSchema = z.object({
 });
 export type AcceptLinkResponse = z.infer<typeof acceptLinkResponseSchema>;
 
+/**
+ * A link opened without signing in: anyone with it views what it shares,
+ * read-only. Nothing here names the people or drive behind it.
+ */
+export const linkDocumentSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  updatedAt: z.string().datetime(),
+  /** Its current version, the one the link shows. */
+  version: z.object({
+    number: z.number().int().positive(),
+    entryPath: z.string(),
+    byteSize: z.number().int().nonnegative(),
+  }),
+});
+export type LinkDocument = z.infer<typeof linkDocumentSchema>;
+
+export const linkFolderSchema = z.object({ id: z.string(), name: z.string() });
+export type LinkFolder = z.infer<typeof linkFolderSchema>;
+
+export const sharedLinkResponseSchema = z.object({
+  data: z.object({
+    type: z.enum(["folder", "artifact"]),
+    /** The shared folder's or document's name. */
+    name: z.string(),
+    /** A folder link: the folder open in it, the shared one or one inside. */
+    folder: linkFolderSchema
+      .extend({
+        /** From the shared folder down to this one. */
+        path: z.array(linkFolderSchema),
+        folders: z.array(linkFolderSchema),
+        documents: z.array(linkDocumentSchema),
+      })
+      .nullable(),
+    /** A document link: the document. */
+    document: linkDocumentSchema.nullable(),
+  }),
+});
+export type SharedLinkResponse = z.infer<typeof sharedLinkResponseSchema>;
+
+export const linkPreviewResponseSchema = z.object({
+  data: z.object({
+    document: linkDocumentSchema,
+    url: z.string().url(),
+    expiresAt: z.string().datetime(),
+    contentType: z.string(),
+    resourceBaseUrl: z.string().url(),
+    signedUrl: z.string().url(),
+    signedBaseUrl: z.string().url(),
+  }),
+});
+export type LinkPreviewResponse = z.infer<typeof linkPreviewResponseSchema>;
+
 export const peopleResponseSchema = z.object({ data: z.array(personSchema) });
+
+// Storage: the buckets a drive keeps its documents in. Without one, files live
+// in Otterware's own storage. Credentials go in and never come back out.
+
+export const storageProviderSchema = z.enum(["s3", "gcs", "azure"]);
+export type StorageProvider = z.infer<typeof storageProviderSchema>;
+
+/** Where a bucket's files go: never credentials. */
+export const storageLocationSchema = z.discriminatedUnion("provider", [
+  z.object({
+    provider: z.literal("s3"),
+    bucket: z.string(),
+    region: z.string(),
+    /** Absent for Amazon S3; R2, B2, MinIO and others set theirs. */
+    endpoint: z.string().nullable(),
+    pathStyle: z.boolean(),
+    prefix: z.string(),
+  }),
+  z.object({
+    provider: z.literal("gcs"),
+    bucket: z.string(),
+    prefix: z.string(),
+  }),
+  z.object({
+    provider: z.literal("azure"),
+    account: z.string(),
+    container: z.string(),
+    endpoint: z.string().nullable(),
+    prefix: z.string(),
+  }),
+]);
+export type StorageLocation = z.infer<typeof storageLocationSchema>;
+
+export const storageBackendSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  location: storageLocationSchema,
+  /** New uploads in the drive go here. */
+  isDefault: z.boolean(),
+  /** Files stored in it, every version counted. */
+  fileCount: z.number().int().nonnegative(),
+  byteSize: z.number().int().nonnegative(),
+  createdAt: z.string(),
+  /** When a write, read and delete last succeeded. */
+  verifiedAt: z.string().nullable(),
+});
+export type StorageBackend = z.infer<typeof storageBackendSchema>;
+
+export const driveStorageSchema = z.object({
+  /** Null: new uploads go to Otterware's storage. */
+  defaultBackendId: z.string().nullable(),
+  /** Files still in Otterware's storage. */
+  otterware: z.object({
+    fileCount: z.number().int().nonnegative(),
+    byteSize: z.number().int().nonnegative(),
+  }),
+  backends: z.array(storageBackendSchema),
+});
+export type DriveStorage = z.infer<typeof driveStorageSchema>;
+export const driveStorageResponseSchema = z.object({ data: driveStorageSchema });
+
+const prefixSchema = z
+  .string()
+  .max(200)
+  .regex(/^[^\\]*$/, "Use forward slashes in the prefix.")
+  .transform((value) => {
+    const trimmed = value.trim().replace(/^\/+/, "");
+    return trimmed && !trimmed.endsWith("/") ? `${trimmed}/` : trimmed;
+  })
+  .optional();
+const endpointSchema = z
+  .string()
+  .trim()
+  .url()
+  .transform((value) => value.replace(/\/+$/, ""))
+  .optional();
+const secretSchema = z.string().trim().min(1).max(4096);
+
+export const createStorageBackendInputSchema = z.discriminatedUnion("provider", [
+  z.object({
+    provider: z.literal("s3"),
+    name: z.string().trim().min(1).max(80),
+    bucket: z.string().trim().min(1).max(255),
+    region: z.string().trim().min(1).max(64).default("us-east-1"),
+    endpoint: endpointSchema,
+    /** Defaults to path style for a custom endpoint, virtual hosts for AWS. */
+    pathStyle: z.boolean().optional(),
+    prefix: prefixSchema,
+    accessKeyId: secretSchema,
+    secretAccessKey: secretSchema,
+    makeDefault: z.boolean().optional(),
+  }),
+  z.object({
+    provider: z.literal("gcs"),
+    name: z.string().trim().min(1).max(80),
+    bucket: z.string().trim().min(1).max(255),
+    prefix: prefixSchema,
+    /** An HMAC key for a service account (Cloud Storage → Interoperability). */
+    accessKeyId: secretSchema,
+    secretAccessKey: secretSchema,
+    makeDefault: z.boolean().optional(),
+  }),
+  z
+    .object({
+      provider: z.literal("azure"),
+      name: z.string().trim().min(1).max(80),
+      account: z.string().trim().min(1).max(64),
+      container: z.string().trim().min(1).max(63),
+      endpoint: endpointSchema,
+      prefix: prefixSchema,
+      accountKey: secretSchema.optional(),
+      sasToken: secretSchema.optional(),
+      makeDefault: z.boolean().optional(),
+    })
+    .refine((value) => Boolean(value.accountKey) !== Boolean(value.sasToken), {
+      message: "Give either an account key or a SAS token.",
+      path: ["accountKey"],
+    }),
+]);
+export type CreateStorageBackendInput = z.input<typeof createStorageBackendInputSchema>;
+
+export const updateDriveStorageInputSchema = z.object({
+  defaultBackendId: z.string().nullable(),
+});
+
+export const storageBackendResponseSchema = z.object({
+  data: storageBackendSchema,
+});

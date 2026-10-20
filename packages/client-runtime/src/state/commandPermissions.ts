@@ -14,7 +14,6 @@ import { AsyncResult, Atom, AtomRegistry } from "effect/reactivity";
 import type { EnvironmentRegistry } from "../connection/registry.ts";
 import { createEnvironmentSessionAtoms } from "./session.ts";
 
-/** UI availability and dispatch use the same target session and method policy. */
 function makeCommandPermissions<R, E>(
   runtime: Atom.AtomRuntime<EnvironmentRegistry | R, E>,
   method: string,
@@ -78,7 +77,6 @@ const permissionsByRuntime = new WeakMap<
   Map<string, ReturnType<typeof makeCommandPermissions>>
 >();
 
-/** Reuse availability atoms and dispatch guards across commands on the same runtime. */
 export function createCommandPermissions<R, E>(
   runtime: Atom.AtomRuntime<EnvironmentRegistry | R, E>,
   method: string,

@@ -1,14 +1,12 @@
 import type { ScopedThreadRef, ThreadLinearIssueLink } from "@t3tools/contracts";
+import { UnlinkIcon } from "lucide-react";
 import {
   ArrowUpRightIcon,
   LinkIcon,
   ListTodoIcon,
   MoreHorizontalIcon,
   PlusIcon,
-  UnlinkIcon,
-} from "lucide-react";
-import { useCallback } from "react";
-
+} from "~/lib/icons";
 import { writeTextToClipboard } from "~/hooks/useCopyToClipboard";
 import { useLinearIssueLinking } from "~/hooks/useLinearIssueLinking";
 import { cn } from "~/lib/utils";
@@ -24,13 +22,11 @@ import { useOpenLinearReview } from "./useOpenLinearReview";
 import { shouldOpenPullRequestExternally } from "~/lib/openPullRequestLink";
 import { useRightPanelStore } from "~/rightPanelStore";
 import { LinearIssueStateDot } from "./ThreadLinearIssueBadge";
-
 const SOURCE_LABELS: Record<ThreadLinearIssueLink["source"], string> = {
   manual: "Linked by you",
   agent: "Linked by the agent",
   delegated: "Delegated from Linear",
 };
-
 function IssueRow({
   threadRef,
   issue,
@@ -109,18 +105,14 @@ function IssueRow({
     </div>
   );
 }
-
 /** The thread's linked Linear issues, with the synced state Linear reports for each. */
 export function ThreadLinearIssuesPanel({ threadRef }: { threadRef: ScopedThreadRef }) {
   const thread = useThreadShell(threadRef);
   const linking = useLinearIssueLinking(threadRef.environmentId);
   const issues = thread?.linearIssues ?? [];
-  const openLinkDialog = useCallback(() => openLinkLinearIssueDialog(threadRef), [threadRef]);
-  const handleUnlink = useCallback(
-    (issue: ThreadLinearIssueLink) => linking.unlinkIssue(threadRef, issue.identifier),
-    [linking, threadRef],
-  );
-
+  const openLinkDialog = () => openLinkLinearIssueDialog(threadRef);
+  const handleUnlink = (issue: ThreadLinearIssueLink) =>
+    linking.unlinkIssue(threadRef, issue.identifier);
   if (issues.length === 0) {
     return (
       <Empty className="min-h-0 justify-center-safe">
@@ -144,13 +136,11 @@ export function ThreadLinearIssuesPanel({ threadRef }: { threadRef: ScopedThread
       </Empty>
     );
   }
-
   let lastSynced: string | null = null;
   for (const issue of issues) {
     const at = issue.snapshot?.syncedAt;
     if (at !== undefined && (lastSynced === null || at > lastSynced)) lastSynced = at;
   }
-
   return (
     <div className="flex h-full min-h-0 flex-col">
       <ScrollArea className="min-h-0 flex-1">
