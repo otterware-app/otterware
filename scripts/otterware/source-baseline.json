@@ -170,7 +170,7 @@
       "apps/web/src/components/CommandPalette.logic.test.ts": "100644 blob 5da4e87a674e50f27eb843395c7c88f24ea887b8",
       "apps/web/src/components/CommandPaletteContent.tsx": "100644 blob 5042ce801ef2bdb99f514eea380db9a7d403eac3",
       "apps/web/src/components/CustomSnoozeDialog.tsx": "100644 blob 2c5c4452e99c3d2c3f188761f81e8c9972fab415",
-      "apps/web/src/components/DiffPanel.browser.test.tsx": "100644 blob 394d983e524431b4c8edff0cb121f4cc22da37ad",
+      "apps/web/src/components/DiffPanel.browser.test.tsx": "100644 blob 4f689b45511ddaf50a4f61be23763e3b57f209da",
       "apps/web/src/components/DiffPanel.tsx": "100644 blob 05b949df04d75b16480daefb37b6500267bd64f0",
       "apps/web/src/components/EnvironmentMachineIcon.tsx": "100644 blob d0051f705aecdf2e1f6dedbe5436999dce49e261",
       "apps/web/src/components/GitActionsControl.tsx": "100644 blob 9605d7f5c4ec483b5cc5253ffe75657cfb043822",

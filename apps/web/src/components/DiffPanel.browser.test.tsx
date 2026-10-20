@@ -2,7 +2,9 @@ import "~/index.css";
 
 import { RegistryContext, useAtomValue } from "@effect/atom-react";
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+import type { ThreadCheckpointSummary } from "@t3tools/client-runtime/state/thread-checkpoints";
 import {
+  CheckpointRef,
   EnvironmentId,
   RunId,
   ThreadId,
@@ -63,11 +65,18 @@ import { useDiffPanelSessionStore, useDiffPanelStore } from "../diffPanelStore";
 
 const threadRef = scopeThreadRef(EnvironmentId.make("environment"), ThreadId.make("thread"));
 const thread = { ...threadRef, worktreePath: "/repo" };
-const turns = [1, 2].map((ordinal) => ({
-  runId: RunId.make(`turn-${ordinal}`),
-  checkpointTurnCount: ordinal,
-  completedAt: "2026-10-16T00:00:00Z",
-}));
+const turns = [1, 2].map(
+  (ordinal) =>
+    ({
+      runId: RunId.make(`turn-${ordinal}`),
+      checkpointTurnCount: ordinal,
+      checkpointRef: CheckpointRef.make(`checkpoint-${ordinal}`),
+      status: "ready",
+      assistantMessageId: null,
+      completedAt: "2026-10-16T00:00:00Z",
+      files: [],
+    }) satisfies ThreadCheckpointSummary,
+);
 const paths = ["a.txt", "b.txt", "c.txt", "d.txt", "e.txt"];
 function filePatch(path: string) {
   const count = path === "e.txt" ? 30 : 4;
