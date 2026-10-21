@@ -12,6 +12,10 @@ import { CalendarSelect } from "./CalendarSelect";
 import { useState } from "react";
 import { type CalendarId } from "@otterware/calendar-contracts";
 import { useCalendarClient, useCalendarDirectory } from "./host.tsx";
+import { useModuleTarget } from "../../browser/runtime";
+import { accountConnections } from "../../account/rpc";
+import { useConnectProvider } from "../../account/useConnectProvider";
+import { useEnvironmentQuery } from "../../../state/query";
 import {
   calendarDesktopBridge,
   CALENDAR_NOTIFICATION_DEVICE_KEY,
@@ -53,6 +57,14 @@ export default function CalendarSettings({
 }) {
   const client = useCalendarClient();
   const { directory, error: directoryError, canWrite } = useCalendarDirectory();
+  const target = useModuleTarget();
+  // Google accounts linked to the Otter Account, including ones not authorized here yet.
+  const linked = useEnvironmentQuery(
+    target._tag === "environment"
+      ? accountConnections({ environmentId: target.environmentId, input: {} })
+      : null,
+  );
+  const connectGoogle = useConnectProvider();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [deviceNotifications, setDeviceNotifications] = useState(
@@ -486,15 +498,19 @@ export default function CalendarSettings({
                   />
                 ))}
               <SettingsRow
-                title="Remove from Calendar"
-                description="Its events disappear from Calendar on this environment."
+                title="Remove"
+                description="Unlinks it from your Otter Account, so Mail and Calendar on every device stop using it."
                 control={
                   <Button
                     variant="outline"
                     size="sm"
                     disabled={disabled}
                     onClick={() => {
-                      if (window.confirm(`Remove ${account.email} from Calendar?`))
+                      if (
+                        window.confirm(
+                          `Remove ${account.email}? It is unlinked from your Otter Account, so Mail and Calendar on every device stop using it.`,
+                        )
+                      )
                         void run(() => client.removeAccount(account.accountId));
                     }}
                   >
@@ -504,6 +520,46 @@ export default function CalendarSettings({
               />
             </SettingsSection>
           ))}
+          {linked.data
+            ?.filter(
+              (each) =>
+                !directory.accounts.some(
+                  (account) => account.email.toLowerCase() === each.email.toLowerCase(),
+                ),
+            )
+            .map((each) => (
+              <SettingsSection key={each.email} title={each.email}>
+                <SettingsRow
+                  title="Not authorized on this device"
+                  description="Linked to your Otter Account. Authorize it once here to see its calendars."
+                  control={
+                    <Button
+                      size="sm"
+                      disabled={disabled}
+                      onClick={() => void run(() => connectGoogle("google", each.email))}
+                    >
+                      Authorize
+                    </Button>
+                  }
+                />
+              </SettingsSection>
+            ))}
+          <SettingsSection title="Google accounts">
+            <SettingsRow
+              title="Link Google account"
+              description="Linked accounts appear in Mail and Calendar on every device. Each device authorizes them once."
+              control={
+                <Button
+                  size="sm"
+                  disabled={disabled}
+                  onClick={() => void run(() => connectGoogle("google"))}
+                >
+                  <PlusIcon />
+                  Link Google account
+                </Button>
+              }
+            />
+          </SettingsSection>
           <SettingsSection title="Sync" description="Environment">
             {(["pastWeeks", "futureWeeks"] as const).map((part) => (
               <SettingsRow

@@ -1,13 +1,13 @@
 # Source sync provenance
 
-The 2026-10-21 integration audits these fetched `main` revisions. The source checkouts are
+The 2026-10-21b integration audits these fetched `main` revisions. The source checkouts are
 read-only inputs; their checked-out branches are not baselines.
 
 | Source                      | Fetched revision                           | Earlier baseline                                                                                                               |
 | --------------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| `pingdotgg/t3code`          | `74541bab17270c35f4418d4e543d85628632ed8f` | `67c0fc0cdaf963b103518862dd7b68a9c758ecf2` (2026-10-20 sync); `upstream-base` stays `339179f50a84dc599cce373dbb48f172f182f44e` |
-| `otterware-app/otter-code`  | `ec59f9ded384917df61e868d07baf41c5a4c979b` | `63bcbc5ab35c598bee33450dc908d9765b3effee`, reconciled with monorepo `0b2778ae7f0227ca0c13761947b37a8d7549a6dd`                |
-| `otterware-app/otter-mail`  | `99775571800d199b8e557f1edaa8b0e71fdefc54` | `c2132ef1d2d4d293e8b2a3dac1813f75501b6b23`; portable changes through `aac5128d0fe8dc2c0f744549a3cdedeaee8b082d`                |
+| `pingdotgg/t3code`          | `680152e27b2a961686389ca69a1557cbb2c55f08` | `74541bab17270c35f4418d4e543d85628632ed8f` (2026-10-21 sync); `upstream-base` stays `339179f50a84dc599cce373dbb48f172f182f44e` |
+| `otterware-app/otter-code`  | `c9c19ffbe0b08e701b3e91a86abe7f01bf5b0039` | `ec59f9ded384917df61e868d07baf41c5a4c979b`                                                                                     |
+| `otterware-app/otter-mail`  | `99775571800d199b8e557f1edaa8b0e71fdefc54` | Unchanged; portable changes through `aac5128d0fe8dc2c0f744549a3cdedeaee8b082d`                                                 |
 | `otterware-app/otter-drive` | `514675ad0a8590acff4c904047b59438fa2d16a8` | Unchanged since the 2026-10-20 sync                                                                                            |
 
 Mail and Drive are Otterware-owned modules after their initial imports (ADR 0003). The latest
@@ -18,61 +18,53 @@ behavior as well as these revisions.
 ## Code
 
 The T3 delta was applied as a three-way merge with the previous integrated revision as its base,
-so main's history and every merged PR stay intact. Upstream split ChatView, the composer, the
-timeline, chat markdown, sidebar rows, the command palette, the pull request page and several
-settings pages (Connections, Appearance, Typography, Archived threads, Background activity) into
-separate files. Conflicts take upstream's structure; Otterware behavior moved with the code it
-modifies: embedded compact chats and message decoration, the Linear issues dialog, badges and
-panel props, the shared panel width fallback, the window appearance section, shell keybindings,
-spaces in the palette and sidebar, Otterware themes, the icon set and branded text. Upstream's
-pruning of low-signal tests is taken; only tests of Otterware-only behavior remain.
+onto main `6563cfafb148fa9a1ba2d253c2e92e8b4fcf626c`, so main's history and every merged PR stay
+intact. Upstream's changes landed without restructuring: the orchestrator MCP model list and
+thread lookups, steering that splits a finished turn, held-message sends on stop, provider adapter
+fixes (Claude subagent cache TTL, Codex multi-file patches, Antigravity questions, OpenCode
+out-of-funds errors), GitLab diff paging, clone stall reporting, cheaper status refreshes, the
+login-shell `JAVA_HOME`, the pasted ChatGPT callback URL, standalone markdown images and the
+`dev --share --built` mode.
 
-Where upstream now covers an Otterware change, upstream's version replaces it: the thread undo
-handler (now `ThreadUndoShortcut`), the compact command check (now in `ChatView.logic`), helpers
-upstream made private, and its Electron download cache and expo patch override. Its
-`scripts/check-changed.ts` is not wired up; `check:changed` stays the Otterware gate, which also
-reserves heavy slots and covers modules and profiles.
+`t3 pair` in a linked worktree now pairs only with that worktree's state, as upstream does, and
+keeps the Otter Code wording of its error. Upstream's Clerk sign-in cancellation (#22903: the
+desktop preload bridge, its `@clerk/electron` patch and the web pending bar) is excluded: Otter
+Accounts replaced Clerk, and the desktop Otter Account sign-in uses its own PKCE flow. The
+`check:changed` rewrite in `scripts/check-changed.ts` is taken but not wired up; `check:changed`
+stays the Otterware gate, so the development guide keeps describing that gate. The workflow
+changes for Vercel deployment output apply to the inherited release and preview workflows, which
+remain disabled, and their test is not wired into CI because the Otterware CI dropped the
+release-check step.
 
-The Otter Code fork's new commit (#49) contributes Otter Code names for the pair error, the Codex
-agent name hint and the boot-service cgroup check, and `Effect.fn` conversions and test-timeout
-removals for upstream's newer lint rules. Its WebSocket handler split is not needed here: the
-monorepo already adds its RPC methods as a separate module group and the server typechecks
-without it. Its Linux metainfo rename belongs to the release workstream. The module rail, persistent module shell, scoped
+The Otter Code fork's new commit (#50) keeps conversations and the thread sidebar opaque under the
+translucent window material: only the navigation rail, header and new chats stay glass, and
+**Sidebar only** becomes **Rail only**. It applies to the same app frame here; the chat surface
+marker moved into the monorepo's ChatView. The module rail, persistent module shell, scoped
 settings/keybindings, standalone profile visibility, Otter Account adapters and connection
 section, device-local Google grants, app identities and release destinations remain monorepo
 implementations.
 
-## Mail
+## Mail, Drive, Calendar and Accounts
 
-Portable Mail changes through `aac5128d0fe8dc2c0f744549a3cdedeaee8b082d` remain integrated: sync
-health and reauthentication, provider mailbox capabilities, Outlook sparse-delta and draft
-handling, draft revision protection, Content-ID handling and native Outlook/OpenClaw
-improvements. Provider credentials and IMAP passwords stay local to the device or browser; the
-standalone notification watcher, its migrations, OAuth routes and consent UI stay excluded, and
-Gmail push keeps the relay's v1 payload.
+Mail and Drive have no new source commits; their previous ports stand. Provider credentials and
+IMAP passwords stay local to the device or browser; the standalone notification watcher, its
+migrations, OAuth routes and consent UI, and Mail's synced chats, AI workspace and floating chat
+window (#158, #159) stay excluded in favor of the host's projects, chat orchestration and panels.
+Drive's standalone suite-session cookie exchange and chrome stay excluded in favor of the host's
+Account capability path and module shell.
 
-PR #158 (`b75f0258f801ab36ac233966892fd742b8fc1f6d`) replaced standalone projects with
-Mail-owned synced chats, an AI workspace and a floating chat window. Otterware's host owns shared
-projects and chat orchestration, so that architecture stays excluded. PR #159
-(`a362072a5fe628bedac2e60f4fd41c1e03de9f9f`) is excluded with it: the iPhone tab bar's Agent tab
-and chats drawer present #158's synced chats, ⌘I/Escape close #158's floating chat window, the
-rail's … menu and Customize duplicate the host rail's own customization, and the wide-opening
-browser panel belongs to the standalone renderer, where Otterware uses the host's panel. Release
-version commits are not copied.
-
-## Drive
-
-Drive has no new source commits. The previous port stands: connected storage backends and their
-settings in the native host settings frame, server-side ownership checks and immutable file
-locations, read-only public links on the isolated signed origin, and the CLI stale-write and MCP
-document operations from PR #99. The standalone suite-session cookie exchange and Drive chrome
-remain excluded in favor of the host's Account capability path and module shell.
+`otterware-app/otter-calendar` `56b952a950b862f081b3eb8ac7fad7fa067b6c7a` and
+`otterware-app/otter-accounts` `6b844d29974758a664a4650133ac9d05a0f625e1` were checked for shared
+sign-in or contract changes. Calendar's latest commits are icons, ad hoc macOS signing and a
+Google undo fix; none touch shared sign-in or contracts. The Accounts suite-session lifetime bound
+(#15) is already in `infra/cloud/accounts`.
 
 ## Protected publication
 
-Laurin authorized this sync as an ordinary protected squash PR, as for the 2026-10-20 sync (#101).
-Main's history from `0b2778ae7f0227ca0c13761947b37a8d7549a6dd` is preserved and `upstream-base`
-remains `339179f50a84dc599cce373dbb48f172f182f44e`. The integrated source baseline and the
+This sync follows the protected squash PR procedure of the 2026-10-20 and 2026-10-21 syncs (#101,
+#103); publishing it needs the same explicit authorization. Main's history from
+`6563cfafb148fa9a1ba2d253c2e92e8b4fcf626c` is preserved and `upstream-base` remains
+`339179f50a84dc599cce373dbb48f172f182f44e`. The integrated source baseline and the
 content-limited sync overlay are generated into `scripts/otterware/source-baseline.json`; see the
 fork operations exception for their checks and expiry. No required CI job or branch protection is
 bypassed.

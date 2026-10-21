@@ -15,6 +15,8 @@ import {
 import { Button } from "../../components/ui/button";
 import { useAuth } from "../../accounts/AccountProvider";
 import { useModuleEnvironmentId } from "../browser/moduleEndpoint";
+import { isElectron } from "../../env";
+import { usePrimaryEnvironmentId } from "../../state/environments";
 import { AccountConnections } from "./AccountConnections";
 import { AccountSessions } from "./AccountSessions";
 
@@ -23,6 +25,7 @@ export function AccountSettingsPage() {
   const scope = useOptionalSettingsScope();
   const primaryEnvironmentId = useModuleEnvironmentId();
   const environmentId = scope?.environment?.environmentId ?? primaryEnvironmentId;
+  const appEnvironmentId = usePrimaryEnvironmentId();
   return (
     <SettingsPageContainer>
       <SettingsSection id="account" title="Otter Account">
@@ -71,7 +74,8 @@ export function AccountSettingsPage() {
           }
         />
       </SettingsSection>
-      {environmentId !== null ? (
+      {/* The app's own environment uses this account; only a remote one signs in itself. */}
+      {environmentId !== null && !(isElectron && environmentId === appEnvironmentId) ? (
         <SettingsSection id="account-environment" title="Environment">
           <AccountConnections environmentId={environmentId} />
         </SettingsSection>

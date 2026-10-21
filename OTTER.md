@@ -3,9 +3,9 @@
 This repository is `otterware-app/otterware`, the Otterware monorepo fork of T3 Code.
 For ordinary tasks, read [AGENTS.md](AGENTS.md) and [OTTERWARE.md](OTTERWARE.md).
 
-The [2026-10-20 protected publication exception](docs/operations/otter-fork.md#2026-10-20-protected-publication-exception)
+The [protected publication exception](docs/operations/otter-fork.md#protected-publication-exception)
 records the integrated source baseline separately while preserving `upstream-base` and main's
-history. It applies only to that authorized sync; the usual reconstruction policy follows.
+history. It applies only to each authorized sync; the usual reconstruction policy follows.
 
 Upstream is `pingdotgg/t3code` main. `upstream-base` records the upstream commit, and
 everything Otterware changes is one commit on top of it; a sync merges the newest upstream
