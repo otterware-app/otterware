@@ -63,7 +63,11 @@ export class AccountSessions {
     const fetcher = this.options.fetch ?? globalThis.fetch;
     const response = await fetcher(`${credential.accountsUrl.replace(/\/$/, "")}/suite/session`, {
       method: "POST",
-      headers: { authorization: `Bearer ${credential.oauthToken}` },
+      headers: {
+        authorization: `Bearer ${credential.oauthToken}`,
+        "content-type": "application/json",
+      },
+      body: "{}",
       credentials: "omit",
       signal: AbortSignal.timeout(20_000),
     });

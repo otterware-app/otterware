@@ -80,11 +80,11 @@ export function useMailSidebar({
         rows: [
           {
             id: "connect",
-            label: "Connect a mailbox",
+            label: "Link a Google account",
             active: false,
-            href: "/settings/connections",
+            href: "/mail",
             onSelect: () => {
-              void navigate({ to: "/settings/connections" });
+              void navigate({ to: "/mail" });
             },
           },
         ],

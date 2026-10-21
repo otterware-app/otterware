@@ -35,6 +35,7 @@ export async function openMailWorker(
         profile: options.profile,
         legacyHome: options.legacyHome,
         accountId: options.session?.accountId,
+        linksAccounts: Boolean(options.session?.linked),
         gmailPushTopic: options.gmailPushTopic,
         googleClientId: options.googleClientId,
         googleClientSecret: options.googleClientSecret,
@@ -83,6 +84,12 @@ export async function openMailWorker(
         break;
       case "pull":
         if (session) return session.pull(args[0] as number | undefined);
+        break;
+      case "linked":
+        if (session?.linked) return session.linked();
+        break;
+      case "unlink":
+        if (session?.unlink) return session.unlink(String(args[0]));
         break;
       case "authorize":
         if (options.authorize) return options.authorize(String(args[0]));

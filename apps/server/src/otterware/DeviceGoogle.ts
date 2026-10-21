@@ -11,6 +11,7 @@
  * @module DeviceGoogle
  */
 import * as NodeCrypto from "node:crypto";
+import * as NodeFSP from "node:fs/promises";
 import * as NodeHttp from "node:http";
 import type { DeviceProviders } from "@otterware/module-kit/account";
 import { PROVIDER_SCOPES } from "@otterware/otter-cloud-client/scopes";
@@ -118,8 +119,58 @@ export const make = Effect.gen(function* () {
     });
     changed();
   };
+  /**
+   * Calendar's own Google sign-ins from before Google accounts were linked to the Otter Account
+   * become this device's grants, so they are linked and Mail can ask to use them. They keep
+   * their Calendar-only scopes until the user allows Mail access. `updatedAt` 0 keeps an account
+   * unlinked if it was unlinked on another device. Calendar drops its copy once it moves the
+   * account over (`upsertGoogleAccount`).
+   */
+  const adoptCalendarSignIns = async () => {
+    const names = (await NodeFSP.readdir(secrets.directory ?? "").catch(() => []))
+      .map((file) => /^(calendar-google-token-[\w-]+)\.bin$/u.exec(file)?.[1])
+      .filter((name) => name !== undefined);
+    if (names.length === 0) return;
+    const grants = await read();
+    const known = new Set(Object.values(grants).map((grant) => grant.email.toLowerCase()));
+    let adopted = false;
+    for (const name of names) {
+      const saved = await Effect.runPromise(secrets.get(name)).catch(() => Option.none());
+      if (Option.isNone(saved)) continue;
+      let stored: { clientId?: string; refreshToken?: string; scopes?: string[] };
+      try {
+        stored = JSON.parse(new TextDecoder().decode(saved.value)) as typeof stored;
+      } catch {
+        continue;
+      }
+      // Google refreshes a token only for the client that issued it.
+      if (stored.clientId !== client.clientId || !stored.refreshToken) continue;
+      const token = await exchange({
+        grant_type: "refresh_token",
+        refresh_token: stored.refreshToken,
+      }).catch(() => null);
+      if (!token) continue;
+      const profile = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+        headers: { authorization: `Bearer ${token.access_token}` },
+        signal: AbortSignal.timeout(30_000),
+      }).catch(() => null);
+      const email = profile?.ok ? ((await profile.json()) as { email?: string }).email : undefined;
+      if (!email || known.has(email.toLowerCase())) continue;
+      known.add(email.toLowerCase());
+      grants[`${ID_PREFIX}${email}`] = {
+        email,
+        refreshToken: stored.refreshToken,
+        scopes: stored.scopes ?? [],
+        updatedAt: 0,
+      };
+      adopted = true;
+    }
+    if (!adopted) return;
+    await write(grants);
+    changed();
+  };
   /** Loopback PKCE (RFC 8252): the browser on this machine returns to a one-shot local port. */
-  const connect: DeviceProviders["connect"] = async (provider) => {
+  const connect: DeviceProviders["connect"] = async (provider, email) => {
     if (provider !== "google")
       throw new Error("Only Google can be connected on this device for now.");
     if (!client.clientId)
@@ -168,6 +219,7 @@ export const make = Effect.gen(function* () {
       access_type: "offline",
       prompt: "consent",
       include_granted_scopes: "true",
+      ...(email ? { login_hint: email } : {}),
       state,
       code_challenge: challenge,
       code_challenge_method: "S256",
@@ -226,5 +278,6 @@ export const make = Effect.gen(function* () {
     },
   };
   yield* Effect.addFinalizer(() => Effect.sync(() => cancel?.()));
+  void adoptCalendarSignIns().catch(() => {});
   return devices;
 });

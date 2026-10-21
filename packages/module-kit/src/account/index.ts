@@ -9,6 +9,9 @@ import {
 } from "@otterware/otter-cloud-client";
 import * as Context from "effect/Context";
 import * as Schema from "effect/Schema";
+import { makeLinkedAccounts, type LinkedAccount } from "./linked.ts";
+
+export type { LinkedAccount } from "./linked.ts";
 
 /** A module's view of the host account. Provider refresh grants never leave Cloud. */
 export interface ProviderAccount {
@@ -18,6 +21,9 @@ export interface ProviderAccount {
   push: OtterCloudClient["push"];
   pull: OtterCloudClient["pull"];
   subscribe: (listener: (event: ChannelEvent) => void) => () => void;
+  /** Hosts that link Google accounts to the Otter Account (`DeviceProviderAccount`). */
+  linked?: () => Promise<ReadonlyArray<LinkedAccount>>;
+  unlink?: (email: string) => Promise<void>;
 }
 export interface ConnectedAccount extends ProviderAccount {
   readonly email: string;
@@ -30,15 +36,29 @@ export interface ConnectedAccount extends ProviderAccount {
 export interface DeviceProviders {
   readonly connections: () => Promise<ReadonlyArray<typeof Connection.Type>>;
   readonly providerToken: (connectionId: string) => Promise<typeof ProviderToken.Type>;
-  /** Returns the consent URL; the connection appears once the user approves it. */
-  readonly connect: (provider: typeof Provider.Type) => Promise<{ readonly url: string }>;
+  /**
+   * Returns the consent URL; the connection appears once the user approves it. `email` asks for
+   * that account, to authorize an account linked on another device or to add Mail access.
+   */
+  readonly connect: (
+    provider: typeof Provider.Type,
+    email?: string,
+  ) => Promise<{ readonly url: string }>;
   readonly disconnect: (connectionId: string) => Promise<void>;
   readonly subscribe: (listener: () => void) => () => void;
 }
-/** What Mail and Calendar use: account data from Cloud, provider grants from this device. */
+/**
+ * What Mail and Calendar use: the Google accounts linked to the Otter Account, authorized with
+ * grants from this device. `connections` lists this device's grants.
+ */
 export interface DeviceProviderAccount extends ConnectedAccount {
+  readonly linked: () => Promise<ReadonlyArray<LinkedAccount>>;
+  /** Authorizes Google on this device and links the account. */
   readonly connect: DeviceProviders["connect"];
-  readonly disconnect: DeviceProviders["disconnect"];
+  /** Unlinks the grant's account from the Otter Account, on every device. */
+  readonly disconnect: (connectionId: string) => Promise<void>;
+  /** Unlinks an account from the Otter Account, on every device. */
+  readonly unlink: (email: string) => Promise<void>;
 }
 /** Where the user approves this environment's own sign-in, from any browser. */
 export interface SignInPrompt {
@@ -239,6 +259,7 @@ export function makeOtterAccountSession(options: {
     };
     connect(current);
     changed();
+    relink();
   };
   const exchange = async (version: number) => {
     const accessToken = await options.login.accessToken().catch((cause: unknown) => {
@@ -254,7 +275,9 @@ export function makeOtterAccountSession(options: {
     }
     const response = await fetcher(`${options.accountsUrl.replace(/\/$/, "")}/suite/session`, {
       method: "POST",
-      headers: { authorization: `Bearer ${accessToken}` },
+      // Accounts only accepts JSON posts (415 otherwise), even with nothing to send.
+      headers: { authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+      body: "{}",
       credentials: "omit",
       cache: "no-store",
       redirect: "error",
@@ -297,26 +320,54 @@ export function makeOtterAccountSession(options: {
   };
   renew();
   const devices = options.devices;
-  const stopDevices = devices?.subscribe(() => {
+  let providerAccount: {
+    base: ConnectedAccount;
+    account: DeviceProviderAccount;
+    links: ReturnType<typeof makeLinkedAccounts>;
+  } | null = null;
+  const connectionsChanged = () => {
     for (const listener of [...events]) listener({ type: "connections.changed" });
     changed();
+  };
+  /** Brings the linked list and this device's grants together, then tells Mail and Calendar. */
+  const relink = () => {
+    if (!service.providerAccount()) return;
+    void providerAccount?.links
+      .sync()
+      .then(connectionsChanged)
+      .catch(() => {});
+  };
+  const stopDevices = devices?.subscribe(() => {
+    connectionsChanged();
+    relink();
   });
-  let providerAccount: { base: ConnectedAccount; account: DeviceProviderAccount } | null = null;
+  // Another device linked or unlinked an account.
+  events.add((event) => {
+    if (event.type === "sync.changed") relink();
+  });
   const service: OtterAccountSession["Service"] = {
     current: () => current,
     providerAccount: () => {
       if (!devices || !current) return null;
-      if (providerAccount?.base !== current)
+      if (providerAccount?.base !== current) {
+        const links = makeLinkedAccounts(current, devices);
         providerAccount = {
           base: current,
+          links,
           account: {
             ...current,
             connections: async () => [...(await devices.connections())],
             providerToken: devices.providerToken,
+            linked: links.list,
             connect: devices.connect,
-            disconnect: devices.disconnect,
+            disconnect: async (id) => {
+              const grant = (await devices.connections()).find((each) => each.id === id);
+              if (grant) await links.unlink(grant.email);
+            },
+            unlink: links.unlink,
           },
         };
+      }
       return providerAccount.account;
     },
     status: () => ({

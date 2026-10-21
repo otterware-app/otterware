@@ -96,7 +96,8 @@ export async function freshGrant(grant: AccountGrant): Promise<AccountGrant> {
 export async function driveCapability(grant: AccountGrant, cloudOrigin: string): Promise<string> {
   const session = await fetch(`${ACCOUNTS_URL}/suite/session`, {
     method: "POST",
-    headers: { authorization: `Bearer ${grant.accessToken}` },
+    headers: { authorization: `Bearer ${grant.accessToken}`, "content-type": "application/json" },
+    body: "{}",
     signal: AbortSignal.timeout(15_000),
   });
   if (!session.ok) throw new Error("Your Otter Account sign-in ended. Run otterdrive auth login.");

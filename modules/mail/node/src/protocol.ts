@@ -6,6 +6,8 @@ export type WorkerOptions = {
   profile: string;
   legacyHome?: string | undefined;
   accountId?: string | undefined;
+  /** The host links Google accounts to the Otter Account (`ProviderAccount.linked`). */
+  linksAccounts?: boolean | undefined;
   gmailPushTopic?: string | undefined;
   googleClientId?: string | undefined;
   googleClientSecret?: string | undefined;

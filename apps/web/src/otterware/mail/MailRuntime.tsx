@@ -34,6 +34,7 @@ import { useSignInAlerts } from "./content/main/gmail/sync-health";
 import { useMailStore, type MailSnapshot } from "./mailStore";
 import MailBackground from "./MailBackground";
 import { useConnectProvider } from "../account/useConnectProvider";
+import { toast } from "./content/main/gmail/toast";
 
 export default function MailRuntime() {
   const target = useModuleTarget();
@@ -74,9 +75,13 @@ export default function MailRuntime() {
               inBrowser ? { ...browserMailTransport, id: `browser:${browserIdentity}` } : undefined,
             ),
             openExternal: openLink,
-            // Without a signed-in environment the connect fails; Connections explains why.
-            connectGoogle: () =>
-              connectProvider.current("google").catch(() => navigateMail("/settings/connections")),
+            // Authorizes a linked Google account (or links a new one) right here.
+            connectGoogle: (email?: string) =>
+              connectProvider.current("google", email).catch((cause: unknown) => {
+                toast.error(
+                  cause instanceof Error ? cause.message : "Could not open Google sign-in.",
+                );
+              }),
           }
         : null,
     [environmentId, inBrowser, browserIdentity, navigateMail, desktop, openLink],

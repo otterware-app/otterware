@@ -76,6 +76,9 @@ export const makeFakeCloud = (): FakeCloud => {
         const headers = new Headers(init.headers);
         fake.requests.push({ url, headers, body: typeof init.body === "string" ? init.body : "" });
         if (url === `${ACCOUNTS_URL}/suite/session`) {
+          // Like Accounts, refuse anything but a JSON post.
+          if (headers.get("content-type") !== "application/json" || !init.body)
+            return new Response(null, { status: 415 });
           const token = headers.get("authorization")?.slice("Bearer ".length) ?? "";
           const user = fake.users.get(token);
           if (user === undefined) return Response.json({ error: "unauthorized" }, { status: 401 });

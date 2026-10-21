@@ -1671,6 +1671,20 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
           displayName: identity.name ?? identity.email,
           avatarUrl: identity.picture ?? null,
         };
+        // A Google account signed in on this device before accounts were linked to the Otter
+        // Account moves to its linked sign-in, keeping its calendars and their colors.
+        const legacy = identity.sub.startsWith("cloud:")
+          ? (yield* store.listAccounts).find(
+              (account) =>
+                account.provider === "google" &&
+                !account.externalId.startsWith("cloud:") &&
+                account.email.toLowerCase() === identity.email.toLowerCase(),
+            )
+          : undefined;
+        if (legacy && (yield* store.findAccount("google", identity.sub)) === undefined) {
+          yield* store.setAccountExternalId(legacy.accountId, identity.sub);
+          yield* googleAuth.removeTokens(legacy.externalId);
+        }
         const existing = yield* store.findAccount("google", identity.sub);
         let accountId: string;
         if (existing !== undefined) {

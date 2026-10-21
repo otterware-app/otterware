@@ -166,12 +166,13 @@ function accountStatus(account: GmailAccount, status: SyncStatus | undefined): S
       detail: "Mailbox passwords are never synced. Enter it once here to sync this mailbox.",
     };
   }
-  // The mailbox list follows the account; Google authorization is per device.
+  // Linked to the Otter Account; each device allows Mail access itself.
   if (account.signedOut && signsInWithGoogle(account)) {
     return {
-      text: "Needs Google on this device",
+      text: "Needs Mail access on this device",
       tone: "muted",
-      detail: "Google is connected per device. Connect it here to sync this mailbox.",
+      detail:
+        "This Google account is linked to your Otter Account. Allow Mail access once on this device to sync it.",
     };
   }
   // Never synced here: it was added on another device (through the Otter account).
@@ -247,9 +248,9 @@ function AccountAvatar({
  * Sign in again with Google (signed-out account) or add a mailbox: Gmail, or
  * other mail over IMAP. Cancellable while Google is open.
  */
-function SignInButton({ email: _email, label }: { email?: string | undefined; label: string }) {
+function SignInButton({ email, label }: { email?: string | undefined; label: string }) {
   return (
-    <Btn size="sm" onClick={connectMailbox}>
+    <Btn size="sm" onClick={() => connectMailbox(email)}>
       {label}
     </Btn>
   );
@@ -481,7 +482,7 @@ function AccountEditor({ account }: { account: GmailAccount }) {
             ) : needsSignIn(account, sync.data) ? (
               <SignInButton
                 email={account.email}
-                label={signsInWithGoogle(account) ? "Connect Google on this device" : "Sign in"}
+                label={signsInWithGoogle(account) ? "Allow Mail access" : "Sign in"}
               />
             ) : (
               <Btn size="sm" disabled={syncing || sync.data?.syncing} onClick={syncNow}>

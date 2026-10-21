@@ -172,6 +172,7 @@ export const accountSessionLayer = <E, R>(
             .execute(
               HttpClientRequest.post(`${key.accountsUrl.replace(/\/$/, "")}/suite/session`).pipe(
                 HttpClientRequest.bearerToken(key.oauthToken),
+                HttpClientRequest.bodyJsonUnsafe({}),
               ),
             )
             .pipe(Effect.timeout("15 seconds"), Effect.mapError(failed));

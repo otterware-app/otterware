@@ -15,6 +15,12 @@ export class AccountSessionError extends Schema.TaggedError<AccountSessionError>
   },
 ) {}
 const errors = Schema.Union([AccountSessionError, EnvironmentAuthorizationError]);
+const LinkedAccount = Schema.Struct({
+  provider: Schema.Literal("google"),
+  email: Schema.String,
+  /** This device's grant; null until the account is authorized here. */
+  connection: Schema.NullOr(Connection),
+});
 const SignInPrompt = Schema.Struct({
   verificationUrl: Schema.String,
   userCode: Schema.String,
@@ -47,22 +53,21 @@ export const AccountRpcGroup = RpcGroup.make(
     success: Schema.Void,
     error: errors,
   }),
+  /** The Google accounts linked to the Otter Account, each with this device's grant, if any. */
   Rpc.make("account.connections.list", {
     payload: Schema.Struct({}),
-    success: Schema.Array(Connection),
+    success: Schema.Array(LinkedAccount),
     error: errors,
   }),
+  /** Authorizes Google on this device; `email` picks a linked account or adds Mail access. */
   Rpc.make("account.connections.connect", {
-    payload: Schema.Struct({
-      provider: Provider,
-      scopes: Schema.Array(Schema.String),
-      returnTo: Schema.String,
-    }),
+    payload: Schema.Struct({ provider: Provider, email: Schema.optional(Schema.String) }),
     success: Schema.Struct({ url: Schema.String }),
     error: errors,
   }),
-  Rpc.make("account.connections.disconnect", {
-    payload: Schema.Struct({ connectionId: Schema.String }),
+  /** Unlinks an account from the Otter Account, on every device. */
+  Rpc.make("account.connections.unlink", {
+    payload: Schema.Struct({ email: Schema.String }),
     success: Schema.Void,
     error: errors,
   }),
@@ -74,5 +79,5 @@ export const ACCOUNT_RPC_SCOPES = {
   "account.session.useAppAccount": AuthSettingsWriteScope,
   "account.connections.list": AuthOrchestrationReadScope,
   "account.connections.connect": AuthSettingsWriteScope,
-  "account.connections.disconnect": AuthSettingsWriteScope,
+  "account.connections.unlink": AuthSettingsWriteScope,
 } as const;

@@ -3,6 +3,7 @@ import {
   type AtomCommandResult,
 } from "@t3tools/client-runtime/state/runtime";
 import { useAtomValue } from "@effect/atom-react";
+import { PROVIDER_SCOPES } from "@otterware/otter-cloud-client/scopes";
 import type { EnvironmentId } from "@t3tools/contracts";
 import { useState } from "react";
 import { useAuth } from "../../accounts/AccountProvider";
@@ -18,7 +19,7 @@ import {
   accountConnections,
   signInEnvironment,
   signOutEnvironment,
-  disconnectProvider,
+  unlinkProvider,
 } from "./rpc";
 import { useConnectProvider } from "./useConnectProvider";
 
@@ -28,10 +29,11 @@ function checked<A, E>(result: AtomCommandResult<A, E>): A {
 }
 
 /**
- * The environment's Otter Account, which Code, Home, Mail, Calendar and Drive there use. A
- * desktop app's built-in environment uses the app's account (`AppAccountHandoff`); any other
- * environment is signed in on itself (any client can approve it), so it keeps working when this
- * client signs out.
+ * The environment's Otter Account, which Code, Home, Mail, Calendar and Drive there use, and the
+ * Google accounts linked to it. A desktop app's built-in environment uses the app's account
+ * (`AppAccountHandoff`); any other environment is signed in on itself (any client can approve
+ * it), so it keeps working when this client signs out. The linked Google accounts are the same on
+ * every device; each device authorizes them itself.
  */
 export function AccountConnections({ environmentId }: { environmentId: EnvironmentId }) {
   const auth = useAuth();
@@ -43,7 +45,7 @@ export function AccountConnections({ environmentId }: { environmentId: Environme
   const signIn = useAtomCommand(signInEnvironment);
   const signOut = useAtomCommand(signOutEnvironment);
   const connect = useConnectProvider(environmentId);
-  const disconnect = useAtomCommand(disconnectProvider);
+  const unlink = useAtomCommand(unlinkProvider);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const run = async (action: () => Promise<unknown>) => {
@@ -73,7 +75,7 @@ export function AccountConnections({ environmentId }: { environmentId: Environme
         description={
           account?.followsApp
             ? account.accountId
-              ? "Uses this app's Otter Account. Your mailbox list, preferences and projects follow it."
+              ? "This app's Otter Account. Code, Drive, Mail and Calendar use it."
               : !ownApp
                 ? "Uses the Otter Account of the desktop app it runs in."
                 : auth.user
@@ -82,7 +84,7 @@ export function AccountConnections({ environmentId }: { environmentId: Environme
             : account?.accountId
               ? differs
                 ? `This environment uses a different Otter Account than this app (${auth.user?.email ?? "you"}).`
-                : "This environment's Otter Account. Your mailbox list, preferences and projects follow it."
+                : "This environment's Otter Account. Code, Drive, Mail and Calendar here use it."
               : pending
                 ? `Approve code ${pending.userCode} in your browser to sign this environment in.`
                 : "Sign this environment in to your Otter Account. It keeps its own sign-in."
@@ -130,45 +132,61 @@ export function AccountConnections({ environmentId }: { environmentId: Environme
       {account?.accountId ? (
         <>
           <SettingsRow
-            title="Google on this device"
-            description={
-              connections.data?.length
-                ? "Connected on this device. Mail, Calendar and contacts on this device use it."
-                : "Not connected on this device. Mail, Calendar and contacts on this device use the Google account you connect here."
-            }
+            title="Google accounts"
+            description="Linked to your Otter Account, so every device lists the same ones. Each device authorizes them once for Mail, Calendar and contacts."
             control={
               <Button
                 size="sm"
                 disabled={!canWrite || busy}
                 onClick={() => void run(() => connect("google"))}
               >
-                Connect Google on this device
+                Link Google account
               </Button>
             }
           />
-          {connections.data?.map((connection) => (
-            <SettingsRow
-              key={connection.id}
-              title={connection.email}
-              description="Google · Connected on this device"
-              control={
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={!canWrite || busy}
-                  onClick={() =>
-                    void run(() =>
-                      disconnect({ environmentId, input: { connectionId: connection.id } }).then(
-                        checked,
-                      ),
-                    )
-                  }
-                >
-                  Remove from this device
-                </Button>
-              }
-            />
-          ))}
+          {connections.data?.map((linked) => {
+            const complete = PROVIDER_SCOPES.google.every((scope) =>
+              linked.connection?.scopes.includes(scope),
+            );
+            return (
+              <SettingsRow
+                key={linked.email}
+                title={linked.email}
+                description={
+                  !linked.connection
+                    ? "Not authorized on this device yet."
+                    : complete
+                      ? "Authorized on this device."
+                      : "Authorized on this device for Calendar only. Allow Mail access to use it in Mail."
+                }
+                control={
+                  <div className="flex gap-2">
+                    {complete ? null : (
+                      <Button
+                        size="sm"
+                        disabled={!canWrite || busy}
+                        onClick={() => void run(() => connect("google", linked.email))}
+                      >
+                        {linked.connection ? "Allow Mail access" : "Authorize on this device"}
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!canWrite || busy}
+                      onClick={() =>
+                        void run(() =>
+                          unlink({ environmentId, input: { email: linked.email } }).then(checked),
+                        )
+                      }
+                    >
+                      Unlink
+                    </Button>
+                  </div>
+                }
+              />
+            );
+          })}
         </>
       ) : null}
       {error || account?.error || state.error ? (

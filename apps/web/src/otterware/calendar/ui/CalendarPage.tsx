@@ -45,6 +45,7 @@ import { chunkWeeksForDays } from "./runtime/chunks.ts";
 import { createCalendarHistory, eventTimeInput } from "./runtime/optimistic.ts";
 import { formatLongDate } from "./runtime/format.ts";
 import { useMinuteClock } from "./grid/useMinuteClock.ts";
+import { useConnectProvider } from "../../account/useConnectProvider";
 
 export default function CalendarPage({
   active,
@@ -64,6 +65,7 @@ export default function CalendarPage({
   const month = civilDate(date);
   const [view, setCurrentView] = useState<CalendarViewKind>("week");
   const navigate = useNavigate();
+  const connectGoogle = useConnectProvider();
   const setView = (next: CalendarViewKind) => {
     setCurrentView(next);
     const base = projectId ? `/home/projects/${projectId}/calendar` : "/calendar";
@@ -425,16 +427,22 @@ export default function CalendarPage({
                 </EmptyMedia>
                 <EmptyTitle>No calendars yet</EmptyTitle>
                 <EmptyDescription>
-                  Connect Google in Connections, or add demo calendars there.
+                  The Google accounts linked to your Otter Account show up here, on every device.
+                  Each device authorizes them once.
                 </EmptyDescription>
               </EmptyHeader>
               <EmptyContent>
                 <Button
                   size="sm"
-                  variant="outline"
-                  onClick={() => void navigate({ to: "/settings/connections" })}
+                  onClick={() =>
+                    void connectGoogle("google").catch((cause: unknown) =>
+                      setError(
+                        cause instanceof Error ? cause.message : "Could not open Google sign-in.",
+                      ),
+                    )
+                  }
                 >
-                  Open Connections
+                  Link Google account
                 </Button>
               </EmptyContent>
             </Empty>

@@ -49,9 +49,9 @@ export const accountHandlers = Effect.gen(function* () {
     "account.session.useAppAccount": ({ accessToken }) =>
       call((host) => host.useAppAccount(accessToken)),
     "account.connections.list": () =>
-      call(async (host) => [...(await (host.providerAccount()?.connections() ?? []))]),
-    "account.connections.connect": ({ provider }) => call((host) => device(host).connect(provider)),
-    "account.connections.disconnect": ({ connectionId }) =>
-      call((host) => device(host).disconnect(connectionId)),
+      call(async (host) => [...(await (host.providerAccount()?.linked() ?? []))]),
+    "account.connections.connect": ({ provider, email }) =>
+      call((host) => device(host).connect(provider, email)),
+    "account.connections.unlink": ({ email }) => call((host) => device(host).unlink(email)),
   });
 });

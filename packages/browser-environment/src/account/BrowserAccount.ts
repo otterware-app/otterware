@@ -111,7 +111,11 @@ export const layer = Layer.effect(
           try: (signal) =>
             platform.fetch(`${credential.accountsUrl.replace(/\/$/, "")}/suite/session`, {
               method: "POST",
-              headers: { authorization: `Bearer ${credential.accessToken}` },
+              headers: {
+                authorization: `Bearer ${credential.accessToken}`,
+                "content-type": "application/json",
+              },
+              body: "{}",
               credentials: "omit",
               cache: "no-store",
               signal,

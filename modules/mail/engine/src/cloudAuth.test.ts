@@ -2,9 +2,15 @@ import { expect, it, vi } from "vite-plus/test";
 import { accountGoogleAuth, accountMicrosoftAuth, microsoftToken } from "./cloudAuth.ts";
 import type { OtterAccountSession } from "./AccountSession.ts";
 import type { GoogleAuth } from "./platform.ts";
+const mailboxes = vi.hoisted(
+  () => new Map<string, { id: string; email: string; provider: string }>(),
+);
 vi.mock("./services/account-store.ts", () => ({
   getAccount: async () => null,
-  addAccount: async () => {},
+  addAccount: async (account: { id: string; email: string; provider: string }) => {
+    mailboxes.set(account.id, account);
+  },
+  listAccounts: async () => [...mailboxes.values()],
 }));
 
 it("uses account-scoped Google/Microsoft grants and does not silently fall back after a token failure", async () => {
@@ -12,7 +18,13 @@ it("uses account-scoped Google/Microsoft grants and does not silently fall back 
   const session: OtterAccountSession = {
     accountId: "user",
     connections: async () => [
-      { id: "google", provider: "google", email: "g@example.test", scopes: [], updatedAt: 1 },
+      {
+        id: "google",
+        provider: "google",
+        email: "g@example.test",
+        scopes: ["https://mail.google.com/"],
+        updatedAt: 1,
+      },
       { id: "microsoft", provider: "microsoft", email: "m@example.test", scopes: [], updatedAt: 1 },
     ],
     providerToken: vi.fn(async (id) => ({
@@ -44,4 +56,38 @@ it("uses account-scoped Google/Microsoft grants and does not silently fall back 
   vi.mocked(session.providerToken).mockRejectedValue(new Error("Revoked"));
   await expect(google.getAccessToken("g@example.test")).rejects.toThrow("Revoked");
   expect(localToken).not.toHaveBeenCalled();
+});
+
+it("lists every linked Google account as a mailbox, signed in where this device allows Mail", async () => {
+  mailboxes.clear();
+  const unlink = vi.fn(async () => {});
+  const calendarOnly = {
+    id: "device:google:cal@example.test",
+    provider: "google" as const,
+    email: "cal@example.test",
+    scopes: ["https://www.googleapis.com/auth/calendar.events"],
+    updatedAt: 1,
+  };
+  const session: OtterAccountSession = {
+    accountId: "user",
+    connections: async () => [calendarOnly],
+    providerToken: async () => {
+      throw new Error("unused");
+    },
+    push: async () => ({ records: [] }),
+    pull: async () => ({ records: [], cursor: 0, hasMore: false }),
+    subscribe: () => () => {},
+    linked: async () => [
+      { provider: "google", email: "cal@example.test", connection: calendarOnly },
+      { provider: "google", email: "other@example.test", connection: null },
+    ],
+    unlink,
+  };
+  const google = accountGoogleAuth(session, {} as GoogleAuth);
+  await google.load();
+  expect([...mailboxes.keys()]).toEqual(["cal@example.test", "other@example.test"]);
+  expect(google.isSignedIn("cal@example.test")).toBe(false);
+  await expect(google.getAccessToken("cal@example.test")).rejects.toThrow("Allow Mail access");
+  await google.removeTokens("other@example.test");
+  expect(unlink).toHaveBeenCalledWith("other@example.test");
 });
