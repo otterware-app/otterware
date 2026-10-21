@@ -1,5 +1,6 @@
 import { AUTH_SCOPE_OPTIONS as PAIRING_SCOPE_OPTIONS } from "@t3tools/shared/authScopeOptions";
-import { PlusIcon, QrCodeIcon } from "lucide-react";
+import { QrCodeIcon } from "lucide-react";
+import { PlusIcon } from "~/lib/icons";
 import { type ReactNode, memo, useId, useState } from "react";
 import {
   AuthAccessWriteScope,
