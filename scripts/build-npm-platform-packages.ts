@@ -43,7 +43,7 @@ import { fromJsonStringPretty } from "@t3tools/shared/schemaJson";
 import { isCommandAvailable } from "@t3tools/shared/shell";
 import serverPackageJson from "../apps/server/package.json" with { type: "json" };
 
-import { windowsSystemTar } from "./build-cli-archive.ts";
+import { windowsSystemTar } from "./lib/windows-tar.ts";
 
 // Otterware seam: build identity comes from the active app profile.
 const npmIdentity = activeProfile.brand.npm ?? PROFILES.code.brand.npm!;

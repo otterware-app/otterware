@@ -21,6 +21,7 @@ import {
   MOBILE_THEME_OPTIONS,
   flattenThemeColor,
   getMobileThemeVariables,
+  normalizeMobileThemeId,
   resolveMobileThemeIds,
   themeColorWithAlpha,
   themeColorToNativeColor,

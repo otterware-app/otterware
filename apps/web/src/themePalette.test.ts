@@ -8,6 +8,7 @@ import {
 
 import {
   getThemeColorsForMode,
+  getThemeDefinition,
   getThemeModes,
   getCustomThemes,
   getStandardThemeColors,

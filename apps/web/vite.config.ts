@@ -107,10 +107,9 @@ const browserTestProject = {
   test: {
     name: "browser",
     include: ["src/**/*.browser.test.{ts,tsx}"],
-    setupFiles: ["./src/otterware/testing/hostOnlyModuleRegistry.ts"],
     hookTimeout: 15_000,
     testTimeout: 15_000,
-    setupFiles: ["./test/browserSetup.ts"],
+    setupFiles: ["./src/otterware/testing/hostOnlyModuleRegistry.ts", "./test/browserSetup.ts"],
     api: { port: browserTestApiPort, strictPort: false },
     browser: {
       enabled: true,

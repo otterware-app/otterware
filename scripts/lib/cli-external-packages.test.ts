@@ -14,6 +14,7 @@ import {
   findInlinedExternalPackages,
   shouldBundleCliDependency,
   isExternalCliExecutableDependency,
+  selectCliRuntimeExternalDependencies,
   shouldBundleCliExecutableDependency,
 } from "./cli-external-packages.ts";
 

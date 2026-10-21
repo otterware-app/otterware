@@ -1,6 +1,14 @@
+import { scopeThreadRef } from "@t3tools/client-runtime/environment";
+import { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { beforeEach, describe, expect, it } from "vite-plus/test";
 
-import { useDiffPanelSessionStore, useDiffPanelStore } from "./diffPanelStore";
+import {
+  selectThreadDiffPanelSelection,
+  useDiffPanelSessionStore,
+  useDiffPanelStore,
+} from "./diffPanelStore";
+
+const THREAD_REF = scopeThreadRef(EnvironmentId.make("environment-1"), ThreadId.make("thread-1"));
 
 describe("diffPanelStore", () => {
   beforeEach(() => {

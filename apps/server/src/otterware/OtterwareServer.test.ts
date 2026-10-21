@@ -99,7 +99,7 @@ it.effect(
   () =>
     Effect.scoped(
       Effect.gen(function* () {
-        const layerRoutes = McpHttpServer.layer.pipe(Layer.provide(McpSessionRegistry.layer));
+        const layerRoutes = McpHttpServer.layer.pipe(Layer.provideMerge(McpSessionRegistry.layer));
         const context = yield* HttpRouter.serve(layerRoutes, {
           disableListenLog: true,
           disableLogger: true,
@@ -118,11 +118,14 @@ it.effect(
         );
         const runtime = yield* ModuleRuntime.ModuleRuntime.pipe(Effect.provideContext(context));
 
-        const credential = yield* McpSessionRegistry.issueActiveMcpCredential({
+        const registry = yield* McpSessionRegistry.McpSessionRegistry.pipe(
+          Effect.provideContext(context),
+        );
+        const credential = yield* registry.issue({
           threadId: ThreadId.make("thread-otterware"),
           providerInstanceId: ProviderInstanceId.make("claudeAgent"),
         });
-        const authorization = credential!.config.authorizationHeader;
+        const authorization = credential.config.authorizationHeader;
         const httpClient = yield* HttpClient.HttpClient;
         const post = (body: string, sessionId?: string) =>
           httpClient.post("/mcp", {

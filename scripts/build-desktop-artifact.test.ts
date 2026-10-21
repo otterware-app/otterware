@@ -22,7 +22,6 @@ import { ChildProcess, ChildProcessSpawner } from "effect/process";
 
 import {
   BundleNotSelfContainedError,
-  BuildCommandFailedError,
   parseWslRuntimeArchiveMembers,
   readWorkspaceConfig,
   createBuildConfig,
@@ -44,7 +43,6 @@ import {
   WindowsPackagedPayloadValidationError,
   stageCursorSdkPlatformPackages,
   stageTypeScriptServerPackage,
-  TSSERVER_EXTRA_RESOURCES,
   TSSERVER_FILE_EXCLUSIONS,
   TSSERVER_RESOURCE_SOURCE_DIR,
   TypeScriptServerLibMissingError,
