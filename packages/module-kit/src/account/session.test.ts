@@ -4,7 +4,7 @@ import { appLogin, makeOtterAccountSession, type EnvironmentLogin } from "./inde
 
 const suite = (id: string) => ({
   token: `suite-${id}`,
-  expiresAt: Date.now() + 3_600_000,
+  expiresAt: Date.UTC(2100, 0, 1),
   user: { id, email: `${id}@example.test` },
 });
 const options = {
