@@ -1,5 +1,4 @@
 import * as LinearIssueSyncReactor from "./linear/LinearIssueSyncReactor.ts";
-import { WorkspaceLanguageService } from "./workspace/WorkspaceLanguageService.ts";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import {
@@ -469,7 +468,6 @@ it.effect(
             {},
             yield* PreviewAutomationBroker.PreviewAutomationBroker,
             yield* ServerBrowser.ServerBrowser,
-            new WorkspaceLanguageService(),
           ).pipe(Layer.provide(configRpcServices)),
         ),
       );
