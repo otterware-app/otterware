@@ -30,7 +30,7 @@ export const disconnectProvider = createEnvironmentRpcCommand(connectionAtomRunt
   label: "otterware:provider-disconnect",
   tag: "account.connections.disconnect",
 });
-export const useAppAccount = createEnvironmentRpcCommand(connectionAtomRuntime, {
+export const handAppAccount = createEnvironmentRpcCommand(connectionAtomRuntime, {
   label: "otterware:account-use-app",
   tag: "account.session.useAppAccount",
 });

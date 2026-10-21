@@ -81,6 +81,7 @@
       "apps/server/src/orchestration-v2/ProjectionSettlement.test.ts": "100644 blob 9187a1e4db522d4b5b8b281e6ce1a8412304c3dc",
       "apps/server/src/orchestration-v2/ProjectionStore.ts": "100644 blob 0936e5c16340d2303ece4bad9659786d4283f2ba",
       "apps/server/src/orchestration-v2/runtimeLayer.test.ts": "100644 blob f662436d789d0965ff87431e49bb31679a239cf6",
+      "apps/server/src/provider/CodexChatGptAuth.test.ts": "100644 blob 381c7f3ae15a271ac53694e44fd486c281b0fa7e",
       "apps/server/src/provider/CodexChatGptAuth.ts": "100644 blob b768396a0493852db6561ff69cf9650777d1306d",
       "apps/server/src/serverRuntimeStartup.ts": "100644 blob 9df0ab506be32a9e45ea2a0936620ef698c046ae",
       "apps/server/src/serverRuntimeState.test.ts": "100644 blob 37b1b8a9a70834f97f233ee8f84c5d43821ca098",

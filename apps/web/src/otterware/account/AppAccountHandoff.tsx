@@ -3,7 +3,7 @@ import { useAuth } from "../../accounts/AccountProvider";
 import { isElectron } from "../../env";
 import { usePrimaryEnvironmentId } from "../../state/environments";
 import { useAtomCommand } from "../../state/use-atom-command";
-import { useAppAccount } from "./rpc";
+import { handAppAccount } from "./rpc";
 
 // The environment reuses its suite session for days, so handing a token hourly keeps it renewed.
 const HAND_EVERY_MS = 60 * 60_000;
@@ -21,7 +21,7 @@ export function AppAccountHandoff() {
 function Handoff() {
   const auth = useAuth();
   const environmentId = usePrimaryEnvironmentId();
-  const hand = useAtomCommand(useAppAccount);
+  const hand = useAtomCommand(handAppAccount);
   const { isLoaded, userId, getToken } = auth;
   useEffect(() => {
     if (!isLoaded || environmentId === null) return;
