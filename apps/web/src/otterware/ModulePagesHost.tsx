@@ -17,6 +17,7 @@ import { Activity, lazy, Suspense, useState, type ReactNode } from "react";
 
 import { ModulePageLayout } from "./ModulePageLayout";
 import { ModuleStoresHost } from "./ModuleStoresHost";
+import { AppAccountHandoff } from "./account/AppAccountHandoff";
 import { moduleRegistry } from "./registry";
 
 // Loaded only once a page opens inside a cross-app project, so standalone
@@ -82,6 +83,7 @@ export function ModulePagesHost({ children }: { readonly children: ReactNode }) 
   }
   return (
     <>
+      <AppAccountHandoff />
       <ModuleStoresHost />
       {children}
       {Object.entries(retained).map(([id, page]) => {

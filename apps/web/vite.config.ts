@@ -84,6 +84,7 @@ const unitTestProject = {
     testTimeout: 15_000,
     setupFiles: [
       "../../packages/shared/src/testing/longTempDir.ts",
+      "../../packages/shared/src/testing/providerEnv.ts",
       // Otterware: upstream tests see the host without modules.
       "./src/otterware/testing/hostOnlyModuleRegistry.ts",
     ],
@@ -100,14 +101,15 @@ const browserTestApiPort = 61_000 + ((Hash.string(import.meta.dirname) >>> 0) % 
 
 const browserTestProject = {
   extends: true,
-  // Pre-bundled so the first test importing userEvent does not trigger a mid-run reload.
-  optimizeDeps: { include: ["vite-plus/test/browser"] },
+  // Pre-bundled so a late first import does not trigger a mid-run reload. The
+  // dependency scan misses autocomplete because tests reach it only through lazy imports.
+  optimizeDeps: { include: ["vite-plus/test/browser", "@base-ui/react/autocomplete"] },
   test: {
     name: "browser",
     include: ["src/**/*.browser.test.{ts,tsx}"],
-    setupFiles: ["./src/otterware/testing/hostOnlyModuleRegistry.ts"],
     hookTimeout: 15_000,
     testTimeout: 15_000,
+    setupFiles: ["./src/otterware/testing/hostOnlyModuleRegistry.ts", "./test/browserSetup.ts"],
     api: { port: browserTestApiPort, strictPort: false },
     browser: {
       enabled: true,
@@ -115,6 +117,13 @@ const browserTestProject = {
       provider: playwright(),
       instances: [{ browser: "chromium" }],
       screenshotFailures: false,
+      commands: {
+        // Playwright's mouse outlives each test, so whatever mounts under its last
+        // position starts hovered. test/browserSetup.ts parks it off the page before each test.
+        resetPointer: async ({ page }) => {
+          await page.mouse.move(-1, -1);
+        },
+      },
     },
   },
 } satisfies TestProjectInlineConfiguration;
@@ -212,6 +221,15 @@ const allowedHosts = [".ts.net", ...configuredAllowedHosts];
 
 export default defineConfig(() => {
   return {
+    run: {
+      tasks: {
+        // tsc-rs rewrites the tsbuildinfo it reads, which keeps a task out of the cache.
+        typecheck: {
+          command: "tsc-rs --noEmit",
+          cache: { input: [{ auto: true }, "!*.tsbuildinfo"] },
+        },
+      },
+    },
     assetsInclude: ["**/*.wasm"],
     plugins: [
       profileWebAssetsPlugin(),

@@ -271,9 +271,10 @@ function hostAccount(): ConnectedAccount {
 const connected = Layer.succeed(OtterAccountSession, {
   current: () => hostAccount(),
   providerAccount: () => null,
-  status: () => ({ pendingSignIn: null, error: null }),
+  status: () => ({ pendingSignIn: null, error: null, followsApp: false }),
   signIn: () => Promise.reject(new Error("unused")),
   signOut: async () => {},
+  useAppAccount: async () => {},
   subscribe: () => () => {},
 });
 const setup = (
@@ -306,9 +307,10 @@ describe("DriveService", () => {
       const account = Layer.succeed(OtterAccountSession, {
         current: () => (signedIn ? identity : null),
         providerAccount: () => null,
-        status: () => ({ pendingSignIn: null, error: null }),
+        status: () => ({ pendingSignIn: null, error: null, followsApp: false }),
         signIn: () => Promise.reject(new Error("unused")),
         signOut: async () => {},
+        useAppAccount: async () => {},
         subscribe: () => () => {},
       });
       const drive = yield* setup(fake, account, (api) => ({

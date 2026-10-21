@@ -26,6 +26,8 @@ const state = Schema.Struct({
   email: Schema.NullOr(Schema.String),
   pendingSignIn: Schema.NullOr(SignInPrompt),
   error: Schema.NullOr(Schema.String),
+  /** Built into a desktop app: it uses the app's account instead of signing in itself. */
+  followsApp: Schema.Boolean,
 });
 export const AccountRpcGroup = RpcGroup.make(
   Rpc.make("account.session.state", { payload: Schema.Struct({}), success: state, error: errors }),
@@ -36,6 +38,12 @@ export const AccountRpcGroup = RpcGroup.make(
   }),
   Rpc.make("account.session.signOut", {
     payload: Schema.Struct({}),
+    success: Schema.Void,
+    error: errors,
+  }),
+  /** The app an environment is built into hands over its access token; null once it signs out. */
+  Rpc.make("account.session.useAppAccount", {
+    payload: Schema.Struct({ accessToken: Schema.NullOr(Schema.String) }),
     success: Schema.Void,
     error: errors,
   }),
@@ -63,6 +71,7 @@ export const ACCOUNT_RPC_SCOPES = {
   "account.session.state": AuthOrchestrationReadScope,
   "account.session.signIn": AuthSettingsWriteScope,
   "account.session.signOut": AuthSettingsWriteScope,
+  "account.session.useAppAccount": AuthSettingsWriteScope,
   "account.connections.list": AuthOrchestrationReadScope,
   "account.connections.connect": AuthSettingsWriteScope,
   "account.connections.disconnect": AuthSettingsWriteScope,

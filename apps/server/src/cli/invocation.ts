@@ -112,7 +112,7 @@ function suggestedPackageSpec(version: string): string {
   return channel === undefined ? "otter-code" : `otter-code@${channel}`;
 }
 
-export function formatCliCommand(input: {
+function formatCliCommand(input: {
   readonly subcommand: string;
   readonly entryPath: string;
   readonly version: string;

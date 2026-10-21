@@ -131,6 +131,10 @@ export const layer = Api.make(
         // same-zone tunnel hostnames bypass Cloudflare's front door and fail with 530.
         flags: ["nodejs_compat", "global_fetch_strictly_public"],
       },
+      // Requests run several Postgres queries in sequence. At the user's edge
+      // each one paid the round trip to the database (~300 ms from JNB); next
+      // to PlanetScale `us-west` the request pays that distance once.
+      placement: { region: "aws:us-west-2" },
       domain: relayPublicDomain,
     })),
     Effect.orDie,

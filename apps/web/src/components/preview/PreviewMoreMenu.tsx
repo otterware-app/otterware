@@ -1,5 +1,3 @@
-"use client";
-
 import type { DesktopPreviewColorScheme } from "@t3tools/contracts";
 import { MoreVertical } from "lucide-react";
 import { MinusIcon as Minus, Plus as PlusIcon, RotateCcwIcon as RotateCcw } from "~/lib/icons";

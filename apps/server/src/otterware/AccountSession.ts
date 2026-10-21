@@ -1,4 +1,5 @@
 import {
+  appLogin,
   makeOtterAccountSession,
   OtterAccountSession,
   type EnvironmentLogin,
@@ -33,8 +34,10 @@ const signedOut: EnvironmentLogin = {
 };
 
 /**
- * The environment's Otter Account is its own login (the one Code's relay link uses), kept
- * and renewed in the server secret store. Every module and Home use it; no client attaches it.
+ * The environment's Otter Account, which every module and Home use. A desktop app's built-in
+ * environment uses the account the app is signed in to (`appLogin`): same machine, same person,
+ * no separate sign-in. Any other environment signs in itself (the login Code's relay link uses),
+ * kept and renewed in the server secret store, and keeps working when a client signs out.
  * Provider grants are separate: Google is connected on this device only (`DeviceGoogle`).
  */
 export const layer = Layer.effect(
@@ -54,7 +57,7 @@ export const layer = Layer.effect(
     const run = <A, E>(effect: Effect.Effect<A, E, HttpClient.HttpClient>) =>
       Effect.runPromise(Effect.provideService(effect, HttpClient.HttpClient, http));
     let signingIn: Fiber.Fiber<unknown, unknown> | null = null;
-    const login: EnvironmentLogin = Option.match(tokens, {
+    const ownLogin: EnvironmentLogin = Option.match(tokens, {
       onNone: () => signedOut,
       onSome: (manager) => ({
         accessToken: () =>
@@ -118,6 +121,7 @@ export const layer = Layer.effect(
           ),
       }),
     });
+    const login = config.mode === "desktop" ? appLogin() : ownLogin;
     // Google is authorized per device; headless servers keep Mail and Calendar off (VMs deferred).
     const devices = config.mode === "desktop" ? yield* DeviceGoogle.make : null;
     const host = yield* Effect.acquireRelease(

@@ -102,7 +102,13 @@ for the security model.
 
 ## Checks
 
-Run checks for the files and packages you changed:
+`vp run check:changed` ([check-changed.mjs](../../scripts/otterware/check-changed.mjs)) checks
+your branch's changes: format and lint of the changed files, typecheck of the affected packages,
+and the test files beside the changed files, each in a shared heavy slot. It compares against the
+merge base with `origin/main` (or `--base <ref>`); dependents, full suites and browser tests run
+in CI. Upstream's `scripts/check-changed.ts` is not wired up here.
+
+While you iterate, run single checks:
 
 ```sh
 vp test run <files>
