@@ -8,7 +8,9 @@ import { useState } from "react";
 import { useAuth } from "../../accounts/AccountProvider";
 import { SettingsRow } from "../../components/settings/settingsLayout";
 import { Button } from "../../components/ui/button";
+import { isElectron } from "../../env";
 import { ensureLocalApi } from "../../localApi";
+import { usePrimaryEnvironmentId } from "../../state/environments";
 import { useEnvironmentQuery } from "../../state/query";
 import { useAtomCommand } from "../../state/use-atom-command";
 import {
@@ -26,9 +28,10 @@ function checked<A, E>(result: AtomCommandResult<A, E>): A {
 }
 
 /**
- * The environment's own Otter Account, which Code, Home, Mail, Calendar and Drive there use.
- * It is signed in on the environment itself (any client can approve it), so it keeps working
- * when this client signs out.
+ * The environment's Otter Account, which Code, Home, Mail, Calendar and Drive there use. A
+ * desktop app's built-in environment uses the app's account (`AppAccountHandoff`); any other
+ * environment is signed in on itself (any client can approve it), so it keeps working when this
+ * client signs out.
  */
 export function AccountConnections({ environmentId }: { environmentId: EnvironmentId }) {
   const auth = useAuth();
@@ -56,25 +59,42 @@ export function AccountConnections({ environmentId }: { environmentId: Environme
       setBusy(false);
     }
   };
+  const primaryEnvironmentId = usePrimaryEnvironmentId();
   const account = state.data;
   const pending = account?.pendingSignIn ?? null;
   const differs = Boolean(account?.accountId && auth.userId && account.accountId !== auth.userId);
+  // This app runs the environment, so the environment uses this app's sign-in.
+  const ownApp = isElectron && environmentId === primaryEnvironmentId;
   // Rows only: the host's "Otter Account connections" card draws the frame.
   return (
     <>
       <SettingsRow
         title={account?.email ?? "Not signed in"}
         description={
-          account?.accountId
-            ? differs
-              ? `This environment uses a different Otter Account than this app (${auth.user?.email ?? "you"}).`
-              : "This environment's Otter Account. Your mailbox list, preferences and projects follow it."
-            : pending
-              ? `Approve code ${pending.userCode} in your browser to sign this environment in.`
-              : "Sign this environment in to your Otter Account. It keeps its own sign-in."
+          account?.followsApp
+            ? account.accountId
+              ? "Uses this app's Otter Account. Your mailbox list, preferences and projects follow it."
+              : !ownApp
+                ? "Uses the Otter Account of the desktop app it runs in."
+                : auth.user
+                  ? `Connecting to this app's Otter Account (${auth.user.email}).`
+                  : "Sign in to this app to use your Otter Account here."
+            : account?.accountId
+              ? differs
+                ? `This environment uses a different Otter Account than this app (${auth.user?.email ?? "you"}).`
+                : "This environment's Otter Account. Your mailbox list, preferences and projects follow it."
+              : pending
+                ? `Approve code ${pending.userCode} in your browser to sign this environment in.`
+                : "Sign this environment in to your Otter Account. It keeps its own sign-in."
         }
         control={
-          account?.accountId ? (
+          account?.followsApp ? (
+            ownApp && auth.isLoaded && !auth.user ? (
+              <Button size="sm" onClick={() => void auth.signIn()}>
+                Sign in
+              </Button>
+            ) : null
+          ) : account?.accountId ? (
             <Button
               size="sm"
               variant="outline"

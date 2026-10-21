@@ -28,7 +28,9 @@ export const accountHandlers = Effect.gen(function* () {
       throw new Error(
         host.current()
           ? "Google can't be connected on this environment yet."
-          : "Sign this environment in to your Otter Account first.",
+          : host.status().followsApp
+            ? "Sign in to this app with your Otter Account first."
+            : "Sign this environment in to your Otter Account first.",
       );
     return account;
   };
@@ -44,6 +46,8 @@ export const accountHandlers = Effect.gen(function* () {
       }),
     "account.session.signIn": () => call((host) => host.signIn()),
     "account.session.signOut": () => call((host) => host.signOut()),
+    "account.session.useAppAccount": ({ accessToken }) =>
+      call((host) => host.useAppAccount(accessToken)),
     "account.connections.list": () =>
       call(async (host) => [...(await (host.providerAccount()?.connections() ?? []))]),
     "account.connections.connect": ({ provider }) => call((host) => device(host).connect(provider)),

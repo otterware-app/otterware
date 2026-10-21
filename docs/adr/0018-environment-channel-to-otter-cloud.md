@@ -1,7 +1,10 @@
 # Environments reach Otter Cloud over their own channel, not the Code relay
 
-An environment signed in to an Otter Account keeps an offline token for it in its server secret
-store (from the existing account sign-in) and holds one WebSocket to Otter Cloud's `UserHub`,
+An environment acts as one Otter Account. A headless environment signs in itself and keeps an
+offline token in its server secret store (the existing account sign-in). A desktop app's built-in
+environment has no sign-in of its own: it uses the account the app is signed in to, whose access
+token the app hands it while open, and signs out with the app. Either way it trades that token for
+a suite session (`/suite/session`, up to 30 days) and holds one WebSocket to Otter Cloud's `UserHub`,
 the Durable Object that already pushes Gmail changes to Mail devices. Over it the environment
 receives Gmail push and short-lived provider tokens (ADR 0007), and syncs account-wide data
 (ADR 0019). To Otter Cloud an environment is just another device.

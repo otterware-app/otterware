@@ -123,9 +123,10 @@ it.effect("uses the shared host account and observes detach without a second Goo
         attached
           ? { ...identity, connect: async () => ({ url: "" }), disconnect: async () => {} }
           : null,
-      status: () => ({ pendingSignIn: null, error: null }),
+      status: () => ({ pendingSignIn: null, error: null, followsApp: false }),
       signIn: () => Promise.reject(new Error("unused")),
       signOut: async () => {},
+      useAppAccount: async () => {},
       subscribe: () => () => {},
     });
     const context = yield* Layer.build(

@@ -46,14 +46,57 @@ export interface SignInPrompt {
   readonly userCode: string;
   readonly expiresAt: number;
 }
+/** The login has no fresh token right now; the environment keeps its current session. */
+export class LoginUnavailable extends Error {
+  constructor() {
+    super("Waiting for a fresh Otter Account token.");
+  }
+}
 /** The environment's own Otter Account login, owned and renewed by the host. */
 export interface EnvironmentLogin {
-  /** A current access token for the environment's login, or null while signed out. */
+  /**
+   * A current access token for the environment's login, or null while signed out. Rejects with
+   * `LoginUnavailable` while no fresh token can be read, which keeps the current session.
+   */
   readonly accessToken: () => Promise<string | null>;
   /** Starts a device sign-in; the host stores the login and calls `signedIn` once approved. */
   readonly signIn: (signedIn: () => void) => Promise<SignInPrompt>;
   /** Revokes the environment's login at Accounts and forgets it. */
   readonly signOut: () => Promise<void>;
+  /** Present when the environment is built into an app and uses the app's account (`appLogin`). */
+  readonly hand?: (accessToken: string | null) => void;
+}
+
+/**
+ * The login of an environment built into a desktop app: it uses the Otter Account the app is
+ * signed in to, so there is no separate sign-in. The app hands over a fresh access token (null
+ * once it signs out); the environment trades it for its suite session and keeps that session,
+ * renewing it with the next token the app hands over. The app owns and revokes its own grant.
+ */
+export function appLogin(): EnvironmentLogin {
+  let signedIn = false;
+  let handed: string | null = null;
+  return {
+    accessToken: async () => {
+      if (!signedIn) return null;
+      const token = handed;
+      handed = null;
+      if (token === null) throw new LoginUnavailable();
+      return token;
+    },
+    signIn: () =>
+      Promise.reject(
+        new Error("Sign in to this app. Its built-in environment uses the app's Otter Account."),
+      ),
+    signOut: async () => {
+      signedIn = false;
+      handed = null;
+    },
+    hand: (accessToken) => {
+      signedIn = accessToken !== null;
+      handed = accessToken;
+    },
+  };
 }
 export class OtterAccountSession extends Context.Service<
   OtterAccountSession,
@@ -68,9 +111,13 @@ export class OtterAccountSession extends Context.Service<
     readonly status: () => {
       readonly pendingSignIn: SignInPrompt | null;
       readonly error: string | null;
+      /** The environment uses the account of the app it is built into (`appLogin`). */
+      readonly followsApp: boolean;
     };
     readonly signIn: () => Promise<SignInPrompt>;
     readonly signOut: () => Promise<void>;
+    /** The app's current access token, or null once the app signs out (`appLogin` only). */
+    readonly useAppAccount: (accessToken: string | null) => Promise<void>;
     readonly subscribe: (listener: () => void) => () => void;
   }
 >()("@otterware/module-kit/account/OtterAccountSession") {}
@@ -167,7 +214,11 @@ export function makeOtterAccountSession(options: {
       sessionToken: async () => {
         if (!session || session.expiresAt <= Date.now()) await refresh();
         if (!session || session.user.id !== accountId || session.expiresAt <= Date.now())
-          throw new Error("Sign in to your Otter Account on this environment again.");
+          throw new Error(
+            options.login.hand
+              ? "Sign in to this app with your Otter Account again."
+              : "Sign in to your Otter Account on this environment again.",
+          );
         return session.token;
       },
     });
@@ -190,11 +241,13 @@ export function makeOtterAccountSession(options: {
     changed();
   };
   const exchange = async (version: number) => {
-    const accessToken = await options.login.accessToken().catch(() => {
+    const accessToken = await options.login.accessToken().catch((cause: unknown) => {
+      if (cause instanceof LoginUnavailable) return undefined;
       error = "This environment's Otter Account sign-in ended. Sign it in again.";
       return null;
     });
     if (closed || version !== generation) return;
+    if (accessToken === undefined) return;
     if (!accessToken) {
       uninstall();
       return;
@@ -269,6 +322,7 @@ export function makeOtterAccountSession(options: {
     status: () => ({
       pendingSignIn: pendingSignIn && pendingSignIn.expiresAt > Date.now() ? pendingSignIn : null,
       error,
+      followsApp: options.login.hand !== undefined,
     }),
     signIn: async () => {
       const active = service.status().pendingSignIn;
@@ -289,6 +343,14 @@ export function makeOtterAccountSession(options: {
       ++generation;
       uninstall();
       changed();
+    },
+    useAppAccount: async (accessToken) => {
+      const hand = options.login.hand;
+      if (!hand) throw new Error("This environment keeps its own Otter Account sign-in.");
+      hand(accessToken);
+      // Let a renewal already in flight finish, so this token is the one exchanged.
+      await refreshing;
+      await refresh();
     },
     subscribe: (listener) => {
       listeners.add(listener);

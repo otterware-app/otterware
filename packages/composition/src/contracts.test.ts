@@ -11,6 +11,7 @@ describe("composeContracts", () => {
     expect([...code.group.requests.keys()].some((tag) => tag.startsWith("mail."))).toBe(false);
 
     expect(code.scopes["account.session.signIn"]).toBe("settings:write");
+    expect(code.scopes["account.session.useAppAccount"]).toBe("settings:write");
     expect(code.scopes["account.connections.list"]).toBe("orchestration:read");
 
     const calendar = composeContracts(PROFILES.calendar);
