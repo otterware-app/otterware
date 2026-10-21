@@ -598,6 +598,9 @@ function AccountEditor({ account }: { account: GmailAccount }) {
         <Text variant="small">
           Otter Mail stops syncing {account.email} and deletes its local copy. Nothing is deleted
           from {mailServerName(account)} — you can add the account again any time.
+          {signsInWithGoogle(account)
+            ? " It is also unlinked from your Otter Account, so Mail and Calendar on every device stop using it."
+            : null}
         </Text>
       </Dialog>
     </>

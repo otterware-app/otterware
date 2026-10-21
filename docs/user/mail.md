@@ -11,7 +11,7 @@ close it to continue here. Pairing an environment switches Mail to that environm
 In the desktop app, Mail lists the Google accounts linked to your Otter Account, the same on
 every device. Choose **Allow Mail access** on an account once per device to read its mail there.
 Removing a mailbox unlinks the Google account from your Otter Account, so Mail and Calendar on
-every device stop using it. **Settings → Connections** shows the same list.
+every device stop using it. Calendar's settings list the same accounts.
 
 The desktop app can open attachments in local apps and drag them into other apps. On Mac,
 translation uses Apple's on-device models; install the required languages in macOS settings.

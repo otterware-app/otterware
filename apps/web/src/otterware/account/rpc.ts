@@ -26,10 +26,6 @@ export const connectProvider = createEnvironmentRpcCommand(connectionAtomRuntime
   label: "otterware:provider-connect",
   tag: "account.connections.connect",
 });
-export const unlinkProvider = createEnvironmentRpcCommand(connectionAtomRuntime, {
-  label: "otterware:provider-unlink",
-  tag: "account.connections.unlink",
-});
 export const handAppAccount = createEnvironmentRpcCommand(connectionAtomRuntime, {
   label: "otterware:account-use-app",
   tag: "account.session.useAppAccount",
