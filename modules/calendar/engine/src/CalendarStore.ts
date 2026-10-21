@@ -249,6 +249,12 @@ export function makeCalendarStore(sql: SqlClient.SqlClient) {
       WHERE account_id = ${accountId}
     `.pipe(Effect.asVoid);
 
+  /** Moves an account to another sign-in of the same Google account, keeping its calendars. */
+  const setAccountExternalId = (accountId: string, externalId: string) =>
+    sql`
+      UPDATE calendar_accounts SET external_id = ${externalId} WHERE account_id = ${accountId}
+    `.pipe(Effect.asVoid);
+
   const setAccountStatus = (
     accountId: string,
     status: CalendarAccountStatus,
@@ -651,6 +657,7 @@ export function makeCalendarStore(sql: SqlClient.SqlClient) {
     findAccount,
     insertAccount,
     updateAccountProfile,
+    setAccountExternalId,
     setAccountStatus,
     setCalendarListSyncToken,
     nextAccountPosition,

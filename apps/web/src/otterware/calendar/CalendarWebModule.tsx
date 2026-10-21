@@ -146,7 +146,7 @@ function useSidebar(): readonly ModuleSidebarSection[] {
         id: "calendars",
         title: "Calendars",
         rows: [],
-        empty: state.error ?? "Connect a calendar in Settings › Connections.",
+        empty: state.error ?? "Link a Google account to see its calendars.",
       },
     ]
   );

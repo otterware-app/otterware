@@ -45,7 +45,7 @@ function useSetupStage(): SetupStage | null {
 
 /** Shows the setup (again), from `step` when given. */
 export function startSetup(_step?: string): void {
-  mailHost().navigate("/settings/connections");
+  mailHost().navigate("/mail");
 }
 
 function finishSetup(): void {

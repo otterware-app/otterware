@@ -18,6 +18,11 @@ const login = (accessToken: () => Promise<string | null>): EnvironmentLogin => (
   signIn: () => Promise.reject(new Error("unused")),
   signOut: async () => {},
 });
+/** Accounts, like production, refuses a suite session request that is not a JSON post. */
+const accounts = (init: RequestInit | undefined, id: string) =>
+  new Headers(init?.headers).get("content-type") === "application/json" && init?.body === "{}"
+    ? Response.json(suite(id))
+    : new Response(null, { status: 415 });
 const changed = (host: ReturnType<typeof makeOtterAccountSession>) =>
   new Promise<void>((resolve) => {
     const stop = host.service.subscribe(() => {
@@ -30,8 +35,8 @@ describe("host account session", () => {
   it("follows the environment's own login, with no client attaching it", async () => {
     const fetcher = vi.fn<typeof fetch>(async (url, init) => {
       if (!String(url).endsWith("/suite/session")) throw new Error("channel offline");
-      expect(init?.headers).toEqual({ authorization: "Bearer environment-access" });
-      return Response.json(suite("alice"));
+      expect(new Headers(init?.headers).get("authorization")).toBe("Bearer environment-access");
+      return accounts(init, "alice");
     });
     const signOut = vi.fn(async () => {});
     const host = makeOtterAccountSession({
@@ -52,8 +57,8 @@ describe("host account session", () => {
   it("gives Mail and Calendar no provider account without this device's grants", async () => {
     const host = makeOtterAccountSession({
       ...options,
-      fetch: async (url) => {
-        if (String(url).endsWith("/suite/session")) return Response.json(suite("alice"));
+      fetch: async (url, init) => {
+        if (String(url).endsWith("/suite/session")) return accounts(init, "alice");
         throw new Error("offline");
       },
       login: login(async () => "environment-access"),
@@ -73,8 +78,8 @@ describe("host account session", () => {
       ...options,
       fetch: async (url, init) => {
         if (!String(url).endsWith("/suite/session")) throw new Error("channel offline");
-        exchanged.push(init?.headers);
-        return Response.json(suite("alice"));
+        exchanged.push(new Headers(init?.headers).get("authorization"));
+        return accounts(init, "alice");
       },
       login: appLogin(),
     });
@@ -86,7 +91,7 @@ describe("host account session", () => {
       // Renewals without a fresh token from the app keep the session instead of signing out.
       await vi.advanceTimersByTimeAsync(2 * 60 * 60_000);
       expect(host.service.current()?.email).toBe("alice@example.test");
-      expect(exchanged).toEqual([{ authorization: "Bearer app-access" }]);
+      expect(exchanged).toEqual(["Bearer app-access"]);
       await host.service.useAppAccount(null);
       expect(host.service.current()).toBeNull();
     } finally {

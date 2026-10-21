@@ -55,6 +55,8 @@ it.effect(
           Effect.gen(function* () {
             headers.push(request.headers.authorization ?? "");
             expect(request.url).toBe("https://accounts.test/v1/auth/suite/session");
+            // Accounts answers 415 to anything but a JSON post.
+            expect(request.headers["content-type"]).toBe("application/json");
             const now = yield* Clock.currentTimeMillis;
             return HttpClientResponse.fromWeb(
               request,
@@ -121,7 +123,13 @@ it.effect("uses the shared host account and observes detach without a second Goo
       current: () => (attached ? identity : null),
       providerAccount: () =>
         attached
-          ? { ...identity, connect: async () => ({ url: "" }), disconnect: async () => {} }
+          ? {
+              ...identity,
+              linked: async () => [],
+              connect: async () => ({ url: "" }),
+              disconnect: async () => {},
+              unlink: async () => {},
+            }
           : null,
       status: () => ({ pendingSignIn: null, error: null, followsApp: false }),
       signIn: () => Promise.reject(new Error("unused")),

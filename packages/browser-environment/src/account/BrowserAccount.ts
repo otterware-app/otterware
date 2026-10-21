@@ -105,28 +105,33 @@ export const layer = Layer.effect(
       account: CloudAccount;
     } | null = null;
 
-    const exchange = (credential: BrowserAccountCredential) =>
-      Effect.gen(function* () {
-        const response = yield* Effect.tryPromise({
-          try: (signal) =>
-            platform.fetch(`${credential.accountsUrl.replace(/\/$/, "")}/suite/session`, {
-              method: "POST",
-              headers: { authorization: `Bearer ${credential.accessToken}` },
-              credentials: "omit",
-              cache: "no-store",
-              signal,
-            }),
-          catch: () => unavailable(),
-        });
-        if (response.status === 401 || response.status === 403)
-          return yield* signedOut("Your Otter session has ended. Sign in again.");
-        if (!response.ok) return yield* unavailable();
-        const body = yield* Effect.tryPromise({
-          try: () => response.json() as Promise<unknown>,
-          catch: () => unavailable(),
-        });
-        return yield* decodeSuiteSession(body).pipe(Effect.mapError(() => unavailable()));
+    const exchange = Effect.fn("BrowserAccount.exchange")(function* (
+      credential: BrowserAccountCredential,
+    ) {
+      const response = yield* Effect.tryPromise({
+        try: (signal) =>
+          platform.fetch(`${credential.accountsUrl.replace(/\/$/, "")}/suite/session`, {
+            method: "POST",
+            headers: {
+              authorization: `Bearer ${credential.accessToken}`,
+              "content-type": "application/json",
+            },
+            body: "{}",
+            credentials: "omit",
+            cache: "no-store",
+            signal,
+          }),
+        catch: () => unavailable(),
       });
+      if (response.status === 401 || response.status === 403)
+        return yield* signedOut("Your Otter session has ended. Sign in again.");
+      if (!response.ok) return yield* unavailable();
+      const body = yield* Effect.tryPromise({
+        try: () => response.json() as Promise<unknown>,
+        catch: () => unavailable(),
+      });
+      return yield* decodeSuiteSession(body).pipe(Effect.mapError(() => unavailable()));
+    });
 
     /** One channel connection: resolves when it closes, fails when it cannot open. */
     const connectOnce = (account: CloudAccount) =>
@@ -176,46 +181,47 @@ export const layer = Layer.effect(
         ),
       );
 
-    const attachUnlocked = (credential: BrowserAccountCredential) =>
-      Effect.gen(function* () {
-        const previous = attached;
-        if (previous === null)
-          yield* SubscriptionRef.set(state, { status: "connecting", userId: null, message: null });
-        const session = yield* exchange(credential);
-        const sameAccount =
-          previous !== null &&
-          previous.account.accountId === session.user.id &&
-          previous.credential.cloudOrigin === credential.cloudOrigin;
-        if (sameAccount) {
-          // The client reads the session through this cell, so a renewed one applies at once.
-          previous.session.token = session.token;
-          attached = { credential, session: previous.session, account: previous.account };
-        } else {
-          previous?.account.client.clearSession();
-          const current = { token: session.token };
-          const client = yield* Effect.try({
-            try: () =>
-              new OtterCloudClient({
-                origin: credential.cloudOrigin,
-                audience,
-                sessionToken: async () => current.token,
-                fetch: platform.fetch,
-                WebSocket: platform.WebSocket,
-              }),
-            catch: () => unavailable("This build's Otter Cloud address is invalid."),
-          });
-          const account: CloudAccount = { accountId: session.user.id, audience, client };
-          attached = { credential, session: current, account };
-          yield* FiberHandle.run(channel, runChannel(account));
-        }
-        const next: BrowserAccountState = {
-          status: "connected",
-          userId: session.user.id,
-          message: null,
-        };
-        yield* SubscriptionRef.set(state, next);
-        return next;
-      });
+    const attachUnlocked = Effect.fn("BrowserAccount.attach")(function* (
+      credential: BrowserAccountCredential,
+    ) {
+      const previous = attached;
+      if (previous === null)
+        yield* SubscriptionRef.set(state, { status: "connecting", userId: null, message: null });
+      const session = yield* exchange(credential);
+      const sameAccount =
+        previous !== null &&
+        previous.account.accountId === session.user.id &&
+        previous.credential.cloudOrigin === credential.cloudOrigin;
+      if (sameAccount) {
+        // The client reads the session through this cell, so a renewed one applies at once.
+        previous.session.token = session.token;
+        attached = { credential, session: previous.session, account: previous.account };
+      } else {
+        previous?.account.client.clearSession();
+        const current = { token: session.token };
+        const client = yield* Effect.try({
+          try: () =>
+            new OtterCloudClient({
+              origin: credential.cloudOrigin,
+              audience,
+              sessionToken: async () => current.token,
+              fetch: platform.fetch,
+              WebSocket: platform.WebSocket,
+            }),
+          catch: () => unavailable("This build's Otter Cloud address is invalid."),
+        });
+        const account: CloudAccount = { accountId: session.user.id, audience, client };
+        attached = { credential, session: current, account };
+        yield* FiberHandle.run(channel, runChannel(account));
+      }
+      const next: BrowserAccountState = {
+        status: "connected",
+        userId: session.user.id,
+        message: null,
+      };
+      yield* SubscriptionRef.set(state, next);
+      return next;
+    });
 
     const detachUnlocked = Effect.gen(function* () {
       yield* FiberHandle.clear(channel);

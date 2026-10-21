@@ -277,15 +277,10 @@ export function HomeView() {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4">
         <EmptyState
-          title="Connect a mailbox"
-          description="Connect Google on this device for Mail and Calendar, or add another mailbox in Connections."
+          title="Link a Google account"
+          description="The Google accounts linked to your Otter Account show up here, on every device. Each device allows Mail access once."
         />
-        <div className="flex gap-2">
-          <Button onClick={connectMailbox}>Connect Google on this device</Button>
-          <Button variant="outline" onClick={() => mailHost().navigate("/settings/connections")}>
-            Open Connections
-          </Button>
-        </div>
+        <Button onClick={() => connectMailbox()}>Link Google account</Button>
       </div>
     );
   }

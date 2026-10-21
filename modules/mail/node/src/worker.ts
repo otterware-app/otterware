@@ -53,6 +53,9 @@ const session: OtterAccountSession | undefined = options.accountId
       providerToken: (id) => host("providerToken", id),
       push: (records) => host("push", records),
       pull: (cursor) => host("pull", cursor),
+      ...(options.linksAccounts
+        ? { linked: () => host("linked"), unlink: (email: string) => host("unlink", email) }
+        : {}),
       subscribe: (listener) => {
         listeners.add(listener);
         return () => listeners.delete(listener);

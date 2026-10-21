@@ -11,9 +11,9 @@ import { connectProvider } from "./rpc";
 export type ConnectableProvider = keyof typeof PROVIDER_SCOPES;
 
 /**
- * Connects Google on this device: one consent for Mail, Calendar and contacts here, kept by
- * the environment (or this browser). It does not follow the account to other devices.
- * Settings, Mail and Calendar all start it here.
+ * Authorizes Google on this device and links the account to the Otter Account: one consent for
+ * Mail, Calendar and contacts here. Pass a linked account's `email` to authorize it on this
+ * device or to add access it lacks. Settings, Mail and Calendar all start it here.
  */
 export function useConnectProvider(environmentId?: EnvironmentId) {
   const moduleTarget = useModuleTarget();
@@ -21,18 +21,15 @@ export function useConnectProvider(environmentId?: EnvironmentId) {
     environmentId ?? (moduleTarget._tag === "environment" ? moduleTarget.environmentId : null);
   const connect = useAtomCommand(connectProvider);
   return useCallback(
-    async (provider: ConnectableProvider) => {
-      const input = {
-        provider,
-        scopes: [...PROVIDER_SCOPES[provider]],
-        returnTo: window.location.href,
-      };
+    async (provider: ConnectableProvider, email?: string) => {
       // Google is authorized per device: this browser keeps its own sealed grant.
       if (!targetEnvironment) return connectGoogleInBrowser();
-      const result = await connect({ environmentId: targetEnvironment, input });
+      const result = await connect({
+        environmentId: targetEnvironment,
+        input: { provider, ...(email ? { email } : {}) },
+      });
       if (result._tag === "Failure") throw squashAtomCommandFailure(result);
-      const url = result.value.url;
-      await ensureLocalApi().shell.openExternal(url);
+      await ensureLocalApi().shell.openExternal(result.value.url);
     },
     [targetEnvironment, connect],
   );

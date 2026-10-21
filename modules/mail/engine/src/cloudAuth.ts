@@ -2,45 +2,66 @@ import type { OtterAccountSession } from "./AccountSession.ts";
 import type { GoogleAuth } from "./platform.ts";
 import * as accountStore from "./services/account-store.ts";
 
-/** Account connections are authoritative; token failures never fall back to a different grant. */
+/** Full Gmail access; Calendar-only sign-ins on this device can't read mail. */
+const MAIL_SCOPE = "https://mail.google.com/";
+const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+/**
+ * Every Google account linked to the Otter Account is a mailbox here; it is signed in once this
+ * device has authorized it for Mail. Token failures never fall back to a different grant.
+ */
 export function accountGoogleAuth(session: OtterAccountSession, local: GoogleAuth): GoogleAuth {
   let connections: Awaited<ReturnType<OtterAccountSession["connections"]>> = [];
+  let linked: string[] = [];
   return {
     ...local,
     async load() {
-      connections = await session.connections();
-      for (const connection of connections.filter((c) => c.provider === "google")) {
-        const existing = await accountStore.getAccount(connection.email);
+      const google = (await session.connections()).filter((c) => c.provider === "google");
+      connections = google.filter((c) => c.scopes.includes(MAIL_SCOPE));
+      linked = session.linked
+        ? (await session.linked()).map((account) => account.connection?.email ?? account.email)
+        : connections.map((c) => c.email);
+      for (const email of linked) {
+        const existing = await accountStore.getAccount(email);
         await accountStore.addAccount({
           ...existing,
-          id: connection.email,
-          email: connection.email,
-          name: existing?.name ?? connection.email,
+          id: email,
+          email,
+          name: existing?.name ?? email,
           provider: "gmail",
         });
       }
+      if (!session.linked) return;
+      // Unlinked on another device, which also forgot this device's grant: the mailbox goes.
+      const { removeLocalAccount } = await import("./handlers/gmail.ts");
+      for (const account of await accountStore.listAccounts())
+        if (
+          account.provider === "gmail" &&
+          !linked.some((email) => same(email, account.email)) &&
+          !google.some((c) => same(c.email, account.email))
+        )
+          await removeLocalAccount(account.id);
     },
-    isSignedIn: (id) => connections.some((c) => c.provider === "google" && c.email === id),
+    isSignedIn: (id) => connections.some((c) => same(c.email, id)),
     async addAccount(email) {
-      const connection = connections.find(
-        (c) => c.provider === "google" && (!email || c.email === email),
-      );
-      if (!connection) throw new Error("Connect a Google mailbox in the host's Account settings.");
+      const connection = connections.find((c) => !email || same(c.email, email));
+      if (!connection) throw new Error("Allow Mail access to this Google account on this device.");
       const account = await accountStore.getAccount(connection.email);
       if (!account) throw new Error("Reload the environment's provider connections.");
       return account;
     },
     async getAccessToken(id) {
-      const connection = connections.find((c) => c.provider === "google" && c.email === id);
-      if (!connection)
-        throw new Error("This Google mailbox is not connected to the Otter Account.");
+      const connection = connections.find((c) => same(c.email, id));
+      if (!connection) throw new Error("Allow Mail access to this Google account on this device.");
       return (await session.providerToken(connection.id)).accessToken;
     },
     async getIdToken() {
       throw new Error("The host owns Otter Account identity.");
     },
-    async removeTokens() {
-      /* Removing a local mailbox must not revoke another environment's account grant. */
+    async removeTokens(id) {
+      // Removing a mailbox unlinks its Google account from the Otter Account, on every device.
+      // It never revokes Google's grant, which other devices' sign-ins share.
+      if (session.unlink && linked.some((email) => same(email, id))) await session.unlink(id);
     },
   };
 }

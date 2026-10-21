@@ -1,29 +1,25 @@
-# Module data is environment-local; provider connections are held by the Otter Account
+# Module data is environment-local; Google accounts are linked to the Otter Account
 
 Every environment that has Mail or Calendar turned on syncs and stores its own cache, and its
 threads use that environment's own `mail_*` and `calendar_*` tools. This is T3 Code's existing
 rule (an environment owns its state, `docs/internals/remote.md`) and how Mail already treats
 devices. Drive stays a cloud service that every environment calls with an Otter Account token.
 
-Google and Microsoft provider connections belong to the Otter Account: Otter Cloud stores the
-encrypted refresh tokens and hands each linked environment short-lived access tokens on
-request, generalizing the relay's existing Linear sign-in hand-out (`docs/internals/t3-connect.md`).
-An environment with no Otter Account can still connect Google locally (loopback PKCE into its own
-secret store). Data that must be the same everywhere, such as Mail projects, views and Home
-projects, lives in Otter Cloud rather than in any environment.
+The Otter Account holds the list of Google accounts linked to it, the same on every device
+(synced account settings, `packages/module-kit/src/account/linked.ts`). It never holds their
+tokens: each device authorizes the linked accounts itself, with one consent for Mail, Calendar
+and contacts, and keeps the refresh token in its own secret store (`DeviceGoogle`). Authorizing
+an account on a device links it; unlinking it anywhere removes it from every device. Data that
+must be the same everywhere, such as Mail projects, views and Home projects, lives in Otter
+Cloud rather than in any environment.
 
 We rejected a single home environment that others forward to (needs new server-to-server
 forwarding with grants and send deduplication, and remote tools stop whenever that machine
-sleeps) and per-environment Google sign-in with no account involvement (the user signs into
-Google on every machine and account-wide data drifts apart).
+sleeps), per-environment Google sign-in with no account involvement (each machine ends up with a
+different set of accounts), and refresh tokens held in Otter Cloud (they would leave the user's
+machines, which brings Google's restricted-scope security assessment for Gmail).
 
-Consequences: refresh tokens leave the user's machines, which likely brings Google's restricted
-scope security assessment for Gmail, so start it early; each environment with Mail on syncs its
-own copy of the mailbox; the renderer-driven account fan-out (`SuiteAccountProvider`) is deleted.
-
-Google ties a refresh token to the OAuth client that issued it. Account-held connections use the
-`otterware` project's "Otterware - Web" client (the one Accounts and Mail web already use, and
-which already expects the CASA assessment because web Mail's tokens pass through a server).
-Existing desktop grants from the Mac and Calendar desktop clients cannot move into Otter Cloud,
-so those users connect their Google account once more at the cutover; local-only connections
-keep using the desktop clients.
+Consequences: each device asks for Google consent once per linked account; each environment
+with Mail on syncs its own copy of the mailbox. Google ties a refresh token to the OAuth client
+that issued it, so devices use the desktop client; Calendar's earlier sign-ins from that client
+become linked accounts with Calendar-only access until the user allows Mail access.

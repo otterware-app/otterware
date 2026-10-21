@@ -8,9 +8,10 @@ then connect Google or Microsoft from Mail's account settings. This browser stor
 locally; clearing site data removes that cache. If another tab already runs Mail, switch to it or
 close it to continue here. Pairing an environment switches Mail to that environment's mailboxes.
 
-With an environment selected, choose **Use my Otter Account on this environment** in Mail's
-account settings to let it use your provider connections. **Disconnect environment** removes
-that access. It does not disconnect the provider from your Otter Account.
+In the desktop app, Mail lists the Google accounts linked to your Otter Account, the same on
+every device. Choose **Allow Mail access** on an account once per device to read its mail there.
+Removing a mailbox unlinks the Google account from your Otter Account, so Mail and Calendar on
+every device stop using it. **Settings → Connections** shows the same list.
 
 The desktop app can open attachments in local apps and drag them into other apps. On Mac,
 translation uses Apple's on-device models; install the required languages in macOS settings.

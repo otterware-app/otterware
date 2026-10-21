@@ -494,91 +494,91 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
     PubSub.publish(changes, { _tag: "replace", calendarId }).pipe(Effect.asVoid);
 
   /** Writes the difference between a series' stored rows and `next`; returns the changes. */
-  const writeDiff = (
+  const writeDiff = Effect.fn("CalendarServiceLive.writeDiff")(function* (
     calendarId: string,
     previous: ReadonlyArray<InstanceRow>,
     next: ReadonlyArray<InstanceRow>,
-  ) =>
-    Effect.gen(function* () {
-      const old = new Map(previous.map((row) => [row.instanceId, row]));
-      const unique = new Map(next.map((row) => [row.instanceId, row]));
-      const upserts: Array<InstanceRow> = [];
-      const list: Array<InstanceChange> = [];
-      for (const row of unique.values()) {
-        const before = old.get(row.instanceId);
-        old.delete(row.instanceId);
-        if (before !== undefined && sameInstanceRow(before, row)) continue;
-        upserts.push(row);
-        list.push({
-          key: instanceKey(row),
-          instance: toInstance(row),
-          ...(before ? { previous: { start: before.start, end: before.end } } : {}),
-        });
-      }
-      for (const removed of old.values()) {
-        list.push({
-          key: instanceKey(removed),
-          previous: { start: removed.start, end: removed.end },
-        });
-      }
-      yield* store.deleteInstances(calendarId, [...old.keys()]);
-      yield* store.upsertInstances(upserts);
-      return list;
-    });
+  ) {
+    const old = new Map(previous.map((row) => [row.instanceId, row]));
+    const unique = new Map(next.map((row) => [row.instanceId, row]));
+    const upserts: Array<InstanceRow> = [];
+    const list: Array<InstanceChange> = [];
+    for (const row of unique.values()) {
+      const before = old.get(row.instanceId);
+      old.delete(row.instanceId);
+      if (before !== undefined && sameInstanceRow(before, row)) continue;
+      upserts.push(row);
+      list.push({
+        key: instanceKey(row),
+        instance: toInstance(row),
+        ...(before ? { previous: { start: before.start, end: before.end } } : {}),
+      });
+    }
+    for (const removed of old.values()) {
+      list.push({
+        key: instanceKey(removed),
+        previous: { start: removed.start, end: removed.end },
+      });
+    }
+    yield* store.deleteInstances(calendarId, [...old.keys()]);
+    yield* store.upsertInstances(upserts);
+    return list;
+  });
 
   /** Re-materializes the given series of a calendar over its horizon. */
-  const rematerialize = (calendar: CalendarRecord, keys: Iterable<string>) =>
-    Effect.gen(function* () {
-      const list: Array<InstanceChange> = [];
-      for (const key of keys) {
-        const { master, exceptions } = yield* store.seriesEvents(calendar.calendarId, key);
-        const rows = materializeSeries({
-          calendarId: calendar.calendarId,
-          key,
-          master: master?.event,
-          exceptions: exceptions.map((entry) => entry.event),
-          role: calendar.accessRole,
-          zone: zoneFor(calendar),
-          horizon: { start: calendar.horizonStart, end: calendar.horizonEnd },
-        });
-        const previous = yield* store.instancesOfSource(calendar.calendarId, key);
-        list.push(...(yield* writeDiff(calendar.calendarId, previous, rows)));
-      }
-      return list;
-    });
+  const rematerialize = Effect.fn("CalendarServiceLive.rematerialize")(function* (
+    calendar: CalendarRecord,
+    keys: Iterable<string>,
+  ) {
+    const list: Array<InstanceChange> = [];
+    for (const key of keys) {
+      const { master, exceptions } = yield* store.seriesEvents(calendar.calendarId, key);
+      const rows = materializeSeries({
+        calendarId: calendar.calendarId,
+        key,
+        master: master?.event,
+        exceptions: exceptions.map((entry) => entry.event),
+        role: calendar.accessRole,
+        zone: zoneFor(calendar),
+        horizon: { start: calendar.horizonStart, end: calendar.horizonEnd },
+      });
+      const previous = yield* store.instancesOfSource(calendar.calendarId, key);
+      list.push(...(yield* writeDiff(calendar.calendarId, previous, rows)));
+    }
+    return list;
+  });
 
   /**
    * Stores events of one calendar and re-materializes the series they belong to. Cancelled
    * exceptions stay stored (they remove their occurrence); other cancelled events are
    * deletions and keep their details as a tombstone for restoring. Runs under the lock.
    */
-  const applyEvents = (
+  const applyEvents = Effect.fn("CalendarServiceLive.applyEvents")(function* (
     calendar: CalendarRecord,
     upserts: ReadonlyArray<RemoteEvent>,
     skipStale: boolean,
-  ) =>
-    Effect.gen(function* () {
-      const toStore: Array<RemoteEvent> = [];
-      const keys = new Set<string>();
-      for (const incoming of upserts) {
-        const stored = yield* store.getEvent(calendar.calendarId, incoming.id);
-        if (skipStale && stored?.updatedMs != null) {
-          const incomingUpdated = incoming.updated ? Date.parse(incoming.updated) : Number.NaN;
-          if (!Number.isNaN(incomingUpdated) && incomingUpdated < stored.updatedMs) continue;
-        }
-        let event = incoming;
-        if (incoming.status === "cancelled") {
-          if (stored === undefined && incoming.recurringEventId === undefined) continue;
-          if (stored !== undefined) event = { ...stored.event, ...incoming };
-        }
-        toStore.push(event);
-        keys.add(seriesKeyOf(event));
-        if (stored !== undefined) keys.add(seriesKeyOf(stored.event));
+  ) {
+    const toStore: Array<RemoteEvent> = [];
+    const keys = new Set<string>();
+    for (const incoming of upserts) {
+      const stored = yield* store.getEvent(calendar.calendarId, incoming.id);
+      if (skipStale && stored?.updatedMs != null) {
+        const incomingUpdated = incoming.updated ? Date.parse(incoming.updated) : Number.NaN;
+        if (!Number.isNaN(incomingUpdated) && incomingUpdated < stored.updatedMs) continue;
       }
-      if (toStore.length === 0) return [];
-      yield* store.upsertEvents(calendar.calendarId, toStore, zoneFor(calendar));
-      return yield* rematerialize(calendar, keys);
-    });
+      let event = incoming;
+      if (incoming.status === "cancelled") {
+        if (stored === undefined && incoming.recurringEventId === undefined) continue;
+        if (stored !== undefined) event = { ...stored.event, ...incoming };
+      }
+      toStore.push(event);
+      keys.add(seriesKeyOf(event));
+      if (stored !== undefined) keys.add(seriesKeyOf(stored.event));
+    }
+    if (toStore.length === 0) return [];
+    yield* store.upsertEvents(calendar.calendarId, toStore, zoneFor(calendar));
+    return yield* rematerialize(calendar, keys);
+  });
 
   /** Applies events to a calendar in one transaction and publishes the diff. */
   const applyLocal = (calendarId: string, events: ReadonlyArray<RemoteEvent>) =>
@@ -592,93 +592,97 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
     );
 
   /** Replaces all of a calendar's events (a full sync), atomically. */
-  const replaceEvents = (calendar: CalendarRecord, events: ReadonlyArray<RemoteEvent>) =>
-    Effect.gen(function* () {
-      const kept = events.filter(
-        (event) => event.status !== "cancelled" || event.recurringEventId !== undefined,
+  const replaceEvents = Effect.fn("CalendarServiceLive.replaceEvents")(function* (
+    calendar: CalendarRecord,
+    events: ReadonlyArray<RemoteEvent>,
+  ) {
+    const kept = events.filter(
+      (event) => event.status !== "cancelled" || event.recurringEventId !== undefined,
+    );
+    const zone = zoneFor(calendar);
+    const groups = new Map<string, { master?: RemoteEvent; exceptions: Array<RemoteEvent> }>();
+    for (const event of kept) {
+      const key = seriesKeyOf(event);
+      let group = groups.get(key);
+      if (group === undefined) {
+        group = { exceptions: [] };
+        groups.set(key, group);
+      }
+      if (event.recurringEventId !== undefined) group.exceptions.push(event);
+      else group.master = event;
+    }
+    const rows: Array<InstanceRow> = [];
+    for (const [key, group] of groups) {
+      rows.push(
+        ...materializeSeries({
+          calendarId: calendar.calendarId,
+          key,
+          master: group.master,
+          exceptions: group.exceptions,
+          role: calendar.accessRole,
+          zone,
+          horizon: { start: calendar.horizonStart, end: calendar.horizonEnd },
+        }),
       );
-      const zone = zoneFor(calendar);
-      const groups = new Map<string, { master?: RemoteEvent; exceptions: Array<RemoteEvent> }>();
-      for (const event of kept) {
-        const key = seriesKeyOf(event);
-        let group = groups.get(key);
-        if (group === undefined) {
-          group = { exceptions: [] };
-          groups.set(key, group);
-        }
-        if (event.recurringEventId !== undefined) group.exceptions.push(event);
-        else group.master = event;
-      }
-      const rows: Array<InstanceRow> = [];
-      for (const [key, group] of groups) {
-        rows.push(
-          ...materializeSeries({
-            calendarId: calendar.calendarId,
-            key,
-            master: group.master,
-            exceptions: group.exceptions,
-            role: calendar.accessRole,
-            zone,
-            horizon: { start: calendar.horizonStart, end: calendar.horizonEnd },
-          }),
-        );
-      }
-      yield* store.clearCalendar(calendar.calendarId);
-      yield* store.upsertEvents(calendar.calendarId, kept, zone);
-      yield* store.upsertInstances(rows);
-    });
+    }
+    yield* store.clearCalendar(calendar.calendarId);
+    yield* store.upsertEvents(calendar.calendarId, kept, zone);
+    yield* store.upsertInstances(rows);
+  });
 
   /** Grows the horizon of every calendar to cover [from, to), a year at a time. */
-  const ensureHorizon = (from: number, to: number) =>
-    Effect.gen(function* () {
-      const calendars = yield* store.listCalendars;
-      if (calendars.every((entry) => entry.horizonStart <= from && entry.horizonEnd >= to)) return;
-      yield* writes.withPermits(1)(
-        sql.withTransaction(
-          Effect.gen(function* () {
-            for (const stale of yield* store.listCalendars) {
-              if (stale.horizonStart <= from && stale.horizonEnd >= to) continue;
-              const start =
-                from < stale.horizonStart
-                  ? Math.min(mondayOf(from), stale.horizonStart - YEAR_MS)
-                  : stale.horizonStart;
-              const end =
-                to > stale.horizonEnd
-                  ? Math.max(mondayOf(to) + WEEK_MS, stale.horizonEnd + YEAR_MS)
-                  : stale.horizonEnd;
-              const ranges = [
-                ...(start < stale.horizonStart ? [{ start, end: stale.horizonStart }] : []),
-                ...(end > stale.horizonEnd ? [{ start: stale.horizonEnd, end }] : []),
-              ];
-              for (const range of ranges) {
-                const keys = yield* store.masterKeysReaching(
-                  stale.calendarId,
-                  range.start,
-                  range.end,
+  const ensureHorizon = Effect.fn("CalendarServiceLive.ensureHorizon")(function* (
+    from: number,
+    to: number,
+  ) {
+    const calendars = yield* store.listCalendars;
+    if (calendars.every((entry) => entry.horizonStart <= from && entry.horizonEnd >= to)) return;
+    yield* writes.withPermits(1)(
+      sql.withTransaction(
+        Effect.gen(function* () {
+          for (const stale of yield* store.listCalendars) {
+            if (stale.horizonStart <= from && stale.horizonEnd >= to) continue;
+            const start =
+              from < stale.horizonStart
+                ? Math.min(mondayOf(from), stale.horizonStart - YEAR_MS)
+                : stale.horizonStart;
+            const end =
+              to > stale.horizonEnd
+                ? Math.max(mondayOf(to) + WEEK_MS, stale.horizonEnd + YEAR_MS)
+                : stale.horizonEnd;
+            const ranges = [
+              ...(start < stale.horizonStart ? [{ start, end: stale.horizonStart }] : []),
+              ...(end > stale.horizonEnd ? [{ start: stale.horizonEnd, end }] : []),
+            ];
+            for (const range of ranges) {
+              const keys = yield* store.masterKeysReaching(
+                stale.calendarId,
+                range.start,
+                range.end,
+              );
+              const rows: Array<InstanceRow> = [];
+              for (const key of keys) {
+                const { master, exceptions } = yield* store.seriesEvents(stale.calendarId, key);
+                rows.push(
+                  ...materializeSeries({
+                    calendarId: stale.calendarId,
+                    key,
+                    master: master?.event,
+                    exceptions: exceptions.map((entry) => entry.event),
+                    role: stale.accessRole,
+                    zone: zoneFor(stale),
+                    horizon: range,
+                  }),
                 );
-                const rows: Array<InstanceRow> = [];
-                for (const key of keys) {
-                  const { master, exceptions } = yield* store.seriesEvents(stale.calendarId, key);
-                  rows.push(
-                    ...materializeSeries({
-                      calendarId: stale.calendarId,
-                      key,
-                      master: master?.event,
-                      exceptions: exceptions.map((entry) => entry.event),
-                      role: stale.accessRole,
-                      zone: zoneFor(stale),
-                      horizon: range,
-                    }),
-                  );
-                }
-                yield* store.upsertInstances(rows);
               }
-              yield* store.setHorizon(stale.calendarId, start, end);
+              yield* store.upsertInstances(rows);
             }
-          }),
-        ),
-      );
-    });
+            yield* store.setHorizon(stale.calendarId, start, end);
+          }
+        }),
+      ),
+    );
+  });
 
   // ── Week streams ─────────────────────────────────────────────────
 
@@ -705,27 +709,26 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
           }),
         );
 
-        const replaced = (calendarId: string) =>
-          Effect.gen(function* () {
-            const calendar = yield* store.getCalendar(calendarId);
-            const shown = calendar?.visible === true;
-            const events: Array<CalendarWeekEvent> = [];
-            if (!shown && !visible.has(calendarId)) return events;
-            let instances: Array<CalendarEventInstance> = [];
-            if (shown) {
-              visible.add(calendarId);
-              yield* ensureHorizon(from, to);
-              instances = (yield* store.rangeInstances([calendarId], from, to)).map(toInstance);
-            } else {
-              visible.delete(calendarId);
-            }
-            events.push({
-              _tag: "calendarReplaced",
-              calendarId: calendarId as Calendar["calendarId"],
-              instances,
-            });
-            return events;
+        const replaced = Effect.fn("CalendarServiceLive.replaced")(function* (calendarId: string) {
+          const calendar = yield* store.getCalendar(calendarId);
+          const shown = calendar?.visible === true;
+          const events: Array<CalendarWeekEvent> = [];
+          if (!shown && !visible.has(calendarId)) return events;
+          let instances: Array<CalendarEventInstance> = [];
+          if (shown) {
+            visible.add(calendarId);
+            yield* ensureHorizon(from, to);
+            instances = (yield* store.rangeInstances([calendarId], from, to)).map(toInstance);
+          } else {
+            visible.delete(calendarId);
+          }
+          events.push({
+            _tag: "calendarReplaced",
+            calendarId: calendarId as Calendar["calendarId"],
+            instances,
           });
+          return events;
+        });
 
         const eventsFor = (change: CalendarChange) => {
           if (change._tag === "replace") return replaced(change.calendarId);
@@ -759,113 +762,117 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
       }).pipe(failedTo("load the week")),
     );
 
-  const listInstances: CalendarServiceShape["listInstances"] = (input) =>
-    Effect.gen(function* () {
-      if (!(input.end > input.start))
-        return yield* invalid("The range has to end after it starts.");
-      yield* ensureHorizon(input.start, input.end);
-      const calendarIds = input.calendarIds ?? (yield* store.visibleCalendarIds);
-      const rows = yield* store.rangeInstances(calendarIds, input.start, input.end);
-      const watched = new Set(
-        (yield* store.listCalendars).filter((c) => c.watchOnly).map((c) => c.calendarId),
-      );
-      return rows.map((row) => ({
-        ...toInstance(row),
-        ...(watched.has(row.calendarId) ? { watchOnly: true } : {}),
-      }));
-    }).pipe(failedTo("load the events"));
+  const listInstances: CalendarServiceShape["listInstances"] = Effect.fn(
+    "CalendarServiceLive.listInstances",
+  )(function* (input) {
+    if (!(input.end > input.start)) return yield* invalid("The range has to end after it starts.");
+    yield* ensureHorizon(input.start, input.end);
+    const calendarIds = input.calendarIds ?? (yield* store.visibleCalendarIds);
+    const rows = yield* store.rangeInstances(calendarIds, input.start, input.end);
+    const watched = new Set(
+      (yield* store.listCalendars).filter((c) => c.watchOnly).map((c) => c.calendarId),
+    );
+    return rows.map((row) => ({
+      ...toInstance(row),
+      ...(watched.has(row.calendarId) ? { watchOnly: true } : {}),
+    }));
+  }, failedTo("load the events"));
 
   // ── Resolving events ─────────────────────────────────────────────
 
-  const resolveTarget = (calendarId: string) =>
-    Effect.gen(function* () {
-      const calendar = yield* store.getCalendar(calendarId);
-      if (calendar === undefined) return yield* notFound("That calendar does not exist.");
-      const account = yield* store.getAccount(calendar.accountId);
-      if (account === undefined) return yield* notFound("That calendar does not exist.");
-      const target: Target = { calendar, account, client: clientFor(account) };
-      return target;
-    });
+  const resolveTarget = Effect.fn("CalendarServiceLive.resolveTarget")(function* (
+    calendarId: string,
+  ) {
+    const calendar = yield* store.getCalendar(calendarId);
+    if (calendar === undefined) return yield* notFound("That calendar does not exist.");
+    const account = yield* store.getAccount(calendar.accountId);
+    if (account === undefined) return yield* notFound("That calendar does not exist.");
+    const target: Target = { calendar, account, client: clientFor(account) };
+    return target;
+  });
 
-  const resolveEvent = (calendar: CalendarRecord, eventId: string, allowCancelled = false) =>
-    Effect.gen(function* () {
-      const zone = zoneFor(calendar);
-      const stored = yield* store.getEvent(calendar.calendarId, eventId);
-      if (stored !== undefined && stored.kind !== "exception") {
-        if (stored.status === "cancelled" && !allowCancelled) return yield* notFound();
-        const times = eventTimes(stored.event, zone);
-        if (times === null) return yield* notFound();
-        const resolved: Resolved = { kind: stored.kind, stored, current: stored.event, times };
-        return resolved;
-      }
-      const parsed = stored === undefined ? parseOccurrenceId(eventId) : null;
-      const seriesId = stored?.seriesId ?? parsed?.seriesId;
-      if (seriesId === undefined) return yield* notFound();
-      const masterRow = yield* store.getEvent(calendar.calendarId, seriesId);
-      const master = masterRow?.kind === "master" ? masterRow : undefined;
-      if (master?.status === "cancelled" && !allowCancelled) return yield* notFound();
-      const masterTimes = master === undefined ? null : eventTimes(master.event, zone);
-      const seriesZone = masterTimes?.timeZone ?? zone;
+  const resolveEvent = Effect.fn("CalendarServiceLive.resolveEvent")(function* (
+    calendar: CalendarRecord,
+    eventId: string,
+    allowCancelled = false,
+  ) {
+    const zone = zoneFor(calendar);
+    const stored = yield* store.getEvent(calendar.calendarId, eventId);
+    if (stored !== undefined && stored.kind !== "exception") {
+      if (stored.status === "cancelled" && !allowCancelled) return yield* notFound();
+      const times = eventTimes(stored.event, zone);
+      if (times === null) return yield* notFound();
+      const resolved: Resolved = { kind: stored.kind, stored, current: stored.event, times };
+      return resolved;
+    }
+    const parsed = stored === undefined ? parseOccurrenceId(eventId) : null;
+    const seriesId = stored?.seriesId ?? parsed?.seriesId;
+    if (seriesId === undefined) return yield* notFound();
+    const masterRow = yield* store.getEvent(calendar.calendarId, seriesId);
+    const master = masterRow?.kind === "master" ? masterRow : undefined;
+    if (master?.status === "cancelled" && !allowCancelled) return yield* notFound();
+    const masterTimes = master === undefined ? null : eventTimes(master.event, zone);
+    const seriesZone = masterTimes?.timeZone ?? zone;
 
-      if (stored !== undefined) {
-        if (stored.status === "cancelled" && !allowCancelled) return yield* notFound();
-        const originalStart = originalStartOf(stored.event, seriesZone);
-        let current = stored.event;
-        if (
-          current.start === undefined &&
-          master !== undefined &&
-          masterTimes !== null &&
-          originalStart !== null
-        ) {
-          // A cancelled exception carries only ids: the occurrence comes from its series.
-          current = {
-            ...occurrenceEvent(
-              master.event,
-              eventId,
-              { start: originalStart, end: originalStart + (masterTimes.end - masterTimes.start) },
-              masterTimes.allDay,
-              seriesZone,
-            ),
-            status: stored.event.status ?? "confirmed",
-          };
-        }
-        const times = eventTimes(current, seriesZone);
-        if (times === null) return yield* notFound();
-        const resolved: Resolved = {
-          kind: "occurrence",
-          instanceId: eventId,
-          seriesId,
-          master,
-          exception: stored,
-          current,
-          times,
-          originalStart: originalStart ?? times.start,
-          masterTimes,
+    if (stored !== undefined) {
+      if (stored.status === "cancelled" && !allowCancelled) return yield* notFound();
+      const originalStart = originalStartOf(stored.event, seriesZone);
+      let current = stored.event;
+      if (
+        current.start === undefined &&
+        master !== undefined &&
+        masterTimes !== null &&
+        originalStart !== null
+      ) {
+        // A cancelled exception carries only ids: the occurrence comes from its series.
+        current = {
+          ...occurrenceEvent(
+            master.event,
+            eventId,
+            { start: originalStart, end: originalStart + (masterTimes.end - masterTimes.start) },
+            masterTimes.allDay,
+            seriesZone,
+          ),
+          status: stored.event.status ?? "confirmed",
         };
-        return resolved;
       }
-
-      if (master === undefined || masterTimes === null || parsed === null) return yield* notFound();
-      const occurrence = expandRecurrence(
-        recurrenceSeriesOf(master.event, masterTimes),
-        parsed.start,
-        parsed.start + 1,
-        50,
-      ).find((entry) => entry.start === parsed.start);
-      if (occurrence === undefined) return yield* notFound();
+      const times = eventTimes(current, seriesZone);
+      if (times === null) return yield* notFound();
       const resolved: Resolved = {
         kind: "occurrence",
         instanceId: eventId,
         seriesId,
         master,
-        exception: undefined,
-        current: occurrenceEvent(master.event, eventId, occurrence, masterTimes.allDay, seriesZone),
-        times: { ...occurrence, allDay: masterTimes.allDay, timeZone: seriesZone },
-        originalStart: occurrence.start,
+        exception: stored,
+        current,
+        times,
+        originalStart: originalStart ?? times.start,
         masterTimes,
       };
       return resolved;
-    });
+    }
+
+    if (master === undefined || masterTimes === null || parsed === null) return yield* notFound();
+    const occurrence = expandRecurrence(
+      recurrenceSeriesOf(master.event, masterTimes),
+      parsed.start,
+      parsed.start + 1,
+      50,
+    ).find((entry) => entry.start === parsed.start);
+    if (occurrence === undefined) return yield* notFound();
+    const resolved: Resolved = {
+      kind: "occurrence",
+      instanceId: eventId,
+      seriesId,
+      master,
+      exception: undefined,
+      current: occurrenceEvent(master.event, eventId, occurrence, masterTimes.allDay, seriesZone),
+      times: { ...occurrence, allDay: masterTimes.allDay, timeZone: seriesZone },
+      originalStart: occurrence.start,
+      masterTimes,
+    };
+    return resolved;
+  });
 
   const detailsOf = (target: Target, resolved: Resolved): CalendarEventDetails =>
     eventDetails(resolved.current, {
@@ -889,26 +896,30 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
     });
 
   /** The first of `eventIds` that resolves now, as details (after a change). */
-  const resultEvent = (calendarId: string, eventIds: ReadonlyArray<string>) =>
-    Effect.gen(function* () {
-      const target = yield* resolveTarget(calendarId);
-      for (const eventId of eventIds) {
-        const resolved = yield* resolveEvent(target.calendar, eventId).pipe(Effect.option);
-        if (Option.isSome(resolved)) return detailsOf(target, resolved.value);
-      }
-      return undefined;
-    });
+  const resultEvent = Effect.fn("CalendarServiceLive.resultEvent")(function* (
+    calendarId: string,
+    eventIds: ReadonlyArray<string>,
+  ) {
+    const target = yield* resolveTarget(calendarId);
+    for (const eventId of eventIds) {
+      const resolved = yield* resolveEvent(target.calendar, eventId).pipe(Effect.option);
+      if (Option.isSome(resolved)) return detailsOf(target, resolved.value);
+    }
+    return undefined;
+  });
 
   const mutationResult = (
     event: CalendarEventDetails | undefined,
     undo: ReadonlyArray<CalendarChangeStep>,
   ): CalendarMutationResult => (event === undefined ? { undo } : { event, undo });
 
-  const getEvent: CalendarServiceShape["getEvent"] = (input) =>
-    Effect.gen(function* () {
+  const getEvent: CalendarServiceShape["getEvent"] = Effect.fn("CalendarServiceLive.getEvent")(
+    function* (input) {
       const target = yield* resolveTarget(input.calendarId);
       return detailsOf(target, yield* resolveEvent(target.calendar, input.eventId));
-    }).pipe(failedTo("load the event"));
+    },
+    failedTo("load the event"),
+  );
 
   const ensureWritable = (target: Target, current: RemoteEvent) =>
     isReadOnly(current, target.calendar.accessRole)
@@ -923,351 +934,344 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
 
   // ── Create ───────────────────────────────────────────────────────
 
-  const createEvent: CalendarServiceShape["createEvent"] = (input) =>
-    Effect.gen(function* () {
-      const target = yield* resolveTarget(input.calendarId);
-      const { calendar, account, client } = target;
-      if (isReadOnlyRole(calendar.accessRole))
-        return yield* readOnly("This calendar is read-only.");
-      const time = parseTimeInput(input.time, zoneFor(calendar));
-      if (!time.ok) return yield* invalid(time.detail);
-      const write: RemoteEventWrite = {
-        ...createWrite(input, nextRequestId),
-        ...(input.reminders === undefined && preferences.notificationRules.length > 0
-          ? {
-              reminders: {
-                useDefault: false,
-                overrides: preferences.notificationRules
-                  .filter((rule) => rule.enabled)
-                  .map((rule) => ({ method: "popup" as const, minutes: rule.minutesBefore })),
-              },
-            }
-          : {}),
-        start: toRemoteDateTime(time.start, time.allDay, time.zone),
-        end: toRemoteDateTime(time.end, time.allDay, time.zone),
-      };
-      const created = yield* call(
-        account,
-        client.insertEvent(calendar.remoteId, write, sendUpdatesOf(input.sendUpdates)),
-      );
-      yield* applyLocal(calendar.calendarId, [created]);
-      const event = yield* resultEvent(calendar.calendarId, [
-        occurrenceId(created.id, time.start, time.allDay),
-        created.id,
-      ]);
-      return mutationResult(event, [
-        {
-          _tag: "delete",
-          input: {
-            calendarId: input.calendarId,
-            eventId: created.id,
-            scope: "all",
-            ...(input.sendUpdates ? { sendUpdates: input.sendUpdates } : {}),
-          },
+  const createEvent: CalendarServiceShape["createEvent"] = Effect.fn(
+    "CalendarServiceLive.createEvent",
+  )(function* (input) {
+    const target = yield* resolveTarget(input.calendarId);
+    const { calendar, account, client } = target;
+    if (isReadOnlyRole(calendar.accessRole)) return yield* readOnly("This calendar is read-only.");
+    const time = parseTimeInput(input.time, zoneFor(calendar));
+    if (!time.ok) return yield* invalid(time.detail);
+    const write: RemoteEventWrite = {
+      ...createWrite(input, nextRequestId),
+      ...(input.reminders === undefined && preferences.notificationRules.length > 0
+        ? {
+            reminders: {
+              useDefault: false,
+              overrides: preferences.notificationRules
+                .filter((rule) => rule.enabled)
+                .map((rule) => ({ method: "popup" as const, minutes: rule.minutesBefore })),
+            },
+          }
+        : {}),
+      start: toRemoteDateTime(time.start, time.allDay, time.zone),
+      end: toRemoteDateTime(time.end, time.allDay, time.zone),
+    };
+    const created = yield* call(
+      account,
+      client.insertEvent(calendar.remoteId, write, sendUpdatesOf(input.sendUpdates)),
+    );
+    yield* applyLocal(calendar.calendarId, [created]);
+    const event = yield* resultEvent(calendar.calendarId, [
+      occurrenceId(created.id, time.start, time.allDay),
+      created.id,
+    ]);
+    return mutationResult(event, [
+      {
+        _tag: "delete",
+        input: {
+          calendarId: input.calendarId,
+          eventId: created.id,
+          scope: "all",
+          ...(input.sendUpdates ? { sendUpdates: input.sendUpdates } : {}),
         },
-      ]);
-    }).pipe(failedTo("create the event"));
+      },
+    ]);
+  }, failedTo("create the event"));
 
   // ── Update ───────────────────────────────────────────────────────
 
-  const updateEvent: CalendarServiceShape["updateEvent"] = (input) =>
-    Effect.gen(function* () {
-      const target = yield* resolveTarget(input.calendarId);
-      const { calendar, account, client } = target;
-      const resolved = yield* resolveEvent(calendar, input.eventId);
-      yield* ensureWritable(target, resolved.current);
-      const scope = input.scope ?? "this";
-      const sendUpdates = input.sendUpdates;
-      const writeOptions = sendUpdatesOf(sendUpdates);
-      const zone = zoneFor(calendar);
+  const updateEvent: CalendarServiceShape["updateEvent"] = Effect.fn(
+    "CalendarServiceLive.updateEvent",
+  )(function* (input) {
+    const target = yield* resolveTarget(input.calendarId);
+    const { calendar, account, client } = target;
+    const resolved = yield* resolveEvent(calendar, input.eventId);
+    yield* ensureWritable(target, resolved.current);
+    const scope = input.scope ?? "this";
+    const sendUpdates = input.sendUpdates;
+    const writeOptions = sendUpdatesOf(sendUpdates);
+    const zone = zoneFor(calendar);
 
-      const moving =
-        input.targetCalendarId !== undefined && input.targetCalendarId !== input.calendarId;
-      let destination: Target | undefined;
-      if (moving) {
-        destination = yield* resolveTarget(input.targetCalendarId!);
-        if (destination.account.accountId !== account.accountId) {
-          return yield* invalid("Events can only move between calendars of the same account.");
-        }
-        if (isReadOnlyRole(destination.calendar.accessRole)) {
-          return yield* readOnly("The other calendar is read-only.");
-        }
+    const moving =
+      input.targetCalendarId !== undefined && input.targetCalendarId !== input.calendarId;
+    let destination: Target | undefined;
+    if (moving) {
+      destination = yield* resolveTarget(input.targetCalendarId!);
+      if (destination.account.accountId !== account.accountId) {
+        return yield* invalid("Events can only move between calendars of the same account.");
       }
+      if (isReadOnlyRole(destination.calendar.accessRole)) {
+        return yield* readOnly("The other calendar is read-only.");
+      }
+    }
 
-      const undoBase = (eventId: string, scopeOfUndo: "this" | "all") => ({
-        calendarId: moving ? input.targetCalendarId! : input.calendarId,
-        eventId,
-        scope: scopeOfUndo,
-        ...(sendUpdates ? { sendUpdates } : {}),
-        ...(moving ? { targetCalendarId: input.calendarId } : {}),
-      });
+    const undoBase = (eventId: string, scopeOfUndo: "this" | "all") => ({
+      calendarId: moving ? input.targetCalendarId! : input.calendarId,
+      eventId,
+      scope: scopeOfUndo,
+      ...(sendUpdates ? { sendUpdates } : {}),
+      ...(moving ? { targetCalendarId: input.calendarId } : {}),
+    });
 
-      /** Moves a whole event (single or series) after its fields changed. */
-      const moveWhole = (eventId: string, current: RemoteEvent) =>
-        Effect.gen(function* () {
-          const moved = yield* call(
-            account,
-            client.moveEvent(calendar.remoteId, eventId, destination!.calendar.remoteId, {
-              ...writeOptions,
-              current,
-            }),
-          );
-          yield* moveLocal(calendar.calendarId, destination!.calendar.calendarId, eventId, moved);
-        });
+    /** Moves a whole event (single or series) after its fields changed. */
+    const moveWhole = Effect.fn("CalendarServiceLive.moveWhole")(function* (
+      eventId: string,
+      current: RemoteEvent,
+    ) {
+      const moved = yield* call(
+        account,
+        client.moveEvent(calendar.remoteId, eventId, destination!.calendar.remoteId, {
+          ...writeOptions,
+          current,
+        }),
+      );
+      yield* moveLocal(calendar.calendarId, destination!.calendar.calendarId, eventId, moved);
+    });
 
-      /** Patches a stored single event or master directly. */
-      const patchWhole = (
-        eventId: string,
-        current: RemoteEvent,
-        times: EventTimes,
-        undoScope: "this" | "all",
-      ) =>
-        Effect.gen(function* () {
-          const patch = fieldPatch(input, current, nextRequestId);
-          if (input.time !== undefined) {
-            const time = parseTimeInput(input.time, times.allDay ? zone : times.timeZone);
-            if (!time.ok) return yield* invalid(time.detail);
-            patch.start = toRemoteDateTime(time.start, time.allDay, time.zone);
-            patch.end = toRemoteDateTime(time.end, time.allDay, time.zone);
-          }
-          let result = current;
-          if (!isEmptyPatch(patch)) {
-            result = yield* call(
-              account,
-              client.patchEvent(calendar.remoteId, eventId, patch, { ...writeOptions, current }),
-            );
-            yield* applyLocal(calendar.calendarId, [result]);
-          }
-          if (moving) yield* moveWhole(eventId, result);
-          const undo: CalendarChangeStep = {
-            _tag: "update",
-            input: {
-              ...undoBase(eventId, undoScope),
-              ...previousFieldsAndTime(input, current, zone),
-            },
-          };
-          return [undo];
-        });
-
-      if (resolved.kind !== "occurrence") {
-        const undo = yield* patchWhole(
-          resolved.stored.eventId,
-          resolved.current,
-          resolved.times,
-          "all",
+    /** Patches a stored single event or master directly. */
+    const patchWhole = Effect.fn("CalendarServiceLive.patchWhole")(function* (
+      eventId: string,
+      current: RemoteEvent,
+      times: EventTimes,
+      undoScope: "this" | "all",
+    ) {
+      const patch = fieldPatch(input, current, nextRequestId);
+      if (input.time !== undefined) {
+        const time = parseTimeInput(input.time, times.allDay ? zone : times.timeZone);
+        if (!time.ok) return yield* invalid(time.detail);
+        patch.start = toRemoteDateTime(time.start, time.allDay, time.zone);
+        patch.end = toRemoteDateTime(time.end, time.allDay, time.zone);
+      }
+      let result = current;
+      if (!isEmptyPatch(patch)) {
+        result = yield* call(
+          account,
+          client.patchEvent(calendar.remoteId, eventId, patch, { ...writeOptions, current }),
         );
-        const event = yield* resultEvent(destination?.calendar.calendarId ?? input.calendarId, [
-          input.eventId,
-        ]);
-        return mutationResult(event, undo);
+        yield* applyLocal(calendar.calendarId, [result]);
       }
+      if (moving) yield* moveWhole(eventId, result);
+      const undo: CalendarChangeStep = {
+        _tag: "update",
+        input: {
+          ...undoBase(eventId, undoScope),
+          ...previousFieldsAndTime(input, current, zone),
+        },
+      };
+      return [undo];
+    });
 
-      const master = resolved.master;
-      if (master === undefined || resolved.masterTimes === null) {
-        // An occurrence whose series is not in this calendar (an invitation to one instance).
-        if (moving) return yield* invalid("This occurrence can't move to another calendar.");
-        const undo = yield* patchWhole(
-          resolved.instanceId,
-          resolved.current,
-          resolved.times,
-          "this",
-        );
-        return mutationResult(yield* resultEvent(input.calendarId, [resolved.instanceId]), undo);
-      }
-      if (moving && scope !== "all") {
-        return yield* invalid("Only a whole series can move to another calendar; use scope all.");
-      }
-      if (input.recurrence !== undefined && scope === "this") {
-        return yield* invalid(
-          "Changing how an event repeats applies to this and following events, or to all of them.",
-        );
-      }
-      const masterTimes = resolved.masterTimes;
-      const seriesZone = masterTimes.timeZone;
+    if (resolved.kind !== "occurrence") {
+      const undo = yield* patchWhole(
+        resolved.stored.eventId,
+        resolved.current,
+        resolved.times,
+        "all",
+      );
+      const event = yield* resultEvent(destination?.calendar.calendarId ?? input.calendarId, [
+        input.eventId,
+      ]);
+      return mutationResult(event, undo);
+    }
 
-      if (scope === "this") {
-        const patch = fieldPatch(input, resolved.current, nextRequestId);
-        if (input.time !== undefined) {
-          const time = parseTimeInput(input.time, seriesZone);
-          if (!time.ok) return yield* invalid(time.detail);
-          patch.start = toRemoteDateTime(time.start, time.allDay, time.zone);
-          patch.end = toRemoteDateTime(time.end, time.allDay, time.zone);
-        }
-        if (!isEmptyPatch(patch)) {
-          const result = yield* call(
-            account,
-            client.patchEvent(calendar.remoteId, resolved.instanceId, patch, {
-              ...writeOptions,
-              current: resolved.current,
-            }),
-          );
-          yield* applyLocal(calendar.calendarId, [
-            { ...result, recurringEventId: result.recurringEventId ?? master.eventId },
-          ]);
-        }
-        return mutationResult(yield* resultEvent(input.calendarId, [resolved.instanceId]), [
-          {
-            _tag: "update",
-            input: {
-              ...undoBase(resolved.instanceId, "this"),
-              ...previousFieldsAndTime(input, resolved.current, seriesZone),
-            },
-          },
-        ]);
-      }
+    const master = resolved.master;
+    if (master === undefined || resolved.masterTimes === null) {
+      // An occurrence whose series is not in this calendar (an invitation to one instance).
+      if (moving) return yield* invalid("This occurrence can't move to another calendar.");
+      const undo = yield* patchWhole(resolved.instanceId, resolved.current, resolved.times, "this");
+      return mutationResult(yield* resultEvent(input.calendarId, [resolved.instanceId]), undo);
+    }
+    if (moving && scope !== "all") {
+      return yield* invalid("Only a whole series can move to another calendar; use scope all.");
+    }
+    if (input.recurrence !== undefined && scope === "this") {
+      return yield* invalid(
+        "Changing how an event repeats applies to this and following events, or to all of them.",
+      );
+    }
+    const masterTimes = resolved.masterTimes;
+    const seriesZone = masterTimes.timeZone;
 
-      /** The new start and end for the series, shifted like the edited occurrence. */
-      const shifted = (anchorStart: number) => {
-        if (input.time === undefined) return null;
+    if (scope === "this") {
+      const patch = fieldPatch(input, resolved.current, nextRequestId);
+      if (input.time !== undefined) {
         const time = parseTimeInput(input.time, seriesZone);
-        if (!time.ok) return time;
-        const localOf = (ms: number, allDay: boolean) =>
-          allDay ? { day: Math.floor(ms / DAY_MS), minutes: 0 } : toZoned(ms, seriesZone);
-        const before = localOf(resolved.times.start, resolved.times.allDay);
-        const after = localOf(time.start, time.allDay);
-        const dayDelta = after.day - before.day;
-        const anchor = localOf(anchorStart, masterTimes.allDay);
-        const start = time.allDay
-          ? (anchor.day + dayDelta) * DAY_MS
-          : fromZoned(anchor.day + dayDelta, after.minutes, time.zone);
-        return {
-          ok: true as const,
-          start,
-          end: start + (time.end - time.start),
-          allDay: time.allDay,
-          zone: time.zone,
-          dayDelta,
-        };
-      };
-
-      const isFirst = resolved.originalStart === masterTimes.start;
-      if (scope === "all" || isFirst) {
-        const current = master.event;
-        const patch = fieldPatch(input, current, nextRequestId);
-        const shift = shifted(masterTimes.start);
-        if (shift !== null) {
-          if (!shift.ok) return yield* invalid(shift.detail);
-          patch.start = toRemoteDateTime(shift.start, shift.allDay, shift.zone);
-          patch.end = toRemoteDateTime(shift.end, shift.allDay, shift.zone);
-          if (input.recurrence === undefined && current.recurrence !== undefined) {
-            const recurrence = shiftWeeklyDays(current.recurrence, shift.dayDelta);
-            if (recurrence !== current.recurrence) patch.recurrence = [...recurrence];
-          }
-        }
-        let result = current;
-        if (!isEmptyPatch(patch)) {
-          result = yield* call(
-            account,
-            client.patchEvent(calendar.remoteId, master.eventId, patch, {
-              ...writeOptions,
-              current,
-            }),
-          );
-          yield* applyLocal(calendar.calendarId, [result]);
-        }
-        if (moving) yield* moveWhole(master.eventId, result);
-        const previous = previousFieldsAndTime(input, current, seriesZone);
-        const undo: CalendarChangeStep = {
-          _tag: "update",
-          input: {
-            ...undoBase(master.eventId, "all"),
-            ...previous,
-            ...(patch.recurrence !== undefined ? { recurrence: current.recurrence ?? [] } : {}),
-          },
-        };
-        const newStart = shift?.ok
-          ? resolved.originalStart + (shift.start - masterTimes.start)
-          : null;
-        const event = yield* resultEvent(destination?.calendar.calendarId ?? input.calendarId, [
-          ...(newStart === null
-            ? [resolved.instanceId]
-            : [
-                occurrenceId(
-                  master.eventId,
-                  newStart,
-                  shift?.ok ? shift.allDay : masterTimes.allDay,
-                ),
-              ]),
-          resolved.instanceId,
-          master.eventId,
-        ]);
-        return mutationResult(event, [undo]);
+        if (!time.ok) return yield* invalid(time.detail);
+        patch.start = toRemoteDateTime(time.start, time.allDay, time.zone);
+        patch.end = toRemoteDateTime(time.end, time.allDay, time.zone);
       }
-
-      // "This and following": end the series before this occurrence and start a new one here.
-      const series = recurrenceSeriesOf(master.event, masterTimes);
-      const splitStart = resolved.originalStart;
-      const shift = shifted(splitStart);
-      if (shift !== null && !shift.ok) return yield* invalid(shift.detail);
-      const newStart = shift?.start ?? splitStart;
-      const newEnd = shift?.end ?? splitStart + (masterTimes.end - masterTimes.start);
-      const newAllDay = shift?.allDay ?? masterTimes.allDay;
-      const newZone = shift?.zone ?? seriesZone;
-      const body: RemoteEventWrite = {
-        ...seriesCopy(master.event, nextRequestId),
-        ...fieldPatch(input, master.event, nextRequestId),
-        start: toRemoteDateTime(newStart, newAllDay, newZone),
-        end: toRemoteDateTime(newEnd, newAllDay, newZone),
-        recurrence: [
-          ...(input.recurrence ??
-            shiftWeeklyDays(recurrenceFrom(series, splitStart), shift?.dayDelta ?? 0)),
-        ],
-      };
-      const truncated = yield* call(
-        account,
-        client.patchEvent(
-          calendar.remoteId,
-          master.eventId,
-          { recurrence: recurrenceBefore(series, splitStart) },
-          { ...writeOptions, current: master.event },
-        ),
-      );
-      const created = yield* call(
-        account,
-        client.insertEvent(calendar.remoteId, body, writeOptions),
-      ).pipe(
-        Effect.tapError(() =>
-          // Put the original series back when the new one could not be created.
-          client
-            .patchEvent(
-              calendar.remoteId,
-              master.eventId,
-              { recurrence: master.event.recurrence ?? [] },
-              {
-                ...writeOptions,
-                current: truncated,
-              },
-            )
-            .pipe(Effect.ignore),
-        ),
-      );
-      yield* applyLocal(calendar.calendarId, [truncated, created]);
-      const event = yield* resultEvent(input.calendarId, [
-        occurrenceId(created.id, newStart, newAllDay),
-        created.id,
-      ]);
-      return mutationResult(event, [
-        {
-          _tag: "delete",
-          input: {
-            calendarId: input.calendarId,
-            eventId: created.id,
-            scope: "all",
-            ...(sendUpdates ? { sendUpdates } : {}),
-          },
-        },
+      if (!isEmptyPatch(patch)) {
+        const result = yield* call(
+          account,
+          client.patchEvent(calendar.remoteId, resolved.instanceId, patch, {
+            ...writeOptions,
+            current: resolved.current,
+          }),
+        );
+        yield* applyLocal(calendar.calendarId, [
+          { ...result, recurringEventId: result.recurringEventId ?? master.eventId },
+        ]);
+      }
+      return mutationResult(yield* resultEvent(input.calendarId, [resolved.instanceId]), [
         {
           _tag: "update",
           input: {
-            calendarId: input.calendarId,
-            eventId: master.eventId,
-            scope: "all",
-            recurrence: master.event.recurrence ?? [],
-            ...(sendUpdates ? { sendUpdates } : {}),
+            ...undoBase(resolved.instanceId, "this"),
+            ...previousFieldsAndTime(input, resolved.current, seriesZone),
           },
         },
       ]);
-    }).pipe(failedTo("change the event"));
+    }
+
+    /** The new start and end for the series, shifted like the edited occurrence. */
+    const shifted = (anchorStart: number) => {
+      if (input.time === undefined) return null;
+      const time = parseTimeInput(input.time, seriesZone);
+      if (!time.ok) return time;
+      const localOf = (ms: number, allDay: boolean) =>
+        allDay ? { day: Math.floor(ms / DAY_MS), minutes: 0 } : toZoned(ms, seriesZone);
+      const before = localOf(resolved.times.start, resolved.times.allDay);
+      const after = localOf(time.start, time.allDay);
+      const dayDelta = after.day - before.day;
+      const anchor = localOf(anchorStart, masterTimes.allDay);
+      const start = time.allDay
+        ? (anchor.day + dayDelta) * DAY_MS
+        : fromZoned(anchor.day + dayDelta, after.minutes, time.zone);
+      return {
+        ok: true as const,
+        start,
+        end: start + (time.end - time.start),
+        allDay: time.allDay,
+        zone: time.zone,
+        dayDelta,
+      };
+    };
+
+    const isFirst = resolved.originalStart === masterTimes.start;
+    if (scope === "all" || isFirst) {
+      const current = master.event;
+      const patch = fieldPatch(input, current, nextRequestId);
+      const shift = shifted(masterTimes.start);
+      if (shift !== null) {
+        if (!shift.ok) return yield* invalid(shift.detail);
+        patch.start = toRemoteDateTime(shift.start, shift.allDay, shift.zone);
+        patch.end = toRemoteDateTime(shift.end, shift.allDay, shift.zone);
+        if (input.recurrence === undefined && current.recurrence !== undefined) {
+          const recurrence = shiftWeeklyDays(current.recurrence, shift.dayDelta);
+          if (recurrence !== current.recurrence) patch.recurrence = [...recurrence];
+        }
+      }
+      let result = current;
+      if (!isEmptyPatch(patch)) {
+        result = yield* call(
+          account,
+          client.patchEvent(calendar.remoteId, master.eventId, patch, {
+            ...writeOptions,
+            current,
+          }),
+        );
+        yield* applyLocal(calendar.calendarId, [result]);
+      }
+      if (moving) yield* moveWhole(master.eventId, result);
+      const previous = previousFieldsAndTime(input, current, seriesZone);
+      const undo: CalendarChangeStep = {
+        _tag: "update",
+        input: {
+          ...undoBase(master.eventId, "all"),
+          ...previous,
+          ...(patch.recurrence !== undefined ? { recurrence: current.recurrence ?? [] } : {}),
+        },
+      };
+      const newStart = shift?.ok
+        ? resolved.originalStart + (shift.start - masterTimes.start)
+        : null;
+      const event = yield* resultEvent(destination?.calendar.calendarId ?? input.calendarId, [
+        ...(newStart === null
+          ? [resolved.instanceId]
+          : [
+              occurrenceId(master.eventId, newStart, shift?.ok ? shift.allDay : masterTimes.allDay),
+            ]),
+        resolved.instanceId,
+        master.eventId,
+      ]);
+      return mutationResult(event, [undo]);
+    }
+
+    // "This and following": end the series before this occurrence and start a new one here.
+    const series = recurrenceSeriesOf(master.event, masterTimes);
+    const splitStart = resolved.originalStart;
+    const shift = shifted(splitStart);
+    if (shift !== null && !shift.ok) return yield* invalid(shift.detail);
+    const newStart = shift?.start ?? splitStart;
+    const newEnd = shift?.end ?? splitStart + (masterTimes.end - masterTimes.start);
+    const newAllDay = shift?.allDay ?? masterTimes.allDay;
+    const newZone = shift?.zone ?? seriesZone;
+    const body: RemoteEventWrite = {
+      ...seriesCopy(master.event, nextRequestId),
+      ...fieldPatch(input, master.event, nextRequestId),
+      start: toRemoteDateTime(newStart, newAllDay, newZone),
+      end: toRemoteDateTime(newEnd, newAllDay, newZone),
+      recurrence: [
+        ...(input.recurrence ??
+          shiftWeeklyDays(recurrenceFrom(series, splitStart), shift?.dayDelta ?? 0)),
+      ],
+    };
+    const truncated = yield* call(
+      account,
+      client.patchEvent(
+        calendar.remoteId,
+        master.eventId,
+        { recurrence: recurrenceBefore(series, splitStart) },
+        { ...writeOptions, current: master.event },
+      ),
+    );
+    const created = yield* call(
+      account,
+      client.insertEvent(calendar.remoteId, body, writeOptions),
+    ).pipe(
+      Effect.tapError(() =>
+        // Put the original series back when the new one could not be created.
+        client
+          .patchEvent(
+            calendar.remoteId,
+            master.eventId,
+            { recurrence: master.event.recurrence ?? [] },
+            {
+              ...writeOptions,
+              current: truncated,
+            },
+          )
+          .pipe(Effect.ignore),
+      ),
+    );
+    yield* applyLocal(calendar.calendarId, [truncated, created]);
+    const event = yield* resultEvent(input.calendarId, [
+      occurrenceId(created.id, newStart, newAllDay),
+      created.id,
+    ]);
+    return mutationResult(event, [
+      {
+        _tag: "delete",
+        input: {
+          calendarId: input.calendarId,
+          eventId: created.id,
+          scope: "all",
+          ...(sendUpdates ? { sendUpdates } : {}),
+        },
+      },
+      {
+        _tag: "update",
+        input: {
+          calendarId: input.calendarId,
+          eventId: master.eventId,
+          scope: "all",
+          recurrence: master.event.recurrence ?? [],
+          ...(sendUpdates ? { sendUpdates } : {}),
+        },
+      },
+    ]);
+  }, failedTo("change the event"));
 
   /** Moves a series (or single event) and its exceptions between calendars locally. */
   const moveLocal = (fromId: string, toId: string, key: string, moved: RemoteEvent) =>
@@ -1295,114 +1299,112 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
 
   // ── Delete and restore ───────────────────────────────────────────
 
-  const deleteEvent: CalendarServiceShape["deleteEvent"] = (input) =>
-    Effect.gen(function* () {
-      const target = yield* resolveTarget(input.calendarId);
-      const { calendar, account, client } = target;
-      const resolved = yield* resolveEvent(calendar, input.eventId);
-      yield* ensureWritable(target, resolved.current);
-      const writeOptions = sendUpdatesOf(input.sendUpdates);
-      const now = yield* Clock.currentTimeMillis;
-      const tombstone = (event: RemoteEvent): RemoteEvent => ({
-        ...event,
-        status: "cancelled",
-        updated: iso(now),
-      });
-      const restore = (eventId: string): CalendarChangeStep => ({
-        _tag: "restore",
-        input: { calendarId: input.calendarId, eventId },
-      });
+  const deleteEvent: CalendarServiceShape["deleteEvent"] = Effect.fn(
+    "CalendarServiceLive.deleteEvent",
+  )(function* (input) {
+    const target = yield* resolveTarget(input.calendarId);
+    const { calendar, account, client } = target;
+    const resolved = yield* resolveEvent(calendar, input.eventId);
+    yield* ensureWritable(target, resolved.current);
+    const writeOptions = sendUpdatesOf(input.sendUpdates);
+    const now = yield* Clock.currentTimeMillis;
+    const tombstone = (event: RemoteEvent): RemoteEvent => ({
+      ...event,
+      status: "cancelled",
+      updated: iso(now),
+    });
+    const restore = (eventId: string): CalendarChangeStep => ({
+      _tag: "restore",
+      input: { calendarId: input.calendarId, eventId },
+    });
 
-      const deleteWhole = (eventId: string, current: RemoteEvent) =>
-        Effect.gen(function* () {
-          yield* call(account, client.deleteEvent(calendar.remoteId, eventId, writeOptions));
-          yield* applyLocal(calendar.calendarId, [tombstone(current)]);
-          return mutationResult(undefined, [restore(eventId)]);
-        });
+    const deleteWhole = Effect.fn("CalendarServiceLive.deleteWhole")(function* (
+      eventId: string,
+      current: RemoteEvent,
+    ) {
+      yield* call(account, client.deleteEvent(calendar.remoteId, eventId, writeOptions));
+      yield* applyLocal(calendar.calendarId, [tombstone(current)]);
+      return mutationResult(undefined, [restore(eventId)]);
+    });
 
-      if (resolved.kind !== "occurrence")
-        return yield* deleteWhole(resolved.stored.eventId, resolved.current);
-      const scope = input.scope ?? "this";
-      const master = resolved.master;
-      if (master === undefined || resolved.masterTimes === null || scope === "this") {
-        return yield* deleteWhole(resolved.instanceId, {
-          ...resolved.current,
-          recurringEventId: resolved.seriesId,
-          originalStartTime:
-            resolved.current.originalStartTime ??
-            toRemoteDateTime(
-              resolved.originalStart,
-              resolved.times.allDay,
-              resolved.times.timeZone,
-            ),
-        });
-      }
-      if (scope === "all" || resolved.originalStart === resolved.masterTimes.start) {
-        return yield* deleteWhole(master.eventId, master.event);
-      }
-      const series = recurrenceSeriesOf(master.event, resolved.masterTimes);
-      const truncated = yield* call(
-        account,
-        client.patchEvent(
-          calendar.remoteId,
-          master.eventId,
-          { recurrence: recurrenceBefore(series, resolved.originalStart) },
-          { ...writeOptions, current: master.event },
-        ),
-      );
-      yield* applyLocal(calendar.calendarId, [truncated]);
-      return mutationResult(undefined, [
-        {
-          _tag: "update",
-          input: {
-            calendarId: input.calendarId,
-            eventId: master.eventId,
-            scope: "all",
-            recurrence: master.event.recurrence ?? [],
-            ...(input.sendUpdates ? { sendUpdates: input.sendUpdates } : {}),
-          },
+    if (resolved.kind !== "occurrence")
+      return yield* deleteWhole(resolved.stored.eventId, resolved.current);
+    const scope = input.scope ?? "this";
+    const master = resolved.master;
+    if (master === undefined || resolved.masterTimes === null || scope === "this") {
+      return yield* deleteWhole(resolved.instanceId, {
+        ...resolved.current,
+        recurringEventId: resolved.seriesId,
+        originalStartTime:
+          resolved.current.originalStartTime ??
+          toRemoteDateTime(resolved.originalStart, resolved.times.allDay, resolved.times.timeZone),
+      });
+    }
+    if (scope === "all" || resolved.originalStart === resolved.masterTimes.start) {
+      return yield* deleteWhole(master.eventId, master.event);
+    }
+    const series = recurrenceSeriesOf(master.event, resolved.masterTimes);
+    const truncated = yield* call(
+      account,
+      client.patchEvent(
+        calendar.remoteId,
+        master.eventId,
+        { recurrence: recurrenceBefore(series, resolved.originalStart) },
+        { ...writeOptions, current: master.event },
+      ),
+    );
+    yield* applyLocal(calendar.calendarId, [truncated]);
+    return mutationResult(undefined, [
+      {
+        _tag: "update",
+        input: {
+          calendarId: input.calendarId,
+          eventId: master.eventId,
+          scope: "all",
+          recurrence: master.event.recurrence ?? [],
+          ...(input.sendUpdates ? { sendUpdates: input.sendUpdates } : {}),
         },
-      ]);
-    }).pipe(failedTo("delete the event"));
+      },
+    ]);
+  }, failedTo("delete the event"));
 
-  const restoreEvent: CalendarServiceShape["restoreEvent"] = (input) =>
-    Effect.gen(function* () {
-      const target = yield* resolveTarget(input.calendarId);
-      const { calendar, account, client } = target;
-      const resolved = yield* resolveEvent(calendar, input.eventId, true);
-      const eventId =
-        resolved.kind === "occurrence" ? resolved.instanceId : resolved.stored.eventId;
-      const undoScope = resolved.kind === "occurrence" ? "this" : "all";
-      if (resolved.current.status !== "cancelled") {
-        return mutationResult(yield* resultEvent(input.calendarId, [eventId]), []);
-      }
-      if (isReadOnlyRole(calendar.accessRole))
-        return yield* readOnly("This calendar is read-only.");
-      const result = yield* call(
-        account,
-        client.patchEvent(
-          calendar.remoteId,
-          eventId,
-          { status: "confirmed" },
-          {
-            current: resolved.current,
-          },
-        ),
-      );
-      yield* applyLocal(calendar.calendarId, [
-        resolved.kind === "occurrence"
-          ? { ...result, recurringEventId: result.recurringEventId ?? resolved.seriesId }
-          : result,
-      ]);
-      return mutationResult(yield* resultEvent(input.calendarId, [eventId]), [
-        { _tag: "delete", input: { calendarId: input.calendarId, eventId, scope: undoScope } },
-      ]);
-    }).pipe(failedTo("restore the event"));
+  const restoreEvent: CalendarServiceShape["restoreEvent"] = Effect.fn(
+    "CalendarServiceLive.restoreEvent",
+  )(function* (input) {
+    const target = yield* resolveTarget(input.calendarId);
+    const { calendar, account, client } = target;
+    const resolved = yield* resolveEvent(calendar, input.eventId, true);
+    const eventId = resolved.kind === "occurrence" ? resolved.instanceId : resolved.stored.eventId;
+    const undoScope = resolved.kind === "occurrence" ? "this" : "all";
+    if (resolved.current.status !== "cancelled") {
+      return mutationResult(yield* resultEvent(input.calendarId, [eventId]), []);
+    }
+    if (isReadOnlyRole(calendar.accessRole)) return yield* readOnly("This calendar is read-only.");
+    const result = yield* call(
+      account,
+      client.patchEvent(
+        calendar.remoteId,
+        eventId,
+        { status: "confirmed" },
+        {
+          current: resolved.current,
+        },
+      ),
+    );
+    yield* applyLocal(calendar.calendarId, [
+      resolved.kind === "occurrence"
+        ? { ...result, recurringEventId: result.recurringEventId ?? resolved.seriesId }
+        : result,
+    ]);
+    return mutationResult(yield* resultEvent(input.calendarId, [eventId]), [
+      { _tag: "delete", input: { calendarId: input.calendarId, eventId, scope: undoScope } },
+    ]);
+  }, failedTo("restore the event"));
 
   // ── Respond ──────────────────────────────────────────────────────
 
-  const respond: CalendarServiceShape["respond"] = (input) =>
-    Effect.gen(function* () {
+  const respond: CalendarServiceShape["respond"] = Effect.fn("CalendarServiceLive.respond")(
+    function* (input) {
       const target = yield* resolveTarget(input.calendarId);
       const { calendar, account, client } = target;
       const resolved = yield* resolveEvent(calendar, input.eventId);
@@ -1459,21 +1461,24 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
           },
         },
       ]);
-    }).pipe(failedTo("answer the invitation"));
+    },
+    failedTo("answer the invitation"),
+  );
 
   // ── Undo and redo ────────────────────────────────────────────────
 
-  const applyChanges: CalendarServiceShape["applyChanges"] = (input) =>
-    Effect.gen(function* () {
-      let event: CalendarEventDetails | undefined;
-      const inverse: Array<ReadonlyArray<CalendarChangeStep>> = [];
-      for (const step of input.steps) {
-        const result = yield* runStep(step);
-        event = result.event;
-        inverse.unshift(result.undo);
-      }
-      return mutationResult(event, inverse.flat());
-    });
+  const applyChanges: CalendarServiceShape["applyChanges"] = Effect.fn(
+    "CalendarServiceLive.applyChanges",
+  )(function* (input) {
+    let event: CalendarEventDetails | undefined;
+    const inverse: Array<ReadonlyArray<CalendarChangeStep>> = [];
+    for (const step of input.steps) {
+      const result = yield* runStep(step);
+      event = result.event;
+      inverse.unshift(result.undo);
+    }
+    return mutationResult(event, inverse.flat());
+  });
 
   const runStep = (
     step: CalendarChangeStep,
@@ -1589,32 +1594,31 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
         failedTo("save the environment preferences"),
       );
 
-  const insertAccount = (
+  const insertAccount = Effect.fn("CalendarServiceLive.insertAccount")(function* (
     fields: Omit<
       AccountRecord,
       "accountId" | "position" | "status" | "error" | "lastSyncedAt" | "calendarListSyncToken"
     >,
-  ) =>
-    Effect.gen(function* () {
-      const accountId = yield* shortId;
-      const now = yield* Clock.currentTimeMillis;
-      yield* store.insertAccount(
-        {
-          ...fields,
-          accountId,
-          position: yield* store.nextAccountPosition,
-          status: "syncing",
-          error: null,
-          lastSyncedAt: null,
-          calendarListSyncToken: null,
-        },
-        now,
-      );
-      return accountId;
-    });
+  ) {
+    const accountId = yield* shortId;
+    const now = yield* Clock.currentTimeMillis;
+    yield* store.insertAccount(
+      {
+        ...fields,
+        accountId,
+        position: yield* store.nextAccountPosition,
+        status: "syncing",
+        error: null,
+        lastSyncedAt: null,
+        calendarListSyncToken: null,
+      },
+      now,
+    );
+    return accountId;
+  });
 
-  const addDemo: CalendarServiceShape["addDemo"] = (input) =>
-    Effect.gen(function* () {
+  const addDemo: CalendarServiceShape["addDemo"] = Effect.fn("CalendarServiceLive.addDemo")(
+    function* (input) {
       const seed = input.seed ?? DEFAULT_DEMO_SEED;
       const added = yield* writes.withPermits(1)(
         Effect.gen(function* () {
@@ -1640,26 +1644,29 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
         }),
       );
       for (const accountId of added) yield* startSync(accountId, true);
-    }).pipe(failedTo("add the demo accounts"));
+    },
+    failedTo("add the demo accounts"),
+  );
 
-  const removeAccount: CalendarServiceShape["removeAccount"] = (accountId) =>
-    Effect.gen(function* () {
-      const account = yield* store.getAccount(accountId);
-      if (account === undefined) return yield* notFound("That account does not exist.");
-      if (account.provider === "google" && googleAuth.disconnect)
-        yield* googleAuth.disconnect(account.externalId);
-      yield* writes.withPermits(1)(
-        Effect.gen(function* () {
-          const calendars = yield* store.calendarsOf(accountId);
-          yield* sql.withTransaction(store.deleteAccount(accountId));
-          for (const calendar of calendars) yield* publishReplace(calendar.calendarId);
-          yield* publishDirectory;
-        }),
-      );
-      timers.delete(accountId);
-      demoClients.delete(accountId);
-      if (account.provider === "google") yield* googleAuth.removeTokens(account.externalId);
-    }).pipe(failedTo("remove the account"));
+  const removeAccount: CalendarServiceShape["removeAccount"] = Effect.fn(
+    "CalendarServiceLive.removeAccount",
+  )(function* (accountId) {
+    const account = yield* store.getAccount(accountId);
+    if (account === undefined) return yield* notFound("That account does not exist.");
+    if (account.provider === "google" && googleAuth.disconnect)
+      yield* googleAuth.disconnect(account.externalId);
+    yield* writes.withPermits(1)(
+      Effect.gen(function* () {
+        const calendars = yield* store.calendarsOf(accountId);
+        yield* sql.withTransaction(store.deleteAccount(accountId));
+        for (const calendar of calendars) yield* publishReplace(calendar.calendarId);
+        yield* publishDirectory;
+      }),
+    );
+    timers.delete(accountId);
+    demoClients.delete(accountId);
+    if (account.provider === "google") yield* googleAuth.removeTokens(account.externalId);
+  }, failedTo("remove the account"));
 
   // ── Google sign-in ───────────────────────────────────────────────
 
@@ -1671,6 +1678,20 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
           displayName: identity.name ?? identity.email,
           avatarUrl: identity.picture ?? null,
         };
+        // A Google account signed in on this device before accounts were linked to the Otter
+        // Account moves to its linked sign-in, keeping its calendars and their colors.
+        const legacy = identity.sub.startsWith("cloud:")
+          ? (yield* store.listAccounts).find(
+              (account) =>
+                account.provider === "google" &&
+                !account.externalId.startsWith("cloud:") &&
+                account.email.toLowerCase() === identity.email.toLowerCase(),
+            )
+          : undefined;
+        if (legacy && (yield* store.findAccount("google", identity.sub)) === undefined) {
+          yield* store.setAccountExternalId(legacy.accountId, identity.sub);
+          yield* googleAuth.removeTokens(legacy.externalId);
+        }
         const existing = yield* store.findAccount("google", identity.sub);
         let accountId: string;
         if (existing !== undefined) {
@@ -1807,219 +1828,223 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
 
   // ── Sync ─────────────────────────────────────────────────────────
 
-  const pagesOf = <Page extends { readonly nextPageToken?: string }>(
-    fetch: (pageToken: string | undefined) => Effect.Effect<Page, CalendarProviderError>,
-  ) =>
-    Effect.gen(function* () {
-      const pages: Array<Page> = [];
-      let pageToken: string | undefined;
-      do {
-        const page = yield* fetch(pageToken);
-        pages.push(page);
-        pageToken = page.nextPageToken;
-      } while (pageToken !== undefined && pages.length < MAX_PAGES);
-      return pages;
-    });
+  const pagesOf = Effect.fn("CalendarServiceLive.pagesOf")(function* <
+    Page extends { readonly nextPageToken?: string },
+  >(fetch: (pageToken: string | undefined) => Effect.Effect<Page, CalendarProviderError>) {
+    const pages: Array<Page> = [];
+    let pageToken: string | undefined;
+    do {
+      const page = yield* fetch(pageToken);
+      pages.push(page);
+      pageToken = page.nextPageToken;
+    } while (pageToken !== undefined && pages.length < MAX_PAGES);
+    return pages;
+  });
 
-  const syncCalendarList = (account: AccountRecord, client: CalendarProviderClient, now: number) =>
-    Effect.gen(function* () {
-      const list = (syncToken: string | null) =>
-        pagesOf((pageToken) =>
-          client.listCalendars({
-            ...(syncToken !== null ? { syncToken } : {}),
-            ...(pageToken !== undefined ? { pageToken } : {}),
-          }),
-        );
-      let full = account.calendarListSyncToken === null;
-      const pages = yield* list(account.calendarListSyncToken).pipe(
-        Effect.catchIf(
-          (error) => error.reason === "gone",
-          () => {
-            full = true;
-            return list(null);
-          },
-        ),
-      );
-      const remotes: Array<RemoteCalendar> = pages.flatMap((page) => page.calendars);
-      const nextSyncToken = pages.at(-1)?.nextSyncToken ?? null;
-      yield* writes.withPermits(1)(
-        Effect.gen(function* () {
-          const existing = yield* store.calendarsOf(account.accountId);
-          const all = yield* store.listCalendars;
-          const byRemote = new Map(existing.map((calendar) => [calendar.remoteId, calendar]));
-          const seen = new Set<string>();
-          const removed: Array<string> = [];
-          const horizonStart = Math.min(
-            mondayOf(now) - environmentPreferences.syncWindow.pastWeeks * WEEK_MS,
-            ...all.map((entry) => entry.horizonStart),
-          );
-          const horizonEnd = Math.max(
-            mondayOf(now) + environmentPreferences.syncWindow.futureWeeks * WEEK_MS,
-            ...all.map((entry) => entry.horizonEnd),
-          );
-          let position = existing.length;
-          yield* sql.withTransaction(
-            Effect.gen(function* () {
-              for (const remote of remotes) {
-                const local = byRemote.get(remote.id);
-                seen.add(remote.id);
-                if (remote.deleted === true) {
-                  if (local !== undefined) {
-                    yield* store.deleteCalendar(local.calendarId);
-                    removed.push(local.calendarId);
-                  }
-                  continue;
-                }
-                const fields = {
-                  name: remote.summaryOverride ?? remote.summary ?? remote.id,
-                  description: remote.description ?? null,
-                  color: /^#[0-9a-f]{6}$/i.test(remote.backgroundColor ?? "")
-                    ? remote.backgroundColor!.toLowerCase()
-                    : "#039be5",
-                  accessRole: remote.accessRole ?? "reader",
-                  primary: remote.primary === true,
-                  defaultRemindersJson:
-                    remote.defaultReminders === undefined
-                      ? null
-                      : yield* encodeDefaultReminders(remote.defaultReminders).pipe(
-                          Effect.mapError(
-                            () =>
-                              new CalendarProviderError({
-                                reason: "unavailable",
-                                detail: "Could not read Google calendar reminder defaults.",
-                              }),
-                          ),
-                        ),
-                  timeZone:
-                    remote.timeZone && isValidTimeZone(remote.timeZone) ? remote.timeZone : null,
-                };
-                if (local !== undefined) {
-                  yield* store.updateCalendarFromRemote(local.calendarId, fields);
-                  continue;
-                }
-                yield* store.insertCalendar({
-                  calendarId: yield* shortId,
-                  accountId: account.accountId,
-                  remoteId: remote.id,
-                  ...fields,
-                  colorLocal: false,
-                  visible: remote.hidden !== true && remote.selected !== false,
-                  position: position++,
-                  syncToken: null,
-                  syncedAt: null,
-                  horizonStart,
-                  horizonEnd,
-                });
-              }
-              if (full) {
-                for (const calendar of existing) {
-                  if (seen.has(calendar.remoteId)) continue;
-                  yield* store.deleteCalendar(calendar.calendarId);
-                  removed.push(calendar.calendarId);
-                }
-              }
-              yield* store.setCalendarListSyncToken(account.accountId, nextSyncToken);
-            }),
-          );
-          for (const calendarId of removed) yield* publishReplace(calendarId);
-          yield* publishDirectory;
+  const syncCalendarList = Effect.fn("CalendarServiceLive.syncCalendarList")(function* (
+    account: AccountRecord,
+    client: CalendarProviderClient,
+    now: number,
+  ) {
+    const list = (syncToken: string | null) =>
+      pagesOf((pageToken) =>
+        client.listCalendars({
+          ...(syncToken !== null ? { syncToken } : {}),
+          ...(pageToken !== undefined ? { pageToken } : {}),
         }),
       );
-    });
+    let full = account.calendarListSyncToken === null;
+    const pages = yield* list(account.calendarListSyncToken).pipe(
+      Effect.catchIf(
+        (error) => error.reason === "gone",
+        () => {
+          full = true;
+          return list(null);
+        },
+      ),
+    );
+    const remotes: Array<RemoteCalendar> = pages.flatMap((page) => page.calendars);
+    const nextSyncToken = pages.at(-1)?.nextSyncToken ?? null;
+    yield* writes.withPermits(1)(
+      Effect.gen(function* () {
+        const existing = yield* store.calendarsOf(account.accountId);
+        const all = yield* store.listCalendars;
+        const byRemote = new Map(existing.map((calendar) => [calendar.remoteId, calendar]));
+        const seen = new Set<string>();
+        const removed: Array<string> = [];
+        const horizonStart = Math.min(
+          mondayOf(now) - environmentPreferences.syncWindow.pastWeeks * WEEK_MS,
+          ...all.map((entry) => entry.horizonStart),
+        );
+        const horizonEnd = Math.max(
+          mondayOf(now) + environmentPreferences.syncWindow.futureWeeks * WEEK_MS,
+          ...all.map((entry) => entry.horizonEnd),
+        );
+        let position = existing.length;
+        yield* sql.withTransaction(
+          Effect.gen(function* () {
+            for (const remote of remotes) {
+              const local = byRemote.get(remote.id);
+              seen.add(remote.id);
+              if (remote.deleted === true) {
+                if (local !== undefined) {
+                  yield* store.deleteCalendar(local.calendarId);
+                  removed.push(local.calendarId);
+                }
+                continue;
+              }
+              const fields = {
+                name: remote.summaryOverride ?? remote.summary ?? remote.id,
+                description: remote.description ?? null,
+                color: /^#[0-9a-f]{6}$/i.test(remote.backgroundColor ?? "")
+                  ? remote.backgroundColor!.toLowerCase()
+                  : "#039be5",
+                accessRole: remote.accessRole ?? "reader",
+                primary: remote.primary === true,
+                defaultRemindersJson:
+                  remote.defaultReminders === undefined
+                    ? null
+                    : yield* encodeDefaultReminders(remote.defaultReminders).pipe(
+                        Effect.mapError(
+                          () =>
+                            new CalendarProviderError({
+                              reason: "unavailable",
+                              detail: "Could not read Google calendar reminder defaults.",
+                            }),
+                        ),
+                      ),
+                timeZone:
+                  remote.timeZone && isValidTimeZone(remote.timeZone) ? remote.timeZone : null,
+              };
+              if (local !== undefined) {
+                yield* store.updateCalendarFromRemote(local.calendarId, fields);
+                continue;
+              }
+              yield* store.insertCalendar({
+                calendarId: yield* shortId,
+                accountId: account.accountId,
+                remoteId: remote.id,
+                ...fields,
+                colorLocal: false,
+                visible: remote.hidden !== true && remote.selected !== false,
+                position: position++,
+                syncToken: null,
+                syncedAt: null,
+                horizonStart,
+                horizonEnd,
+              });
+            }
+            if (full) {
+              for (const calendar of existing) {
+                if (seen.has(calendar.remoteId)) continue;
+                yield* store.deleteCalendar(calendar.calendarId);
+                removed.push(calendar.calendarId);
+              }
+            }
+            yield* store.setCalendarListSyncToken(account.accountId, nextSyncToken);
+          }),
+        );
+        for (const calendarId of removed) yield* publishReplace(calendarId);
+        yield* publishDirectory;
+      }),
+    );
+  });
 
-  const syncCalendarEvents = (
+  const syncCalendarEvents = Effect.fn("CalendarServiceLive.syncCalendarEvents")(function* (
     account: AccountRecord,
     calendar: CalendarRecord,
     client: CalendarProviderClient,
     now: number,
-  ) =>
-    Effect.gen(function* () {
-      const revision = environmentRevision;
-      const timeMin = iso(now - environmentPreferences.syncWindow.pastWeeks * WEEK_MS);
-      const list = (syncToken: string | null) =>
-        pagesOf((pageToken) =>
-          client.listEvents(calendar.remoteId, {
-            ...(syncToken !== null ? { syncToken } : { timeMin }),
-            ...(pageToken !== undefined ? { pageToken } : {}),
-          }),
-        );
-      let full = calendar.syncToken === null;
-      const pages = yield* list(calendar.syncToken).pipe(
-        Effect.catchIf(
-          (error) => error.reason === "gone",
-          () => {
-            full = true;
-            return list(null);
-          },
-        ),
-      );
-      const events = pages.flatMap((page) => page.events);
-      const nextSyncToken = pages.at(-1)?.nextSyncToken ?? null;
-      yield* writes.withPermits(1)(
-        Effect.gen(function* () {
-          const fresh = yield* store.getCalendar(calendar.calendarId);
-          if (fresh === undefined) return;
-          if (revision !== environmentRevision)
-            return yield* new CalendarProviderError({
-              reason: "unavailable",
-              detail: "The sync window changed; sync again.",
-            });
-          if (full) {
-            yield* sql.withTransaction(
-              replaceEvents(fresh, events).pipe(
-                Effect.andThen(store.setCalendarSync(fresh.calendarId, nextSyncToken, now)),
-              ),
-            );
-            yield* publishReplace(fresh.calendarId);
-            return;
-          }
-          const list = yield* sql.withTransaction(
-            applyEvents(fresh, events, true).pipe(
-              Effect.tap(() => store.setCalendarSync(fresh.calendarId, nextSyncToken, now)),
-            ),
-          );
-          yield* publishChanges(fresh.calendarId, list);
+  ) {
+    const revision = environmentRevision;
+    const timeMin = iso(now - environmentPreferences.syncWindow.pastWeeks * WEEK_MS);
+    const list = (syncToken: string | null) =>
+      pagesOf((pageToken) =>
+        client.listEvents(calendar.remoteId, {
+          ...(syncToken !== null ? { syncToken } : { timeMin }),
+          ...(pageToken !== undefined ? { pageToken } : {}),
         }),
       );
-    });
-
-  /** One account's sync: its calendar list when due, then every calendar that needs it. */
-  const syncAccountOnce = (account: AccountRecord, force: boolean, now: number) =>
-    Effect.gen(function* () {
-      const client = clientFor(account);
-      const timer = timerFor(account.accountId);
-      if (
-        force ||
-        account.calendarListSyncToken === null ||
-        now - timer.listFetchedAt >= CALENDAR_LIST_INTERVAL
-      ) {
-        yield* syncCalendarList(account, client, now);
-        timer.listFetchedAt = now;
-        if (googleAuth.accounts)
-          yield* preferenceSync.cached.pipe(
-            Effect.flatMap(applyAccountPreferences),
-            Effect.ignoreCause({ log: true }),
+    let full = calendar.syncToken === null;
+    const pages = yield* list(calendar.syncToken).pipe(
+      Effect.catchIf(
+        (error) => error.reason === "gone",
+        () => {
+          full = true;
+          return list(null);
+        },
+      ),
+    );
+    const events = pages.flatMap((page) => page.events);
+    const nextSyncToken = pages.at(-1)?.nextSyncToken ?? null;
+    yield* writes.withPermits(1)(
+      Effect.gen(function* () {
+        const fresh = yield* store.getCalendar(calendar.calendarId);
+        if (fresh === undefined) return;
+        if (revision !== environmentRevision)
+          return yield* new CalendarProviderError({
+            reason: "unavailable",
+            detail: "The sync window changed; sync again.",
+          });
+        if (full) {
+          yield* sql.withTransaction(
+            replaceEvents(fresh, events).pipe(
+              Effect.andThen(store.setCalendarSync(fresh.calendarId, nextSyncToken, now)),
+            ),
           );
-      }
-      for (const calendar of yield* store.calendarsOf(account.accountId)) {
-        const watched = subscribers > 0 && calendar.visible;
-        const recent =
-          calendar.syncedAt !== null && now - calendar.syncedAt < UNWATCHED_CALENDAR_INTERVAL;
-        if (!force && !watched && calendar.syncToken !== null && recent) continue;
-        yield* syncCalendarEvents(account, calendar, client, now).pipe(
-          Effect.catchIf(
-            (error): error is CalendarProviderError =>
-              error._tag === "CalendarProviderError" &&
-              (error.reason === "not_found" || error.reason === "forbidden"),
-            (error) =>
-              Effect.logWarning("Skipped a calendar Google would not list.", {
-                calendarId: calendar.calendarId,
-                reason: error.reason,
-              }),
+          yield* publishReplace(fresh.calendarId);
+          return;
+        }
+        const list = yield* sql.withTransaction(
+          applyEvents(fresh, events, true).pipe(
+            Effect.tap(() => store.setCalendarSync(fresh.calendarId, nextSyncToken, now)),
           ),
         );
-      }
-    });
+        yield* publishChanges(fresh.calendarId, list);
+      }),
+    );
+  });
+
+  /** One account's sync: its calendar list when due, then every calendar that needs it. */
+  const syncAccountOnce = Effect.fn("CalendarServiceLive.syncAccountOnce")(function* (
+    account: AccountRecord,
+    force: boolean,
+    now: number,
+  ) {
+    const client = clientFor(account);
+    const timer = timerFor(account.accountId);
+    if (
+      force ||
+      account.calendarListSyncToken === null ||
+      now - timer.listFetchedAt >= CALENDAR_LIST_INTERVAL
+    ) {
+      yield* syncCalendarList(account, client, now);
+      timer.listFetchedAt = now;
+      if (googleAuth.accounts)
+        yield* preferenceSync.cached.pipe(
+          Effect.flatMap(applyAccountPreferences),
+          Effect.ignoreCause({ log: true }),
+        );
+    }
+    for (const calendar of yield* store.calendarsOf(account.accountId)) {
+      const watched = subscribers > 0 && calendar.visible;
+      const recent =
+        calendar.syncedAt !== null && now - calendar.syncedAt < UNWATCHED_CALENDAR_INTERVAL;
+      if (!force && !watched && calendar.syncToken !== null && recent) continue;
+      yield* syncCalendarEvents(account, calendar, client, now).pipe(
+        Effect.catchIf(
+          (error): error is CalendarProviderError =>
+            error._tag === "CalendarProviderError" &&
+            (error.reason === "not_found" || error.reason === "forbidden"),
+          (error) =>
+            Effect.logWarning("Skipped a calendar Google would not list.", {
+              calendarId: calendar.calendarId,
+              reason: error.reason,
+            }),
+        ),
+      );
+    }
+  });
 
   const recordSyncResult = (
     account: AccountRecord,
@@ -2099,22 +2124,23 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
       );
     });
 
-  const sync: CalendarServiceShape["sync"] = (input) =>
-    Effect.gen(function* () {
-      yield* reconcileProviderAccounts;
-      const accounts =
-        input.accountId !== undefined
-          ? [yield* store.getAccount(input.accountId)]
-          : yield* store.listAccounts;
-      if (accounts[0] === undefined && input.accountId !== undefined) {
-        return yield* notFound("That account does not exist.");
-      }
-      const runs = yield* Effect.forEach(
-        accounts.filter((account): account is AccountRecord => account !== undefined),
-        (account) => startSync(account.accountId, true),
-      );
-      yield* Effect.forEach(runs, (run) => Deferred.await(run), { discard: true });
-    }).pipe(failedTo("sync the calendars"));
+  const sync: CalendarServiceShape["sync"] = Effect.fn("CalendarServiceLive.sync")(function* (
+    input,
+  ) {
+    yield* reconcileProviderAccounts;
+    const accounts =
+      input.accountId !== undefined
+        ? [yield* store.getAccount(input.accountId)]
+        : yield* store.listAccounts;
+    if (accounts[0] === undefined && input.accountId !== undefined) {
+      return yield* notFound("That account does not exist.");
+    }
+    const runs = yield* Effect.forEach(
+      accounts.filter((account): account is AccountRecord => account !== undefined),
+      (account) => startSync(account.accountId, true),
+    );
+    yield* Effect.forEach(runs, (run) => Deferred.await(run), { discard: true });
+  }, failedTo("sync the calendars"));
 
   const ensureFresh: CalendarServiceShape["ensureFresh"] = Effect.gen(function* () {
     const now = yield* Clock.currentTimeMillis;
@@ -2157,118 +2183,119 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
 
   // ── Search and free time ─────────────────────────────────────────
 
-  const search: CalendarServiceShape["search"] = (input) =>
-    Effect.gen(function* () {
-      const limit = input.limit ?? 50;
-      const now = yield* Clock.currentTimeMillis;
-      const hits = yield* store.searchEvents(input.query.trim(), 500);
-      // A single event is its own instance, so its times come with the hit; a series needs
-      // its next (or last) occurrence.
-      type Candidate = {
-        readonly start: number;
-        readonly end: number;
-        readonly row?: InstanceRow;
-        readonly single?: { readonly calendarId: string; readonly eventId: string };
-      };
-      const candidates: Array<Candidate> = [];
-      const groups = new Map<
-        string,
-        { calendarId: string; key: string; whole: boolean; ids: Set<string> }
-      >();
-      for (const hit of hits) {
-        if (hit.kind === "single") {
-          if (hit.start !== null && hit.end !== null) {
-            candidates.push({ start: hit.start, end: hit.end, single: hit });
-          }
-          continue;
+  const search: CalendarServiceShape["search"] = Effect.fn("CalendarServiceLive.search")(function* (
+    input,
+  ) {
+    const limit = input.limit ?? 50;
+    const now = yield* Clock.currentTimeMillis;
+    const hits = yield* store.searchEvents(input.query.trim(), 500);
+    // A single event is its own instance, so its times come with the hit; a series needs
+    // its next (or last) occurrence.
+    type Candidate = {
+      readonly start: number;
+      readonly end: number;
+      readonly row?: InstanceRow;
+      readonly single?: { readonly calendarId: string; readonly eventId: string };
+    };
+    const candidates: Array<Candidate> = [];
+    const groups = new Map<
+      string,
+      { calendarId: string; key: string; whole: boolean; ids: Set<string> }
+    >();
+    for (const hit of hits) {
+      if (hit.kind === "single") {
+        if (hit.start !== null && hit.end !== null) {
+          candidates.push({ start: hit.start, end: hit.end, single: hit });
         }
-        const key = hit.seriesId ?? hit.eventId;
-        const groupKey = `${hit.calendarId}/${key}`;
-        let group = groups.get(groupKey);
-        if (group === undefined) {
-          group = { calendarId: hit.calendarId, key, whole: false, ids: new Set() };
-          groups.set(groupKey, group);
-        }
-        if (hit.kind === "exception") group.ids.add(hit.eventId);
-        else group.whole = true;
+        continue;
       }
-      for (const group of groups.values()) {
-        const row = yield* store.representativeInstance(
-          group.calendarId,
-          group.key,
-          now,
-          group.whole ? null : [...group.ids],
-        );
-        if (row !== undefined) candidates.push({ start: row.start, end: row.end, row });
+      const key = hit.seriesId ?? hit.eventId;
+      const groupKey = `${hit.calendarId}/${key}`;
+      let group = groups.get(groupKey);
+      if (group === undefined) {
+        group = { calendarId: hit.calendarId, key, whole: false, ids: new Set() };
+        groups.set(groupKey, group);
       }
-      const upcoming = candidates
-        .filter((entry) => entry.end > now)
-        .sort((a, b) => a.start - b.start);
-      const past = candidates.filter((entry) => entry.end <= now).sort((a, b) => b.start - a.start);
-      const chosen = [...upcoming, ...past].slice(0, limit);
-      const singlesByCalendar = new Map<string, Array<string>>();
-      for (const entry of chosen) {
-        if (entry.single === undefined) continue;
-        const ids = singlesByCalendar.get(entry.single.calendarId) ?? [];
-        ids.push(entry.single.eventId);
-        singlesByCalendar.set(entry.single.calendarId, ids);
-      }
-      const singleRows = new Map<string, InstanceRow>();
-      for (const [calendarId, ids] of singlesByCalendar) {
-        for (const row of yield* store.instancesById(calendarId, ids)) {
-          singleRows.set(instanceKey(row), row);
-        }
-      }
-      const results: Array<CalendarEventInstance> = [];
-      for (const entry of chosen) {
-        const row =
-          entry.row ??
-          (entry.single
-            ? singleRows.get(`${entry.single.calendarId}/${entry.single.eventId}`)
-            : undefined);
-        if (row !== undefined) results.push(toInstance(row));
-      }
-      const watched = new Set(
-        (yield* store.listCalendars).filter((c) => c.watchOnly).map((c) => c.calendarId),
+      if (hit.kind === "exception") group.ids.add(hit.eventId);
+      else group.whole = true;
+    }
+    for (const group of groups.values()) {
+      const row = yield* store.representativeInstance(
+        group.calendarId,
+        group.key,
+        now,
+        group.whole ? null : [...group.ids],
       );
-      return {
-        results: results.map((event) => ({
-          ...event,
-          ...(watched.has(event.calendarId) ? { watchOnly: true } : {}),
-        })),
-      };
-    }).pipe(failedTo("search the calendars"));
+      if (row !== undefined) candidates.push({ start: row.start, end: row.end, row });
+    }
+    const upcoming = candidates
+      .filter((entry) => entry.end > now)
+      .sort((a, b) => a.start - b.start);
+    const past = candidates.filter((entry) => entry.end <= now).sort((a, b) => b.start - a.start);
+    const chosen = [...upcoming, ...past].slice(0, limit);
+    const singlesByCalendar = new Map<string, Array<string>>();
+    for (const entry of chosen) {
+      if (entry.single === undefined) continue;
+      const ids = singlesByCalendar.get(entry.single.calendarId) ?? [];
+      ids.push(entry.single.eventId);
+      singlesByCalendar.set(entry.single.calendarId, ids);
+    }
+    const singleRows = new Map<string, InstanceRow>();
+    for (const [calendarId, ids] of singlesByCalendar) {
+      for (const row of yield* store.instancesById(calendarId, ids)) {
+        singleRows.set(instanceKey(row), row);
+      }
+    }
+    const results: Array<CalendarEventInstance> = [];
+    for (const entry of chosen) {
+      const row =
+        entry.row ??
+        (entry.single
+          ? singleRows.get(`${entry.single.calendarId}/${entry.single.eventId}`)
+          : undefined);
+      if (row !== undefined) results.push(toInstance(row));
+    }
+    const watched = new Set(
+      (yield* store.listCalendars).filter((c) => c.watchOnly).map((c) => c.calendarId),
+    );
+    return {
+      results: results.map((event) => ({
+        ...event,
+        ...(watched.has(event.calendarId) ? { watchOnly: true } : {}),
+      })),
+    };
+  }, failedTo("search the calendars"));
 
-  const findFreeTime: CalendarServiceShape["findFreeTime"] = (input) =>
-    Effect.gen(function* () {
-      if (!(input.end > input.start))
-        return yield* invalid("The range has to end after it starts.");
-      if (input.end - input.start > MAX_FREE_TIME_RANGE) {
-        return yield* invalid("Look for free time in at most two months at once.");
-      }
-      if (!(input.durationMinutes > 0)) return yield* invalid("The duration has to be positive.");
-      yield* ensureHorizon(input.start, input.end);
-      const calendarIds = input.calendarIds ?? (yield* store.visibleCalendarIds);
-      const rows = yield* store.rangeInstances(calendarIds, input.start, input.end);
-      const watched = new Set(
-        (yield* store.listCalendars).filter((c) => c.watchOnly).map((c) => c.calendarId),
-      );
-      const range = { start: input.start, end: input.end };
-      const zone = zoneOr(input.timeZone, serverZone);
-      const windows =
-        input.workingHoursOnly === false
-          ? [range]
-          : workingWindows(range, preferences.workingHours, zone);
-      return freeSlots(
-        windows,
-        mergeBusy(
-          rows.filter((row) => !watched.has(row.calendarId)),
-          range,
-        ),
-        input.durationMinutes * MINUTE,
-        FREE_SLOT_LIMIT,
-      );
-    }).pipe(failedTo("find free time"));
+  const findFreeTime: CalendarServiceShape["findFreeTime"] = Effect.fn(
+    "CalendarServiceLive.findFreeTime",
+  )(function* (input) {
+    if (!(input.end > input.start)) return yield* invalid("The range has to end after it starts.");
+    if (input.end - input.start > MAX_FREE_TIME_RANGE) {
+      return yield* invalid("Look for free time in at most two months at once.");
+    }
+    if (!(input.durationMinutes > 0)) return yield* invalid("The duration has to be positive.");
+    yield* ensureHorizon(input.start, input.end);
+    const calendarIds = input.calendarIds ?? (yield* store.visibleCalendarIds);
+    const rows = yield* store.rangeInstances(calendarIds, input.start, input.end);
+    const watched = new Set(
+      (yield* store.listCalendars).filter((c) => c.watchOnly).map((c) => c.calendarId),
+    );
+    const range = { start: input.start, end: input.end };
+    const zone = zoneOr(input.timeZone, serverZone);
+    const windows =
+      input.workingHoursOnly === false
+        ? [range]
+        : workingWindows(range, preferences.workingHours, zone);
+    return freeSlots(
+      windows,
+      mergeBusy(
+        rows.filter((row) => !watched.has(row.calendarId)),
+        range,
+      ),
+      input.durationMinutes * MINUTE,
+      FREE_SLOT_LIMIT,
+    );
+  }, failedTo("find free time"));
 
   // ── Startup ──────────────────────────────────────────────────────
 
@@ -2297,18 +2324,17 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
     preferences: () => preferences,
     autoStart: options.autoSync !== false,
     changes: Stream.merge(Stream.fromPubSub(changes), Stream.fromPubSub(directoryChanges)),
-    candidates: (now) =>
-      Effect.gen(function* () {
-        const rows = yield* sql<{
-          calendar_id: string;
-          instance_id: string;
-          title: string;
-          start_ms: number;
-          flags: number;
-          time_zone: string | null;
-          json: string | null;
-          default_reminders_json: string | null;
-        }>`
+    candidates: Effect.fn("CalendarServiceLive.candidates")(function* (now) {
+      const rows = yield* sql<{
+        calendar_id: string;
+        instance_id: string;
+        title: string;
+        start_ms: number;
+        flags: number;
+        time_zone: string | null;
+        json: string | null;
+        default_reminders_json: string | null;
+      }>`
         SELECT i.calendar_id, i.instance_id, i.title, i.start_ms, i.flags, c.time_zone, c.default_reminders_json, COALESCE(exception.json, master.json) AS json
         FROM calendar_instances i JOIN calendar_calendars c ON c.calendar_id = i.calendar_id
         JOIN calendar_accounts a ON a.account_id = c.account_id
@@ -2317,30 +2343,30 @@ const make = Effect.fn("CalendarServiceLive.make")(function* (
         WHERE c.visible = 1 AND c.watch_only = 0 AND a.status != 'signed_out' AND (i.response IS NULL OR i.response != 'declined')
           AND i.start_ms >= ${now - DAY_MS} AND i.start_ms <= ${now + 29 * DAY_MS}
         ORDER BY i.start_ms`;
-        return yield* Effect.forEach(rows, (row) =>
-          Effect.gen(function* () {
-            const fields = row.json
-              ? yield* decodeReminderFields(row.json).pipe(Effect.orElseSucceed(() => ({})))
-              : {};
-            return {
-              calendarId: CalendarId.make(row.calendar_id),
-              eventId: row.instance_id,
-              title: row.title,
-              start: row.start_ms,
-              allDay: (row.flags & 1) !== 0,
-              timeZone: row.time_zone ?? preferences.timeZone ?? serverZone,
-              ...fields,
-              ...(row.default_reminders_json !== null
-                ? {
-                    defaultReminders: yield* decodeDefaultReminders(
-                      row.default_reminders_json,
-                    ).pipe(Effect.orElseSucceed(() => [])),
-                  }
-                : {}),
-            };
-          }),
-        );
-      }).pipe(failedTo("load reminder events")),
+      return yield* Effect.forEach(rows, (row) =>
+        Effect.gen(function* () {
+          const fields = row.json
+            ? yield* decodeReminderFields(row.json).pipe(Effect.orElseSucceed(() => ({})))
+            : {};
+          return {
+            calendarId: CalendarId.make(row.calendar_id),
+            eventId: row.instance_id,
+            title: row.title,
+            start: row.start_ms,
+            allDay: (row.flags & 1) !== 0,
+            timeZone: row.time_zone ?? preferences.timeZone ?? serverZone,
+            ...fields,
+            ...(row.default_reminders_json !== null
+              ? {
+                  defaultReminders: yield* decodeDefaultReminders(row.default_reminders_json).pipe(
+                    Effect.orElseSucceed(() => []),
+                  ),
+                }
+              : {}),
+          };
+        }),
+      );
+    }, failedTo("load reminder events")),
   });
   return CalendarService.of({
     notifications: Stream.unwrap(
