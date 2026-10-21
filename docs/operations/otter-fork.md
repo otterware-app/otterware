@@ -67,16 +67,15 @@ git diff --check "$new_base"..HEAD
 Typecheck the packages with resolved conflicts and run the focused tests next to them (through
 `scripts/otterware/heavy.sh`); leave the full suite to CI.
 
-### 2026-10-21 protected publication exception
+### Protected publication exception
 
-Laurin authorized an ordinary protected squash PR for the 2026-10-21 Code/Mail/Drive sync, the
-same way as the 2026-10-20 sync (#101). It preserves main's merged history and leaves
-`upstream-base` at `339179f50a84dc599cce373dbb48f172f182f44e`. The newly integrated T3 revision
-is `74541bab17270c35f4418d4e543d85628632ed8f`, recorded in
-`scripts/otterware/source-baseline.json` with the reviewed module source revisions and the base
-main `0b2778ae7f0227ca0c13761947b37a8d7549a6dd`. Each such sync is a separate, explicit
-exception to the one-commit reconstruction/publication procedure below; it does not authorize a
-shared history rewrite or relax branch protection.
+Laurin authorized ordinary protected squash PRs for the 2026-10-20 and 2026-10-21 Code/Mail/Drive
+syncs (#101, #103). They preserve main's merged history and leave `upstream-base` at
+`339179f50a84dc599cce373dbb48f172f182f44e`. `scripts/otterware/source-baseline.json` records the
+integrated T3 revision, the reviewed module source revisions and the base main the sync applies
+to; [source sync](source-sync.md) describes the current integration. Each such sync is a separate,
+explicit exception to the one-commit reconstruction/publication procedure below; it does not
+authorize a shared history rewrite or relax branch protection.
 
 The seam check uses that explicit source baseline for ownership, including newly upstream-owned
 files. For this sync alone, against the recorded base main, it verifies byte-identical upstream
