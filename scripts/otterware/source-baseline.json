@@ -229,6 +229,7 @@
       "packages/contracts/src/settings.test.ts": "100644 blob 4cc9ed62e93bab0ab8e0cd3f56f0f7837f464ff3",
       "packages/contracts/src/settings.ts": "100644 blob 08484017d4d933237470441223ddafc5906e044e",
       "packages/shared/src/assistantCitations.test.ts": "100644 blob 56a34dee53a707312fc378c09c4947c10135b218",
+      "packages/shared/src/connectAuth.ts": "100644 blob f530404c7f831646b21811c123ebaff6203f1bd8",
       "packages/shared/src/promptLinks.test.ts": "100644 blob daf80caddf2894d799092926e399dd47686746c0",
       "packages/shared/src/providerAuthReturnUrl.test.ts": "100644 blob 37a27c80fee171ffcb7cc857cc002d526f667569",
       "packages/shared/src/serverSettings.test.ts": "100644 blob 4d7c9afb786ec480ff380fe469b3a192b92c2b55",
