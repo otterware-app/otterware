@@ -1,0 +1,8 @@
+@reference "../../../index.css";
+
+/* Keep the nested Repeat dialog opaque and lighter than the dimmed event card. */
+[data-repeat-dialog] {
+  @variant dark {
+    background-color: color-mix(in srgb, var(--popover) 85%, var(--foreground));
+  }
+}

@@ -36,8 +36,8 @@ const HOURS = Array.from({ length: 23 }, (_, index) => index + 1);
 const MIN_BLOCK_PX = 18;
 /** Timed ghost pool: one interchangeable slot per visible day (custom views show up to 14). */
 const GHOST_SLOTS = Array.from({ length: 14 }, (_, index) => `ghost-${index}`);
-/** Levels the all-day lane shows before "+N more" (the last one holds the links). */
-const COLLAPSED_LANE_LEVELS = 3;
+/** The collapsed all-day lane shows one row, like the reference calendar. */
+const COLLAPSED_LANE_LEVELS = 1;
 
 /**
  * Day, week and custom N-day views: a sticky header with day names and the all-day lane, and a
@@ -143,7 +143,8 @@ export function TimeGrid(props: TimeGridProps) {
       controller.dispose();
       controllerRef.current = null;
     };
-  }, []);
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Hot reload must replace imperative listeners when the controller implementation changes.
+  }, [TimeGridController]);
 
   // On mount, show the working day, or the current time when it is outside working hours.
   const [initialScrollTop] = useState(() => {
@@ -171,7 +172,7 @@ export function TimeGrid(props: TimeGridProps) {
         className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain"
       >
         <div ref={headerRef} data-calendar-header="" className="sticky top-0 z-40 bg-background">
-          <div className="flex border-b border-border">
+          <div className="flex h-9 shrink-0 border-b border-border">
             <div className="flex w-14 shrink-0 items-end justify-end pe-2 pb-1.5 text-3xs text-muted-foreground">
               {formatZoneName(timeZone, now)}
             </div>
@@ -276,15 +277,15 @@ const DayHeader = memo(function DayHeader({
       disabled={onOpenDay === undefined}
       onClick={() => onOpenDay?.(day)}
       className={cn(
-        "flex h-10 min-w-0 items-center justify-center gap-1.5 border-s border-border text-sm outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-inset enabled:cursor-pointer enabled:hover:bg-accent/60",
+        "flex h-full min-w-0 items-center justify-center gap-1 border-s border-border text-xs outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring enabled:cursor-pointer enabled:hover:bg-accent/60",
         isPast ? "text-muted-foreground" : "text-foreground",
       )}
     >
       <span className="truncate text-xs text-muted-foreground">{name}</span>
       <span
         className={cn(
-          "flex h-6 min-w-6 items-center justify-center rounded-full px-1 font-medium tabular-nums",
-          isToday && "bg-primary text-primary-foreground",
+          "flex h-5.5 min-w-5.5 items-center justify-center rounded-lg px-1 font-medium tabular-nums",
+          isToday && "bg-destructive text-destructive-foreground",
         )}
       >
         {date}
@@ -421,16 +422,12 @@ const AllDayLane = memo(function AllDayLane({
   pendingKeys: ReadonlySet<string>;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const layout = useMemo(
-    () =>
-      packLevels(spans, days.length, expanded ? Number.POSITIVE_INFINITY : COLLAPSED_LANE_LEVELS),
-    [spans, days.length, expanded],
-  );
-  const rows = Math.max(1, layout.rows);
+  const layout = useMemo(() => packLevels(spans, days.length), [spans, days.length]);
+  const rows = Math.max(1, expanded ? layout.rows : COLLAPSED_LANE_LEVELS);
   const canCollapse = layout.totalLevels > COLLAPSED_LANE_LEVELS;
   return (
     <div data-calendar-allday="" className="flex border-b border-border">
-      <div className="flex w-14 shrink-0 flex-col items-end gap-0.5 pe-2 pt-1 text-3xs text-muted-foreground">
+      <div className="flex w-14 shrink-0 items-start justify-end gap-0.5 pe-1 pt-1 text-3xs text-muted-foreground">
         <span>All day</span>
         {canCollapse ? (
           <button
@@ -439,7 +436,7 @@ const AllDayLane = memo(function AllDayLane({
             aria-label={expanded ? "Show fewer all-day events" : "Show all all-day events"}
             aria-expanded={expanded}
             onClick={() => setExpanded((value) => !value)}
-            className="flex size-5 cursor-pointer items-center justify-center rounded-sm hover:bg-accent hover:text-foreground"
+            className="flex size-4 cursor-pointer items-center justify-center rounded-sm hover:bg-accent hover:text-foreground"
           >
             {expanded ? (
               <ChevronUpIcon className="size-3.5" />
@@ -455,49 +452,30 @@ const AllDayLane = memo(function AllDayLane({
         className="relative grid min-w-0 flex-1"
         style={{
           gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))`,
-          height: `calc(${rows} * (var(--cal-bar-height) + var(--cal-bar-gap)) + 6px)`,
+          height: `calc(${rows} * (var(--cal-bar-height) + var(--cal-bar-gap)) + 2px)`,
         }}
       >
         {days.map((day) => (
           <div key={day} data-lane-day={day} className="border-s border-border" />
         ))}
         <div className="pointer-events-none absolute inset-x-0 top-0.5 bottom-0 *:pointer-events-auto">
-          {layout.placements.map(({ item, level }) => (
-            <EventBar
-              key={item.key}
-              item={item}
-              level={level}
-              columns={days.length}
-              color={eventColor(item.instance, calendars)}
-              readOnly={isEventReadOnly(item.instance, calendars)}
-              selected={item.key === selectedKey}
-              pending={pendingKeys.has(item.key)}
-              past={spanIsPast(item, days, today, now)}
-              timeZone={timeZone}
-              hourFormat={hourFormat}
-            />
-          ))}
-          {layout.truncated
-            ? layout.hiddenPerDay.map((count, index) =>
-                count > 0 ? (
-                  <button
-                    key={days[index]}
-                    type="button"
-                    data-no-drag=""
-                    onClick={() => setExpanded(true)}
-                    className="absolute cursor-pointer truncate rounded-sm px-1.5 text-start text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
-                    style={{
-                      left: `calc(${(index / days.length) * 100}% + 2px)`,
-                      width: `calc(${100 / days.length}% - 4px)`,
-                      top: `calc(${layout.rows - 1} * (var(--cal-bar-height) + var(--cal-bar-gap)))`,
-                      height: "var(--cal-bar-height)",
-                    }}
-                  >
-                    {`+${count} more`}
-                  </button>
-                ) : null,
-              )
-            : null}
+          {layout.placements
+            .filter(({ level }) => expanded || level < COLLAPSED_LANE_LEVELS)
+            .map(({ item, level }) => (
+              <EventBar
+                key={item.key}
+                item={item}
+                level={level}
+                columns={days.length}
+                color={eventColor(item.instance, calendars)}
+                readOnly={isEventReadOnly(item.instance, calendars)}
+                selected={item.key === selectedKey}
+                pending={pendingKeys.has(item.key)}
+                past={spanIsPast(item, days, today, now)}
+                timeZone={timeZone}
+                hourFormat={hourFormat}
+              />
+            ))}
         </div>
         <div data-calendar-ghost="allday" style={{ height: "var(--cal-bar-height)", top: 2 }}>
           <span className="me-1.5" />

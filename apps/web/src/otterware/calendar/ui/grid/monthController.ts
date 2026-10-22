@@ -329,10 +329,6 @@ export class MonthController implements GestureHost {
       if (instance !== undefined) model.onOpenEvent(instance, eventElement);
       return;
     }
-    const cell = target.closest<HTMLElement>("[data-day]");
-    if (cell === null) return;
-    const day = Number(cell.dataset.day);
-    model.onCreate(createAllDay(day, day), cell.getBoundingClientRect());
   };
 
   // ── Keyboard ─────────────────────────────────────────────────────

@@ -165,7 +165,8 @@ export function MonthGrid(props: MonthGridProps) {
       controller.dispose();
       controllerRef.current = null;
     };
-  }, []);
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Hot reload must replace imperative listeners when the controller implementation changes.
+  }, [MonthController]);
 
   const gridColumns = { gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` };
 

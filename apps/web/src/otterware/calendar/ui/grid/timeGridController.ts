@@ -17,7 +17,6 @@ import {
   type GridHit,
   type TimeGridGeometry,
   changesInstance,
-  clickSlot,
   createAllDay,
   createTimed,
   dayIndexAt,
@@ -418,6 +417,17 @@ export class TimeGridController implements GestureHost {
         if (geometry === null || anchor === null) return;
         const model = this.model();
         const hit = hitTimeGrid(geometry, x, y, this.el.scroll.scrollTop, true);
+        // Check the unsnapped span: rounding a tiny drag must not create a full slot.
+        const span = Math.abs(
+          (model.days[hit.dayIndex]! - model.days[anchor.dayIndex]!) * 1440 +
+            hit.minutes -
+            anchor.minutes,
+        );
+        if (span < 15) {
+          if (result !== null) this.hideGhosts();
+          result = null;
+          return;
+        }
         const next = createTimed(model.days, model.timeZone, anchor, hit, model.snapMinutes);
         if (sameResult(result, next)) return;
         result = next;
@@ -487,47 +497,6 @@ export class TimeGridController implements GestureHost {
       if (instance !== undefined) model.onOpenEvent(instance, eventElement);
       return;
     }
-    const inColumns = this.el.columns.contains(target);
-    if (!inColumns && !this.el.lane.contains(target)) return;
-    const geometry = this.measure();
-    if (inColumns) {
-      const hit = hitTimeGrid(
-        geometry,
-        event.clientX,
-        event.clientY,
-        this.el.scroll.scrollTop,
-        true,
-      );
-      const minutes = model.preferences.defaultEventMinutes;
-      const draft = clickSlot(model.days, model.timeZone, hit, model.snapMinutes, minutes);
-      const startMinutes = toZoned(draft.start, model.timeZone).minutes;
-      model.onCreate(
-        draft,
-        new DOMRect(
-          geometry.columnsLeft + hit.dayIndex * geometry.columnWidth,
-          geometry.gridTop + startMinutes * geometry.pxPerMinute,
-          geometry.columnWidth,
-          minutes * geometry.pxPerMinute,
-        ),
-      );
-      return;
-    }
-    const index = dayIndexAt(
-      event.clientX,
-      geometry.columnsLeft,
-      geometry.columnWidth,
-      geometry.dayCount,
-    );
-    const laneRect = this.el.lane.getBoundingClientRect();
-    model.onCreate(
-      createAllDay(model.days[index]!, model.days[index]!),
-      new DOMRect(
-        geometry.columnsLeft + index * geometry.columnWidth,
-        laneRect.top,
-        geometry.columnWidth,
-        laneRect.height,
-      ),
-    );
   };
 
   // ── Keyboard ─────────────────────────────────────────────────────
