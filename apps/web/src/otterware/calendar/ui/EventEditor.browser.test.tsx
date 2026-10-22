@@ -223,3 +223,45 @@ it("centers within the calendar surface and follows sidebar width changes", asyn
   surface.style.width = "1100px";
   await expect.poll(centered).toBe(true);
 });
+
+it.each([1280, 390, 320])(
+  "aligns inline fields and avoids control overlap at %spx",
+  async (width) => {
+    await page.viewport(width, 900);
+    await using _viewport = { [Symbol.asyncDispose]: () => page.viewport(1280, 900) };
+    await using _screen = await render(<EventEditor {...props()} />);
+    await expect
+      .element(page.getByRole("textbox", { name: "Event title", exact: true }))
+      .toBeVisible();
+    const form = document.querySelector<HTMLElement>("[data-calendar-editor]")!;
+    const fields = ["Event title", "Guests", "Location", "Start time", "Start date"].map((name) =>
+      form.querySelector<HTMLInputElement>(`input[aria-label="${name}"]`)!,
+    );
+    for (const field of fields) {
+      expect(field.getBoundingClientRect().left).toBeCloseTo(
+        fields[0]!.getBoundingClientRect().left,
+        0,
+      );
+      expect(getComputedStyle(field).paddingLeft).toBe("0px");
+      expect(field.getBoundingClientRect().height).toBe(32);
+    }
+    expect(form.scrollWidth).toBeLessThanOrEqual(form.clientWidth);
+    const controls = [
+      ...form.querySelectorAll<HTMLElement>('input[aria-label],button,[role="combobox"]'),
+    ].filter((e) => e.getBoundingClientRect().width > 2);
+    for (const [index, first] of controls.entries()) {
+      for (const second of controls.slice(index + 1)) {
+        if (first.contains(second) || second.contains(first)) continue;
+        const a = first.getBoundingClientRect(),
+          b = second.getBoundingClientRect();
+        const overlaps =
+          Math.min(a.right, b.right) - Math.max(a.left, b.left) > 1 &&
+          Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 1;
+        expect(
+          overlaps,
+          `${first.getAttribute("aria-label") || first.textContent} overlaps ${second.getAttribute("aria-label") || second.textContent}`,
+        ).toBe(false);
+      }
+    }
+  },
+);

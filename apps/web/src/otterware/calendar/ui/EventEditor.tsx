@@ -17,7 +17,7 @@ import {
   XIcon,
   type LucideIcon,
 } from "lucide-react";
-import type { ReactNode, RefObject } from "react";
+import type { ReactNode, RefObject, ComponentProps } from "react";
 import { formatTime, formatTimeRange, formatLongDate, type HourFormat } from "./runtime/format";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -203,7 +203,7 @@ export function EventEditor({
             </DialogPrimitive.Title>
             <form
               data-calendar-editor=""
-              className="min-h-0 overflow-y-auto"
+              className="@container min-h-0 overflow-y-auto"
               onSubmit={(submit) => {
                 submit.preventDefault();
                 if (!valid || readOnly || busy || !editMode) return;
@@ -254,8 +254,7 @@ export function EventEditor({
                 <div className="min-w-0 flex-1">
                   {editing ? (
                     <div className="text-lg font-semibold">
-                      <Input
-                        unstyled
+                      <EventInput
                         aria-label="Event title"
                         placeholder="New event"
                         value={form.title}
@@ -271,23 +270,21 @@ export function EventEditor({
                   )}
                   {editing ? (
                     descriptionOpen ? (
-                      <Textarea
-                        unstyled
-                        size="sm"
+                      <textarea
+                        className="block min-h-16 w-full resize-y border-0 bg-transparent px-0 py-1 text-base leading-6 sm:text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/30"
                         aria-label="Description"
                         placeholder="Add description"
                         value={form.description}
                         onChange={(e) => patch("description", e.target.value)}
                       />
                     ) : (
-                      <Button
+                      <button
                         type="button"
-                        variant="ghost"
-                        size="sm"
+                        className="block h-8 text-sm leading-8 text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring/30"
                         onClick={() => setDescriptionOpen(true)}
                       >
                         Add description
-                      </Button>
+                      </button>
                     )
                   ) : (
                     <p className="max-h-40 overflow-y-auto whitespace-pre-wrap text-sm text-muted-foreground wrap-anywhere">
@@ -319,8 +316,7 @@ export function EventEditor({
               </div>
               <EventRow icon={UsersIcon}>
                 {editing && (
-                  <Input
-                    unstyled
+                  <EventInput
                     aria-label="Guests"
                     placeholder="Add guests (email addresses)"
                     value={guests}
@@ -363,11 +359,10 @@ export function EventEditor({
                 )}
               </EventRow>
               <EventRow icon={MapPinIcon}>
-                <div className="flex items-center gap-2">
-                  <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <div className="min-w-0 flex-1 @max-[360px]:basis-full">
                     {editing ? (
-                      <Input
-                        unstyled
+                      <EventInput
                         aria-label="Location"
                         placeholder="Add location, room or call"
                         value={form.location}
@@ -403,13 +398,11 @@ export function EventEditor({
               <EventRow icon={ClockIcon}>
                 {editing ? (
                   <>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       {!form.allDay ? (
-                        <div className="flex min-w-0 flex-1 items-center gap-1">
-                          <div className="w-24">
-                            <Input
-                              unstyled
-                              size="sm"
+                        <div className="flex min-w-44 flex-1 items-center gap-2">
+                          <div className="min-w-0 flex-1">
+                            <EventInput
                               aria-label="Start time"
                               value={startText}
                               aria-invalid={parseTimeText(startText) === null}
@@ -425,10 +418,8 @@ export function EventEditor({
                             />
                           </div>
                           <ArrowRightIcon className="size-3 shrink-0 text-muted-foreground" />
-                          <div className="w-24">
-                            <Input
-                              unstyled
-                              size="sm"
+                          <div className="min-w-0 flex-1">
+                            <EventInput
                               aria-label="End time"
                               value={endText}
                               aria-invalid={parseTimeText(endText) === null}
@@ -446,7 +437,7 @@ export function EventEditor({
                       ) : (
                         <span className="flex-1 text-sm">All-day event</span>
                       )}
-                      <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+                      <label className="ms-auto flex h-8 shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
                         <Switch
                           size="sm"
                           checked={form.allDay}
@@ -455,11 +446,9 @@ export function EventEditor({
                         All day
                       </label>
                     </div>
-                    <div className="mt-1 flex items-center gap-1">
+                    <div className="mt-1 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 @max-[360px]:grid-cols-1">
                       <div className="min-w-0 flex-1">
-                        <Input
-                          unstyled
-                          size="sm"
+                        <EventInput
                           type="date"
                           aria-label="Start date"
                           value={formatDayNumber(form.startDay)}
@@ -472,11 +461,9 @@ export function EventEditor({
                           }}
                         />
                       </div>
-                      <ArrowRightIcon className="size-3 shrink-0 text-muted-foreground" />
+                      <ArrowRightIcon className="size-3 shrink-0 text-muted-foreground @max-[360px]:hidden" />
                       <div className="min-w-0 flex-1">
-                        <Input
-                          unstyled
-                          size="sm"
+                        <EventInput
                           type="date"
                           aria-label={form.allDay ? "Last day" : "End date"}
                           value={formatDayNumber(form.endDay)}
@@ -806,10 +793,20 @@ export function EventEditor({
   );
 }
 
+/** Inline event fields align their text/caret with the row content, without framed-input padding. */
+function EventInput(props: ComponentProps<"input">) {
+  return (
+    <input
+      {...props}
+      className="block h-8 w-full min-w-0 rounded-sm border-0 border-b border-transparent bg-transparent p-0 leading-8 outline-none placeholder:text-muted-foreground focus-visible:border-ring aria-invalid:border-destructive"
+    />
+  );
+}
+
 function EventRow({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) {
   return (
-    <div className="flex items-start gap-2 border-t border-border px-4 py-3">
-      <Icon className="mt-1.5 size-4 shrink-0 text-muted-foreground" />
+    <div className="flex items-start gap-2 border-t border-border px-4 py-3 text-base sm:text-sm">
+      <Icon className="mt-2 size-4 shrink-0 text-muted-foreground" />
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   );
