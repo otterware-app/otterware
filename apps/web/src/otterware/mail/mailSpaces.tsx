@@ -191,7 +191,12 @@ export function useMailSidebar({
     {
       id: "mail",
       rows: [
-        row(folder("INBOX", "inbox"), "Inbox", <InboxIcon className="size-4" />),
+        {
+          ...row(folder("INBOX", "inbox"), "Inbox", <InboxIcon className="size-4" />),
+          ...((data.unread[folderMailbox] ?? 0) > 0
+            ? { detail: data.unread[folderMailbox]!.toLocaleString() }
+            : {}),
+        },
         row(folder("STARRED", "starred"), "Starred", <StarIcon className="size-4" />),
         row(folder("SENT", "sent"), "Sent", <SendIcon className="size-4" />),
         row(folder("DRAFT", "drafts"), "Drafts", <FilePenIcon className="size-4" />),
