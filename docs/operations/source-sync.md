@@ -34,6 +34,11 @@ rewrote `useChatShortcuts` on effect events. Otterware behavior moved with that 
   previously shared.
 - The Linear surface, the app content surface and the ASCII background stay in ChatView.
 
+Upstream pins Node 26.12.1 (`engines.node`), which builds the server executable and no longer
+accepts `--experimental-transform-types`. Otterware's CI and desktop workflows drop their 26.8.2
+override, and the Mail engine declares its fields explicitly so its unbundled worker runs with
+type stripping alone.
+
 Upstream's Clerk changes stay excluded: its OAuth cancellation, the `@clerk/electron` patch and
 the `exposeClerkBridge` preload call. Otter Accounts replaced Clerk.
 
