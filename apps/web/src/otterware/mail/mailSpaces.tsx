@@ -52,6 +52,11 @@ export function useMailSpaces(): ReadonlyArray<ModuleSpace> {
       id: account.id,
       label: account.name?.trim() || account.email,
       icon: InboxIcon,
+      avatar: {
+        initials: (account.name?.trim() || account.email).slice(0, 1).toUpperCase(),
+        ...(account.color ? { color: account.color } : {}),
+        ...(account.picture ? { image: account.picture } : {}),
+      },
       href: hrefFor(account.id),
       ...(data.dots ? { badge: data.unread[account.id] ?? 0 } : {}),
     })),

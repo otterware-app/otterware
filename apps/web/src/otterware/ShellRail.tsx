@@ -9,13 +9,15 @@ import {
   modulePath,
   useShellSelection,
   type ModuleSpace,
+  type ModuleSpaceAvatar,
   type WebModule,
 } from "@otterware/module-kit/web";
 import { useNavigate } from "@tanstack/react-router";
 import { CodeXmlIcon } from "lucide-react";
-import type { ComponentType, MouseEvent, ReactNode } from "react";
+import { useState, type ComponentType, type MouseEvent, type ReactNode } from "react";
 
 import { useSidebar } from "../components/ui/sidebar";
+import { cn } from "~/lib/utils";
 import { ProjectMonogram } from "../components/ProjectMonogram";
 import { ensureLocalApi } from "../localApi";
 import { deriveProjectIdentity } from "../projectIdentity";
@@ -53,7 +55,8 @@ function usePinContextMenu() {
 }
 
 const NO_SPACES: ReadonlyArray<ModuleSpace> = [];
-const useNoSpaces = () => NO_SPACES;
+// Stands in for `useSpaces` when a module declares none; calls no hooks.
+const noSpaces = () => NO_SPACES;
 
 function RailBadge({ count }: { readonly count: number }) {
   if (count <= 0) return null;
@@ -118,6 +121,33 @@ export function AppSwitcher({ button: Button }: { readonly button: RailButtonCom
   });
 }
 
+/** A space's picture, falling back to its initials when there is none or it fails to load. */
+function SpaceAvatar({ avatar }: { readonly avatar: ModuleSpaceAvatar }) {
+  const [failed, setFailed] = useState<string | null>(null);
+  if (avatar.image && failed !== avatar.image)
+    return (
+      <img
+        src={avatar.image}
+        alt=""
+        referrerPolicy="no-referrer"
+        className="size-6 rounded-md object-cover"
+        onError={() => setFailed(avatar.image ?? null)}
+      />
+    );
+  return (
+    <span
+      aria-hidden
+      className={cn(
+        "inline-flex size-6 items-center justify-center rounded-md text-3xs leading-none font-bold select-none",
+        avatar.color ? "text-white" : "bg-muted text-muted-foreground",
+      )}
+      style={avatar.color ? { background: avatar.color } : undefined}
+    >
+      {avatar.initials}
+    </span>
+  );
+}
+
 function SpaceButton({
   module,
   space,
@@ -152,7 +182,7 @@ function SpaceButton({
         spaceId: space.id,
       })}
     >
-      <Icon className="size-5" />
+      {space.avatar ? <SpaceAvatar avatar={space.avatar} /> : <Icon className="size-5" />}
       {space.badge === undefined ? null : <RailBadge count={space.badge} />}
     </Button>
   );
@@ -176,7 +206,7 @@ function ModuleSpaceButtonList({
   readonly module: WebModule;
   readonly button: RailButtonComponent;
 }) {
-  const useSpaces = module.useSpaces ?? useNoSpaces;
+  const useSpaces = module.useSpaces ?? noSpaces;
   const spaces = useSpaces();
   return spaces.map((space) => (
     <SpaceButton key={space.id} module={module} space={space} button={button} />

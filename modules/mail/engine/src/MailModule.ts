@@ -10,14 +10,19 @@ import { MailRuntime } from "./MailRuntime.ts";
 import { MailToolkit, toolHandlers } from "./MailToolkit.ts";
 export { MailRuntime } from "./MailRuntime.ts";
 
+/**
+ * An engine answer as the JSON the wire carries. RPC encodes `Unknown` successes as strict
+ * JSON, so an `undefined` field (a label without a color) or an answer of `undefined` would
+ * fail the whole reply; this drops such fields and answers null instead.
+ */
+export const jsonReply = (value: unknown): unknown =>
+  value === undefined ? null : JSON.parse(JSON.stringify(value));
+
 const rpcHandlers = Effect.gen(function* () {
   const engine = yield* MailRuntime;
-  // Handlers that finish without a value answer null: `undefined` is not JSON, and an
-  // `Unknown` success would fail to encode (Mail preferences never synced).
   const runtime: typeof engine = {
     ...engine,
-    call: (operation, input) =>
-      Effect.map(engine.call(operation, input), (value) => (value === undefined ? null : value)),
+    call: (operation, input) => Effect.map(engine.call(operation, input), jsonReply),
   };
   return MailContract.group.of({
     "mail.gmail.addOutlookAccount": (input) => runtime.call("gmail:addOutlookAccount", input),

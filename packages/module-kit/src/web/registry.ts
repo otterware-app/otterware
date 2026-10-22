@@ -22,10 +22,20 @@ export interface ModulePageProps {
 }
 
 /** One rail item of a module: a Mail account or view, a Calendar view, a Drive. */
+/** A space's own mark on the rail: a picture, else its initials on its color. */
+export interface ModuleSpaceAvatar {
+  readonly initials: string;
+  /** A CSS color; the rail's muted tone when omitted. */
+  readonly color?: string;
+  readonly image?: string;
+}
+
 export interface ModuleSpace {
   readonly id: string;
   readonly label: string;
   readonly icon: LucideIcon;
+  /** Drawn instead of the icon (a mailbox's picture, a shared drive's initials). */
+  readonly avatar?: ModuleSpaceAvatar;
   /** Where selecting the space goes; the module's page root when omitted. */
   readonly href?: string;
   /** A count drawn on the rail item (unread mail, pending invitations). */
