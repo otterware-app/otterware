@@ -22,17 +22,30 @@ import {
   type ModuleHeaderAction,
 } from "@otterware/module-kit/web";
 import { useDriveStore, runDriveCommand } from "./ui/driveStore";
-import { folderLabel, driveForFolder } from "./ui/main/folders";
+import { folderColor, folderInitials, folderLabel, driveForFolder } from "./ui/main/folders";
 
+/** Otter Drive's rail: My Drive, Shared with me, then each shared drive by its initials. */
 export function useDriveSpaces(): readonly ModuleSpace[] {
-  return useDriveStore((state) => state.folders)
-    .filter((folder) => !folder.parentId)
-    .map((folder) => ({
-      id: folder.id,
-      label: folderLabel(folder),
-      icon: HardDriveIcon,
-      href: `/drive/home?folder=${encodeURIComponent(folder.id)}`,
-    }));
+  const folders = useDriveStore((state) => state.folders);
+  const space = (folder: (typeof folders)[number]): ModuleSpace => ({
+    id: folder.id,
+    label: folderLabel(folder),
+    icon: folder.kind === "personal" ? FolderIcon : HardDriveIcon,
+    ...(folder.kind === "shared"
+      ? { avatar: { initials: folderInitials(folder), color: folderColor(folder) } }
+      : {}),
+    href: `/drive/home?folder=${encodeURIComponent(folder.id)}`,
+  });
+  return [
+    ...folders.filter((folder) => folder.kind === "personal").map(space),
+    {
+      id: "shared-with-me",
+      label: "Shared with me",
+      icon: UsersIcon,
+      href: "/drive/home?view=shared",
+    },
+    ...folders.filter((folder) => folder.kind === "shared" && !folder.parentId).map(space),
+  ];
 }
 export function useDriveSidebar(): readonly ModuleSidebarSection[] {
   const { folders, folderId, error } = useDriveStore();
@@ -144,7 +157,10 @@ export function useDriveSidebar(): readonly ModuleSidebarSection[] {
           icon: <UsersIcon />,
           active: view === "shared",
           href: "/drive/home?view=shared",
-          onSelect: go("/drive/home?view=shared"),
+          onSelect: () => {
+            useShellSelection.getState().selectSpace("drive", "shared-with-me");
+            go("/drive/home?view=shared")();
+          },
         },
         {
           id: "archived",

@@ -22,6 +22,7 @@ export {
   type ModuleSidebarRow,
   type ModuleSidebarSection,
   type ModuleSpace,
+  type ModuleSpaceAvatar,
   type ModuleThreadAccessoryProps,
   type SettingsPlacement,
   type WebModule,
