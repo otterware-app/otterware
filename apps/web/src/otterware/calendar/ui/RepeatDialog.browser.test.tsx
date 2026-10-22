@@ -1,6 +1,6 @@
 import "../../../index.css";
 import { expect, it, vi } from "vite-plus/test";
-import { page } from "vite-plus/test/browser";
+import { page, userEvent } from "vite-plus/test/browser";
 import { render } from "../../../../test/render";
 import { RepeatDialog } from "./RepeatDialog";
 
@@ -57,7 +57,9 @@ it("saves a monthly weekday pattern with a date ending and preserves exclusions"
   );
   await page.getByRole("button", { name: "Repeat ends" }).click();
   await page.getByRole("menuitem", { name: "on", exact: true }).click();
-  await page.getByLabelText("Last date", { exact: true }).fill("2026-12-31");
+  await page.getByRole("button", { name: "Last date", exact: true }).click();
+  await page.getByRole("textbox", { name: "Type last date", exact: true }).fill("2026-12-31");
+  await userEvent.keyboard("{Enter}");
   await page.getByRole("button", { name: "Save", exact: true }).click();
   expect(onSave).toHaveBeenCalledWith(
     "RRULE:FREQ=MONTHLY;BYDAY=4TH;UNTIL=20261231T225959Z\nEXDATE:20261126T120000Z",
@@ -138,4 +140,24 @@ it("keeps the dark modal opaque with a filled weekday selection", async () => {
   expect(pixel[3]).toBe(255);
   // The nested surface must remain distinct from the almost-black dimmed event card.
   expect((pixel[0]! + pixel[1]! + pixel[2]!) / 3).toBeGreaterThan(40);
+});
+
+it("rejects a recurrence ending before its start without closing the Repeat dialog", async () => {
+  const onSave = vi.fn(),
+    onCancel = vi.fn();
+  await using _screen = await render(
+    <RepeatDialog anchor={anchor} rule="" onSave={onSave} onCancel={onCancel} />,
+  );
+  await page.getByRole("button", { name: "Repeat ends", exact: true }).click();
+  await page.getByRole("menuitem", { name: "on", exact: true }).click();
+  await page.getByRole("button", { name: "Last date", exact: true }).click();
+  await page.getByRole("textbox", { name: "Type last date", exact: true }).fill("2026-10-01");
+  await userEvent.keyboard("{Enter}");
+  await expect
+    .element(page.getByRole("alert"))
+    .toHaveTextContent("Use a valid date on or after the event starts.");
+  expect(onSave).not.toHaveBeenCalled();
+  await userEvent.keyboard("{Escape}");
+  await expect.element(page.getByRole("dialog", { name: "Repeat", exact: true })).toBeVisible();
+  expect(onCancel).not.toHaveBeenCalled();
 });

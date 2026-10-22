@@ -112,12 +112,16 @@ export function EventDateField({
   day,
   weekStartsOn,
   timeZone,
+  minDay,
+  layer = "card",
   onChange,
 }: {
   label: string;
   day: DayNumber;
   weekStartsOn: number;
   timeZone: string;
+  minDay?: DayNumber;
+  layer?: "card" | "dialog";
   onChange: (day: DayNumber) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -125,7 +129,12 @@ export function EventDateField({
   const [invalid, setInvalid] = useState(false);
   const date = civilDate(day);
   const selected = new Date(date.year, date.month - 1, date.day);
+  const minimum = minDay === undefined ? undefined : civilDate(minDay);
   const choose = (next: DayNumber) => {
+    if (minDay !== undefined && next < minDay) {
+      setInvalid(true);
+      return;
+    }
     onChange(next);
     setOpen(false);
     setText("");
@@ -151,12 +160,15 @@ export function EventDateField({
         </span>
         <CalendarDaysIcon className="ms-auto size-3.5 shrink-0 text-muted-foreground" />
       </Popover.Trigger>
-      <EventFieldPopup label={label}>
+      <EventFieldPopup label={label} layer={layer}>
         <Calendar
           className="[--cell-size:--spacing(8)] sm:[--cell-size:--spacing(8)]"
           mode="single"
           selected={selected}
           defaultMonth={selected}
+          {...(minimum
+            ? { disabled: { before: new Date(minimum.year, minimum.month - 1, minimum.day) } }
+            : {})}
           weekStartsOn={weekStartsOn as 0 | 1 | 2 | 3 | 4 | 5 | 6}
           onSelect={(next) => {
             if (next) choose(dayNumber(next.getFullYear(), next.getMonth() + 1, next.getDate()));
@@ -182,7 +194,9 @@ export function EventDateField({
           />
           {invalid && (
             <p role="alert" className="pt-1 text-xs text-destructive">
-              Use a date, today, tomorrow or a weekday.
+              {minDay === undefined
+                ? "Use a date, today, tomorrow or a weekday."
+                : "Use a valid date on or after the event starts."}
             </p>
           )}
         </div>
@@ -283,10 +297,26 @@ export function EventGuests({
   );
 }
 
-export function EventFieldPopup({ label, children }: { label: string; children: ReactNode }) {
+export function EventFieldPopup({
+  label,
+  children,
+  layer = "card",
+}: {
+  label: string;
+  children: ReactNode;
+  layer?: "card" | "dialog";
+}) {
   return (
     <Popover.Portal>
-      <Popover.Positioner align="start" sideOffset={4} className="z-[130] max-w-[calc(100vw-16px)]">
+      <Popover.Positioner
+        align="start"
+        sideOffset={4}
+        className={
+          layer === "dialog"
+            ? "z-[150] max-w-[calc(100vw-16px)]"
+            : "z-[130] max-w-[calc(100vw-16px)]"
+        }
+      >
         <Popover.Popup
           aria-label={label}
           render={

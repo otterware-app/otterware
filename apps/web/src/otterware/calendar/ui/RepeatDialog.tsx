@@ -1,4 +1,5 @@
 import "./RepeatDialog.css";
+import { EventDateField } from "./EventFields";
 import { Dialog } from "@base-ui/react/dialog";
 import { Menu } from "@base-ui/react/menu";
 import { useState, type ReactNode, type RefObject } from "react";
@@ -30,11 +31,13 @@ const UNITS = [
 export function RepeatDialog({
   anchor,
   surface,
+  weekStartsOn = 1,
   rule,
   onSave,
   onCancel,
 }: {
   anchor: Anchor;
+  weekStartsOn?: number;
   surface?: RefObject<HTMLElement | null> | undefined;
   rule: string;
   onSave: (rule: string) => void;
@@ -231,14 +234,17 @@ export function RepeatDialog({
                       </div>
                     )}
                     {ending === "until" && (
-                      <input
-                        aria-label="Last date"
-                        type="date"
-                        value={until}
-                        min={formatDayNumber(startDay)}
-                        onChange={(e) => setUntil(e.target.value)}
-                        className="h-8 min-w-0 max-w-full rounded-md border-0 bg-muted px-2 text-base outline-none focus:bg-accent sm:text-sm"
-                      />
+                      <div className="flex h-8 min-w-0 items-center rounded-md bg-muted px-2">
+                        <EventDateField
+                          label="Last date"
+                          day={untilDay ?? startDay}
+                          minDay={startDay}
+                          weekStartsOn={weekStartsOn}
+                          timeZone={anchor.timeZone}
+                          layer="dialog"
+                          onChange={(day) => setUntil(formatDayNumber(day))}
+                        />
+                      </div>
                     )}
                   </div>
                 </RepeatRow>

@@ -865,6 +865,7 @@ export function EventEditor({
             <RepeatDialog
               anchor={anchor}
               surface={surface}
+              weekStartsOn={weekStartsOn}
               rule={
                 form.repeat === "custom"
                   ? customRule
