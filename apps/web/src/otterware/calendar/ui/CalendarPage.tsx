@@ -491,6 +491,7 @@ export default function CalendarPage({
       {active && ((!selected && draft) || (selected && details)) && (
         <EventEditor
           key={selectedKey ?? `${draft?.start}`}
+          surface={root}
           event={details}
           duplicate={draft?.duplicate === true}
           draft={draft}

@@ -143,7 +143,8 @@ export function TimeGrid(props: TimeGridProps) {
       controller.dispose();
       controllerRef.current = null;
     };
-  }, []);
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Hot reload must replace imperative listeners when the controller implementation changes.
+  }, [TimeGridController]);
 
   // On mount, show the working day, or the current time when it is outside working hours.
   const [initialScrollTop] = useState(() => {

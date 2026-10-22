@@ -199,3 +199,27 @@ it("opens existing event details at the bottom center, independently of the even
     })
     .toBe(true);
 });
+
+it("centers within the calendar surface and follows sidebar width changes", async () => {
+  await page.viewport(1280, 900);
+  const surface = document.createElement("div");
+  surface.style.cssText = "position:relative;margin-left:300px;width:900px;height:800px";
+  document.body.append(surface);
+  using _surface = { [Symbol.dispose]: () => surface.remove() };
+  await using _screen = await render(<EventEditor {...props()} surface={{ current: surface }} />);
+  const centered = () => {
+    const card = document
+      .querySelector("[data-calendar-editor]")!
+      .closest('[role="dialog"]')!
+      .getBoundingClientRect();
+    const bounds = surface.getBoundingClientRect();
+    return (
+      Math.abs(card.left + card.width / 2 - (bounds.left + bounds.width / 2)) < 1 &&
+      Math.abs(card.bottom - (bounds.bottom - 24)) < 1
+    );
+  };
+  await expect.poll(centered).toBe(true);
+  surface.style.marginLeft = "80px";
+  surface.style.width = "1100px";
+  await expect.poll(centered).toBe(true);
+});
