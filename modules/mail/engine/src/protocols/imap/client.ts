@@ -213,10 +213,14 @@ export class ImapClient {
   private capabilityUpdates = 0;
   private listener: ((update: ImapUpdate) => void) | null = null;
 
-  constructor(
-    private readonly stream: ByteStream,
-    private readonly options: ImapOptions,
-  ) {
+  private readonly stream: ByteStream;
+
+  private readonly options: ImapOptions;
+
+  constructor(stream: ByteStream, options: ImapOptions) {
+    this.stream = stream;
+
+    this.options = options;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   }
 

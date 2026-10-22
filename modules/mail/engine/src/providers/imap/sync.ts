@@ -233,12 +233,17 @@ export function renameFolderState(
 }
 
 class FolderSync {
-  constructor(
-    private readonly accountId: string,
-    private readonly folder: Folder,
-    private readonly ctx: SyncContext,
-    public state: FolderState | undefined,
-  ) {}
+  private readonly accountId: string;
+  private readonly folder: Folder;
+  private readonly ctx: SyncContext;
+  state: FolderState | undefined;
+
+  constructor(accountId: string, folder: Folder, ctx: SyncContext, state: FolderState | undefined) {
+    this.accountId = accountId;
+    this.folder = folder;
+    this.ctx = ctx;
+    this.state = state;
+  }
 
   /** Brings the folder up to date; answers the new mail (none on its first sync). */
   async sync(status: MailboxStatus | undefined): Promise<GmailMessageSummary[]> {
@@ -366,7 +371,6 @@ class FolderSync {
     const { accountId, folder } = this;
     const since = state.modseq !== undefined ? BigInt(state.modseq) : null;
 
-    // Flags.
     let flags: FetchedMessage[] = [];
     let listing: number[] | null = null;
     if (qresynced) {

@@ -35,12 +35,11 @@ export const DEFAULT_TIMEOUT_MS = 60_000;
 export type MailErrorKind = "auth" | "network" | "timeout" | "server" | "protocol";
 
 export class MailProtocolError extends Error {
-  constructor(
-    message: string,
-    readonly kind: MailErrorKind,
-    options?: { cause?: unknown },
-  ) {
+  readonly kind: MailErrorKind;
+
+  constructor(message: string, kind: MailErrorKind, options?: { cause?: unknown }) {
     super(message, options);
+    this.kind = kind;
     this.name = "MailProtocolError";
   }
 }

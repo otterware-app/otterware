@@ -180,10 +180,15 @@ export function parseResponse(frame: Uint8Array): ImapResponse {
 class Cursor {
   pos = 0;
 
-  constructor(
-    readonly bytes: Uint8Array,
-    readonly end: number,
-  ) {}
+  readonly bytes: Uint8Array;
+
+  readonly end: number;
+
+  constructor(bytes: Uint8Array, end: number) {
+    this.bytes = bytes;
+
+    this.end = end;
+  }
 
   peek(): number {
     return this.pos < this.end ? this.bytes[this.pos]! : -1;

@@ -31,14 +31,15 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** A failed Graph call: its status and Graph's own error code and words. */
 export class GraphError extends Error {
-  constructor(
-    readonly status: number,
-    readonly code: string,
-    detail: string,
-  ) {
+  readonly status: number;
+  readonly code: string;
+
+  constructor(status: number, code: string, detail: string) {
     super(
       `Microsoft Graph error: ${status}${code ? ` ${code}` : ""}${detail ? ` — ${detail}` : ""}`,
     );
+    this.status = status;
+    this.code = code;
     this.name = "GraphError";
   }
 

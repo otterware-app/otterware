@@ -145,8 +145,6 @@ jobs:
           done
       - name: Build Linux server single-executable
         if: inputs.cli_archive
-        env:
-          VP_NODE_VERSION: "26.8.2"
         run: node apps/server/scripts/cli.ts build-exe --verbose
       - name: Archive and smoke-test server runtime
         if: inputs.cli_archive

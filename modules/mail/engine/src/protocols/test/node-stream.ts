@@ -37,7 +37,10 @@ class NodeStream implements ByteStream {
   private failure: Error | null = null;
   private detach: () => void = () => {};
 
-  constructor(private socket: NodeNet.Socket) {
+  private socket: NodeNet.Socket;
+
+  constructor(socket: NodeNet.Socket) {
+    this.socket = socket;
     this.attach(socket);
   }
 
