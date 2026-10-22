@@ -11,6 +11,7 @@ import {
   civilDate,
   fromZoned,
   zonedDay,
+  toZoned,
   systemTimeZone,
   formatDayNumber,
   parseDayNumber,
@@ -148,12 +149,14 @@ export default function CalendarPage({
       setDraft(value);
     }
   };
-  const newEvent = () =>
+  const newEvent = () => {
+    const minutes = Math.ceil(toZoned(now, zone).minutes / 15) * 15;
     create({
-      start: fromZoned(date, 9 * 60, zone),
-      end: fromZoned(date, 9 * 60 + preferences.defaultEventMinutes, zone),
+      start: fromZoned(date, minutes, zone),
+      end: fromZoned(date, minutes + preferences.defaultEventMinutes, zone),
       allDay: false,
     });
+  };
   const move = (change: CalendarEventChange) => {
     if (!canWrite || busy) return;
     // Recurring changes open the scope selector before touching the provider.
@@ -490,13 +493,14 @@ export default function CalendarPage({
       </div>
       {active && ((!selected && draft) || (selected && details)) && (
         <EventEditor
-          key={selectedKey ?? `${draft?.start}`}
+          key={`${selectedKey ?? "new"}:${draft ? `${draft.start}:${draft.end}:${draft.allDay}:${draft.duplicate ?? false}` : "details"}`}
           surface={root}
           event={details}
           duplicate={draft?.duplicate === true}
           draft={draft}
           timeZone={zone}
           hourFormat={preferences.hourFormat}
+          weekStartsOn={preferences.weekStartsOn}
           calendars={directory?.calendars ?? []}
           defaultCalendar={defaultCalendar}
           canWrite={canWrite}

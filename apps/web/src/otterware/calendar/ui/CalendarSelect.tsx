@@ -1,3 +1,4 @@
+import { CalendarDaysIcon } from "lucide-react";
 import { Children, isValidElement, type ComponentProps } from "react";
 import {
   Select,
@@ -14,8 +15,9 @@ export function CalendarSelect({
   defaultValue,
   onChange,
   compact = false,
+  iconOnly = false,
   ...props
-}: ComponentProps<"select"> & { compact?: boolean }) {
+}: ComponentProps<"select"> & { compact?: boolean; iconOnly?: boolean }) {
   const options: Array<{ value: string; label: string }> = [];
   function visit(nodes: React.ReactNode) {
     Children.forEach(nodes, (child) => {
@@ -43,11 +45,20 @@ export function CalendarSelect({
     >
       <SelectTrigger
         aria-label={props["aria-label"] ?? props.name}
+        title={
+          iconOnly
+            ? options.find((option) => option.value === String(value ?? defaultValue ?? ""))?.label
+            : undefined
+        }
         variant={compact ? "ghost" : "default"}
         size={compact ? "sm" : "default"}
       >
         <SelectValue>
-          {options.find((option) => option.value === String(value ?? defaultValue ?? ""))?.label}
+          {iconOnly ? (
+            <CalendarDaysIcon />
+          ) : (
+            options.find((option) => option.value === String(value ?? defaultValue ?? ""))?.label
+          )}
         </SelectValue>
       </SelectTrigger>
       <SelectPopup>

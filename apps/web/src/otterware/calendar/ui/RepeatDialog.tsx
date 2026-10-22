@@ -1,7 +1,7 @@
 import "./RepeatDialog.css";
 import { Dialog } from "@base-ui/react/dialog";
 import { Menu } from "@base-ui/react/menu";
-import { useState, type ReactNode } from "react";
+import { useState, type ReactNode, type RefObject } from "react";
 import {
   buildRecurrenceRule,
   repeatOptionsOf,
@@ -29,11 +29,13 @@ const UNITS = [
 /** The custom picker edits a local draft; only its Save changes the event editor. */
 export function RepeatDialog({
   anchor,
+  surface,
   rule,
   onSave,
   onCancel,
 }: {
   anchor: Anchor;
+  surface?: RefObject<HTMLElement | null> | undefined;
   rule: string;
   onSave: (rule: string) => void;
   onCancel: () => void;
@@ -89,15 +91,36 @@ export function RepeatDialog({
         if (!open) onCancel();
       }}
     >
-      <Dialog.Portal>
-        <Dialog.Backdrop forceRender className="fixed inset-0 z-[140] bg-black/40" />
-        <div className="pointer-events-none fixed inset-0 z-[140] grid place-items-center p-4">
+      <Dialog.Portal container={surface}>
+        <Dialog.Backdrop
+          forceRender
+          render={
+            <div
+              className={
+                surface
+                  ? "absolute inset-0 z-[140] bg-black/40"
+                  : "fixed inset-0 z-[140] bg-black/40"
+              }
+            />
+          }
+        />
+        <div
+          className={
+            surface
+              ? "pointer-events-none absolute inset-0 z-[140] grid place-items-center p-4"
+              : "pointer-events-none fixed inset-0 z-[140] grid place-items-center p-4"
+          }
+        >
           <Dialog.Popup
             data-repeat-dialog=""
-            className="pointer-events-auto flex w-110 max-w-[calc(100vw-32px)] max-h-[calc(100dvh-32px)] flex-col overflow-y-auto rounded-xl bg-popover text-popover-foreground shadow-xl outline-none"
+            render={
+              <div className="pointer-events-auto flex w-110 max-w-[calc(100vw-32px)] max-h-[calc(100dvh-32px)] flex-col overflow-y-auto rounded-xl bg-popover text-popover-foreground shadow-xl outline-none" />
+            }
             aria-describedby={undefined}
           >
-            <Dialog.Title className="px-4 pt-4 pb-4 text-base font-semibold leading-6">
+            <Dialog.Title
+              render={<h2 className="px-4 pt-4 pb-4 text-base font-semibold leading-6" />}
+            >
               Repeat
             </Dialog.Title>
             <form
@@ -268,19 +291,30 @@ function RepeatMenu<Value extends string>({
     <Menu.Root>
       <Menu.Trigger
         aria-label={label}
-        className="flex h-8 cursor-pointer items-center rounded-md border-0 bg-muted px-2.5 text-sm font-medium outline-none hover:bg-accent focus-visible:bg-accent"
+        render={
+          <button
+            type="button"
+            className="flex h-8 cursor-pointer items-center rounded-md border-0 bg-muted px-2.5 text-sm font-medium outline-none hover:bg-accent focus-visible:bg-accent"
+          />
+        }
       >
         {options.find((option) => option.value === value)?.label}
       </Menu.Trigger>
       <Menu.Portal>
         <Menu.Positioner sideOffset={4} align="start" className="z-[150]">
-          <Menu.Popup className="min-w-20 rounded-lg bg-popover p-1 text-popover-foreground shadow-lg outline-none">
+          <Menu.Popup
+            render={
+              <div className="min-w-20 rounded-lg bg-popover p-1 text-popover-foreground shadow-lg outline-none" />
+            }
+          >
             {options.map((option) => (
               <Menu.Item
                 key={option.value}
                 data-current={value === option.value ? "" : undefined}
                 onClick={() => onChange(option.value)}
-                className="flex h-8 cursor-pointer items-center rounded-md px-2 text-sm outline-none data-highlighted:bg-accent data-current:bg-accent"
+                render={
+                  <div className="flex h-8 cursor-pointer items-center rounded-md px-2 text-sm outline-none data-highlighted:bg-accent data-current:bg-accent" />
+                }
               >
                 {option.label}
               </Menu.Item>

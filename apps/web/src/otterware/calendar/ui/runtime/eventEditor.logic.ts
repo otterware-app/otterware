@@ -22,13 +22,12 @@ import {
   type DayNumber,
   MINUTE_MS,
   formatDayNumber,
+  parseDayNumber,
   formatZonedIso,
   fromZoned,
   toZoned,
   weekday,
 } from "@otterware/calendar-contracts/time";
-
-const TIME_STEP_MINUTES = 15;
 
 // ── Typed times ──────────────────────────────────────────────────────
 
@@ -62,6 +61,7 @@ export type RepeatChoice =
   | "daily"
   | "weekdays"
   | "weekly"
+  | "biweekly"
   | "monthlyDay"
   | "monthlyWeekday"
   | "yearly"
@@ -89,13 +89,17 @@ export function repeatChoiceOf(
     return recurrence.length === 0 ? "none" : "custom";
   }
   const options = repeatOptionsOf(recurrence, anchor);
-  if (
-    options === null ||
-    (options.interval ?? 1) !== 1 ||
-    options.count !== undefined ||
-    options.untilDay !== undefined
-  ) {
+  if (options === null || options.count !== undefined || options.untilDay !== undefined) {
     return "custom";
+  }
+  if ((options.interval ?? 1) !== 1) {
+    const days = options.weekdays ?? [weekday(anchorDay(anchor))];
+    return options.freq === "WEEKLY" &&
+      options.interval === 2 &&
+      days.length === 1 &&
+      days[0] === weekday(anchorDay(anchor))
+      ? "biweekly"
+      : "custom";
   }
   switch (options.freq) {
     case "DAILY":
@@ -116,6 +120,7 @@ const CHOICE_OPTIONS: Readonly<Record<Exclude<RepeatChoice, "none" | "custom">, 
   daily: { freq: "DAILY" },
   weekdays: { freq: "WEEKLY", weekdays: [1, 2, 3, 4, 5] },
   weekly: { freq: "WEEKLY" },
+  biweekly: { freq: "WEEKLY", interval: 2 },
   monthlyDay: { freq: "MONTHLY" },
   monthlyWeekday: { freq: "MONTHLY", monthlyByWeekday: true },
   yearly: { freq: "YEARLY" },
@@ -133,8 +138,8 @@ export function recurrenceForChoice(
   if (choice === "none") return [];
   if (choice === "custom") return existing;
   const options =
-    choice === "weekly"
-      ? { ...CHOICE_OPTIONS.weekly, weekdays: [weekday(anchorDay(anchor))] }
+    choice === "weekly" || choice === "biweekly"
+      ? { ...CHOICE_OPTIONS[choice], weekdays: [weekday(anchorDay(anchor))] }
       : CHOICE_OPTIONS[choice];
   const rest = existing.filter((line) => !line.toUpperCase().startsWith("RRULE"));
   return [buildRecurrenceRule(options, anchor), ...rest];
@@ -361,4 +366,27 @@ export function createInput(form: EditorForm): CalendarCreateEventInput {
 /** Loose email check for the guest field: something@something.tld. */
 export function isEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+}
+
+/** Relative date entry uses the event's current civil day, not the browser's time zone. */
+export function parseEventDate(text: string, today: DayNumber): DayNumber | null {
+  const value = text.trim().toLowerCase();
+  const exact = parseDayNumber(value);
+  if (exact !== null) return exact;
+  if (value === "today") return today;
+  if (value === "tomorrow") return today + 1;
+  const match = /^(?:next )?(sunday|monday|tuesday|wednesday|thursday|friday|saturday)$/.exec(
+    value,
+  );
+  if (!match) return null;
+  const target = [
+    "sunday",
+    "monday",
+    "tuesday",
+    "wednesday",
+    "thursday",
+    "friday",
+    "saturday",
+  ].indexOf(match[1]!);
+  return today + ((target - weekday(today) + 7) % 7 || 7);
 }

@@ -9,6 +9,7 @@ import {
   formForEvent,
   formRange,
   parseTimeText,
+  parseEventDate,
   recurrenceForChoice,
   repeatChoiceLabel,
   repeatChoiceOf,
@@ -69,6 +70,7 @@ describe("repeat choices", () => {
       "daily",
       "weekdays",
       "weekly",
+      "biweekly",
       "monthlyDay",
       "monthlyWeekday",
       "yearly",
@@ -76,7 +78,8 @@ describe("repeat choices", () => {
       expect(repeatChoiceOf(recurrenceForChoice(choice, anchor, []), anchor)).toBe(choice);
     }
     expect(repeatChoiceOf([], anchor)).toBe("none");
-    expect(repeatChoiceOf(["RRULE:FREQ=WEEKLY;INTERVAL=2"], anchor)).toBe("custom");
+    expect(repeatChoiceOf(["RRULE:FREQ=WEEKLY;INTERVAL=2"], anchor)).toBe("biweekly");
+    expect(repeatChoiceOf(["RRULE:FREQ=WEEKLY;INTERVAL=3"], anchor)).toBe("custom");
     expect(repeatChoiceOf(["RRULE:FREQ=DAILY;COUNT=5"], anchor)).toBe("custom");
   });
 
@@ -181,5 +184,18 @@ describe("createInput", () => {
       attendees: ["a@b.co"],
       recurrence: ["RRULE:FREQ=DAILY"],
     });
+  });
+});
+
+describe("relative date entry", () => {
+  it("uses the supplied civil day for today, tomorrow and weekdays", () => {
+    const day = dayNumber(2026, 10, 22);
+    expect(parseEventDate("today", day)).toBe(day);
+    expect(parseEventDate("tomorrow", day)).toBe(day + 1);
+    expect(parseEventDate("next Friday", day)).toBe(day + 1);
+    expect(parseEventDate("Thursday", day)).toBe(day + 7);
+    expect(parseEventDate("2026-11-01", day)).toBe(day + 10);
+    expect(parseEventDate("2026-02-30", day)).toBeNull();
+    expect(parseEventDate("someday", day)).toBeNull();
   });
 });

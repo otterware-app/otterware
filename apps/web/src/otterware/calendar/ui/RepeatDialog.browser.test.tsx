@@ -134,5 +134,8 @@ it("keeps the dark modal opaque with a filled weekday selection", async () => {
     context = canvas.getContext("2d")!;
   context.fillStyle = getComputedStyle(dialog).backgroundColor;
   context.fillRect(0, 0, 1, 1);
-  expect(context.getImageData(0, 0, 1, 1).data[3]).toBe(255);
+  const pixel = context.getImageData(0, 0, 1, 1).data;
+  expect(pixel[3]).toBe(255);
+  // The nested surface must remain distinct from the almost-black dimmed event card.
+  expect((pixel[0]! + pixel[1]! + pixel[2]!) / 3).toBeGreaterThan(40);
 });
