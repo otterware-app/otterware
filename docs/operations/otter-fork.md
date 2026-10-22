@@ -69,8 +69,8 @@ Typecheck the packages with resolved conflicts and run the focused tests next to
 
 ### Protected publication exception
 
-Laurin authorized ordinary protected squash PRs for the 2026-10-20 and 2026-10-21 Code/Mail/Drive
-syncs (#101, #103). They preserve main's merged history and leave `upstream-base` at
+Laurin authorized ordinary protected squash PRs for the daily Code/Mail/Drive syncs since
+2026-10-20 (#101, #103, #105 and later). They preserve main's merged history and leave `upstream-base` at
 `339179f50a84dc599cce373dbb48f172f182f44e`. `scripts/otterware/source-baseline.json` records the
 integrated T3 revision, the reviewed module source revisions and the base main the sync applies
 to; [source sync](source-sync.md) describes the current integration. Each such sync is a separate,
