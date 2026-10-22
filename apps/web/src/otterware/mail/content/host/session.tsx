@@ -33,6 +33,8 @@ export class MailSession {
     // Keep navigation lists warm; message bodies and transient searches can expire.
     for (const key of ["gmail:message", "gmail:thread", "gmail:searchMessages", "gmail-search"])
       this.queryClient.setQueryDefaults([key], { gcTime: 5 * 60_000 });
+    // Which mailboxes exist decides the whole view; a restored list is re-checked once it's stale.
+    this.queryClient.setQueryDefaults(["gmail:accounts"], { refetchOnMount: true });
     const persisted = createClientStore(() => ({ snapshot: null as string | null }), {
       key: `otterware:mail:cache:${encodeURIComponent(environmentId)}`,
       scope: "client",
