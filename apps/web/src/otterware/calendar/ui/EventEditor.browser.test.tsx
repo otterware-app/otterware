@@ -135,7 +135,11 @@ it("creates an all-day event with an exclusive end date", async () => {
   );
 });
 
-it("keeps recurrence locked for one occurrence and unlocks a series edit", async () => {
+it.each([
+  ["this", "This event"],
+  ["following", "This and following events"],
+  ["all", "All events"],
+])("asks for recurrence scope only after Save, then saves %s", async (scope, label) => {
   const input = {
     ...props(),
     event: event({ seriesId: "series", recurrence: ["RRULE:FREQ=WEEKLY"] }),
@@ -143,16 +147,62 @@ it("keeps recurrence locked for one occurrence and unlocks a series edit", async
   };
   await using _screen = await render(<EventEditor {...input} />);
   await page.getByRole("button", { name: "Edit event", exact: true }).click();
-  await expect.element(page.getByRole("combobox", { name: "Repeats", exact: true })).toBeDisabled();
-  await page.getByRole("combobox", { name: "Apply changes to", exact: true }).click();
-  await page.getByRole("option", { name: "All events", exact: true }).click();
-  await expect.element(page.getByRole("combobox", { name: "Repeats", exact: true })).toBeEnabled();
+  await expect
+    .element(page.getByRole("radio", { name: "This event", exact: true }))
+    .not.toBeInTheDocument();
+  await expect
+    .element(page.getByRole("combobox", { name: "Apply changes to", exact: true }))
+    .not.toBeInTheDocument();
   await page
     .getByRole("textbox", { name: "Event title", exact: true })
     .fill("Weekly design review");
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  expect(input.onSave).not.toHaveBeenCalled();
+  await expect
+    .element(page.getByRole("dialog", { name: "Edit recurring event", exact: true }))
+    .toBeVisible();
+  await page.getByRole("radio", { name: label, exact: true }).click();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  expect(input.onSave).toHaveBeenCalledOnce();
   expect(input.onSave).toHaveBeenCalledWith(
-    expect.objectContaining({ scope: "all", title: "Weekly design review" }),
+    expect.objectContaining({ scope, title: "Weekly design review" }),
+  );
+});
+
+it("cancels recurrence confirmation without saving or discarding the edited draft", async () => {
+  const input = {
+    ...props(),
+    event: event({ seriesId: "series", recurrence: ["RRULE:FREQ=WEEKLY"] }),
+    draft: null,
+  };
+  await using _screen = await render(<EventEditor {...input} />);
+  await page.getByRole("button", { name: "Edit event", exact: true }).click();
+  await page.getByRole("textbox", { name: "Event title", exact: true }).fill("Unsent change");
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect(input.onSave).not.toHaveBeenCalled();
+  expect(input.onClose).not.toHaveBeenCalled();
+  await expect
+    .element(page.getByRole("textbox", { name: "Event title", exact: true }))
+    .toHaveValue("Unsent change");
+});
+
+it("requires a series scope when the repeating schedule changes", async () => {
+  const input = {
+    ...props(),
+    event: event({ seriesId: "series", recurrence: ["RRULE:FREQ=WEEKLY"] }),
+    draft: null,
+  };
+  await using _screen = await render(<EventEditor {...input} />);
+  await page.getByRole("button", { name: "Edit event", exact: true }).click();
+  await page.getByRole("combobox", { name: "Repeats", exact: true }).click();
+  await page.getByRole("option", { name: "Daily", exact: true }).click();
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  expect(input.onSave).not.toHaveBeenCalled();
+  await expect.element(page.getByRole("radio", { name: "This event", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  expect(input.onSave).toHaveBeenCalledWith(
+    expect.objectContaining({ scope: "following", recurrence: ["RRULE:FREQ=DAILY"] }),
   );
 });
 

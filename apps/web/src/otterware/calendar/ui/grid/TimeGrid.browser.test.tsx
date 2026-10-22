@@ -1,5 +1,5 @@
 import "../../../../index.css";
-import { DEFAULT_CALENDAR_PREFERENCES } from "@otterware/calendar-contracts";
+import { CalendarId, DEFAULT_CALENDAR_PREFERENCES } from "@otterware/calendar-contracts";
 import { expect, it, vi } from "vite-plus/test";
 import { page } from "vite-plus/test/browser";
 import { render } from "../../../../../test/render";
@@ -36,4 +36,45 @@ it("ignores actual pointer clicks on empty time, all-day and month cells", async
   );
   await page.elementLocator(container.querySelector("[data-day]")!).click();
   expect(onCreate).not.toHaveBeenCalled();
+});
+
+it("uses the reference header dimensions and expands the compact all-day lane", async () => {
+  const container = document.createElement("div");
+  container.style.cssText = "width:900px;height:650px";
+  await using _screen = await render(
+    <TimeGrid
+      days={[20_000]}
+      today={20_000}
+      selectedKey={null}
+      instances={[1, 2, 3].map((id) => ({
+        calendarId: CalendarId.make("work"),
+        eventId: String(id),
+        title: `All day ${id}`,
+        start: 20_000 * 86_400_000,
+        end: 20_001 * 86_400_000,
+        allDay: true,
+      }))}
+      calendars={new Map()}
+      timeZone="UTC"
+      preferences={DEFAULT_CALENDAR_PREFERENCES}
+      onCreate={vi.fn()}
+      onOpenEvent={vi.fn()}
+      onChangeEvent={vi.fn()}
+    />,
+    { container },
+  );
+  expect(
+    container.querySelector("[data-calendar-header]")!.firstElementChild!.getBoundingClientRect()
+      .height,
+  ).toBe(36);
+  expect(container.querySelector("[data-calendar-allday]")!.getBoundingClientRect().height).toBe(
+    25,
+  );
+  expect(container.querySelectorAll("[data-calendar-allday] [data-event-key]")).toHaveLength(1);
+  await page.getByRole("button", { name: "Show all all-day events", exact: true }).click();
+  expect(container.querySelectorAll("[data-calendar-allday] [data-event-key]")).toHaveLength(3);
+  await page.getByRole("button", { name: "Show fewer all-day events", exact: true }).click();
+  expect(container.querySelector("[data-calendar-allday]")!.getBoundingClientRect().height).toBe(
+    25,
+  );
 });

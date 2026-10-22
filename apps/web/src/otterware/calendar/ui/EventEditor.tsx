@@ -131,6 +131,7 @@ export function EventEditor({
         }
       : {}),
   }));
+  const [pendingUpdate, setPendingUpdate] = useState<CalendarUpdateEventInput | null>(null);
   const [scope, setScope] = useState<CalendarChangeScope>("this");
   const [reminders, setReminders] = useState<CalendarEventReminders | undefined>(
     event?.reminders ?? (event ? { useDefault: true } : undefined),
@@ -158,7 +159,6 @@ export function EventEditor({
     ...formRange({ ...form, timeZone: isValidTimeZone(form.timeZone) ? form.timeZone : timeZone }),
     timeZone: isValidTimeZone(form.timeZone) ? form.timeZone : timeZone,
   };
-  const recurrenceLocked = !duplicate && event?.seriesId !== undefined && scope === "this";
   const providerDefaults = calendars.find(
     (calendar) => calendar.calendarId === form.calendarId,
   )?.defaultReminders;
@@ -221,25 +221,26 @@ export function EventEditor({
                     value,
                     event.recurrence ?? [],
                   );
-                  // An occurrence cannot replace its master's schedule.
-                  onSave({
+                  const update: CalendarUpdateEventInput = {
                     ...changed,
                     ...(reminders &&
                     JSON.stringify(reminders) !==
                       JSON.stringify(event.reminders ?? { useDefault: true })
                       ? { reminders }
                       : {}),
-                    ...(!recurrenceLocked && recurrence ? { recurrence } : {}),
-                    ...(!recurrenceLocked &&
-                    custom &&
-                    custom.join("\n") !== (event.recurrence ?? []).join("\n")
+                    ...(recurrence ? { recurrence } : {}),
+                    ...(custom && custom.join("\n") !== (event.recurrence ?? []).join("\n")
                       ? { recurrence: custom }
                       : {}),
                     calendarId: event.calendarId,
                     eventId: event.eventId,
-                    scope,
+                    scope: "this",
                     sendUpdates,
-                  });
+                  };
+                  if (event.seriesId !== undefined) {
+                    setScope(update.recurrence !== undefined ? "following" : "this");
+                    setPendingUpdate(update);
+                  } else onSave(update);
                 } else
                   onSave({
                     ...createInput(value),
@@ -501,7 +502,6 @@ export function EventEditor({
                       aria-label="Repeats"
                       value={form.repeat}
                       onChange={(e) => patch("repeat", e.target.value as RepeatChoice)}
-                      disabled={recurrenceLocked}
                     >
                       {(
                         [
@@ -529,23 +529,7 @@ export function EventEditor({
                   </p>
                 ) : null}
               </EventRow>
-              {editing && event?.seriesId && !duplicate && (
-                <EventRow icon={RepeatIcon}>
-                  <label className="grid gap-1 text-xs text-muted-foreground">
-                    Apply changes to
-                    <CalendarSelect
-                      aria-label="Apply changes to"
-                      value={scope}
-                      onChange={(e) => setScope(e.target.value as CalendarChangeScope)}
-                    >
-                      <option value="this">This event</option>
-                      <option value="following">This and following</option>
-                      <option value="all">All events</option>
-                    </CalendarSelect>
-                  </label>
-                </EventRow>
-              )}
-              {editing && form.repeat === "custom" && !recurrenceLocked && (
+              {editing && form.repeat === "custom" && (
                 <div className="border-t border-border px-4 py-3">
                   <CustomRepeat
                     anchor={anchor}
@@ -786,6 +770,105 @@ export function EventEditor({
                 </div>
               </div>
             </form>
+          </DialogPrimitive.Popup>
+          {pendingUpdate && (
+            <RecurringSaveDialog
+              surface={surface}
+              scope={scope}
+              onScope={setScope}
+              scheduleChanged={pendingUpdate.recurrence !== undefined}
+              busy={busy}
+              onCancel={() => setPendingUpdate(null)}
+              onConfirm={() => {
+                onSave({ ...pendingUpdate, scope });
+                setPendingUpdate(null);
+              }}
+            />
+          )}
+        </div>
+      </DialogPrimitive.Portal>
+    </DialogPrimitive.Root>
+  );
+}
+
+function RecurringSaveDialog({
+  surface,
+  scope,
+  onScope,
+  scheduleChanged,
+  busy,
+  onCancel,
+  onConfirm,
+}: {
+  surface: RefObject<HTMLElement | null> | undefined;
+  scope: CalendarChangeScope;
+  onScope: (scope: CalendarChangeScope) => void;
+  scheduleChanged: boolean;
+  busy: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <DialogPrimitive.Root
+      open
+      onOpenChange={(open) => {
+        if (!open && !busy) onCancel();
+      }}
+    >
+      <DialogPrimitive.Portal container={surface}>
+        <div
+          className={
+            surface
+              ? "absolute inset-0 z-[140] grid place-items-center p-4"
+              : "fixed inset-0 z-[140] grid place-items-center p-4"
+          }
+        >
+          <DialogPrimitive.Backdrop className="absolute inset-0 bg-black/20" />
+          <DialogPrimitive.Popup className="relative grid w-80 max-w-full gap-4 rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-xl outline-none">
+            <DialogPrimitive.Title className="text-sm font-semibold">
+              Edit recurring event
+            </DialogPrimitive.Title>
+            <DialogPrimitive.Description className="text-sm text-muted-foreground">
+              Apply changes to:
+            </DialogPrimitive.Description>
+            <fieldset className="grid gap-1" disabled={busy} aria-label="Apply changes to">
+              {(
+                [
+                  ["this", "This event"],
+                  ["following", "This and following events"],
+                  ["all", "All events"],
+                ] as const
+              ).map(([value, label]) => (
+                <label
+                  key={value}
+                  className="flex min-h-8 items-center gap-2 text-sm has-disabled:text-muted-foreground"
+                >
+                  <input
+                    type="radio"
+                    name="recurring-save-scope"
+                    value={value}
+                    checked={scope === value}
+                    disabled={value === "this" && scheduleChanged}
+                    onChange={() => onScope(value)}
+                    className="size-4 accent-primary"
+                  />
+                  {label}
+                </label>
+              ))}
+            </fieldset>
+            {scheduleChanged && (
+              <p className="text-xs text-muted-foreground">
+                A repeating schedule change applies to future events or the whole series.
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button type="button" size="sm" variant="ghost" disabled={busy} onClick={onCancel}>
+                Cancel
+              </Button>
+              <Button type="button" size="sm" disabled={busy} onClick={onConfirm}>
+                Save
+              </Button>
+            </div>
           </DialogPrimitive.Popup>
         </div>
       </DialogPrimitive.Portal>
