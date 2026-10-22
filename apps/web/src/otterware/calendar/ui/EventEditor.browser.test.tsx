@@ -179,3 +179,23 @@ it("keeps an open creation card inside a resized window", async () => {
     })
     .toBe(true);
 });
+
+it("opens existing event details at the bottom center, independently of the event block", async () => {
+  await page.viewport(1280, 900);
+  const anchor = document.createElement("button");
+  anchor.dataset.eventKey = "work/event";
+  anchor.style.cssText = "position:fixed;left:10px;top:10px;width:80px;height:30px";
+  document.body.append(anchor);
+  using _anchor = { [Symbol.dispose]: () => anchor.remove() };
+  await using _screen = await render(<EventEditor {...props()} event={event()} draft={null} />);
+  await expect.element(page.getByRole("button", { name: "Edit event", exact: true })).toBeVisible();
+  await expect
+    .poll(() => {
+      const rect = document.querySelector("[data-calendar-editor]")!.getBoundingClientRect();
+      return (
+        Math.abs(rect.left + rect.width / 2 - window.innerWidth / 2) < 2 &&
+        Math.abs(rect.bottom - (window.innerHeight - 24)) < 2
+      );
+    })
+    .toBe(true);
+});

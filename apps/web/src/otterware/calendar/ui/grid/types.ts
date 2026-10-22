@@ -13,7 +13,7 @@ import type {
 } from "@otterware/calendar-contracts";
 import type { DayNumber } from "@otterware/calendar-contracts/time";
 
-/** A new event the user drew or clicked. */
+/** A new event range drawn by the user. */
 export interface CalendarDraft {
   readonly start: number;
   readonly end: number;
@@ -48,7 +48,7 @@ export interface EngineCommonProps {
   /** Click, Enter or Space on an event. `anchor` is the element to position a popover at. */
   onOpenEvent(instance: CalendarEventInstance, anchor: HTMLElement): void;
   /**
-   * A click on empty space (a default-length slot at the snapped time) or a drawn range.
+   * A drawn range (at least 15 minutes on the timed grid).
    * `anchor` locates the new slot on screen for an editor popover.
    */
   onCreate(draft: CalendarDraft, anchor?: HTMLElement | DOMRect): void;
