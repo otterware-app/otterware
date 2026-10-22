@@ -276,15 +276,15 @@ const DayHeader = memo(function DayHeader({
       disabled={onOpenDay === undefined}
       onClick={() => onOpenDay?.(day)}
       className={cn(
-        "flex h-10 min-w-0 items-center justify-center gap-1.5 border-s border-border text-sm outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring focus-visible:ring-inset enabled:cursor-pointer enabled:hover:bg-accent/60",
+        "flex h-12 min-w-0 items-center justify-center gap-2 border-s border-border text-sm outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring enabled:cursor-pointer enabled:hover:bg-accent/60",
         isPast ? "text-muted-foreground" : "text-foreground",
       )}
     >
       <span className="truncate text-xs text-muted-foreground">{name}</span>
       <span
         className={cn(
-          "flex h-6 min-w-6 items-center justify-center rounded-full px-1 font-medium tabular-nums",
-          isToday && "bg-primary text-primary-foreground",
+          "flex h-7 min-w-7 items-center justify-center rounded-lg px-1 font-medium tabular-nums",
+          isToday && "bg-destructive text-destructive-foreground",
         )}
       >
         {date}

@@ -495,6 +495,7 @@ export default function CalendarPage({
           duplicate={draft?.duplicate === true}
           draft={draft}
           timeZone={zone}
+          hourFormat={preferences.hourFormat}
           calendars={directory?.calendars ?? []}
           defaultCalendar={defaultCalendar}
           canWrite={canWrite}

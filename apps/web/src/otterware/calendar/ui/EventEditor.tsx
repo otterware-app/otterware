@@ -1,5 +1,24 @@
 import { Checkbox } from "~/components/ui/checkbox";
-import { Dialog, DialogPopup, DialogTitle } from "~/components/ui/dialog";
+import { Popover, PopoverPopup, PopoverTitle } from "~/components/ui/popover";
+import { Switch } from "~/components/ui/switch";
+import {
+  AlignLeftIcon,
+  ArrowRightIcon,
+  BellIcon,
+  ClockIcon,
+  ExternalLinkIcon,
+  MapPinIcon,
+  MoreHorizontalIcon,
+  PencilIcon,
+  RepeatIcon,
+  TrashIcon,
+  UsersIcon,
+  VideoIcon,
+  XIcon,
+  type LucideIcon,
+} from "lucide-react";
+import type { ReactNode } from "react";
+import { formatTime, formatTimeRange, formatLongDate, type HourFormat } from "./runtime/format";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Textarea } from "~/components/ui/textarea";
@@ -23,6 +42,7 @@ import {
 import {
   buildRecurrenceRule,
   repeatOptionsOf,
+  describeRecurrence,
   type RepeatOptions,
 } from "@otterware/calendar-contracts/recurrence";
 import { useState } from "react";
@@ -48,6 +68,7 @@ export function EventEditor({
   duplicate,
   draft,
   timeZone,
+  hourFormat = "locale",
   calendars,
   defaultCalendar,
   canWrite,
@@ -61,6 +82,7 @@ export function EventEditor({
   duplicate: boolean;
   draft: CalendarDraft | null;
   timeZone: string;
+  hourFormat?: HourFormat;
   calendars: ReadonlyArray<Calendar>;
   defaultCalendar: CalendarId | undefined;
   canWrite: boolean;
@@ -70,6 +92,22 @@ export function EventEditor({
   onDelete: (scope: CalendarChangeScope, sendUpdates: CalendarSendUpdates) => void;
   onRespond: (response: "accepted" | "declined" | "tentative") => void;
 }) {
+  const [editMode, setEditMode] = useState(!event || duplicate || draft !== null);
+  const [more, setMore] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [descriptionOpen, setDescriptionOpen] = useState(Boolean(event?.description));
+  const [anchorElement] = useState(() =>
+    event
+      ? document.querySelector<HTMLElement>(
+          `[data-event-key="${CSS.escape(`${event.calendarId}/${event.eventId}`)}"]`,
+        )
+      : null,
+  );
+  const [fallbackAnchor] = useState(() => ({
+    // Virtual anchors need a real ancestor for resize/scroll observation.
+    contextElement: document.documentElement,
+    getBoundingClientRect: () => new DOMRect(window.innerWidth / 2, window.innerHeight - 24, 0, 0),
+  }));
   const [initial] = useState<EditorForm>(() =>
     event
       ? formForEvent(event, event, timeZone)
@@ -110,8 +148,8 @@ export function EventEditor({
   const [sendUpdates, setSendUpdates] = useState<CalendarSendUpdates>("all");
   const [guests, setGuests] = useState(form.guests.join(", "));
   const [customRule, setCustomRule] = useState((event?.recurrence ?? []).join("\n"));
-  const [startText, setStartText] = useState(timeText(form.startMinutes));
-  const [endText, setEndText] = useState(timeText(form.endMinutes));
+  const [startText, setStartText] = useState(timeText(form.startMinutes, hourFormat));
+  const [endText, setEndText] = useState(timeText(form.endMinutes, hourFormat));
   const readOnly = !canWrite || (!duplicate && event?.readOnly === true);
   const guestList = guests
     .split(/[,\n]/)
@@ -120,8 +158,7 @@ export function EventEditor({
   const valid = Boolean(
     form.calendarId &&
     isValidTimeZone(form.timeZone) &&
-    parseTimeText(startText) !== null &&
-    parseTimeText(endText) !== null &&
+    (form.allDay || (parseTimeText(startText) !== null && parseTimeText(endText) !== null)) &&
     guestList.every(isEmail) &&
     form.endDay >= form.startDay,
   );
@@ -143,22 +180,38 @@ export function EventEditor({
         item.accessRole === "writer" ||
         (!duplicate && item.calendarId === event?.calendarId)),
   );
+  const editing = editMode && !readOnly;
+  const selectedCalendar = calendars.find((calendar) => calendar.calendarId === form.calendarId);
+  const responseLabels = {
+    accepted: "Going",
+    tentative: "Maybe",
+    declined: "Not going",
+    needsAction: "Awaiting reply",
+  };
   return (
-    <Dialog
+    <Popover
       open
       onOpenChange={(open) => {
-        if (!open) onClose();
+        if (!open && !busy) onClose();
       }}
     >
-      <DialogPopup>
-        <DialogTitle>
+      <PopoverPopup
+        anchor={anchorElement ?? fallbackAnchor}
+        side={anchorElement ? "right" : "top"}
+        align={anchorElement ? "start" : "center"}
+        padding="none"
+        keepMounted
+        touchBackdrop
+        className="w-[470px] max-w-[calc(100vw-24px)]"
+      >
+        <PopoverTitle className="sr-only">
           {duplicate ? "Copy event" : event ? "Event details" : "New event"}
-        </DialogTitle>
+        </PopoverTitle>
         <form
-          className="grid gap-3"
+          data-calendar-editor=""
           onSubmit={(submit) => {
             submit.preventDefault();
-            if (!valid) return;
+            if (!valid || readOnly || busy || !editMode) return;
             const value = { ...form, guests: guestList };
             const custom =
               form.repeat === "custom"
@@ -201,303 +254,563 @@ export function EventEditor({
               });
           }}
         >
-          <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-            Title
-            <Input
-              value={form.title}
-              onChange={(e) => patch("title", e.target.value)}
-              disabled={readOnly}
-              autoFocus
-              maxLength={1024}
-            />
-          </label>
-          <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-            Calendar
-            <CalendarSelect
-              value={form.calendarId}
-              onChange={(e) => patch("calendarId", e.target.value)}
-              disabled={readOnly}
-            >
-              {targets.map((item) => (
-                <option key={item.calendarId} value={item.calendarId}>
-                  {item.name}
-                </option>
-              ))}
-            </CalendarSelect>
-          </label>
-          <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-            <Checkbox
-              checked={form.allDay}
-              onCheckedChange={(checked) => patch("allDay", checked)}
-              disabled={readOnly}
-            />
-            All day
-          </label>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-              Starts
-              <Input
-                type="date"
-                value={formatDayNumber(form.startDay)}
-                onChange={(e) => {
-                  const day = parseDayNumber(e.target.value);
-                  if (day !== null)
-                    setForm((previous) => withStart(previous, day, previous.startMinutes));
-                }}
-                disabled={readOnly}
-              />
-            </label>
-            {!form.allDay && (
-              <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-                Time
-                <Input
-                  value={startText}
-                  onChange={(e) => {
-                    setStartText(e.target.value);
-                    const minutes = parseTimeText(e.target.value);
-                    if (minutes !== null) {
-                      const next = withStart(form, form.startDay, minutes);
-                      setForm(next);
-                      setEndText(timeText(next.endMinutes));
-                    }
-                  }}
-                  aria-invalid={parseTimeText(startText) === null}
-                  disabled={readOnly}
-                  placeholder="9:30 am"
-                />
-              </label>
-            )}
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-              Ends{form.allDay && " (last day)"}
-              <Input
-                type="date"
-                value={formatDayNumber(form.endDay)}
-                onChange={(e) => {
-                  const day = parseDayNumber(e.target.value);
-                  if (day !== null)
-                    setForm((previous) => withEnd(previous, day, previous.endMinutes));
-                }}
-                disabled={readOnly}
-              />
-            </label>
-            {!form.allDay && (
-              <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-                Time
-                <Input
-                  value={endText}
-                  onChange={(e) => {
-                    setEndText(e.target.value);
-                    const minutes = parseTimeText(e.target.value);
-                    if (minutes !== null)
-                      setForm((previous) => withEnd(previous, previous.endDay, minutes));
-                  }}
-                  aria-invalid={parseTimeText(endText) === null}
-                  disabled={readOnly}
-                />
-              </label>
-            )}
-          </div>
-          {!form.allDay && (
-            <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-              Event time zone
-              <Input
-                value={form.timeZone}
-                onChange={(e) => patch("timeZone", e.target.value)}
-                disabled={readOnly}
-                aria-invalid={!isValidTimeZone(form.timeZone)}
-              />
-            </label>
-          )}
-          <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-            Location
-            <Input
-              value={form.location}
-              onChange={(e) => patch("location", e.target.value)}
-              disabled={readOnly}
-              maxLength={1024}
-            />
-          </label>
-          <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-            Description
-            <Textarea
-              value={form.description}
-              onChange={(e) => patch("description", e.target.value)}
-              disabled={readOnly}
-              rows={3}
-              maxLength={8192}
-            />
-          </label>
-          <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-            Guests
-            <Input
-              value={guests}
-              onChange={(e) => setGuests(e.target.value)}
-              disabled={readOnly}
-              placeholder="Emails separated by commas"
-              aria-invalid={!guestList.every(isEmail)}
-            />
-          </label>
-          <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-            Repeats
-            <CalendarSelect
-              value={form.repeat}
-              onChange={(e) => patch("repeat", e.target.value as RepeatChoice)}
-              disabled={readOnly || recurrenceLocked}
-            >
-              {(
-                [
-                  "none",
-                  "daily",
-                  "weekdays",
-                  "weekly",
-                  "monthlyDay",
-                  "monthlyWeekday",
-                  "yearly",
-                  "custom",
-                ] as const
-              ).map((choice) => (
-                <option key={choice} value={choice}>
-                  {repeatChoiceLabel(choice, anchor)}
-                </option>
-              ))}
-            </CalendarSelect>
-          </label>
-          {form.repeat === "custom" && !recurrenceLocked && (
-            <CustomRepeat
-              anchor={anchor}
-              rule={customRule}
-              onRule={setCustomRule}
-              disabled={readOnly}
-            />
-          )}
-          {event?.seriesId && !duplicate && (
-            <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-              Apply to
-              <CalendarSelect
-                value={scope}
-                onChange={(e) => setScope(e.target.value as CalendarChangeScope)}
-              >
-                <option value="this">This event</option>
-                <option value="following">This and following</option>
-                <option value="all">All events</option>
-              </CalendarSelect>
-            </label>
-          )}
-          <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-            Availability
-            <CalendarSelect
-              value={form.free ? "free" : "busy"}
-              onChange={(e) => patch("free", e.target.value === "free")}
-              disabled={readOnly}
-            >
-              <option value="busy">Busy</option>
-              <option value="free">Free</option>
-            </CalendarSelect>
-          </label>
-          <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-            Visibility
-            <CalendarSelect
-              value={form.visibility}
-              onChange={(e) => patch("visibility", e.target.value as EditorForm["visibility"])}
-              disabled={readOnly}
-            >
-              <option value="default">Calendar default</option>
-              <option value="public">Public</option>
-              <option value="private">Private</option>
-            </CalendarSelect>
-          </label>
-          {(!event?.conference || duplicate) && (
-            <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-              <Checkbox
-                checked={form.addConference}
-                onCheckedChange={(checked) => patch("addConference", checked)}
-                disabled={readOnly}
-              />
-              Add Google Meet
-            </label>
-          )}
-          {event?.conference && !duplicate && (
-            <a href={event.conference.url} target="_blank" rel="noreferrer">
-              Join meeting
-            </a>
-          )}
-          {event?.htmlLink && (
-            <a href={event.htmlLink} target="_blank" rel="noreferrer">
-              Open in Google Calendar
-            </a>
-          )}
-          {event?.attendees.map((guest) => (
-            <p key={guest.email}>
-              {guest.displayName ?? guest.email}: {guest.responseStatus}
-            </p>
-          ))}
-          {reminders?.useDefault && providerDefaults !== undefined && (
-            <p>
-              Calendar defaults:{" "}
-              {providerDefaults
-                .map((rule) => `${rule.method}, ${rule.minutes} minutes before`)
-                .join("; ") || "None configured"}
-              .
-            </p>
-          )}
-          <ReminderFields
-            value={reminders}
-            onChange={setReminders}
-            disabled={readOnly}
-            creating={!event || duplicate}
-          />
-          <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-            Notify guests
-            <CalendarSelect
-              value={sendUpdates}
-              onChange={(e) => setSendUpdates(e.target.value as CalendarSendUpdates)}
-              disabled={readOnly}
-            >
-              <option value="all">All guests</option>
-              <option value="externalOnly">Guests outside Google Calendar</option>
-              <option value="none">No email updates</option>
-            </CalendarSelect>
-          </label>
-          {event?.canRespond && !event.watchOnly && !duplicate && (
-            <div className="flex justify-end gap-2">
-              {(["accepted", "tentative", "declined"] as const).map((response) => (
-                <Button
-                  key={response}
-                  type="button"
-                  disabled={!canWrite || busy}
-                  onClick={() => onRespond(response)}
-                >
-                  {response}
-                </Button>
-              ))}
+          <div className="flex items-start gap-2 px-4 pt-4 pb-3">
+            <AlignLeftIcon className="mt-2 size-4 shrink-0 text-muted-foreground" />
+            <div className="min-w-0 flex-1">
+              {editing ? (
+                <div className="text-lg font-semibold">
+                  <Input
+                    unstyled
+                    aria-label="Event title"
+                    placeholder="New event"
+                    value={form.title}
+                    onChange={(e) => patch("title", e.target.value)}
+                    autoFocus
+                    maxLength={1024}
+                  />
+                </div>
+              ) : (
+                <h2 className="py-1 text-lg font-semibold leading-snug wrap-anywhere">
+                  {form.title || "Untitled event"}
+                </h2>
+              )}
+              {editing ? (
+                descriptionOpen ? (
+                  <Textarea
+                    unstyled
+                    size="sm"
+                    aria-label="Description"
+                    placeholder="Add description"
+                    value={form.description}
+                    onChange={(e) => patch("description", e.target.value)}
+                  />
+                ) : (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setDescriptionOpen(true)}
+                  >
+                    Add description
+                  </Button>
+                )
+              ) : (
+                <p className="max-h-40 overflow-y-auto whitespace-pre-wrap text-sm text-muted-foreground wrap-anywhere">
+                  {event?.description || "No description"}
+                </p>
+              )}
             </div>
-          )}
-          <div className="flex justify-end gap-2">
-            <Button type="button" onClick={onClose}>
-              Close
-            </Button>
-            <Button type="submit" disabled={readOnly || busy || !valid}>
-              Save
-            </Button>
-            {event && !duplicate && (
+            {!editing && !readOnly && (
               <Button
                 type="button"
-                disabled={readOnly || busy}
-                onClick={() => onDelete(scope, sendUpdates)}
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Edit event"
+                onClick={() => setEditMode(true)}
               >
-                Delete
+                <PencilIcon />
               </Button>
             )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Close event"
+              disabled={busy}
+              onClick={onClose}
+            >
+              <XIcon />
+            </Button>
+          </div>
+          <EventRow icon={UsersIcon}>
+            {editing && (
+              <Input
+                unstyled
+                aria-label="Guests"
+                placeholder="Add guests (email addresses)"
+                value={guests}
+                onChange={(e) => setGuests(e.target.value)}
+                aria-invalid={!guestList.every(isEmail)}
+              />
+            )}
+            {!editing && !event?.attendees.length && (
+              <p className="py-1 text-sm text-muted-foreground">No guests</p>
+            )}
+            {event && !duplicate && event.attendees.length > 0 && (
+              <details className="text-sm">
+                <summary className="cursor-pointer py-1 text-muted-foreground">
+                  {event.attendees.filter((guest) => guest.responseStatus === "accepted").length}{" "}
+                  going · {event.attendees.length} guests
+                </summary>
+                <ul className="max-h-36 space-y-2 overflow-y-auto py-2">
+                  {event.attendees.map((guest) => (
+                    <li key={guest.email} className="flex items-center gap-2">
+                      <span
+                        className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium"
+                        aria-hidden="true"
+                      >
+                        {(guest.displayName || guest.email).slice(0, 1).toUpperCase()}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">
+                        {guest.displayName || guest.email}
+                        {guest.organizer ? " (organizer)" : ""}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {responseLabels[guest.responseStatus]}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </EventRow>
+          <EventRow icon={MapPinIcon}>
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
+                {editing ? (
+                  <Input
+                    unstyled
+                    aria-label="Location"
+                    placeholder="Add location, room or call"
+                    value={form.location}
+                    onChange={(e) => patch("location", e.target.value)}
+                  />
+                ) : (
+                  <p className="py-1 text-sm wrap-anywhere">{form.location || "No location"}</p>
+                )}
+              </div>
+              {event?.conference && !duplicate && /^https?:\/\//i.test(event.conference.url) ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  render={<a href={event.conference.url} target="_blank" rel="noreferrer" />}
+                >
+                  <VideoIcon />
+                  Join meeting
+                </Button>
+              ) : editing ? (
+                <Button
+                  type="button"
+                  variant={form.addConference ? "secondary" : "ghost"}
+                  size="sm"
+                  aria-pressed={form.addConference}
+                  onClick={() => patch("addConference", !form.addConference)}
+                >
+                  <VideoIcon />
+                  Google Meet
+                </Button>
+              ) : null}
+            </div>
+          </EventRow>
+          <EventRow icon={ClockIcon}>
+            {editing ? (
+              <>
+                <div className="flex items-center gap-2">
+                  {!form.allDay ? (
+                    <div className="flex min-w-0 flex-1 items-center gap-1">
+                      <div className="w-24">
+                        <Input
+                          unstyled
+                          size="sm"
+                          aria-label="Start time"
+                          value={startText}
+                          aria-invalid={parseTimeText(startText) === null}
+                          onChange={(e) => {
+                            setStartText(e.target.value);
+                            const minutes = parseTimeText(e.target.value);
+                            if (minutes !== null) {
+                              const next = withStart(form, form.startDay, minutes);
+                              setForm(next);
+                              setEndText(timeText(next.endMinutes, hourFormat));
+                            }
+                          }}
+                        />
+                      </div>
+                      <ArrowRightIcon className="size-3 shrink-0 text-muted-foreground" />
+                      <div className="w-24">
+                        <Input
+                          unstyled
+                          size="sm"
+                          aria-label="End time"
+                          value={endText}
+                          aria-invalid={parseTimeText(endText) === null}
+                          onChange={(e) => {
+                            setEndText(e.target.value);
+                            const minutes = parseTimeText(e.target.value);
+                            if (minutes !== null)
+                              setForm((previous) => withEnd(previous, previous.endDay, minutes));
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <span className="flex-1 text-sm">All-day event</span>
+                  )}
+                  <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+                    <Switch
+                      size="sm"
+                      checked={form.allDay}
+                      onCheckedChange={(checked) => patch("allDay", checked)}
+                    />
+                    All day
+                  </label>
+                </div>
+                <div className="mt-1 flex items-center gap-1">
+                  <div className="min-w-0 flex-1">
+                    <Input
+                      unstyled
+                      size="sm"
+                      type="date"
+                      aria-label="Start date"
+                      value={formatDayNumber(form.startDay)}
+                      onChange={(e) => {
+                        const day = parseDayNumber(e.target.value);
+                        if (day !== null)
+                          setForm((previous) => withStart(previous, day, previous.startMinutes));
+                      }}
+                    />
+                  </div>
+                  <ArrowRightIcon className="size-3 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1">
+                    <Input
+                      unstyled
+                      size="sm"
+                      type="date"
+                      aria-label={form.allDay ? "Last day" : "End date"}
+                      value={formatDayNumber(form.endDay)}
+                      onChange={(e) => {
+                        const day = parseDayNumber(e.target.value);
+                        if (day !== null)
+                          setForm((previous) => withEnd(previous, day, previous.endMinutes));
+                      }}
+                    />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <p className="py-1 text-sm font-medium">
+                  {event?.allDay
+                    ? "All day"
+                    : event
+                      ? formatTimeRange(event.start, event.end, form.timeZone, hourFormat)
+                      : ""}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {formatLongDate(form.startDay)}
+                  {form.endDay !== form.startDay ? ` – ${formatLongDate(form.endDay)}` : ""} ·{" "}
+                  {form.timeZone}
+                </p>
+              </>
+            )}
+            {editing && (
+              <div className="mt-1 flex justify-end">
+                <CalendarSelect
+                  compact
+                  aria-label="Repeats"
+                  value={form.repeat}
+                  onChange={(e) => patch("repeat", e.target.value as RepeatChoice)}
+                  disabled={recurrenceLocked}
+                >
+                  {(
+                    [
+                      "none",
+                      "daily",
+                      "weekdays",
+                      "weekly",
+                      "monthlyDay",
+                      "monthlyWeekday",
+                      "yearly",
+                      "custom",
+                    ] as const
+                  ).map((choice) => (
+                    <option key={choice} value={choice}>
+                      {repeatChoiceLabel(choice, anchor)}
+                    </option>
+                  ))}
+                </CalendarSelect>
+              </div>
+            )}
+            {!editing && event?.recurrence?.length ? (
+              <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                <RepeatIcon className="size-3" />
+                {describeRecurrence(event.recurrence, anchor)}
+              </p>
+            ) : null}
+          </EventRow>
+          {editing && event?.seriesId && !duplicate && (
+            <EventRow icon={RepeatIcon}>
+              <label className="grid gap-1 text-xs text-muted-foreground">
+                Apply changes to
+                <CalendarSelect
+                  aria-label="Apply changes to"
+                  value={scope}
+                  onChange={(e) => setScope(e.target.value as CalendarChangeScope)}
+                >
+                  <option value="this">This event</option>
+                  <option value="following">This and following</option>
+                  <option value="all">All events</option>
+                </CalendarSelect>
+              </label>
+            </EventRow>
+          )}
+          {editing && form.repeat === "custom" && !recurrenceLocked && (
+            <div className="border-t border-border px-4 py-3">
+              <CustomRepeat
+                anchor={anchor}
+                rule={customRule}
+                onRule={setCustomRule}
+                disabled={busy}
+              />
+            </div>
+          )}
+          {more && (
+            <div
+              id="calendar-event-options"
+              className="grid gap-3 border-t border-border px-4 py-3"
+            >
+              {editing ? (
+                <>
+                  <label className="grid gap-1 text-xs text-muted-foreground">
+                    Event time zone
+                    <Input
+                      aria-label="Event time zone"
+                      value={form.timeZone}
+                      onChange={(e) => patch("timeZone", e.target.value)}
+                      aria-invalid={!isValidTimeZone(form.timeZone)}
+                    />
+                  </label>
+                  <label className="grid gap-1 text-xs text-muted-foreground">
+                    Visibility
+                    <CalendarSelect
+                      aria-label="Visibility"
+                      value={form.visibility}
+                      onChange={(e) =>
+                        patch("visibility", e.target.value as EditorForm["visibility"])
+                      }
+                    >
+                      <option value="default">Calendar default</option>
+                      <option value="public">Public</option>
+                      <option value="private">Private</option>
+                    </CalendarSelect>
+                  </label>
+                  <ReminderFields
+                    value={reminders}
+                    onChange={setReminders}
+                    disabled={busy}
+                    creating={!event || duplicate}
+                  />
+                  {reminders?.useDefault && providerDefaults !== undefined && (
+                    <p className="text-xs text-muted-foreground">
+                      Calendar defaults:{" "}
+                      {providerDefaults
+                        .map((rule) => `${rule.method}, ${rule.minutes} minutes before`)
+                        .join("; ") || "None configured"}
+                      .
+                    </p>
+                  )}
+                  {guestList.length > 0 && (
+                    <label className="grid gap-1 text-xs text-muted-foreground">
+                      Notify guests
+                      <CalendarSelect
+                        aria-label="Notify guests"
+                        value={sendUpdates}
+                        onChange={(e) => setSendUpdates(e.target.value as CalendarSendUpdates)}
+                      >
+                        <option value="all">All guests</option>
+                        <option value="externalOnly">Guests outside Google Calendar</option>
+                        <option value="none">No email updates</option>
+                      </CalendarSelect>
+                    </label>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="text-sm">
+                    {selectedCalendar?.name} · {event?.visibility ?? "Calendar default"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {event?.reminders?.useDefault !== false
+                      ? "Calendar reminder defaults"
+                      : event.reminders.overrides
+                          ?.map((rule) => `${rule.method}, ${rule.minutes} minutes before`)
+                          .join("; ") || "No reminders"}
+                  </p>
+                  {event?.htmlLink && /^https?:\/\//i.test(event.htmlLink) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      render={<a href={event.htmlLink} target="_blank" rel="noreferrer" />}
+                    >
+                      <ExternalLinkIcon />
+                      Open in Google Calendar
+                    </Button>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+          {event?.canRespond && !event.watchOnly && !duplicate && (
+            <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-3">
+              <span className="text-sm text-muted-foreground">Going?</span>
+              <div className="flex gap-1">
+                {(["accepted", "tentative", "declined"] as const).map((response) => (
+                  <Button
+                    key={response}
+                    type="button"
+                    variant={event.response === response ? "secondary" : "ghost"}
+                    size="sm"
+                    disabled={!canWrite || busy}
+                    onClick={() => onRespond(response)}
+                  >
+                    {responseLabels[response]}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
+          {confirmDelete && (
+            <div
+              className="grid gap-3 border-t border-border px-4 py-3"
+              role="group"
+              aria-label="Confirm event deletion"
+            >
+              <p className="text-sm font-medium">Delete this event?</p>
+              {event?.seriesId && (
+                <CalendarSelect
+                  aria-label="Delete occurrences"
+                  value={scope}
+                  onChange={(e) => setScope(e.target.value as CalendarChangeScope)}
+                >
+                  <option value="this">This event</option>
+                  <option value="following">This and following</option>
+                  <option value="all">All events</option>
+                </CalendarSelect>
+              )}
+              <div className="flex justify-end gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => setConfirmDelete(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="destructive"
+                  disabled={busy}
+                  onClick={() => onDelete(scope, sendUpdates)}
+                >
+                  Delete event
+                </Button>
+              </div>
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-1 border-t border-border px-3 py-2">
+            <span
+              className="mx-1 size-3 shrink-0 rounded-full"
+              style={{ backgroundColor: selectedCalendar?.color }}
+              aria-hidden="true"
+            />
+            {editing ? (
+              <div className="max-w-44 min-w-0">
+                <CalendarSelect
+                  compact
+                  aria-label="Calendar"
+                  value={form.calendarId}
+                  onChange={(e) => patch("calendarId", e.target.value)}
+                >
+                  {targets.map((item) => (
+                    <option key={item.calendarId} value={item.calendarId}>
+                      {item.name}
+                    </option>
+                  ))}
+                </CalendarSelect>
+              </div>
+            ) : (
+              <span className="max-w-44 truncate text-xs text-muted-foreground">
+                {selectedCalendar?.name}
+              </span>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Reminders and visibility"
+              aria-expanded={more}
+              aria-controls="calendar-event-options"
+              onClick={() => setMore(!more)}
+            >
+              <BellIcon />
+            </Button>
+            <div className="min-w-0">
+              {editing ? (
+                <CalendarSelect
+                  compact
+                  aria-label="Availability"
+                  value={form.free ? "free" : "busy"}
+                  onChange={(e) => patch("free", e.target.value === "free")}
+                >
+                  <option value="busy">Busy</option>
+                  <option value="free">Free</option>
+                </CalendarSelect>
+              ) : (
+                <span className="px-1 text-xs text-muted-foreground">
+                  {form.free ? "Free" : "Busy"}
+                </span>
+              )}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label="More event options"
+              aria-expanded={more}
+              aria-controls="calendar-event-options"
+              onClick={() => setMore(!more)}
+            >
+              <MoreHorizontalIcon />
+            </Button>
+            <div className="ms-auto flex items-center gap-1">
+              {event && !duplicate && !readOnly && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label="Delete event"
+                  disabled={busy}
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  <TrashIcon />
+                </Button>
+              )}
+              {editing && (
+                <Button type="submit" size="sm" disabled={busy || !valid}>
+                  {busy ? "Saving…" : event && !duplicate ? "Save changes" : "Create event"}
+                </Button>
+              )}
+            </div>
           </div>
         </form>
-      </DialogPopup>
-    </Dialog>
+      </PopoverPopup>
+    </Popover>
   );
 }
-function timeText(minutes: number) {
-  return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(minutes % 60).padStart(2, "0")}`;
+
+function EventRow({ icon: Icon, children }: { icon: LucideIcon; children: ReactNode }) {
+  return (
+    <div className="flex items-start gap-2 border-t border-border px-4 py-3">
+      <Icon className="mt-1.5 size-4 shrink-0 text-muted-foreground" />
+      <div className="min-w-0 flex-1">{children}</div>
+    </div>
+  );
+}
+
+function timeText(minutes: number, hourFormat: HourFormat) {
+  return formatTime(minutes * 60_000, "UTC", hourFormat);
 }
 function CustomRepeat({
   anchor,

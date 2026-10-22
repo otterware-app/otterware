@@ -14,8 +14,8 @@
   --cal-hour-line: color-mix(in srgb, var(--contrast-border) 72%, transparent);
   --cal-offhours: color-mix(in oklab, var(--contrast-foreground) 2.5%, transparent);
   --cal-now: var(--destructive);
-  --cal-event-tint: 15%;
-  --cal-event-tint-hover: 21%;
+  --cal-event-tint: 18%;
+  --cal-event-tint-hover: 24%;
   --cal-event-tint-past: 8%;
   --cal-event-tint-free: 8%;
   --cal-event-ink-mix: 40%;
@@ -120,7 +120,7 @@
   box-sizing: border-box;
   display: flex;
   overflow: hidden;
-  border-radius: 5px;
+  border-radius: 7px;
   border-inline-start: 3px solid var(--event-color);
   background-color: color-mix(in oklab, var(--event-color) var(--event-tint), var(--background));
   color: var(--event-ink);
@@ -219,8 +219,8 @@
   border-block: 1px solid var(--background);
   border-inline-end: 1px solid var(--background);
   padding: 1px 4px;
-  font-size: 12px;
-  line-height: 15px;
+  font-size: 13px;
+  line-height: 16px;
 }
 
 [data-calendar-event][data-timed]::before {
@@ -228,8 +228,8 @@
   order: 1;
   flex: none;
   overflow: hidden;
-  font-size: 11px;
-  line-height: 14px;
+  font-size: 12px;
+  line-height: 15px;
   opacity: 0.85;
   white-space: nowrap;
   text-overflow: ellipsis;
