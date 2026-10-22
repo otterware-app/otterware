@@ -66,15 +66,16 @@ function gmailErrorMessage(body: string): string {
  * callers match on, followed by a readable reason; the full body stays in `body`.
  */
 export class GmailApiError extends Error {
-  constructor(
-    readonly status: number,
-    statusText: string,
-    readonly body: string,
-  ) {
+  readonly status: number;
+  readonly body: string;
+
+  constructor(status: number, statusText: string, body: string) {
     const reason = isRateLimited(status, body)
       ? "Gmail is limiting requests for this account right now. Try again in a minute."
       : gmailErrorMessage(body);
     super(`Gmail API error: ${status} ${statusText}${reason ? ` — ${reason}` : ""}`);
+    this.status = status;
+    this.body = body;
     this.name = "GmailApiError";
   }
 

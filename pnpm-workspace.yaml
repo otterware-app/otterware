@@ -318,6 +318,7 @@ patchedDependencies:
   "@expo/metro-config@58.0.14": patches/@expo__metro-config@58.0.14.patch
   expo-sharing@58.0.19: patches/expo-sharing@58.0.19.patch
   expo-widgets@58.0.20: patches/expo-widgets@58.0.20.patch
+  react-native-screens@5.0.0-t3.36: patches/react-native-screens@5.0.0-t3.36.patch
   "@ff-labs/fff-node@0.11.0": patches/@ff-labs__fff-node@0.11.0.patch
   "@legendapp/list@3.3.5": patches/@legendapp__list@3.3.5.patch
   # Exports the dependency-light subpaths mobile and the web diff parser import, and keeps
@@ -329,6 +330,9 @@ patchedDependencies:
   dbus-next@0.10.2: patches/dbus-next@0.10.2.patch
   node-pty@1.2.0-beta.15: patches/node-pty@1.2.0-beta.15.patch
   react-native-gesture-handler@3.3.0: patches/react-native-gesture-handler@3.3.0.patch
+  # Screens v5 stack, split and tab screens leave at once, like legacy screens. Exiting animations
+  # inside one otherwise hold its removal for a later mount, after its stack has moved on.
+  react-native-reanimated@4.7.1: patches/react-native-reanimated@4.7.1.patch
   react-native-keyboard-controller@1.22.7: patches/react-native-keyboard-controller@1.22.7.patch
   react-native-pdf-jsi@5.0.0: patches/react-native-pdf-jsi@5.0.0.patch
   # Android: a nested WebView hands a vertical drag to its scrolling parent at the page's edge.

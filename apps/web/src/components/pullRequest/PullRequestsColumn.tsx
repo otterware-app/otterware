@@ -1,5 +1,6 @@
+import { SearchIcon } from "~/lib/icons";
 import type { PullRequestInvolvement, PullRequestListState } from "@t3tools/contracts";
-import { Plug2Icon, SearchIcon } from "lucide-react";
+import { Plug2Icon } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 
 import { isElectron } from "~/env";

@@ -68,11 +68,11 @@ export function getSessionToken(): string | null {
 
 /** The relay answered with an error (`status` 0: it couldn't be reached). */
 export class RelayError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-  ) {
+  readonly status: number;
+
+  constructor(status: number, message: string) {
     super(message);
+    this.status = status;
     this.name = "RelayError";
   }
 }

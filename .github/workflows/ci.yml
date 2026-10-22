@@ -217,8 +217,6 @@ jobs:
         run: node scripts/release-smoke.ts --server-bundle
 
       - name: Build and smoke-test server single-executable
-        env:
-          VP_NODE_VERSION: "26.8.2"
         run: |
           node apps/server/scripts/cli.ts build-exe --verbose
           node scripts/release-smoke.ts --server-executable

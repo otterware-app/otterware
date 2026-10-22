@@ -110,10 +110,14 @@ export class SmtpClient {
   private queue: Promise<unknown> = Promise.resolve();
   private closed = false;
 
-  constructor(
-    private readonly stream: ByteStream,
-    private readonly options: SmtpOptions,
-  ) {
+  private readonly stream: ByteStream;
+
+  private readonly options: SmtpOptions;
+
+  constructor(stream: ByteStream, options: SmtpOptions) {
+    this.stream = stream;
+
+    this.options = options;
     this.timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   }
 

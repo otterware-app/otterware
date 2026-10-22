@@ -29,7 +29,11 @@ export async function openMailWorker(
   const worker = new NodeWorkerThreads.Worker(
     packaged ?? new URL(import.meta.resolve("@otterware/mail-node/worker")),
     {
-      execArgv: packaged ? [] : ["--experimental-transform-types"],
+      // Newer Node strips types without the flag and rejects it in a worker's execArgv.
+      execArgv:
+        packaged || !process.allowedNodeEnvironmentFlags.has("--experimental-transform-types")
+          ? []
+          : ["--experimental-transform-types"],
       workerData: {
         stateDir: options.stateDir,
         profile: options.profile,
