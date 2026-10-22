@@ -45,7 +45,7 @@ it("uses the reference header dimensions and expands the compact all-day lane", 
     <TimeGrid
       days={[20_000]}
       today={20_000}
-      selectedKey={null}
+      selectedKey="work/1"
       instances={[1, 2, 3].map((id) => ({
         calendarId: CalendarId.make("work"),
         eventId: String(id),
@@ -73,6 +73,12 @@ it("uses the reference header dimensions and expands the compact all-day lane", 
   expect(container.querySelectorAll("[data-calendar-allday] [data-event-key]")).toHaveLength(1);
   await page.getByRole("button", { name: "Show all all-day events", exact: true }).click();
   expect(container.querySelectorAll("[data-calendar-allday] [data-event-key]")).toHaveLength(3);
+  const selected = container.querySelector<HTMLElement>('[data-event-key="work/1"]')!;
+  const peer = container.querySelector<HTMLElement>('[data-event-key="work/2"]')!;
+  expect(getComputedStyle(selected).boxShadow).toBe("none");
+  expect(getComputedStyle(selected).backgroundColor).not.toBe(
+    getComputedStyle(peer).backgroundColor,
+  );
   await page.getByRole("button", { name: "Show fewer all-day events", exact: true }).click();
   expect(container.querySelector("[data-calendar-allday]")!.getBoundingClientRect().height).toBe(
     25,

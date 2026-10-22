@@ -1,4 +1,3 @@
-import { Checkbox } from "~/components/ui/checkbox";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { Switch } from "~/components/ui/switch";
 import {
@@ -21,7 +20,6 @@ import type { ReactNode, RefObject, ComponentProps } from "react";
 import { formatTime, formatTimeRange, formatLongDate, type HourFormat } from "./runtime/format";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { Textarea } from "~/components/ui/textarea";
 import { CalendarSelect } from "./CalendarSelect";
 import {
   CalendarId,
@@ -34,17 +32,13 @@ import {
   type CalendarEventReminders,
 } from "@otterware/calendar-contracts";
 import {
-  DAY_MS,
   formatDayNumber,
   parseDayNumber,
   isValidTimeZone,
 } from "@otterware/calendar-contracts/time";
-import {
-  buildRecurrenceRule,
-  repeatOptionsOf,
-  describeRecurrence,
-  type RepeatOptions,
-} from "@otterware/calendar-contracts/recurrence";
+import { describeRecurrence } from "@otterware/calendar-contracts/recurrence";
+import { RepeatDialog } from "./RepeatDialog";
+import { Menu, MenuTrigger, MenuPopup, MenuItem } from "~/components/ui/menu";
 import { useState } from "react";
 import { ReminderFields } from "./ReminderFields.tsx";
 import type { CalendarDraft } from "./grid/types.ts";
@@ -60,7 +54,6 @@ import {
   withStart,
   withEnd,
   type EditorForm,
-  type RepeatChoice,
 } from "./runtime/eventEditor.logic.ts";
 
 export function EventEditor({
@@ -132,6 +125,7 @@ export function EventEditor({
       : {}),
   }));
   const [pendingUpdate, setPendingUpdate] = useState<CalendarUpdateEventInput | null>(null);
+  const [repeatOpen, setRepeatOpen] = useState(false);
   const [scope, setScope] = useState<CalendarChangeScope>("this");
   const [reminders, setReminders] = useState<CalendarEventReminders | undefined>(
     event?.reminders ?? (event ? { useDefault: true } : undefined),
@@ -497,29 +491,43 @@ export function EventEditor({
                 )}
                 {editing && (
                   <div className="mt-1 flex justify-end">
-                    <CalendarSelect
-                      compact
-                      aria-label="Repeats"
-                      value={form.repeat}
-                      onChange={(e) => patch("repeat", e.target.value as RepeatChoice)}
-                    >
-                      {(
-                        [
-                          "none",
-                          "daily",
-                          "weekdays",
-                          "weekly",
-                          "monthlyDay",
-                          "monthlyWeekday",
-                          "yearly",
-                          "custom",
-                        ] as const
-                      ).map((choice) => (
-                        <option key={choice} value={choice}>
-                          {repeatChoiceLabel(choice, anchor)}
-                        </option>
-                      ))}
-                    </CalendarSelect>
+                    <Menu>
+                      <MenuTrigger
+                        render={<Button type="button" variant="ghost" size="sm" />}
+                        aria-label="Repeats"
+                      >
+                        <RepeatIcon />
+                        {form.repeat === "custom"
+                          ? "Custom"
+                          : form.repeat === "none"
+                            ? "Repeat"
+                            : repeatChoiceLabel(form.repeat, anchor)}
+                      </MenuTrigger>
+                      <MenuPopup align="end">
+                        {(
+                          [
+                            "none",
+                            "daily",
+                            "weekdays",
+                            "weekly",
+                            "monthlyDay",
+                            "monthlyWeekday",
+                            "yearly",
+                            "custom",
+                          ] as const
+                        ).map((choice) => (
+                          <MenuItem
+                            key={choice}
+                            onClick={() => {
+                              if (choice === "custom") setRepeatOpen(true);
+                              else patch("repeat", choice);
+                            }}
+                          >
+                            {repeatChoiceLabel(choice, anchor)}
+                          </MenuItem>
+                        ))}
+                      </MenuPopup>
+                    </Menu>
                   </div>
                 )}
                 {!editing && event?.recurrence?.length ? (
@@ -529,16 +537,6 @@ export function EventEditor({
                   </p>
                 ) : null}
               </EventRow>
-              {editing && form.repeat === "custom" && (
-                <div className="border-t border-border px-4 py-3">
-                  <CustomRepeat
-                    anchor={anchor}
-                    rule={customRule}
-                    onRule={setCustomRule}
-                    disabled={busy}
-                  />
-                </div>
-              )}
               {more && (
                 <div
                   id="calendar-event-options"
@@ -771,6 +769,22 @@ export function EventEditor({
               </div>
             </form>
           </DialogPrimitive.Popup>
+          {repeatOpen && (
+            <RepeatDialog
+              anchor={anchor}
+              rule={
+                form.repeat === "custom"
+                  ? customRule
+                  : (createInput(form).recurrence ?? []).join("\n")
+              }
+              onCancel={() => setRepeatOpen(false)}
+              onSave={(rule) => {
+                setCustomRule(rule);
+                patch("repeat", "custom");
+                setRepeatOpen(false);
+              }}
+            />
+          )}
           {pendingUpdate && (
             <RecurringSaveDialog
               surface={surface}
@@ -823,7 +837,7 @@ function RecurringSaveDialog({
               : "fixed inset-0 z-[140] grid place-items-center p-4"
           }
         >
-          <DialogPrimitive.Backdrop className="absolute inset-0 bg-black/20" />
+          <DialogPrimitive.Backdrop forceRender className="absolute inset-0 bg-black/20" />
           <DialogPrimitive.Popup className="relative grid w-80 max-w-full gap-4 rounded-xl border border-border bg-popover p-4 text-popover-foreground shadow-xl outline-none">
             <DialogPrimitive.Title className="text-sm font-semibold">
               Edit recurring event
@@ -897,139 +911,4 @@ function EventRow({ icon: Icon, children }: { icon: LucideIcon; children: ReactN
 
 function timeText(minutes: number, hourFormat: HourFormat) {
   return formatTime(minutes * 60_000, "UTC", hourFormat);
-}
-function CustomRepeat({
-  anchor,
-  rule,
-  onRule,
-  disabled,
-}: {
-  anchor: { start: number; allDay: boolean; timeZone: string };
-  rule: string;
-  onRule: (rule: string) => void;
-  disabled: boolean;
-}) {
-  const [options, setOptions] = useState<RepeatOptions>(
-    () => repeatOptionsOf(rule.split("\n"), anchor) ?? { freq: "WEEKLY" },
-  );
-  const [ending, setEnding] = useState<"never" | "count" | "until">(
-    options.count ? "count" : options.untilDay !== undefined ? "until" : "never",
-  );
-  return (
-    <fieldset disabled={disabled}>
-      <legend>Custom schedule</legend>
-      <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-        Frequency
-        <CalendarSelect
-          value={options.freq}
-          onChange={(e) =>
-            setOptions({ ...options, freq: e.target.value as RepeatOptions["freq"] })
-          }
-        >
-          {["DAILY", "WEEKLY", "MONTHLY", "YEARLY"].map((freq) => (
-            <option key={freq}>{freq}</option>
-          ))}
-        </CalendarSelect>
-      </label>
-      <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-        Every
-        <Input
-          type="number"
-          min={1}
-          max={999}
-          value={options.interval ?? 1}
-          onChange={(e) => setOptions({ ...options, interval: Number(e.target.value) })}
-        />
-      </label>
-      {options.freq === "WEEKLY" && (
-        <div className="flex flex-wrap gap-3">
-          {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day, index) => (
-            <label key={day}>
-              <Checkbox
-                checked={options.weekdays?.includes(index) ?? false}
-                onCheckedChange={(checked) =>
-                  setOptions({
-                    ...options,
-                    weekdays: checked
-                      ? [...(options.weekdays ?? []), index]
-                      : (options.weekdays ?? []).filter((value) => value !== index),
-                  })
-                }
-              />
-              {day}
-            </label>
-          ))}
-        </div>
-      )}
-      {options.freq === "MONTHLY" && (
-        <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-          <Checkbox
-            checked={options.monthlyByWeekday ?? false}
-            onCheckedChange={(checked) => setOptions({ ...options, monthlyByWeekday: checked })}
-          />
-          By weekday of month
-        </label>
-      )}
-      <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-        Ends
-        <CalendarSelect value={ending} onChange={(e) => setEnding(e.target.value as typeof ending)}>
-          <option value="never">Never</option>
-          <option value="count">After occurrences</option>
-          <option value="until">On date</option>
-        </CalendarSelect>
-      </label>
-      {ending === "count" && (
-        <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-          Occurrences
-          <Input
-            type="number"
-            min={1}
-            max={10000}
-            value={options.count ?? 10}
-            onChange={(e) => setOptions({ ...options, count: Number(e.target.value) })}
-          />
-        </label>
-      )}
-      {ending === "until" && (
-        <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-          Last date
-          <Input
-            type="date"
-            value={formatDayNumber(options.untilDay ?? Math.floor(anchor.start / DAY_MS) + 30)}
-            onChange={(e) => {
-              const day = parseDayNumber(e.target.value);
-              if (day !== null) setOptions({ ...options, untilDay: day });
-            }}
-          />
-        </label>
-      )}
-      <Button
-        type="button"
-        disabled={!Number.isInteger(options.interval ?? 1) || (options.interval ?? 1) < 1}
-        onClick={() => {
-          const { count: _count, untilDay: _until, ...rest } = options;
-          const next = {
-            ...rest,
-            ...(ending === "count"
-              ? { count: options.count ?? 10 }
-              : ending === "until"
-                ? { untilDay: options.untilDay ?? Math.floor(anchor.start / DAY_MS) + 30 }
-                : {}),
-          };
-          onRule(
-            [
-              buildRecurrenceRule(next, anchor),
-              ...rule.split("\n").filter((line) => line && !line.toUpperCase().startsWith("RRULE")),
-            ].join("\n"),
-          );
-        }}
-      >
-        Use custom schedule
-      </Button>
-      <label className="grid gap-1 text-sm has-[[role=checkbox]]:flex has-[[role=checkbox]]:items-center">
-        Recurrence rules
-        <Textarea value={rule} onChange={(e) => onRule(e.target.value)} rows={3} />
-      </label>
-    </fieldset>
-  );
 }

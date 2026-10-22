@@ -1,0 +1,4 @@
+/* Keep the nested Repeat dialog opaque and lighter than the dimmed event card. */
+.dark [data-repeat-dialog] {
+  background-color: color-mix(in srgb, var(--popover) 85%, var(--foreground));
+}

@@ -195,8 +195,8 @@ it("requires a series scope when the repeating schedule changes", async () => {
   };
   await using _screen = await render(<EventEditor {...input} />);
   await page.getByRole("button", { name: "Edit event", exact: true }).click();
-  await page.getByRole("combobox", { name: "Repeats", exact: true }).click();
-  await page.getByRole("option", { name: "Daily", exact: true }).click();
+  await page.getByRole("button", { name: "Repeats", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Daily", exact: true }).click();
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
   expect(input.onSave).not.toHaveBeenCalled();
   await expect.element(page.getByRole("radio", { name: "This event", exact: true })).toBeDisabled();
@@ -315,3 +315,28 @@ it.each([1280, 390, 320])(
     }
   },
 );
+
+it("opens Custom as a separate draft dialog and applies its result only after Save", async () => {
+  const input = props();
+  await using _screen = await render(<EventEditor {...input} />);
+  await page.getByRole("button", { name: "Repeats", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Custom", exact: true }).click();
+  await expect.element(page.getByRole("dialog", { name: "Repeat", exact: true })).toBeVisible();
+  await expect.element(page.getByText("Custom schedule", { exact: true })).not.toBeInTheDocument();
+  await expect.element(page.getByText("Recurrence rules", { exact: true })).not.toBeInTheDocument();
+  await page.getByRole("spinbutton", { name: "Repeat interval" }).fill("2");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  expect(input.onSave).not.toHaveBeenCalled();
+  await expect
+    .element(page.getByRole("button", { name: "Repeats", exact: true }))
+    .toHaveTextContent("Repeat");
+  await page.getByRole("button", { name: "Repeats", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Custom", exact: true }).click();
+  await page.getByRole("spinbutton", { name: "Repeat interval" }).fill("2");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  expect(input.onSave).not.toHaveBeenCalled();
+  await page.getByRole("button", { name: "Create event", exact: true }).click();
+  expect(input.onSave).toHaveBeenCalledWith(
+    expect.objectContaining({ recurrence: ["RRULE:FREQ=WEEKLY;INTERVAL=2;BYDAY=TH"] }),
+  );
+});

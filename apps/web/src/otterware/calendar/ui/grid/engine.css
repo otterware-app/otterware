@@ -5,7 +5,7 @@
  *
  * Built for hundreds of events on screen: event elements have a fixed size and strict
  * containment, no container queries (the layout comes from data-size, set at render), no
- * shadows unless selected, and no transitions. During a gesture only the shield element
+ * shadows, and no transitions. During a gesture only the shield element
  * changes style, never the events.
  */
 
@@ -144,10 +144,6 @@
 
 [data-calendar-event][data-selected] {
   z-index: 41 !important;
-  box-shadow:
-    0 0 0 1px var(--background),
-    0 0 0 3px var(--event-color),
-    0 4px 12px -4px rgb(0 0 0 / 30%);
 }
 
 [data-calendar-event][data-free] {
@@ -376,11 +372,6 @@
   font-weight: 400;
 }
 
-[data-calendar-event][data-chip][data-selected] {
-  background-color: color-mix(in oklab, var(--event-color) 14%, transparent);
-  box-shadow: inset 0 0 0 1.5px var(--event-color);
-}
-
 [data-calendar-event][data-chip]:hover {
   background-color: color-mix(in oklab, var(--contrast-foreground) 6%, transparent);
 }
@@ -491,4 +482,13 @@
   opacity: 0.5;
   outline: 1px dashed var(--event-color, currentColor);
   outline-offset: -1px;
+}
+
+/* Selection fills the event instead of framing it. This wins over past/free/RSVP tints. */
+[data-calendar-event][data-selected]:not([data-dragging]) {
+  background-color: color-mix(in oklab, var(--event-color) 38%, var(--background));
+  color: var(--contrast-foreground);
+  border-inline-start-color: transparent;
+  outline: none;
+  box-shadow: none;
 }
