@@ -5,6 +5,8 @@ import type { GoogleAuth } from "./platform.ts";
 const mailboxes = vi.hoisted(
   () => new Map<string, { id: string; email: string; provider: string }>(),
 );
+const broadcast = vi.hoisted(() => vi.fn());
+vi.mock("./ipc.ts", () => ({ broadcast }));
 vi.mock("./services/account-store.ts", () => ({
   getAccount: async () => null,
   addAccount: async (account: { id: string; email: string; provider: string }) => {
@@ -90,4 +92,30 @@ it("lists every linked Google account as a mailbox, signed in where this device 
   await expect(google.getAccessToken("cal@example.test")).rejects.toThrow("Allow Mail access");
   await google.removeTokens("other@example.test");
   expect(unlink).toHaveBeenCalledWith("other@example.test");
+});
+
+it("tells windows when a linked mailbox arrives after start, and only then", async () => {
+  mailboxes.clear();
+  broadcast.mockClear();
+  let linked: Array<{ provider: "google"; email: string; connection: null }> = [];
+  const session: OtterAccountSession = {
+    accountId: "user",
+    connections: async () => [],
+    providerToken: async () => {
+      throw new Error("unused");
+    },
+    push: async () => ({ records: [] }),
+    pull: async () => ({ records: [], cursor: 0, hasMore: false }),
+    subscribe: () => () => {},
+    linked: async () => linked,
+    unlink: async () => {},
+  };
+  const google = accountGoogleAuth(session, {} as GoogleAuth);
+  await google.load();
+  broadcast.mockClear();
+  await google.load();
+  expect(broadcast).not.toHaveBeenCalled();
+  linked = [{ provider: "google", email: "new@example.test", connection: null }];
+  await google.load();
+  expect(broadcast).toHaveBeenCalledExactlyOnceWith("gmail:accounts-changed");
 });

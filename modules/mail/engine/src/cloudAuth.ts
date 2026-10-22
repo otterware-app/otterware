@@ -1,4 +1,5 @@
 import type { OtterAccountSession } from "./AccountSession.ts";
+import { broadcast } from "./ipc.ts";
 import type { GoogleAuth } from "./platform.ts";
 import * as accountStore from "./services/account-store.ts";
 
@@ -13,6 +14,7 @@ const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 export function accountGoogleAuth(session: OtterAccountSession, local: GoogleAuth): GoogleAuth {
   let connections: Awaited<ReturnType<OtterAccountSession["connections"]>> = [];
   let linked: string[] = [];
+  let shown = "";
   return {
     ...local,
     async load() {
@@ -31,16 +33,23 @@ export function accountGoogleAuth(session: OtterAccountSession, local: GoogleAut
           provider: "gmail",
         });
       }
-      if (!session.linked) return;
-      // Unlinked on another device, which also forgot this device's grant: the mailbox goes.
-      const { removeLocalAccount } = await import("./handlers/gmail.ts");
-      for (const account of await accountStore.listAccounts())
-        if (
-          account.provider === "gmail" &&
-          !linked.some((email) => same(email, account.email)) &&
-          !google.some((c) => same(c.email, account.email))
-        )
-          await removeLocalAccount(account.id);
+      if (session.linked) {
+        // Unlinked on another device, which also forgot this device's grant: the mailbox goes.
+        const { removeLocalAccount } = await import("./handlers/gmail.ts");
+        for (const account of await accountStore.listAccounts())
+          if (
+            account.provider === "gmail" &&
+            !linked.some((email) => same(email, account.email)) &&
+            !google.some((c) => same(c.email, account.email))
+          )
+            await removeLocalAccount(account.id);
+      }
+      // Windows keep their mailbox list until told: a mailbox came, went or gained Mail access.
+      const now = JSON.stringify([linked, connections.map((c) => c.email)]);
+      if (now !== shown) {
+        shown = now;
+        broadcast("gmail:accounts-changed");
+      }
     },
     isSignedIn: (id) => connections.some((c) => same(c.email, id)),
     async addAccount(email) {
