@@ -7,11 +7,15 @@ export const collectionSchema = z.enum([
   "mail.views",
   "home.projects",
 ]);
+// Validated by z.json() but typed as unknown: tsc-rs reports z.json()'s recursive inferred
+// type as infinitely circular (TS5115) wherever records are passed on.
+const json = z.json();
+const jsonValue = z.unknown().refine((value) => json.safeParse(value).success, "Invalid JSON");
 export const recordSchema = z
   .object({
     collection: collectionSchema,
     id: z.string().min(1).max(256),
-    value: z.json().nullable(),
+    value: jsonValue,
     modifiedAt: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
     mutationId: z.uuid(),
   })
