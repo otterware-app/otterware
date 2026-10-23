@@ -46,6 +46,7 @@ import { SidebarChromeHeader, SidebarSpaceTitle } from "./sidebar/SidebarChrome"
 import { MainAppLocationTracker } from "./sidebar/mainAppLocation";
 import { SpaceRail } from "./sidebar/SpaceRail";
 import { useAppFrame } from "./sidebar/appFrame";
+import type { SidebarRouteReveal } from "./sidebar/routeReveal";
 import {
   resolveEnvironmentIdentificationPillLabel,
   useEnvironmentStageLabel,
@@ -424,6 +425,10 @@ import { activeProfile } from "@otterware/profiles/active";
 
 export function AppSidebarLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
+  const [sidebarRouteReveal] = useState<SidebarRouteReveal>(() => ({
+    observedKey: null,
+    pendingKey: null,
+  }));
   const { active: panelAnimationsActive, durationMs: panelAnimationDurationMs } =
     usePanelAnimationSettings();
   useThreadVisitedMigration();
@@ -507,7 +512,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
   ) : moduleLocation !== null && moduleSidebarOwner !== null && hasModuleSidebar ? (
     <ModuleSidebar owner={moduleSidebarOwner} location={moduleLocation} />
   ) : (
-    <ThreadSidebar />
+    <ThreadSidebar routeReveal={sidebarRouteReveal} />
   );
 
   useEffect(() => {
