@@ -125,19 +125,6 @@ function instantAt(dayMinutes: number, zone: string): number {
   return fromZoned(day, dayMinutes - day * 1440, zone);
 }
 
-/** A timed slot of `minutes` starting at the snapped pointer time (a click on empty space). */
-export function clickSlot(
-  days: ReadonlyArray<DayNumber>,
-  zone: string,
-  hit: GridHit,
-  step: number,
-  minutes: number,
-): DropResult {
-  const start = clamp(snapFloor(hit.minutes, step), 0, 1440 - step);
-  const startMs = fromZoned(days[hit.dayIndex]!, start, zone);
-  return { start: startMs, end: startMs + minutes * MINUTE_MS, allDay: false };
-}
-
 /** Drawing on empty grid space from `anchor` to `current`, possibly across days. */
 export function createTimed(
   days: ReadonlyArray<DayNumber>,
