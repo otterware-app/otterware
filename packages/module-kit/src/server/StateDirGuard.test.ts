@@ -70,12 +70,30 @@ it.layer(NodeServices.layer)("StateDirGuard", (it) => {
         yield* Effect.scoped(
           Effect.gen(function* () {
             yield* acquireWriterLock({ stateDir });
-            const error = yield* Effect.flip(Effect.scoped(acquireWriterLock({ stateDir })));
+            const error = yield* Effect.flip(
+              Effect.scoped(acquireWriterLock({ stateDir, retries: 0 })),
+            );
             if (error._tag !== "StateDirInUseError") throw new Error(`unexpected ${error._tag}`);
             assert.strictEqual(error.pid, 0);
           }),
         );
         yield* Effect.scoped(acquireWriterLock({ stateDir }));
       }),
+  );
+  it.effect("waits out the lock of a server that just exited without releasing it", () =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const stateDir = yield* fs.makeTempDirectoryScoped();
+      // proper-lockfile's lock is a sibling directory; one last refreshed 9.5 s
+      // ago is still fresh on the first attempt and stale by the retry.
+      const lockDir = `${stateDir}.lock`;
+      yield* fs.makeDirectory(lockDir);
+      yield* Effect.addFinalizer(() => fs.remove(lockDir, { recursive: true }).pipe(Effect.ignore));
+      const created = Option.getOrThrow((yield* fs.stat(lockDir)).mtime);
+      // Numeric times are seconds, as in Node's `fs.utimes`.
+      const refreshedAt = (created.getTime() - 9_500) / 1_000;
+      yield* fs.utimes(lockDir, refreshedAt, refreshedAt);
+      yield* Effect.scoped(acquireWriterLock({ stateDir }));
+    }),
   );
 });
