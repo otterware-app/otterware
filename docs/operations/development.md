@@ -159,6 +159,11 @@ and the test files beside the changed files, each in a shared heavy slot. It com
 merge base with `origin/main` (or `--base <ref>`); dependents, full suites and browser tests run
 in CI. Upstream's `scripts/check-changed.ts` is not wired up here.
 
+The steps run side by side, so a run takes about as long as its slowest step, usually knip's
+exports pass at about 10 s. When the files are exactly those of the last passing run, it prints that
+run's summary instead of running again. Any change to a file, the install, or a generated file runs
+the checks again.
+
 While you iterate, run single checks:
 
 ```sh
