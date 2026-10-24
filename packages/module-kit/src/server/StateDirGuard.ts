@@ -92,9 +92,19 @@ const findOtherServer = Effect.fn("StateDirGuard.findOtherServer")(function* (
   return listening ? recorded : Option.none();
 });
 
+// A server that exits without releasing (the launcher stops it during an update
+// handoff) leaves a lock that only turns stale after LOCK_STALE_MS. A successor
+// started in that window waits it out; a live holder keeps the lock fresh, and a
+// recorded live server is already refused by `ensureSoleWriter`.
+const LOCK_STALE_MS = 10_000;
+const LOCK_RETRY_MS = 1_000;
+const LOCK_RETRIES = Math.ceil(LOCK_STALE_MS / LOCK_RETRY_MS) + 2;
+
 /** Held from before database initialization until the server's scope closes. */
 export const acquireWriterLock = Effect.fn("StateDirGuard.acquireWriterLock")(function* (input: {
   readonly stateDir: string;
+  /** Attempts after the first; defaults to outlasting a just-exited holder's lock. */
+  readonly retries?: number;
 }) {
   const fs = yield* FileSystem.FileSystem;
   yield* fs.makeDirectory(input.stateDir, { recursive: true });
@@ -103,7 +113,17 @@ export const acquireWriterLock = Effect.fn("StateDirGuard.acquireWriterLock")(fu
       try: () =>
         // The directory itself is the lock key; proper-lockfile creates a
         // sibling `.lock` directory atomically and keeps its mtime fresh.
-        lock(input.stateDir, { realpath: true, stale: 10_000, update: 2_000, retries: 0 }),
+        lock(input.stateDir, {
+          realpath: true,
+          stale: LOCK_STALE_MS,
+          update: 2_000,
+          retries: {
+            retries: input.retries ?? LOCK_RETRIES,
+            factor: 1,
+            minTimeout: LOCK_RETRY_MS,
+            maxTimeout: LOCK_RETRY_MS,
+          },
+        }),
       catch: () => new StateDirInUseError({ pid: 0, stateDir: input.stateDir }),
     }).pipe(Effect.tapError(writeMarker)),
     (release) => Effect.promise(() => release()).pipe(Effect.ignore),
