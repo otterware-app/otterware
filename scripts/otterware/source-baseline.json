@@ -15,7 +15,7 @@
   },
   "protectedSync": {
     "baseMain": "a54d9e9cb3a30cd3ea735c22028b8407f8eac674",
-    "preparedCandidate": "09f4b5857f2894e483e5665bbf67907a54a1a0b1",
+    "preparedCandidate": "5e7473a605d160a3168e36dd41acf745b74da115",
     "overlay": {
       "apps/mobile/src/App.tsx": "100644 blob 8b43456969419c3d4b4a34320e4cc587c9a290b1",
       "apps/mobile/src/Stack.tsx": "100644 blob b9abd46fe46d5df07ca4f839ed69474008b6d38d",
