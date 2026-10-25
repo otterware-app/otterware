@@ -44,9 +44,7 @@ const DEVICE_CODE_GRANT_TYPE = "urn:ietf:params:oauth:grant-type:device_code";
 const DEVICE_AUTHORIZATION_DEFAULT_INTERVAL = Duration.seconds(5);
 // RFC 8628 §3.5: a slow_down response means "add 5 seconds to the interval".
 const DEVICE_AUTHORIZATION_SLOW_DOWN_INCREMENT = Duration.seconds(5);
-// Bounds one token or device-authorization request, including reading the
-// body. A stalled refresh holds the manager's semaphore and blocks every
-// other credential call.
+// A stalled OAuth request holds the semaphore and blocks all credential calls.
 const OAUTH_REQUEST_TIMEOUT = Duration.seconds(10);
 const boldTerminalText = (value: string): string => `\u001b[1m${value}\u001b[22m`;
 
@@ -388,11 +386,9 @@ const isTransportError = (error: unknown) =>
   HttpClientError.isHttpClientError(error) && error.reason._tag === "TransportError";
 
 /**
- * Polls Otter Accounts's token endpoint until the user approves or denies the device
- * request in the browser (RFC 8628 §3.4/3.5). `authorization_pending` keeps
- * waiting, while `slow_down` and transient failures widen the interval before
- * the next tick; the caller bounds the whole loop with the device code's
- * lifetime.
+ * Polls Otter Accounts until the device request is approved or denied (RFC 8628 §3.4/3.5).
+ * `slow_down` and transient failures widen the interval; the caller bounds the loop with
+ * the device code's lifetime.
  */
 const pollDeviceToken = Effect.fn("cloud.cli_token.poll_device_token")(function* (
   metadata: Pick<CloudCliOAuthConfig, "tokenEndpoint" | "clientId" | "resource">,
@@ -415,10 +411,7 @@ const pollDeviceToken = Effect.fn("cloud.cli_token.poll_device_token")(function*
       Effect.asSome,
       Effect.catchIf(isTransportError, () => Effect.succeedNone),
     );
-    // Transport failures and upstream 5xx are transient while the device code
-    // is still valid. RFC 8628 §3.5 asks clients to back off before retrying,
-    // so widen the interval like slow_down; drain the body so the connection
-    // returns to the pool for the next poll.
+    // Retry transport errors and 5xx while the device code is valid, backing off per RFC 8628 §3.5. Drain bodies to reuse connections.
     if (Option.isNone(response) || response.value.status >= 500) {
       if (Option.isSome(response)) yield* Effect.ignore(response.value.text);
       interval = Duration.sum(interval, DEVICE_AUTHORIZATION_SLOW_DOWN_INCREMENT);
@@ -447,11 +440,9 @@ const pollDeviceToken = Effect.fn("cloud.cli_token.poll_device_token")(function*
 });
 
 /**
- * OAuth device authorization grant for machines without a local browser
- * (SSH). Otter Accounts issues a short user code; the user approves it on Otter Accounts's
- * hosted device page from any browser while this process polls the token
- * endpoint. Nothing is typed into the terminal and no redirect URI is
- * involved, so the hosted app plays no part in this flow.
+ * OAuth device authorization grant for machines without a local browser (SSH). The user
+ * approves Otter Accounts' short code from any browser while this process polls; no
+ * redirect URI is involved, so the hosted app plays no part.
  */
 export const deviceAuthorizationLogin = Effect.fn("cloud.cli_token.device_authorization_login")(
   function* <E, R>(showPrompt: (prompt: DeviceAuthorizationPrompt) => Effect.Effect<void, E, R>) {
@@ -488,7 +479,7 @@ export const deviceAuthorizationLogin = Effect.fn("cloud.cli_token.device_author
   },
 );
 
-/** @public Service construction is part of the canonical Effect module API. */
+/** @public */
 export const make = Effect.gen(function* () {
   const crypto = yield* Crypto.Crypto;
   const httpClient = yield* HttpClient.HttpClient;
@@ -569,10 +560,7 @@ export const make = Effect.gen(function* () {
       ),
       Layer.build,
     );
-    // The hosted /connect page establishes a Otter Accounts session before forwarding
-    // the request to /oauth/authorize with the loopback redirect URI. Sending
-    // a signed-out browser to /oauth/authorize directly loses the authorize
-    // parameters across Otter Accounts's sign-in redirect (#5051).
+    // /connect establishes an Otter Accounts session first; /oauth/authorize loses parameters across sign-in.
     const authorizationUrl = buildConnectAuthorizeRequestUrl({
       hostedAppUrl,
       state,

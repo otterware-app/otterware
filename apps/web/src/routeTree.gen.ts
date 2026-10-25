@@ -15,6 +15,7 @@ import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as PairRouteImport } from './routes/pair'
 import { Route as MailRouteImport } from './routes/mail'
 import { Route as HomeRouteImport } from './routes/home'
+import { Route as GuestRouteImport } from './routes/guest'
 import { Route as DriveRouteImport } from './routes/drive'
 import { Route as ConnectAgentRouteImport } from './routes/connect-agent'
 import { Route as ConnectRouteImport } from './routes/connect'
@@ -40,6 +41,7 @@ import { Route as SettingsExtensionsRouteImport } from './routes/settings.extens
 import { Route as SettingsDiagnosticsRouteImport } from './routes/settings.diagnostics'
 import { Route as SettingsConnectionsRouteImport } from './routes/settings.connections'
 import { Route as SettingsCodeIntelligenceRouteImport } from './routes/settings.code-intelligence'
+import { Route as SettingsBetaRouteImport } from './routes/settings.beta'
 import { Route as SettingsArchivedRouteImport } from './routes/settings.archived'
 import { Route as SettingsAppearanceRouteImport } from './routes/settings.appearance'
 import { Route as SettingsAccountRouteImport } from './routes/settings.account'
@@ -85,6 +87,11 @@ const MailRoute = MailRouteImport.update({
 const HomeRoute = HomeRouteImport.update({
   id: '/home',
   path: '/home',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuestRoute = GuestRouteImport.update({
+  id: '/guest',
+  path: '/guest',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DriveRoute = DriveRouteImport.update({
@@ -213,6 +220,11 @@ const SettingsCodeIntelligenceRoute =
     path: '/code-intelligence',
     getParentRoute: () => SettingsRoute,
   } as any)
+const SettingsBetaRoute = SettingsBetaRouteImport.update({
+  id: '/beta',
+  path: '/beta',
+  getParentRoute: () => SettingsRoute,
+} as any)
 const SettingsArchivedRoute = SettingsArchivedRouteImport.update({
   id: '/archived',
   path: '/archived',
@@ -301,6 +313,7 @@ export interface FileRoutesByFullPath {
   '/connect': typeof ConnectRoute
   '/connect-agent': typeof ConnectAgentRoute
   '/drive': typeof DriveRouteWithChildren
+  '/guest': typeof GuestRoute
   '/home': typeof HomeRouteWithChildren
   '/mail': typeof MailRouteWithChildren
   '/pair': typeof PairRoute
@@ -320,6 +333,7 @@ export interface FileRoutesByFullPath {
   '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/archived': typeof SettingsArchivedRoute
+  '/settings/beta': typeof SettingsBetaRoute
   '/settings/code-intelligence': typeof SettingsCodeIntelligenceRoute
   '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/diagnostics': typeof SettingsDiagnosticsRoute
@@ -346,6 +360,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/connect': typeof ConnectRoute
   '/connect-agent': typeof ConnectAgentRoute
+  '/guest': typeof GuestRoute
   '/mail': typeof MailRouteWithChildren
   '/pair': typeof PairRoute
   '/settings': typeof SettingsRouteWithChildren
@@ -364,6 +379,7 @@ export interface FileRoutesByTo {
   '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/archived': typeof SettingsArchivedRoute
+  '/settings/beta': typeof SettingsBetaRoute
   '/settings/code-intelligence': typeof SettingsCodeIntelligenceRoute
   '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/diagnostics': typeof SettingsDiagnosticsRoute
@@ -395,6 +411,7 @@ export interface FileRoutesById {
   '/connect': typeof ConnectRoute
   '/connect-agent': typeof ConnectAgentRoute
   '/drive': typeof DriveRouteWithChildren
+  '/guest': typeof GuestRoute
   '/home': typeof HomeRouteWithChildren
   '/mail': typeof MailRouteWithChildren
   '/pair': typeof PairRoute
@@ -414,6 +431,7 @@ export interface FileRoutesById {
   '/settings/account': typeof SettingsAccountRoute
   '/settings/appearance': typeof SettingsAppearanceRoute
   '/settings/archived': typeof SettingsArchivedRoute
+  '/settings/beta': typeof SettingsBetaRoute
   '/settings/code-intelligence': typeof SettingsCodeIntelligenceRoute
   '/settings/connections': typeof SettingsConnectionsRoute
   '/settings/diagnostics': typeof SettingsDiagnosticsRoute
@@ -446,6 +464,7 @@ export interface FileRouteTypes {
     | '/connect'
     | '/connect-agent'
     | '/drive'
+    | '/guest'
     | '/home'
     | '/mail'
     | '/pair'
@@ -465,6 +484,7 @@ export interface FileRouteTypes {
     | '/settings/account'
     | '/settings/appearance'
     | '/settings/archived'
+    | '/settings/beta'
     | '/settings/code-intelligence'
     | '/settings/connections'
     | '/settings/diagnostics'
@@ -491,6 +511,7 @@ export interface FileRouteTypes {
   to:
     | '/connect'
     | '/connect-agent'
+    | '/guest'
     | '/mail'
     | '/pair'
     | '/settings'
@@ -509,6 +530,7 @@ export interface FileRouteTypes {
     | '/settings/account'
     | '/settings/appearance'
     | '/settings/archived'
+    | '/settings/beta'
     | '/settings/code-intelligence'
     | '/settings/connections'
     | '/settings/diagnostics'
@@ -539,6 +561,7 @@ export interface FileRouteTypes {
     | '/connect'
     | '/connect-agent'
     | '/drive'
+    | '/guest'
     | '/home'
     | '/mail'
     | '/pair'
@@ -558,6 +581,7 @@ export interface FileRouteTypes {
     | '/settings/account'
     | '/settings/appearance'
     | '/settings/archived'
+    | '/settings/beta'
     | '/settings/code-intelligence'
     | '/settings/connections'
     | '/settings/diagnostics'
@@ -589,6 +613,7 @@ export interface RootRouteChildren {
   ConnectRoute: typeof ConnectRoute
   ConnectAgentRoute: typeof ConnectAgentRoute
   DriveRoute: typeof DriveRouteWithChildren
+  GuestRoute: typeof GuestRoute
   HomeRoute: typeof HomeRouteWithChildren
   MailRoute: typeof MailRouteWithChildren
   PairRoute: typeof PairRoute
@@ -642,6 +667,13 @@ declare module '@tanstack/react-router' {
       path: '/home'
       fullPath: '/home'
       preLoaderRoute: typeof HomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guest': {
+      id: '/guest'
+      path: '/guest'
+      fullPath: '/guest'
+      preLoaderRoute: typeof GuestRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/drive': {
@@ -817,6 +849,13 @@ declare module '@tanstack/react-router' {
       path: '/code-intelligence'
       fullPath: '/settings/code-intelligence'
       preLoaderRoute: typeof SettingsCodeIntelligenceRouteImport
+      parentRoute: typeof SettingsRoute
+    }
+    '/settings/beta': {
+      id: '/settings/beta'
+      path: '/beta'
+      fullPath: '/settings/beta'
+      preLoaderRoute: typeof SettingsBetaRouteImport
       parentRoute: typeof SettingsRoute
     }
     '/settings/archived': {
@@ -1006,6 +1045,7 @@ interface SettingsRouteChildren {
   SettingsAccountRoute: typeof SettingsAccountRoute
   SettingsAppearanceRoute: typeof SettingsAppearanceRoute
   SettingsArchivedRoute: typeof SettingsArchivedRoute
+  SettingsBetaRoute: typeof SettingsBetaRoute
   SettingsCodeIntelligenceRoute: typeof SettingsCodeIntelligenceRoute
   SettingsConnectionsRoute: typeof SettingsConnectionsRoute
   SettingsDiagnosticsRoute: typeof SettingsDiagnosticsRoute
@@ -1029,6 +1069,7 @@ const SettingsRouteChildren: SettingsRouteChildren = {
   SettingsAccountRoute: SettingsAccountRoute,
   SettingsAppearanceRoute: SettingsAppearanceRoute,
   SettingsArchivedRoute: SettingsArchivedRoute,
+  SettingsBetaRoute: SettingsBetaRoute,
   SettingsCodeIntelligenceRoute: SettingsCodeIntelligenceRoute,
   SettingsConnectionsRoute: SettingsConnectionsRoute,
   SettingsDiagnosticsRoute: SettingsDiagnosticsRoute,
@@ -1058,6 +1099,7 @@ const rootRouteChildren: RootRouteChildren = {
   ConnectRoute: ConnectRoute,
   ConnectAgentRoute: ConnectAgentRoute,
   DriveRoute: DriveRouteWithChildren,
+  GuestRoute: GuestRoute,
   HomeRoute: HomeRouteWithChildren,
   MailRoute: MailRouteWithChildren,
   PairRoute: PairRoute,

@@ -32,12 +32,8 @@ export interface ConnectAuthorizeRequest {
 }
 
 /**
- * The URL the CLI prints for the user to open in a browser. `state` and
- * `code_challenge` ride the fragment so they never reach the hosted app's
- * server or CDN logs; neither is a secret.
- *
- * The hosted page forwards the PKCE request to Otter Accounts. Headless hosts
- * use the device authorization grant and do not need a loopback listener.
+ * The URL the CLI prints for a browser; PKCE values ride the fragment to stay out of server logs.
+ * The hosted page forwards the request to Otter Accounts. Headless hosts use the device grant.
  */
 export function buildConnectAuthorizeRequestUrl(input: {
   readonly hostedAppUrl: string;
@@ -73,10 +69,7 @@ function parseLoopbackPort(value: string): number | null {
   return port >= 1 && port <= 65535 ? port : null;
 }
 
-/**
- * Redirect URI for the CLI's local callback listener. Must stay in sync with
- * the redirect URI registered on the Otter Accounts CLI OAuth application.
- */
+/** Must match the loopback redirect URI registered on the Otter Accounts CLI OAuth app. */
 export function connectLoopbackRedirectUri(port: number): string {
   return `http://127.0.0.1:${port}${CONNECT_LOOPBACK_CALLBACK_PATH}`;
 }

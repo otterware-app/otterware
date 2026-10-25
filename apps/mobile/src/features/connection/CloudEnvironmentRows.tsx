@@ -43,9 +43,7 @@ interface CloudEnvironmentRowsProps {
 }
 
 export function CloudEnvironmentRows(props: CloudEnvironmentRowsProps) {
-  // Showcase captures run without a Otter account configuration, so `AccountProvider`
-  // is never mounted and any `useAuth` call throws — the fixture states whether
-  // the rows are signed in instead of asking Otter Accounts.
+  // Showcase lacks AccountProvider; use fixture auth state to avoid a throwing useAuth call.
   if (props.showcaseSignedIn !== undefined) {
     return props.showcaseSignedIn ? <CloudEnvironmentRowsContent {...props} /> : null;
   }

@@ -33,7 +33,7 @@ export class DesktopProtocols extends Context.Service<
   }
 >()("@t3tools/desktop/app/DesktopProtocols") {}
 
-/** @public Service construction is part of the canonical Effect module API. */
+/** @public */
 export const make = Effect.gen(function* () {
   const environment = yield* DesktopEnvironment.DesktopEnvironment;
   const electronApp = yield* ElectronApp.ElectronApp;
@@ -44,14 +44,12 @@ export const make = Effect.gen(function* () {
   const userDataPath = yield* DesktopUserData.resolveUserDataPath(environment);
   yield* electronApp.setPath("userData", userDataPath);
 
-  // Acquire the profile lock before asynchronous application startup can yield.
-  // Quit is asynchronous, so interrupt before the application runtime is built.
+  // Lock the profile before startup can yield; quit is asynchronous, so interrupt before runtime construction.
   if (!(yield* electronApp.requestSingleInstanceLock)) {
     yield* electronApp.quit;
     return yield* Effect.interrupt;
   }
 
-  // Retain launch arguments while asynchronous startup builds the application runtime.
   const pendingSecondInstances: Array<readonly string[]> = [];
   let handleSecondInstance = (argv: readonly string[]) => {
     pendingSecondInstances.push(argv);

@@ -411,7 +411,6 @@ export default function DiffPanel({
           cacheKey: selectedGitSource.diffHash,
         })
       : undefined;
-  // The code view keeps one loader for its lifetime; a new identity would remount it.
   const loadDiffFiles: FileDiffContentsLoader = useStableCallback(async (fileDiff) => {
     if (!currentLoadDiffFiles) {
       throw new Error("Diff file contents are unavailable for this selection.");
@@ -1105,8 +1104,7 @@ export default function DiffPanel({
                     const composedPath = event.nativeEvent.composedPath?.() ?? [];
                     for (const node of composedPath) {
                       if (!(node instanceof HTMLElement)) continue;
-                      // Header controls keep their own actions. In particular, the chevron must
-                      // not also trigger the row handler or the two toggles cancel each other.
+                      // Header controls own their clicks; bubbling a chevron click would toggle twice.
                       if (
                         node instanceof HTMLButtonElement ||
                         node instanceof HTMLAnchorElement ||

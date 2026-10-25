@@ -46,7 +46,6 @@ function Host({ className, ...props }: ComponentProps<"div">) {
   );
 }
 
-/** Covers the input surface when an attached banner or the model strip transition replaces the outer glass backdrop. */
 function Main({ className, ...props }: ComponentProps<"div">) {
   return (
     <div
