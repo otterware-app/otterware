@@ -1,10 +1,7 @@
 /**
- * What modules add to the one Settings screen (ADR 0011, 0020): their pages,
- * each placed for the running profile (its own page under the module's group,
- * or rows merged into an App page), the Account and Modules pages, and the
- * order the sidebar lists everything in. `settingsSearch.ts`,
- * `SettingsSidebarNav.tsx` and `settingsLayout.tsx` read these tables through
- * their seams; nothing else in Settings knows about modules.
+ * What modules add to Settings (ADR 0011, 0020): their pages placed for the running profile, the
+ * Account and Modules pages, and the sidebar order. `settingsSearch.ts`, `SettingsSidebarNav.tsx`
+ * and `settingsLayout.tsx` read these through their seams; nothing else in Settings knows modules.
  */
 import {
   moduleSettingsPath,
@@ -271,6 +268,7 @@ const CODE_SETTINGS_PATHS = [
   "/settings/source-control",
   "/settings/code-intelligence",
   "/settings/archived",
+  "/settings/beta",
 ] as const;
 
 /** Code is hidden in standalone profiles; the shared agents and connections stay. */
@@ -303,6 +301,7 @@ const APP_SETTINGS_PATHS = [
   "/settings/integrations",
   "/settings/scheduled-tasks",
   "/settings/storage",
+  "/settings/beta",
   MODULES_SETTINGS_PATH,
 ] as const;
 
@@ -320,6 +319,7 @@ const STANDALONE_SETTINGS_PATHS = {
     "/settings/connections",
     "/settings/scheduled-tasks",
     "/settings/storage",
+    "/settings/beta",
   ],
 } as const;
 
