@@ -48,7 +48,7 @@ function syncLine(status: SyncStatus | undefined): StatusLine {
     return { text: `Syncing${progress}…`, tone: "active" };
   }
   if (status.error && !status.syncing) {
-    return { text: "Sync failed — will retry", tone: "error", detail: status.error };
+    return { text: "Sync failed, will retry", tone: "error", detail: status.error };
   }
   const synced = status.lastSyncAt ? `Synced ${timeAgo(status.lastSyncAt)}` : "Not synced yet";
   if (status.download) {
@@ -172,13 +172,14 @@ function useSignInAgain() {
   return { signIn, pending: google.isPending || microsoft.isPending };
 }
 
+const SIGN_IN_ALERT_DELAY_MS = 5_000;
+
 /**
- * A toast for each mailbox that stopped syncing because its sign-in was
- * refused, with the button that fixes it. It stays until the mailbox syncs
- * again; closed, it comes back only if the mailbox recovers and fails again.
- * Mailboxes never signed in on this device aren't raised: they say so where
- * they're opened. Mount once, in the main window.
+ * A toast with the fix for each mailbox whose sign-in was refused, until it syncs again; closed,
+ * it returns only after a recovery and a new failure. Mailboxes never signed in on this device
+ * say so where they're opened instead. Mount once, in the main window.
  */
+
 export function useSignInAlerts(): void {
   const { accounts } = useMailboxes();
   const statuses = useSyncStatuses(accounts.map((a) => a.id));
@@ -210,20 +211,24 @@ export function useSignInAlerts(): void {
       toast.close(toastId);
     }
     for (const id of dismissed.current) if (!alerting.has(id)) dismissed.current.delete(id);
-    for (const [id, account] of alerting) {
-      if (shown.current.has(id) || dismissed.current.has(id)) continue;
-      const toastId = toast.warning(signedOutTitle(account), {
-        timeout: 0,
-        action: { label: signInLabel(account), onClick: () => signInRef.current(account) },
-        onRemove: () => {
-          // Closed (or acted on) by the user, not by the mailbox recovering.
-          if (shown.current.get(id) !== toastId) return;
-          shown.current.delete(id);
-          dismissed.current.add(id);
-        },
-      });
-      shown.current.set(id, toastId);
-    }
+    // The backend reports every mailbox signed out until it has the Otter Account, just after launch.
+    const timer = setTimeout(() => {
+      for (const [id, account] of alerting) {
+        if (shown.current.has(id) || dismissed.current.has(id)) continue;
+        const toastId = toast.warning(signedOutTitle(account), {
+          timeout: 0,
+          action: { label: signInLabel(account), onClick: () => signInRef.current(account) },
+          onRemove: () => {
+            // Closed (or acted on) by the user, not by the mailbox recovering.
+            if (shown.current.get(id) !== toastId) return;
+            shown.current.delete(id);
+            dismissed.current.add(id);
+          },
+        });
+        shown.current.set(id, toastId);
+      }
+    }, SIGN_IN_ALERT_DELAY_MS);
+    return () => clearTimeout(timer);
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- `key` serializes what decides the toasts; the accounts array is new every render.
   }, [key]);
 }
@@ -297,7 +302,7 @@ export function MailboxHealth({ accountIds }: { accountIds: string[] }) {
   const shown =
     failed.length > 1
       ? {
-          text: `Sync failed for ${failed.length} mailboxes — will retry`,
+          text: `Sync failed for ${failed.length} mailboxes, will retry`,
           tone: "error" as const,
           detail: failed.map((l) => `${l.account.email}: ${l.line.detail}`).join("\n"),
         }

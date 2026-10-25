@@ -17,7 +17,8 @@ export class MailSession {
       queries: {
         gcTime: Infinity,
         staleTime: 30_000,
-        refetchOnMount: false,
+        // Warm lists don't refetch on navigation; one a mail change invalidated while hidden does.
+        refetchOnMount: (query) => query.state.isInvalidated,
         refetchOnWindowFocus: false,
       },
     },
