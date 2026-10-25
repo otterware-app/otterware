@@ -15,3 +15,12 @@ export function releaseFeed(channel = RELEASE_CHANNEL) {
 export function releaseUpdaterChannel(channel: string) {
   return RELEASE_CHANNEL ? "latest" : channel;
 }
+
+/** A channel build's feed is pinned, so the shared latest/nightly setting must not drop its releases. */
+export function releaseFeedServesChannel(
+  updateChannel: string,
+  selectedChannel: string,
+  channel = RELEASE_CHANNEL,
+) {
+  return Boolean(channel) || updateChannel === selectedChannel;
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import { PROFILE_IDS } from "../../profiles/index.ts";
-import { releaseFeed } from "../../profiles/release-feed.ts";
+import { releaseFeed, releaseFeedServesChannel } from "../../profiles/release-feed.ts";
 import { profileReleaseVersion, releaseBranch, releaseProfiles } from "./release-plan.ts";
 
 describe("profile releases", () => {
@@ -33,5 +33,10 @@ describe("profile releases", () => {
       channel: "latest",
     });
     expect(() => releaseFeed("../mail")).toThrow("Invalid");
+  });
+  it("keeps channel builds on their feed whatever the shared update channel says", () => {
+    expect(releaseFeedServesChannel("latest", "nightly", "otterware-candidate")).toBe(true);
+    expect(releaseFeedServesChannel("latest", "nightly", "")).toBe(false);
+    expect(releaseFeedServesChannel("nightly", "nightly", "")).toBe(true);
   });
 });

@@ -24,6 +24,7 @@ import * as Scope from "effect/Scope";
 import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
 
+import { releaseFeedServesChannel } from "../../../../profiles/release-feed.ts";
 import * as DesktopBackendPool from "../backend/DesktopBackendPool.ts";
 import * as DesktopConfig from "../app/DesktopConfig.ts";
 import * as DesktopEnvironment from "../app/DesktopEnvironment.ts";
@@ -851,7 +852,13 @@ export const make = Effect.gen(function* () {
       Effect.flatMap(
         Effect.fn("desktop.updates.applyUpdateAvailable")(function* (info) {
           const state = yield* Ref.get(updateStateRef);
-          if (resolveDefaultDesktopUpdateChannel(info.version) !== state.channel) {
+          // Otterware seam: channel builds read one pinned feed.
+          if (
+            !releaseFeedServesChannel(
+              resolveDefaultDesktopUpdateChannel(info.version),
+              state.channel,
+            )
+          ) {
             yield* logUpdaterInfo("ignoring update that does not match selected channel", {
               version: info.version,
               channel: state.channel,

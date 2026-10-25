@@ -39,6 +39,7 @@ apps/web/src/branding*.ts
 apps/desktop/src/app/Desktop*.ts
 apps/desktop/src/electron/ElectronProtocol.ts
 apps/desktop/src/electron/ElectronUpdater.ts
+apps/desktop/src/updates/DesktopUpdates.ts
 apps/desktop/src/ipc/DesktopIpcHandlers.ts
 apps/desktop/src/ipc/methods/notificationBadge*.ts
 apps/desktop/src/preload.ts
