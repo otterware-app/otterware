@@ -1290,6 +1290,27 @@ function BrowserKeybindingNotice() {
   );
 }
 
+function keybindingAnchorIds(rows: ReturnType<typeof buildKeybindingRows>) {
+  const ids = new Map<string, string>();
+  const seen = new Set<KeybindingCommand>();
+  for (const row of rows) {
+    if (seen.has(row.command)) continue;
+    seen.add(row.command);
+    ids.set(row.id, keybindingSearchAnchorId(row.command));
+  }
+  return ids;
+}
+
+// Cache rows in a separate hook so the compiler does not rebuild them per search keystroke.
+function useKeybindingCatalog() {
+  const serverKeybindings = useSettingsScope().environment?.serverConfig?.keybindings;
+  const merged = mergeWithDefaultKeybindings(serverKeybindings ?? []);
+  return {
+    commandOptions: buildKeybindingCommandOptions(merged),
+    allRows: buildKeybindingRows(merged),
+  };
+}
+
 export function KeybindingsSettingsPanel() {
   // The representative environment supplies the displayed bindings; edits
   // fan out to every connected environment in the selection, so one

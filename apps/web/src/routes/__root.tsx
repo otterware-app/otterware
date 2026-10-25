@@ -19,6 +19,7 @@ import { resolveServerBackedAppDisplayName } from "../branding.logic";
 import { AppSidebarLayout } from "../components/AppSidebarLayout";
 import { CommandPalette } from "../components/CommandPalette";
 import { CustomSnoozeDialogHost } from "../components/CustomSnoozeDialog";
+import { GuestShareDialogHost } from "../components/chat/GuestShareControls";
 import { AddProjectToMachineDialogHost } from "../components/AddProjectToMachineDialog";
 import { ConfirmDialogHost } from "../components/ConfirmDialogHost";
 import { KeybindingsConfigWarning } from "../components/KeybindingsConfigWarning";
@@ -68,6 +69,7 @@ import { useUiStateStore } from "../uiStateStore";
 import { syncBrowserChromeTheme } from "../hooks/useTheme";
 import { configureClientTracing } from "../observability/clientTracing";
 import { resolveInitialServerAuthGateState } from "../environments/primary";
+import { GUEST_PAGE_PATH } from "../guestPage";
 import { hasHostedPairingRequest, isHostedStaticApp } from "../hostedPairing";
 import { useHostedPromptLinkLanding } from "../components/promptLinks/HostedPromptLinkLanding";
 import { isLocalEnvironmentDisabled } from "../localEnvironment";
@@ -90,6 +92,16 @@ import { shouldResumeSnapShotSetupOnStartup } from "../lib/snapShotSetupResume";
 
 export const Route = createRootRoute({
   beforeLoad: async ({ location }) => {
+    // Guest links open on the owner's tunnel host in a browser with no T3 session, and must
+    // not trigger pairing or an environment connection.
+    if (location.pathname === GUEST_PAGE_PATH) {
+      return {
+        authGateState: {
+          status: "guest",
+        } as const,
+      };
+    }
+
     if (location.pathname === "/pair" && hasHostedPairingRequest(new URL(window.location.href))) {
       return {
         authGateState: {
@@ -174,6 +186,7 @@ function RootRouteView() {
     pathname.startsWith("/account/") ||
     hostedPromptLinkLanding !== null;
   const [shellReady, setShellReady] = useState(false);
+  if (pathname === GUEST_PAGE_PATH) return <Outlet />;
   const appShell = (
     <Activity
       mode={
@@ -221,6 +234,7 @@ function RootRouteView() {
             <ReopenClosedViewShortcut />
             <ConfirmDialogHost />
             <CustomSnoozeDialogHost />
+            <GuestShareDialogHost />
             <SlowRpcRequestToastCoordinator />
             <HostFreezeToastCoordinator />
             <PermissionUpdateNotice />
@@ -258,8 +272,7 @@ function AppShellReadiness({ onChange }: { readonly onChange: (ready: boolean) =
 /** Follows the palette the primary environment's machine publishes, if any. */
 function EnvironmentThemeSync() {
   useEnvironmentThemeSync();
-  // Ordered after the palette sync so a first-run client adopting the
-  // environment's own theme finds it already in the library.
+  // Sync palettes before adopting the environment theme so it is already in the library.
   useDefaultThemeAdoption();
   return null;
 }
@@ -454,11 +467,7 @@ function errorDetails(error: unknown): string {
 
 const MAX_ERROR_CAUSE_DEPTH = 5;
 
-/**
- * Full error text for bug reports: app build, page path, time, then the stack
- * and any cause chain. Takes the pathname only so tokens in the query never
- * land on the clipboard.
- */
+// Use only pathname to keep query tokens off the clipboard.
 function errorReport(error: unknown, pathname: string): string {
   const lines = [
     `${APP_DISPLAY_NAME} ${APP_VERSION}`,

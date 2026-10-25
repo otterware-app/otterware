@@ -7,6 +7,7 @@ import * as SqlClient from "effect/sql/SqlClient";
 
 import { runMigrations } from "../src/persistence/Migrations.ts";
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
+import * as HostProcess from "@t3tools/shared/HostProcess";
 import { runMigrateDevDb } from "./migrate-dev-db.ts";
 
 const withDatabase = <A, E>(
@@ -87,6 +88,12 @@ const createFixtureSource = Effect.fn("createMigrateDevDbFixtureSource")(functio
           created_at, updated_at, last_run_status, run_count)
         VALUES ('task-1', 'Nightly', 'Run it', 1, '{}', 'project-kept', '{}', '{}',
           'full-access', 'default', 'user', 'user', '2026-08-01', '2026-08-01', 'never', 0)`;
+      yield* sql`INSERT INTO scheduled_task_webhook_replay_keys
+        (task_id, replay_key, delivery_id, expires_at)
+        VALUES ('task-1', 'replay-1', 'delivery-1', 1900000000000)`;
+      yield* sql`INSERT INTO scheduled_task_webhook_pending
+        (delivery_id, task_id, coalesce_key, due_at, task_json, request_json, delivery_ids_json)
+        VALUES ('delivery-1', 'task-1', 'key-1', 1900000000000, '{}', '{}', '[]')`;
       yield* sql`INSERT INTO auth_sessions (session_id, subject, scopes, method, issued_at, expires_at)
         VALUES ('session-1', 'user', '[]', 'pairing', '2026-08-01', '2027-08-01')`;
     }),
@@ -95,6 +102,25 @@ const createFixtureSource = Effect.fn("createMigrateDevDbFixtureSource")(functio
 });
 
 it.layer(NodeServices.layer)("migrate-dev-db", (it) => {
+  it.effect.each([".otter-code", ".t3"])("refuses to rebuild the live %s home", (name) =>
+    Effect.gen(function* () {
+      const fs = yield* FileSystem.FileSystem;
+      const path = yield* Path.Path;
+      const home = yield* fs.makeTempDirectoryScoped({ prefix: "migrate-dev-db-live-home-" });
+      const baseDir = path.join(home, name);
+      const source = yield* createFixtureSource(baseDir);
+
+      const error = yield* runMigrateDevDb({
+        baseDir,
+        source,
+        projects: 5,
+        threadsPerProject: 2,
+      }).pipe(Effect.provideService(HostProcess.HomeDirectory, home), Effect.flip);
+
+      assert.equal(error._tag, "MigrateDevDbSharedHomeError");
+    }),
+  );
+
   it.effect("keeps stopped and settled thread families and clears pending work", () =>
     Effect.gen(function* () {
       const fs = yield* FileSystem.FileSystem;
@@ -119,10 +145,17 @@ it.layer(NodeServices.layer)("migrate-dev-db", (it) => {
             SELECT stream_id FROM orchestration_events ORDER BY stream_id`;
           const sessions = yield* sql<{ provider_session_id: string }>`
             SELECT provider_session_id FROM orchestration_v2_projection_provider_sessions`;
-          const [leftovers] = yield* sql<{ auth: number; tasks: number; transfers: number }>`
+          const [leftovers] = yield* sql<{
+            auth: number;
+            tasks: number;
+            webhooks: number;
+            transfers: number;
+          }>`
             SELECT
               (SELECT COUNT(*) FROM auth_sessions) AS auth,
               (SELECT COUNT(*) FROM scheduled_tasks) AS tasks,
+              (SELECT COUNT(*) FROM scheduled_task_webhook_replay_keys) +
+                (SELECT COUNT(*) FROM scheduled_task_webhook_pending) AS webhooks,
               (SELECT COUNT(*) FROM orchestration_v2_projection_context_transfers) AS transfers`;
           return { threads, events, sessions, leftovers };
         }),
@@ -139,7 +172,7 @@ it.layer(NodeServices.layer)("migrate-dev-db", (it) => {
         kept.sessions.map((row) => row.provider_session_id),
         ["session-shared"],
       );
-      assert.deepStrictEqual(kept.leftovers, { auth: 0, tasks: 0, transfers: 0 });
+      assert.deepStrictEqual(kept.leftovers, { auth: 0, tasks: 0, webhooks: 0, transfers: 0 });
     }),
   );
 

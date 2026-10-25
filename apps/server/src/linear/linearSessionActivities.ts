@@ -72,11 +72,9 @@ function questionFor(item: TurnItem<"approval_request"> | TurnItem<"user_input_r
 }
 
 /**
- * Turns one delegated thread's events into Linear agent activities. Linear
- * can't edit an activity once posted and shows finished steps, so this posts
- * each step once it's done: tool calls as actions, questions as elicitations,
- * assistant messages as thoughts. The latest assistant message is held back
- * so the one that ends a run becomes its response.
+ * Mirrors a delegated thread into Linear agent activities. Linear can't edit posted
+ * activities, so each step posts once done; the latest assistant message is held back so
+ * the one that ends a run becomes its response.
  */
 export class LinearSessionActivityMirror {
   private readonly seen = new Set<string>();

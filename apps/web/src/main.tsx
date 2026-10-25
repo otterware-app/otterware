@@ -27,8 +27,6 @@ if (isElectron) {
   syncDocumentWindowControlsOverlayClass();
 }
 
-// A failed split-chunk fetch usually means the hashed assets went stale under
-// a deploy; one guarded reload picks up the fresh index.html.
 let chunkLoadFailed = false;
 let reloadScheduled = false;
 window.addEventListener("vite:preloadError", (event) => {
@@ -51,8 +49,7 @@ export const startup = Promise.all([
   router.load(),
 ])
   .then(([ManagedAuthShell]) => {
-    // A route chunk failure still resolves router.load(): the error is parked in
-    // the lazy component and surfaces through the route error boundary.
+    // Route chunk failures resolve router.load() and surface later through the error boundary.
     if (reloadScheduled) return;
     if (!chunkLoadFailed) clearChunkReloadGuard();
     ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

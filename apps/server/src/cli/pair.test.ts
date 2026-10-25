@@ -51,12 +51,10 @@ describe("pair tailscale local target", () => {
     expect(resolveTailscaleLocalTarget({ ...baseState, devUrl: "http://localhost:5733/" })).toEqual(
       { localPort: 5_733 },
     );
-    // A dev server on a non-loopback interface must be proxied at that
-    // interface; tailscale serve defaults to 127.0.0.1 otherwise.
+    // tailscale serve defaults to loopback, so non-loopback dev servers need an explicit target.
     expect(
       resolveTailscaleLocalTarget({ ...baseState, devUrl: "http://192.168.1.10:5733/" }),
     ).toEqual({ localPort: 5_733, localHost: "192.168.1.10" });
-    // URL.hostname keeps IPv6 brackets, so the serve target stays valid.
     expect(
       resolveTailscaleLocalTarget({ ...baseState, devUrl: "http://[fd7a:115c::1]:5733/" }),
     ).toEqual({ localPort: 5_733, localHost: "[fd7a:115c::1]" });
@@ -358,11 +356,18 @@ describe("t3 pair", () => {
           ]);
           assert.isTrue(Exit.isFailure(exit));
           if (Exit.isFailure(exit)) {
-            assert.include(String(Cause.squash(exit.cause)), "t3@0.0.45 pair");
+            assert.include(
+              String(Cause.squash(exit.cause)),
+              "npx otter-code@0.1.3-nightly.20261024.463 pair",
+            );
           }
         }),
       "127.0.0.1",
-      { ...testDescriptor, serverVersion: "0.0.45", orchestrationProtocolVersion: 1 },
+      {
+        ...testDescriptor,
+        serverVersion: "0.1.3-nightly.20261024.463",
+        orchestrationProtocolVersion: 1,
+      },
     ).pipe(Effect.provide(NodeServices.layer)),
   );
 

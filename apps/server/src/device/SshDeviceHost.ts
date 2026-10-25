@@ -175,7 +175,7 @@ export const make = Effect.fn("SshDeviceHost.make")(function* (
         preHostArgs: identityArgs(config),
         // Match the hub cwd so relative executables and PATH entries resolve identically.
         remoteCommandArgs: commandArgs(
-          `cd "$HOME/.t3/device/hosts/${owner}" && exec ${[command, ...args].map(quoteRemoteArg).join(" ")}`,
+          `cd "$HOME/.otter-code/device/hosts/${owner}" && exec ${[command, ...args].map(quoteRemoteArg).join(" ")}`,
         ),
         keepErrorOutputTail: true,
         ...(options?.stdin === undefined ? {} : { stdin: options.stdin }),
@@ -262,8 +262,7 @@ export const make = Effect.fn("SshDeviceHost.make")(function* (
             ...identityArgs(config),
             "-o",
             "ExitOnForwardFailure=yes",
-            // A multiplexed client hands its -L forwards to the control master and exits,
-            // so the tunnel must own its own connection.
+            // Multiplexed clients exit after handing forwards to the master; own this connection.
             "-o",
             "ControlMaster=no",
             "-o",

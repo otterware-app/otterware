@@ -3,20 +3,10 @@
 // @effect-diagnostics globalDate:off -- A failed worker's retry delay, at the same native boundary.
 // @effect-diagnostics globalConsole:off -- Extensions' failures, logged where Electron reports them.
 /**
- * Chrome extensions in the browser preview.
- *
- * Electron runs an extension's worker, its pages and its content scripts, but
- * none of Chrome's toolbar, tab strip or windows. This adds them: the Chrome
- * Web Store installs extensions (electron-chrome-web-store), the preview's
- * toolbar shows their buttons and popups, and what Electron lacks of
- * `chrome.action`, `chrome.tabs`, `chrome.windows` and friends arrives here
- * from preview-extensions-preload.ts.
- *
- * Each persistent preview partition (one per environment and profile) is a
- * Chrome profile: the same extensions load into all of them, and each runs its
- * own workers and sees only its own tabs. Incognito partitions get none, as in
- * Chrome. Tabs are the preview's webview guests, plus the windows extensions
- * open their own pages in, each known by its webContents id.
+ * Chrome extensions in the browser preview: the APIs Electron lacks (`chrome.action`, tabs,
+ * windows) arrive from preview-extensions-preload.ts. Each persistent partition is a Chrome
+ * profile with its own workers and tabs; incognito gets none. Tabs are webview guests plus
+ * extension windows, keyed by webContents id.
  */
 
 import {

@@ -25,7 +25,7 @@ allowBuilds:
   # Ships N-API prebuilds; its install script only rebuilds from source.
   objc-js: false
   protobufjs: false
-  "react-native-enriched-markdown@file:apps/mobile/deps/react-native-enriched-markdown-1.2.0-t3.15-fee84114.tgz": true
+  "react-native-enriched-markdown@file:apps/mobile/deps/react-native-enriched-markdown-1.2.0-t3.16-8d2f84a8.tgz": true
   sharp: true
   "@tsc-rs/typescript": true
   utf-8-validate: false
@@ -48,7 +48,8 @@ catalog:
   "@legendapp/list": 3.3.5
   "@noble/curves": 1.9.1
   "@noble/hashes": 1.8.0
-  "@pierre/diffs": 1.5.2
+  "@pierre/diffs": 1.6.1
+  "@pierre/highlights": 0.2.0
   "@tailwindcss/node": 4.3.3
   "@tailwindcss/oxide": 4.3.3
   "@tailwindcss/vite": 4.3.3
@@ -210,6 +211,9 @@ minimumReleaseAgeExclude:
   - react-native-svg@15.16.0
   - "@expo/schema-utils@58.0.2"
   - pele@1.8.0
+  - "@pierre/diffs@1.6.1"
+  - "@pierre/highlights@0.2.0"
+  - "@pierre/theming@1.0.2"
 
 overrides:
   # Pin every patched package, including transitive dependencies, so lockfile-free
@@ -224,7 +228,7 @@ overrides:
   expo-widgets: 58.0.20
   "@ff-labs/fff-node": 0.11.0
   "@legendapp/list": 3.3.5
-  "@pierre/diffs": 1.5.2
+  "@pierre/diffs": 1.6.1
   "@react-native-ai/apple": 0.12.0
   "@react-native-menu/menu": 2.0.0
   "@react-navigation/native-stack": 7.21.0
@@ -340,12 +344,12 @@ patchedDependencies:
   "@expo/metro-config@58.0.14": patches/@expo__metro-config@58.0.14.patch
   expo-sharing@58.0.19: patches/expo-sharing@58.0.19.patch
   expo-widgets@58.0.20: patches/expo-widgets@58.0.20.patch
-  react-native-screens@5.0.0-t3.37: patches/react-native-screens@5.0.0-t3.37.patch
+  react-native-screens@5.0.0-t3.43: patches/react-native-screens@5.0.0-t3.43.patch
   "@ff-labs/fff-node@0.11.0": patches/@ff-labs__fff-node@0.11.0.patch
   "@legendapp/list@3.3.5": patches/@legendapp__list@3.3.5.patch
   # Exports the dependency-light subpaths mobile and the web diff parser import, and keeps
   # measured wrapped-row heights above an edit (fileEditorVirtualization.test.ts).
-  "@pierre/diffs@1.5.2": patches/@pierre%2Fdiffs@1.5.2.patch
+  "@pierre/diffs@1.6.1": patches/@pierre%2Fdiffs@1.6.1.patch
   "@react-native-ai/apple@0.12.0": patches/@react-native-ai__apple@0.12.0.patch
   "@react-native-menu/menu@2.0.0": patches/@react-native-menu__menu@2.0.0.patch
   "@react-navigation/native-stack@7.21.0": patches/@react-navigation%2Fnative-stack@7.21.0.patch

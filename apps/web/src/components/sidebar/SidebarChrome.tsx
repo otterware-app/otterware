@@ -28,12 +28,9 @@ import { SidebarThreadUndoNotice } from "./SidebarThreadUndoNotice";
 import { SidebarProviderUpdatePill } from "./SidebarProviderUpdatePill";
 import { SidebarUpdateArchitectureWarning } from "./SidebarUpdatePill";
 /**
- * The sidebar's first row, which names the space it shows (`children`: its
- * heading). There's no wordmark, as in Otter Mail. The dev and nightly stage
- * art sits behind the row. In the desktop app's frame the title band above
- * the panel stays empty for the window controls and the pinned toggle, so
- * the row is the panel's first; in a browser tab it shares the band, after
- * the toggle.
+ * The sidebar's first row, naming its space (`children`), with stage art behind it. In the
+ * desktop frame the title band stays clear for window controls and the pinned toggle; in a
+ * browser tab the row shares the band, after the toggle.
  */
 export const SidebarChromeHeader = memo(function SidebarChromeHeader({
   isElectron,

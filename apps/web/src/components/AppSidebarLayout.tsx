@@ -39,6 +39,7 @@ import {
   usePanelAnimationSettings,
   usePanelNavigationSuppression,
 } from "../panelAnimations";
+import { BackgroundThreadAnnouncer } from "./BackgroundThreadAnnouncer";
 import { useThreadVisitedMigration } from "../hooks/useThreadVisitedMigration";
 import ThreadSidebar from "./Sidebar";
 import { SettingsSidebarNav } from "./settings/SettingsSidebarNav";
@@ -91,8 +92,7 @@ function readViewportWidth(): number {
   return window.innerWidth;
 }
 
-// getWindowFullscreenState is a synchronous IPC round trip, so the snapshot is cached
-// and only re-read when a subscription starts.
+// Cache the synchronous fullscreen IPC read until subscription.
 let windowFullscreenSnapshot: boolean | null = null;
 
 function macosDesktopBridge() {
@@ -457,9 +457,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
           (pathname === "/usage" || pathname === "/pull-requests" || pathname === "/spaces")));
   const [sidebarWidth, setSidebarWidth] = useState(readInitialThreadSidebarWidth);
   const [titlebarControlsWidth, setTitlebarControlsWidth] = useState<number | null>(null);
-  // Subscribed rather than read once: the clamp must track live window size,
-  // and a clamped drag ends with an unchanged width, which skips the re-render
-  // that would otherwise refresh a render-time snapshot.
+  // A clamped drag may not change width, so viewport changes need a separate subscription.
   const viewportWidth = useSyncExternalStore(subscribeToViewportWidth, readViewportWidth);
   const sidebarMinimumWidth = THREAD_SIDEBAR_MIN_WIDTH;
   const sidebarMaximumWidth = resolveThreadSidebarMaximumWidth(
@@ -549,8 +547,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
         <ProjectProjectionRetention />
         {/* Above the panel, so the sidebar slides away under it. */}
         {frame ? <SpaceRail className="relative z-20 bg-(--app-frame)" /> : null}
-        {/* No stacking context here: the desktop's browser webviews are drawn at the
-            app root, and the panes' floating controls must stack with them. */}
+        {/* No stacking context: the panes' floating controls stack with root-level webviews. */}
         <div className="relative flex min-h-0 min-w-0 flex-1" data-app-panel="">
           {/* Paint containment anchors the off-canvas sidebar to this clipping
               column, so translucent rails cannot reveal rows sliding behind them. */}
@@ -585,6 +582,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
           <ModulePagesHost>{children}</ModulePagesHost>
           {frame ? <AppFramePanelEdge /> : null}
         </div>
+        <BackgroundThreadAnnouncer />
         {sidebarHidden ? null : <SidebarControl onWidthChange={setTitlebarControlsWidth} />}
         <NavigationHistoryShortcuts />
         {isOnSettings ? null : <ThreadUndoShortcut />}
