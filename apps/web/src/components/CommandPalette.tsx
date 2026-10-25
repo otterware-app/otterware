@@ -85,6 +85,7 @@ import {
   type ReactNode,
 } from "react";
 import type { LegendListRef } from "@legendapp/list/react";
+import { useAtomValue } from "@effect/atom-react";
 
 import { isDesktopLocalConnectionTarget } from "../connection/desktopLocal";
 import { useDesktopLocalBootstraps } from "../connection/useDesktopLocalBootstraps";

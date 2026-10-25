@@ -1,9 +1,6 @@
-// FILE: hugeicons.tsx
-// Purpose: The Hugeicons the app uses (stroke · rounded), inlined as SVG so the icon
-//          package is not a dependency. Paths copied verbatim from
-//          @hugeicons/core-free-icons 4.3.5 (MIT, https://hugeicons.com). To add one, print
-//          its entry with `node apps/web/scripts/hugeicon-snippet.mjs <icon-name>`.
-// Layer: Icon registry (re-exported from ~/lib/icons)
+// Hugeicons (stroke, rounded) inlined as SVG so the package is not a dependency; re-exported
+// from ~/lib/icons. Paths are verbatim from @hugeicons/core-free-icons 4.3.5 (MIT).
+// To add one, print its entry with `node apps/web/scripts/hugeicon-snippet.mjs <icon-name>`.
 
 import type { SVGProps } from "react";
 

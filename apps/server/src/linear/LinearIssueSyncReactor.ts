@@ -86,11 +86,9 @@ function snapshotChanged(link: ThreadLinearIssueLink, issue: LinearIssue): boole
 }
 
 /**
- * Keeps every thread ↔ Linear issue link's status current, the way
- * PullRequestSyncReactor does for pull requests. Each sweep reads only the
- * active threads that have links, reads their issues in batched GraphQL
- * requests, and writes back only what changed. Does nothing until a Linear
- * API key is set.
+ * Keeps thread ↔ Linear issue links current, like PullRequestSyncReactor: each sweep reads
+ * linked active threads' issues in batched GraphQL requests and writes back only changes.
+ * Idle until a Linear API key is set.
  */
 export class LinearIssueSyncReactor extends Context.Service<
   LinearIssueSyncReactor,
@@ -112,7 +110,7 @@ export class LinearIssueSyncReactor extends Context.Service<
   }
 >()("t3/linear/LinearIssueSyncReactor") {}
 
-/** @public Service construction is part of the canonical Effect module API. */
+/** @public */
 export const make = Effect.gen(function* () {
   const engine = yield* OrchestratorV2;
   const projections = yield* ProjectionStoreV2;
