@@ -42,20 +42,26 @@ export default function MailBackground() {
       const count = dockBadgeEnabled() ? latest : 0;
       void bridge.invoke("mail", "app:badge", { count, image: badgeImage(count) }).catch(() => {});
     };
+    // A pushed count wins over a read that was already in flight.
+    const refresh = () => {
+      const requested = revision;
+      void mailOperations["gmail:getUnreadCount"]!(environmentId, {})
+        .then((count) => {
+          if (active && revision === requested && typeof count === "number") {
+            latest = count;
+            paint();
+          }
+        })
+        .catch(() => {});
+    };
+    // Every (re)subscription starts with a mail change, so the count is re-read after a gap.
     const stop = subscribeMailEvents(environmentId, (channel, payload) => {
+      if (channel === "gmail:mail-changed") return refresh();
       if (channel !== "gmail:unread-count" || typeof payload !== "number") return;
       ++revision;
       latest = payload;
       paint();
     });
-    void mailOperations["gmail:getUnreadCount"]!(environmentId, {})
-      .then((count) => {
-        if (active && revision === 0 && typeof count === "number") {
-          latest = count;
-          paint();
-        }
-      })
-      .catch(() => {});
     window.addEventListener("mail:badge-setting", paint);
     return () => {
       active = false;

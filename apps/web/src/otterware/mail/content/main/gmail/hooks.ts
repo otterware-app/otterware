@@ -46,7 +46,7 @@ function describeGmailWriteError(err: unknown): string {
   // 'gmail:x': <reason>" — only the reason is useful to the user.
   const message = raw.replace(/^Error invoking remote method '[^']*':\s*/, "");
   if (/unauthorized|oauth|signed out of google/i.test(message)) {
-    return "Google sign-in expired for this account — sign in again in Settings → Accounts.";
+    return "Google sign-in expired for this account. Sign in again in Settings → Accounts.";
   }
   // "GmailApiError: Gmail API error: 403 Forbidden — <reason>": the reason is what matters.
   const reason = message.match(/Gmail API error: \d+[^—]*—\s*(.+)$/s)?.[1];
@@ -96,7 +96,7 @@ export function useGmailWriteFailureToasts(): void {
         | undefined;
       const what = p?.subject ? `“${p.subject}”` : "your message";
       toast.error(
-        p?.savedToDrafts ? `Couldn't send ${what} — it's back in Drafts` : `Couldn't send ${what}`,
+        p?.savedToDrafts ? `Couldn't send ${what}. It's back in Drafts` : `Couldn't send ${what}`,
       );
       invalidateMailCaches(qc);
     });
@@ -144,6 +144,8 @@ export function useAccounts() {
   useEffect(() => {
     const unsubscribe = mailBridge.on("gmail:accounts-changed", () => {
       void qc.invalidateQueries({ queryKey: queryKeys.accounts() });
+      // A restarted backend reports sign-in afresh; don't wait for the next status poll.
+      void qc.invalidateQueries({ queryKey: ["gmail:syncStatus"] });
     });
     return unsubscribe;
   }, [qc]);
@@ -615,14 +617,9 @@ export function useMessage(accountId: string | null, messageId: string | null) {
   });
 }
 
-//
-// Mutations below patch the cache in `onMutate` so the UI reacts instantly
-// (star/read/archive/trash felt laggy waiting on the Gmail round trip),
-// then reconcile with the server-confirmed state in `onSuccess`/`onError`.
-// The label-count delta math mirrors the backend's local-cache recompute in
-// `mail-store.ts`'s `applyLabelChange`/`deleteMessage`, so sidebar/header
-// unread badges move in lockstep with the message list instead of only
-// updating once the next label sync happens.
+// Mutations below patch the cache in `onMutate` and reconcile in `onSuccess`/`onError`.
+// The label-count delta math mirrors `applyLabelChange`/`deleteMessage` in `mail-store.ts`,
+// so unread badges move with the message list instead of waiting for the next label sync.
 
 type LabelCountDelta = { total: number; unread: number };
 
@@ -1194,12 +1191,8 @@ export function useModifyThread() {
       );
       qc.setQueryData<GmailMessageSummary[]>(threadKey, (old) => old?.map(applyPatch));
 
-      // Thread-scoped removals also drop the row from lists the thread can no
-      // longer match, so archive/move/junk clear the view instantly like trash.
-      // Safe only here (whole-thread removal); single-message ops can't know
-      // whether sibling messages still match.
-      // All Mail (per account, or Combined rules without labels) only loses
-      // threads that become spam/trash.
+      // Whole-thread removals drop the row from lists it no longer matches (single-message ops
+      // can't know whether siblings still match). All Mail only loses spam/trash threads.
       const leavesAllMail = addLabelIds.includes("SPAM") || addLabelIds.includes("TRASH");
       if (removeLabelIds.length > 0 || leavesAllMail) {
         for (const [key] of prevMessagesQueries) {
@@ -1500,11 +1493,9 @@ export function useAccountSync(accountId: string | null): SyncStatus | null {
 }
 
 /**
- * Whether sync changed the cache since lists last refreshed (its revision
- * moved). Every refetch of an infinite list reloads ALL its loaded pages, so
- * while a long full sync of a big mailbox keeps writing, lists refresh at
- * most every LIST_REFRESH_MS; once sync is idle a change refreshes at once.
- * Offline body downloads don't change list rows and don't move the revision.
+ * Whether sync changed the cache since lists last refreshed. A refetch reloads every loaded page,
+ * so during a long full sync lists refresh at most every LIST_REFRESH_MS, at once when idle.
+ * Offline body downloads don't change rows or the revision.
  */
 const LIST_REFRESH_MS = 8000;
 const lastListRefresh = new Map<string, number>();
