@@ -154,6 +154,7 @@
     "apps/drive-cli": {
       // test/version-options.test.ts runs the CLI with `node --import tsx`.
       "ignoreDependencies": ["tsx"],
+    },
     "infra/task-cache": {
       "ignore": ["vendor/**"],
       // The bootstrap and Vite+ hook are loaded by shell/package configuration.

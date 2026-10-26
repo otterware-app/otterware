@@ -243,7 +243,6 @@ import { toggleThemeEditorForTheme } from "./settings/themeEditorStore";
 // Otterware seam: module navigation and commands come from the registry.
 import { moduleCommandPaletteItems } from "../otterware/modulePaletteItems";
 import { settingsForThisPlatform, SETTINGS_SECTION_LABELS } from "./settings/settingsSearch";
-import { primaryServerKeybindingsAtom } from "../state/server";
 import { resolveShortcutCommand, threadJumpIndexFromCommand } from "../keybindings";
 import { CommandDialog, CommandDialogPopup, CommandFooterAction } from "./ui/command";
 import { Button } from "./ui/button";

@@ -206,7 +206,6 @@ export default function DiffPanel({
     false,
     Schema.Boolean,
   );
-  const [baseRefQuery, setBaseRefQuery] = useState("");
   const [codeViewRevision, setCodeViewRevision] = useState(0);
   const [codeView, setCodeView] = useState<AnnotatableCodeViewHandle | null>(null);
   const routeThreadRef = useThreadRouteRef();
@@ -598,7 +597,6 @@ export default function DiffPanel({
         (collapsedDiffFileKeys.has(fileKey) || fileDiff.cacheKey?.endsWith(":pending") === true),
     };
   });
-  const codeViewFileKeys = codeViewFiles.map((file) => file.fileKey);
   const pendingFiles = renderableFiles.filter((file) => file.cacheKey?.endsWith(":pending"));
   const allDiffFilesCollapsed = areAllDiffFilesCollapsed(diffFileKeys, collapsedDiffFileKeys);
   const diffLineStat =
