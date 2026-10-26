@@ -106,7 +106,10 @@ export const makeCalendarReminders = (options: {
       yield* Effect.gen(function* () {
         while (true) {
           const delay = yield* check.pipe(Effect.orElseSucceed(() => MINUTE_MS));
-          yield* Effect.raceFirst(Queue.take(wakeups), Effect.sleep(delay));
+          yield* Effect.timeoutOrElse(Queue.take(wakeups), {
+            duration: delay,
+            orElse: () => Effect.void,
+          });
         }
       }).pipe(Effect.forkScoped);
     }

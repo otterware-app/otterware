@@ -23,7 +23,8 @@
       // Knip loads its preprocessor through a CLI option; native verification and
       // worktree setup (from t3.json) run directly. release-desktop.yml bundles the
       // Windows verify script with esbuild through a path knip does not trace, and
-      // electron-builder loads the macOS signer by path. Upstream's check-changed.ts stays
+      // electron-builder loads the macOS signer by path, and mobile-e2e.ts runs agent-device's CLI
+      // by path. Upstream's check-changed.ts stays
       // unwired: `vp run check:changed` runs the Otterware checker under the same name.
       "entry": [
         "check-changed.ts",
@@ -35,7 +36,7 @@
         "sign-macos.ts",
         "verify-windows-desktop-artifact.ts",
       ],
-      "ignoreDependencies": ["esbuild"],
+      "ignoreDependencies": ["agent-device", "esbuild"],
       // The `t3` npm package's files: copied into the package, never imported.
       // knip-schemas.test.ts writes a throwaway project to .knip-test-*, which a
       // knip run beside it in check:changed must not report.
@@ -153,6 +154,18 @@
     "apps/drive-cli": {
       // test/version-options.test.ts runs the CLI with `node --import tsx`.
       "ignoreDependencies": ["tsx"],
+    "infra/task-cache": {
+      "ignore": ["vendor/**"],
+      // The bootstrap and Vite+ hook are loaded by shell/package configuration.
+      "entry": [
+        "alchemy.run.ts!",
+        "scripts/install.ts",
+        "scripts/install-ci.ts",
+        "src/runHook.ts",
+        "src/flush.ts",
+        "src/nativeRunHook.js",
+        "src/preload.mjs",
+      ],
     },
     "infra/relay": {
       "entry": ["alchemy.run.ts!", "src/persistence/schema.ts!"],

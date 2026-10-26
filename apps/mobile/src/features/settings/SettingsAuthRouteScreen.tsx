@@ -5,9 +5,15 @@ import { AppText as Text } from "../../components/ui/AppText";
 import { ScreenScrollView } from "../../components/ui/ScreenScrollView";
 import { SettingsSection } from "./components/SettingsSection";
 import { SettingsRow } from "./components/SettingsRow";
+import { hasCloudPublicConfig } from "../cloud/publicConfig";
 import { T3ConnectProfilePage } from "../cloud/T3ConnectProfilePage";
 
+// Without cloud config the app has no entry point here and appLinking drops the deep link.
 export function SettingsAuthRouteScreen() {
+  return hasCloudPublicConfig() ? <ConfiguredSettingsAuthRouteScreen /> : null;
+}
+
+function ConfiguredSettingsAuthRouteScreen() {
   const { isLoaded, isSignedIn, user, error, signIn, signOut } = useAuth();
   return (
     <ScreenScrollView contentContainerClassName="gap-4 px-5 py-4">

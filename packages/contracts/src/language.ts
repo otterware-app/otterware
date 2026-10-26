@@ -44,9 +44,8 @@ export const LanguageRequest = Schema.Struct({
   position: Schema.optional(CodePosition),
   update: Schema.optional(
     Schema.Union([
-      Schema.Struct({ _tag: Schema.Literal("open"), contents: DocumentText }),
-      Schema.Struct({
-        _tag: Schema.Literal("change"),
+      Schema.TaggedStruct("open", { contents: DocumentText }),
+      Schema.TaggedStruct("change", {
         baseVersion: Offset,
         start: Offset,
         deleteLength: Offset,
@@ -67,8 +66,7 @@ export const CodeDiagnostic = Schema.Struct({
 export type CodeDiagnostic = typeof CodeDiagnostic.Type;
 
 export const LanguageResult = Schema.Union([
-  Schema.Struct({
-    _tag: Schema.Literal("completions"),
+  Schema.TaggedStruct("completions", {
     items: Schema.Array(
       Schema.Struct({
         label: Schema.String,
@@ -79,8 +77,7 @@ export const LanguageResult = Schema.Union([
       }),
     ),
   }),
-  Schema.Struct({
-    _tag: Schema.Literal("hover"),
+  Schema.TaggedStruct("hover", {
     info: Schema.NullOr(
       Schema.Struct({
         range: CodeRange,
@@ -90,10 +87,9 @@ export const LanguageResult = Schema.Union([
       }),
     ),
   }),
-  Schema.Struct({ _tag: Schema.Literal("locations"), items: Schema.Array(CodeLocation) }),
-  Schema.Struct({ _tag: Schema.Literal("diagnostics"), items: Schema.Array(CodeDiagnostic) }),
-  Schema.Struct({
-    _tag: Schema.Literal("signature"),
+  Schema.TaggedStruct("locations", { items: Schema.Array(CodeLocation) }),
+  Schema.TaggedStruct("diagnostics", { items: Schema.Array(CodeDiagnostic) }),
+  Schema.TaggedStruct("signature", {
     activeSignature: Offset,
     activeParameter: Offset,
     items: Schema.Array(
@@ -106,11 +102,10 @@ export const LanguageResult = Schema.Union([
       }),
     ),
   }),
-  Schema.Struct({
-    _tag: Schema.Literal("format"),
+  Schema.TaggedStruct("format", {
     edits: Schema.Array(Schema.Struct({ range: CodeRange, text: Schema.String })),
   }),
-  Schema.Struct({ _tag: Schema.Literal("closed") }),
+  Schema.TaggedStruct("closed", {}),
 ]);
 export type LanguageResult = typeof LanguageResult.Type;
 

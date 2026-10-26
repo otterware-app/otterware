@@ -78,7 +78,7 @@ export function ComposerControlChevron({
       aria-hidden="true"
       className={cn(
         "shrink-0",
-        size === "xs" ? "size-3 text-current opacity-50" : "size-3.5 text-icon-muted",
+        size === "xs" ? "size-3 text-current" : "size-3.5 text-icon-muted",
         className,
       )}
       data-composer-control-chevron

@@ -153,7 +153,7 @@ export const linearRoutes = HttpRouter.use((router) =>
         });
         return HttpServerResponse.empty({ status });
       }).pipe(
-        Effect.catch(() => Effect.succeed(HttpServerResponse.empty({ status: 400 }))),
+        Effect.orElseSucceed(() => HttpServerResponse.empty({ status: 400 })),
         Effect.withSpan("relay.api.linear.webhook"),
       ),
     );

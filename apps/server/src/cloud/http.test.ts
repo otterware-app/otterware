@@ -13,7 +13,6 @@ import {
 } from "@t3tools/contracts/relay";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import { HttpClient, HttpServer } from "effect/http";
 import * as Etag from "effect/http/Etag";
@@ -36,6 +35,7 @@ import { OrchestratorV2 } from "../orchestration-v2/Orchestrator.ts";
 import { ThreadLaunchService } from "../orchestration-v2/ThreadLaunchService.ts";
 import { ThreadManagementService } from "../orchestration-v2/ThreadManagementService.ts";
 import { ProjectService } from "../project/ProjectService.ts";
+import { DocumentText } from "../provider/DocumentText.ts";
 import { ServerSettingsService } from "../serverSettings.ts";
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
 import * as AgentAwarenessRelay from "../relay/AgentAwarenessRelay.ts";
@@ -85,10 +85,18 @@ const layerLinkProofRoutes = HttpApiBuilder.layer(LinkProofTestApi).pipe(
   Layer.provide(AuthHttp.layerAuthenticatedAuth),
   Layer.provide(CloudLink.layer),
   Layer.provide(
-    Layer.mock(ConnectReachability.ConnectReachability)({ latest: Effect.succeed(Option.none()) }),
+    Layer.mock(ConnectReachability.ConnectReachability)({ latest: Effect.succeedNone }),
   ),
   Layer.provide(EnvironmentAuth.layer),
-  Layer.provide([
+  Layer.provideMerge([
+    Layer.mock(LinearIssueSyncReactor)({}),
+    Layer.mock(OrchestratorV2)({}),
+    Layer.mock(ThreadLaunchService)({}),
+    Layer.mock(ThreadManagementService)({}),
+    Layer.mock(ProjectService)({}),
+    Layer.mock(GitWorkflowService)({}),
+    Layer.mock(DocumentText)({}),
+    Layer.mock(ServerSettingsService)({}),
     SqlitePersistence.layerMemory,
     ServerEnvironment.layerIdentity,
     Layer.mock(ServerEnvironment.ServerEnvironment)({

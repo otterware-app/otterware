@@ -69,9 +69,7 @@ export const moduleToolHandlers = <R>(
     tools.map((tool) => [tool.name, bridge(runtime, moduleId, tool, resolveCaller)]),
   );
 
-const currentCaller = Effect.gen(function* () {
-  return yield* ModuleToolCaller;
-});
+const currentCaller = Effect.service(ModuleToolCaller);
 
 /** A module tool as an agent loop lists it. */
 export interface ModuleToolDescriptor {
