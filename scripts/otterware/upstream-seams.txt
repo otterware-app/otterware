@@ -23,6 +23,8 @@ apps/web/src/components/AppSidebarLayout.tsx
 apps/web/src/components/CommandPalette.tsx
 # Compact module assistants filter global chat shortcuts to their own focused surface.
 apps/web/src/components/chat/useChatShortcuts.ts
+# Otterware places the empty-thread hero and ASCII background, and embeds compact module chats.
+apps/web/src/components/ChatView.tsx
 # The host retains a measured compiler bailout baseline for integrated module renderers.
 apps/web/src/reactCompilerCoverage.test.ts
 apps/web/src/components/settings/settingsSearch.ts

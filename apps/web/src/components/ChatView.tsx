@@ -1537,6 +1537,10 @@ export default function ChatView(props: ChatViewProps) {
     // Include optimistic sends to retire the row before the server echo.
     followUpSent: timelineMessages.filter((message) => message.role === "user").length > 1,
   });
+  // Message entries leave out assistant text and anything outside the loaded window,
+  // so only an empty timeline with nothing running gets the hero and its background.
+  const showEmptyThreadHero =
+    timelineEmpty && !isWorking && !threadDetailLoading && worktreeSetup === null;
   const onCancelWorktreeSetupStable = useStableCallback(() => void cancelWorktreeSetup());
   const [dockedDraftHeroThreadKey, setDockedDraftHeroThreadKey] = useState<string | null>(null);
   const draftHeroDockRequested =
@@ -3232,7 +3236,7 @@ export default function ChatView(props: ChatViewProps) {
           className="relative flex min-h-0 min-w-0 flex-1"
           data-chat-surface={isDraftHeroState ? "draft" : "conversation"}
         >
-          {timelineMessages.length === 0 && !threadDetailLoading ? (
+          {showEmptyThreadHero ? (
             <>
               <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center pb-36">
                 <DraftHeroHeadline
@@ -3292,9 +3296,7 @@ export default function ChatView(props: ChatViewProps) {
               className="app-content-surface relative flex min-h-0 flex-1 flex-col bg-background"
               data-chat-canvas
             >
-              {timelineMessages.length === 0 && !threadDetailLoading && showAsciiBackground ? (
-                <AsciiWaveBackground />
-              ) : null}
+              {showEmptyThreadHero && showAsciiBackground ? <AsciiWaveBackground /> : null}
               <ThreadTimeline
                 threadDetailRef={routeThreadDetailRef}
                 entriesInput={timelineEntriesInput}
