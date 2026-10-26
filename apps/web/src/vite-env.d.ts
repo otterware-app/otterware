@@ -7,6 +7,7 @@ interface ImportMetaEnv {
   readonly VITE_WS_URL: string;
   readonly VITE_HOSTED_APP_URL: string;
   readonly VITE_HOSTED_APP_CHANNEL: string;
+  readonly VITE_RELEASE_CHANNEL: string;
   readonly VITE_ACCOUNTS_URL: string;
   readonly VITE_ACCOUNTS_CLI_CLIENT_ID: string;
   readonly VITE_RELAY_OTLP_TRACES_URL: string;

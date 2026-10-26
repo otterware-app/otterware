@@ -70,7 +70,7 @@ export function createCalendarAtoms<R, E>(
                 suspendOnWaiting: false,
               }).pipe(
                 Effect.timeoutOption(6_000),
-                Effect.catch(() => Effect.succeed(Option.none())),
+                Effect.orElseSucceed(() => Option.none()),
               );
               return (
                 Option.isSome(session) &&

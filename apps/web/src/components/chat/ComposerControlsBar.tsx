@@ -166,7 +166,7 @@ export function ComposerControlsBar(props: {
       ? [
           {
             id: "traits",
-            content: <>{restingProviderTraitsPicker}</>,
+            content: restingProviderTraitsPicker,
           },
         ]
       : []),

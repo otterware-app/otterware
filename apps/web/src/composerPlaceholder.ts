@@ -1,1 +1,1 @@
-export const DISCONNECTED_COMPOSER_PLACEHOLDER = "Do anything in Otter Code";
+export const DEFAULT_COMPOSER_PLACEHOLDER = "Do anything in Otter Code";

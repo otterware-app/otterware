@@ -14,7 +14,7 @@ const acme: HomeProject = {
   id: "acme",
   name: "Acme",
   color: "orange",
-  rules: Schema.decodeUnknownSync(HomeProjectRules)({
+  rules: Schema.decodeSync(HomeProjectRules)({
     code: { projectIds: ["code-acme"] },
     mail: { domains: ["acme.com"] },
   }),

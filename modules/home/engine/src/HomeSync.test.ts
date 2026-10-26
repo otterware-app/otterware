@@ -5,7 +5,6 @@ import type { SyncRecord, SyncedRecord } from "@otterware/otter-cloud-client";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Option from "effect/Option";
 import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import { HomeProjectRules, HomeViewFilter } from "@otterware/home-contracts";
@@ -46,8 +45,8 @@ const makeCloud = () => {
 };
 
 const cloud = makeCloud();
-const rules = Schema.decodeUnknownSync(HomeProjectRules)({});
-const filter = Schema.decodeUnknownSync(HomeViewFilter)({});
+const rules = Schema.decodeSync(HomeProjectRules)({});
+const filter = Schema.decodeSync(HomeViewFilter)({});
 
 /** One device: its own suite.sqlite, signed in to the same account. */
 const layerDevice = HomeSync.layer.pipe(
@@ -59,7 +58,7 @@ const layerDevice = HomeSync.layer.pipe(
   ),
   Layer.provide(
     Layer.succeed(HomeAccount, {
-      current: Effect.succeed(Option.some(cloud.account)),
+      current: Effect.succeedSome(cloud.account),
       changes: Stream.never,
     }),
   ),

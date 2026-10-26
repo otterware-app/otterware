@@ -42,12 +42,12 @@ export const DiffStatLabel = memo(function DiffStatLabel(props: {
       >
         {/* A zero side is left blank; aligned rows keep the empty cell so columns line up. */}
         {additions > 0 || layout === "aligned" ? (
-          <span aria-hidden="true" className="font-mono text-diff-addition">
+          <span aria-hidden="true" className="font-mono text-diff-addition-foreground">
             {additions > 0 ? `+${formatCompactDiffCount(additions)}` : null}
           </span>
         ) : null}
         {deletions > 0 || layout === "aligned" ? (
-          <span aria-hidden="true" className="font-mono text-diff-deletion">
+          <span aria-hidden="true" className="font-mono text-diff-deletion-foreground">
             {deletions > 0 ? `-${formatCompactDiffCount(deletions)}` : null}
           </span>
         ) : null}

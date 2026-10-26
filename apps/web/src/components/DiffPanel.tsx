@@ -156,7 +156,9 @@ function DiffFileHeaderSuffix({
 }) {
   return (
     <>
-      <DiffFilePathCopyButton filePath={filePath} />
+      <span data-diff-copy-path className="inline-flex">
+        <DiffFilePathCopyButton filePath={filePath} />
+      </span>
       {hasStat ? (
         <DiffFileStatus error={error} truncated={truncated} retry={() => onRetry(filePath)} />
       ) : null}
@@ -204,7 +206,6 @@ export default function DiffPanel({
     false,
     Schema.Boolean,
   );
-  const [baseRefQuery, setBaseRefQuery] = useState("");
   const [codeViewRevision, setCodeViewRevision] = useState(0);
   const [codeView, setCodeView] = useState<AnnotatableCodeViewHandle | null>(null);
   const routeThreadRef = useThreadRouteRef();
@@ -572,6 +573,7 @@ export default function DiffPanel({
   const singleFileIndex = singleFileEntry ? renderableFileEntries.indexOf(singleFileEntry) : -1;
   const singleFileReady =
     !lazySource || (singleFilePath !== null && readyFilePaths.has(singleFilePath));
+  // oxlint-disable-next-line t3code/react-effect-budget -- Loads the lazily fetched file shown in single-file mode.
   useEffect(() => {
     if (lazySource && singleFileIndex >= 0 && !singleFileReady) requestFile(singleFileIndex);
   }, [lazySource, requestFile, singleFileIndex, singleFileReady]);
@@ -595,7 +597,6 @@ export default function DiffPanel({
         (collapsedDiffFileKeys.has(fileKey) || fileDiff.cacheKey?.endsWith(":pending") === true),
     };
   });
-  const codeViewFileKeys = codeViewFiles.map((file) => file.fileKey);
   const pendingFiles = renderableFiles.filter((file) => file.cacheKey?.endsWith(":pending"));
   const allDiffFilesCollapsed = areAllDiffFilesCollapsed(diffFileKeys, collapsedDiffFileKeys);
   const diffLineStat =
@@ -624,6 +625,15 @@ export default function DiffPanel({
     onError: (error) =>
       toastManager.add({ type: "error", title: "Failed to copy path", description: error.message }),
   });
+  const selectedDiffFileKey = selectedFilePath
+    ? (codeViewFiles.find((candidate) => candidate.filePath === selectedFilePath)?.fileKey ?? null)
+    : null;
+  // oxlint-disable-next-line t3code/react-effect-budget -- Scrolls the code view to the selected file.
+  useEffect(() => {
+    if (!selectedDiffFileKey || !codeView?.getInstance()) return;
+    codeView.scrollTo({ type: "item", id: selectedDiffFileKey, align: "start" });
+    // oxlint-disable-next-line react/exhaustive-effect-dependencies -- A remounted viewer or a repeated reveal request scrolls to the same file again.
+  }, [codeView, codeViewMountKey, selectedDiffFileKey, selectedFileRevealRequestId]);
   const treeRevealScope = { collapseScopeKey, diffSelection };
   const requestTreeReveal = useCodeViewFileReveal(
     codeView,
@@ -653,6 +663,7 @@ export default function DiffPanel({
   };
 
   const externalRevealRef = useRef<string | null>(null);
+  // oxlint-disable-next-line t3code/react-effect-budget -- Reveals an externally selected file in the tree.
   useEffect(() => {
     if (!selectedFilePath) {
       externalRevealRef.current = null;

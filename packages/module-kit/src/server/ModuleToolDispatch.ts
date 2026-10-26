@@ -69,9 +69,7 @@ export const moduleToolHandlers = <R>(
     tools.map((tool) => [tool.name, bridge(runtime, moduleId, tool, resolveCaller)]),
   );
 
-const currentCaller = Effect.gen(function* () {
-  return yield* ModuleToolCaller;
-});
+const currentCaller = Effect.service(ModuleToolCaller);
 
 /** A module tool as an agent loop lists it. */
 export interface ModuleToolDescriptor {
@@ -107,33 +105,30 @@ const failureCodec = (tool: Tool.Any) => ({
  * message of a declared failure (a refusal says why), the reason parameters
  * did not decode, or a scrubbed internal error.
  */
-const describeFailure = (
+const describeFailure = Effect.fn("ModuleToolDispatch.describeFailure")(function* (
   tool: Tool.Any,
   codec: ReturnType<typeof failureCodec>,
   cause: Cause.Cause<unknown>,
-) =>
-  Effect.gen(function* () {
-    const failure = Cause.findErrorOption(cause);
-    if (Option.isSome(failure) && !Cause.hasDies(cause)) {
-      const error = failure.value;
-      if (AiError.isAiError(error) && error.reason._tag === "ToolParameterValidationError")
-        return `Invalid arguments for ${tool.name}: ${error.reason.description}`;
-      if (codec.isDeclared(error)) {
-        if (error instanceof Error && error.message !== "") return error.message;
-        const encoded = yield* Effect.option(codec.encode(error));
-        if (Option.isSome(encoded)) return yield* jsonText(encoded.value);
-      }
+) {
+  const failure = Cause.findErrorOption(cause);
+  if (Option.isSome(failure) && !Cause.hasDies(cause)) {
+    const error = failure.value;
+    if (AiError.isAiError(error) && error.reason._tag === "ToolParameterValidationError")
+      return `Invalid arguments for ${tool.name}: ${error.reason.description}`;
+    if (codec.isDeclared(error)) {
+      if (error instanceof Error && error.message !== "") return error.message;
+      const encoded = yield* Effect.option(codec.encode(error));
+      if (Option.isSome(encoded)) return yield* jsonText(encoded.value);
     }
-    yield* Effect.logError("Module tool failed", { tool: tool.name, cause });
-    return INTERNAL_FAILURE;
-  });
+  }
+  yield* Effect.logError("Module tool failed", { tool: tool.name, cause });
+  return INTERNAL_FAILURE;
+});
 
 /**
- * Every module tool of the runtime, callable by name with encoded parameters
- * and an explicit caller, for agent loops that are not an MCP server. Each
- * call decodes the parameters with the tool's schema, passes the same gate as
- * MCP calls (module state, then tier against `caller.access`) and returns the
- * encoded result.
+ * Every module tool, callable by name with encoded parameters and an explicit
+ * caller, for agent loops that are not an MCP server. Calls pass the same gate
+ * as MCP calls (module state, then tier against `caller.access`).
  */
 export const makeModuleToolDispatcher = Effect.gen(function* () {
   const runtime = yield* ModuleRuntime;

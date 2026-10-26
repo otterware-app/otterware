@@ -428,20 +428,17 @@ const make = Effect.gen(function* () {
       const rows = yield* db
         .select()
         .from(relayLinearUserLinks)
-        .where(eq(relayLinearUserLinks.userId, userId))
-        .pipe(Effect.mapError(persistence));
+        .where(eq(relayLinearUserLinks.userId, userId));
       const installed = yield* db
         .select({ organizationId: relayLinearInstallations.organizationId })
         .from(relayLinearInstallations)
-        .where(isNull(relayLinearInstallations.revokedAt))
-        .pipe(Effect.mapError(persistence));
+        .where(isNull(relayLinearInstallations.revokedAt));
       const installedIds = new Set(installed.map((row) => row.organizationId));
       const [signedIn] = yield* db
         .select({ organizationId: relayLinearUserTokens.organizationId })
         .from(relayLinearUserTokens)
         .where(eq(relayLinearUserTokens.userId, userId))
-        .limit(1)
-        .pipe(Effect.mapError(persistence));
+        .limit(1);
       const signedInOrganization = signedIn?.organizationId ?? null;
       return {
         available: true,
@@ -455,6 +452,7 @@ const make = Effect.gen(function* () {
         })),
       };
     },
+    Effect.mapError(persistence),
   );
 
   const requireOwnEnvironment = Effect.fn("relay.linear.require_own_environment")(function* (
@@ -530,8 +528,7 @@ const make = Effect.gen(function* () {
             eq(relayLinearUserLinks.userId, userId),
           ),
         )
-        .returning({ linearUserId: relayLinearUserLinks.linearUserId })
-        .pipe(Effect.mapError(persistence));
+        .returning({ linearUserId: relayLinearUserLinks.linearUserId });
       yield* db
         .delete(relayLinearUserTokens)
         .where(
@@ -539,10 +536,10 @@ const make = Effect.gen(function* () {
             eq(relayLinearUserTokens.userId, userId),
             eq(relayLinearUserTokens.organizationId, organizationId),
           ),
-        )
-        .pipe(Effect.mapError(persistence));
+        );
       return deleted.length > 0;
     },
+    Effect.mapError(persistence),
   );
 
   const completeOAuth = Effect.fn("relay.linear.complete_oauth")(function* (
