@@ -286,6 +286,10 @@ import {
 } from "./composerFooterLayout";
 import { ChatHeader } from "./chat/ChatHeader";
 import { ModuleThreadAccessories } from "../otterware/ModuleThreadAccessories";
+import {
+  composerDrawerAboveClassName,
+  composerShellDrawerAboveClassName,
+} from "../otterware/composerDrawerAbove";
 import { useRemoteOpenState } from "~/remoteOpen";
 import { shouldShowOpenInPicker } from "./chat/OpenInPicker.logic";
 import { useOpenFavoriteEditorShortcut } from "./chat/OpenInPickerShortcut";
@@ -3509,7 +3513,11 @@ export default function ChatView(props: ChatViewProps) {
                   >
                     <ComposerSurface.Shell
                       contextStrip={showComposerContextStrip || showComposerModelStrip}
-                      contextPlacement={isDraftHeroState ? "above" : "below"}
+                      className={
+                        isDraftHeroState && (showComposerContextStrip || showComposerModelStrip)
+                          ? composerShellDrawerAboveClassName
+                          : undefined
+                      }
                     >
                       <ComposerSurface.Host
                         inert={queuedRunEdit.isSaving}
@@ -3706,7 +3714,12 @@ export default function ChatView(props: ChatViewProps) {
                           )}
                         </div>
                       </ComposerSurface.Host>
-                      <div className={cn("min-h-0", isDraftHeroState && "order-first")}>
+                      <div
+                        className={cn(
+                          "min-h-0",
+                          isDraftHeroState && ["order-first", composerDrawerAboveClassName],
+                        )}
+                      >
                         <div
                           data-terminal-open={terminalUiState.terminalOpen ? "true" : undefined}
                           className="relative z-0"
