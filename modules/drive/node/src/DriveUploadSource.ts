@@ -93,81 +93,82 @@ export const contentTypeForName = (name: string) => {
 };
 
 /** URL/base64 inputs spool to disk; local files are hashed and streamed from one open handle. */
-export const prepareUploadSource = (input: DriveUploadInput) =>
-  Effect.gen(function* () {
-    const download = yield* FetchHttpClient.Fetch;
-    return yield* Effect.tryPromise({
-      try: async (signal) => {
-        validateUploadInput(input);
-        let directory: string | undefined;
-        let handle: Awaited<ReturnType<typeof NodeFSP.open>> | undefined;
-        try {
-          let path = input.path;
-          if (path === undefined) {
-            directory = await NodeFSP.mkdtemp(
-              NodePath.join(NodeOS.tmpdir(), "otterware-drive-upload-"),
+export const prepareUploadSource = Effect.fn("DriveUploadSource.prepare")(function* (
+  input: DriveUploadInput,
+) {
+  const download = yield* FetchHttpClient.Fetch;
+  return yield* Effect.tryPromise({
+    try: async (signal) => {
+      validateUploadInput(input);
+      let directory: string | undefined;
+      let handle: Awaited<ReturnType<typeof NodeFSP.open>> | undefined;
+      try {
+        let path = input.path;
+        if (path === undefined) {
+          directory = await NodeFSP.mkdtemp(
+            NodePath.join(NodeOS.tmpdir(), "otterware-drive-upload-"),
+          );
+          path = NodePath.join(directory, "file");
+          if (input.url !== undefined) {
+            // No Drive bearer token is ever forwarded to the download URL.
+            const response = await download(input.url, { signal, redirect: "follow" });
+            if (!response.ok || !response.body)
+              throw uploadInputError("Could not download the file from url.");
+            await NodeStreamPromises.pipeline(
+              NodeStream.Readable.from(readChunks(response.body)),
+              NodeFS.createWriteStream(path, { mode: 0o600 }),
+              { signal },
             );
-            path = NodePath.join(directory, "file");
-            if (input.url !== undefined) {
-              // No Drive bearer token is ever forwarded to the download URL.
-              const response = await download(input.url, { signal, redirect: "follow" });
-              if (!response.ok || !response.body)
-                throw uploadInputError("Could not download the file from url.");
-              await NodeStreamPromises.pipeline(
-                NodeStream.Readable.from(readChunks(response.body)),
-                NodeFS.createWriteStream(path, { mode: 0o600 }),
-                { signal },
-              );
-            } else {
-              await NodeFSP.writeFile(path, Buffer.from(input.contentBase64!, "base64"), {
-                mode: 0o600,
-                signal,
-              });
-            }
+          } else {
+            await NodeFSP.writeFile(path, Buffer.from(input.contentBase64!, "base64"), {
+              mode: 0o600,
+              signal,
+            });
           }
-          handle = await NodeFSP.open(path, "r");
-          const stat = await handle.stat();
-          if (!stat.isFile() || !Number.isSafeInteger(stat.size))
-            throw uploadInputError("path must name a regular file.");
-          const hash = NodeCrypto.createHash("sha256");
-          for await (const chunk of handle.createReadStream({ autoClose: false, start: 0 })) {
-            signal.throwIfAborted();
-            hash.update(chunk);
-          }
-          const file = handle;
-          const temporary = directory;
-          return {
-            size: stat.size,
-            sha256: hash.digest("hex"),
-            contentType: contentTypeForName(input.name),
-            stream: (start = 0, end?: number) =>
-              Stream.fromAsyncIterable(
-                file.createReadStream({
-                  autoClose: false,
-                  start,
-                  ...(end === undefined ? {} : { end }),
-                }),
-                () => uploadInputError("The upload source could not be read."),
-              ),
-            close: async () => {
-              await file.close();
-              if (temporary) await NodeFSP.rm(temporary, { recursive: true, force: true });
-            },
-          };
-        } catch (error) {
-          await handle?.close();
-          if (directory) await NodeFSP.rm(directory, { recursive: true, force: true });
-          throw error;
         }
-      },
-      catch: (error) =>
-        isDriveApiError(error)
-          ? error
-          : uploadInputError(
-              "The upload source could not be read on this server; check its path and permissions.",
+        handle = await NodeFSP.open(path, "r");
+        const stat = await handle.stat();
+        if (!stat.isFile() || !Number.isSafeInteger(stat.size))
+          throw uploadInputError("path must name a regular file.");
+        const hash = NodeCrypto.createHash("sha256");
+        for await (const chunk of handle.createReadStream({ autoClose: false, start: 0 })) {
+          signal.throwIfAborted();
+          hash.update(chunk);
+        }
+        const file = handle;
+        const temporary = directory;
+        return {
+          size: stat.size,
+          sha256: hash.digest("hex"),
+          contentType: contentTypeForName(input.name),
+          stream: (start = 0, end?: number) =>
+            Stream.fromAsyncIterable(
+              file.createReadStream({
+                autoClose: false,
+                start,
+                ...(end === undefined ? {} : { end }),
+              }),
+              () => uploadInputError("The upload source could not be read."),
             ),
-    });
+          close: async () => {
+            await file.close();
+            if (temporary) await NodeFSP.rm(temporary, { recursive: true, force: true });
+          },
+        };
+      } catch (error) {
+        await handle?.close();
+        if (directory) await NodeFSP.rm(directory, { recursive: true, force: true });
+        throw error;
+      }
+    },
+    catch: (error) =>
+      isDriveApiError(error)
+        ? error
+        : uploadInputError(
+            "The upload source could not be read on this server; check its path and permissions.",
+          ),
   });
+});
 export type DriveUploadSource = Effect.Success<ReturnType<typeof prepareUploadSource>>;
 
 async function* readChunks(body: ReadableStream<Uint8Array>) {

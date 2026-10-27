@@ -149,6 +149,7 @@
       "packages/shared/src/serverSettings.test.ts": "100644 blob 52266534c696150f98d8dda2e4d941b780f16352",
       "packages/shared/src/serverSettings.ts": "100644 blob 8484b8c55ac7f8040a813bcd6f51f7a585edd25c",
       "packages/shared/src/t3McpToolPresentation.ts": "100644 blob e521a5baac7aa7a76ebcded5840f9a86b33a495b",
+      "packages/shared/src/themePalettes.ts": "100644 blob 87808eaac0454414a81a15ff50c8321660a059d3",
       "scripts/dev-runner.test.ts": "100644 blob 3930c01a169b8e780b7d4218cdcffb87a0817da7",
       "scripts/dev-runner.ts": "100644 blob 91b6887e18a07bb15361ffb58ed96bc4a824c1b1",
       "scripts/mobile-native-client.ts": "100644 blob f405af917b6027e41cfea80d342f61a67766764d",
