@@ -11,6 +11,8 @@ apps/server/src/auth/RpcAuthorization.ts
 apps/server/src/observability/RpcInstrumentation.ts
 apps/server/src/mcp/McpHttpServer.ts
 apps/server/src/os-jank.ts
+# Storage cleanup reads Git 2.56's message for a worktree whose gitfile points nowhere.
+apps/server/src/storageCleanup.ts
 
 # Shared: the typed client over the merged RPC group, module agent instructions, module commands
 packages/client-runtime/src/rpc/*.ts
@@ -33,8 +35,7 @@ apps/web/src/components/settings/SettingsSidebarNav.tsx
 # General page: `hidden` on the Code-only sections and rows a standalone app has no use for
 apps/web/src/components/settings/SettingsPanels.tsx
 apps/web/src/components/settings/ProjectDefaultsSettings.tsx
-apps/web/src/components/settings/KeybindingsSettings.tsx
-apps/web/src/components/settings/KeybindingsSettings.logic.ts
+apps/web/src/components/settings/KeybindingsSettings*
 apps/web/src/branding*.ts
 
 # Desktop identity, IPC and preload bridges from the app profile and modules
