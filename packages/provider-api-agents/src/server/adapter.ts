@@ -1,10 +1,7 @@
 /**
- * The orchestration adapter every API agent shares. A session owns one
- * provider thread; each turn runs its engine in the background and its events
- * become T3 messages, tool rows and approval requests. There is no process to
- * manage: a session is only state around HTTP calls.
- *
- * @module provider-api-agents/server/adapter
+ * The orchestration adapter every API agent shares: a session owns one provider thread, and each
+ * turn runs its engine in the background, turning its events into messages, tool rows and
+ * approval requests. There is no process to manage; a session is state around HTTP calls.
  */
 import {
   type ModelSelection,
@@ -152,16 +149,16 @@ export const makeApiAgentAdapter = Effect.fn("makeApiAgentAdapter")(function* (
       ),
       Effect.orElseSucceed((): ChatMessage[] => []),
     );
-  const saveHistory = (nativeThreadId: string, messages: ReadonlyArray<ChatMessage>) =>
-    Effect.gen(function* () {
+  const saveHistory = Effect.fn("ApiAgentAdapter.saveHistory")(
+    function* (nativeThreadId: string, messages: ReadonlyArray<ChatMessage>) {
       yield* fileSystem.makeDirectory(historyDir, { recursive: true });
       const target = historyFile(nativeThreadId);
       const temporary = `${target}.${yield* randomUuidV4}.tmp`;
       yield* fileSystem.writeFileString(temporary, yield* encodeJson(messages));
       yield* fileSystem.rename(temporary, target);
-    }).pipe(
-      Effect.catch((cause) => Effect.logWarning("Could not save the agent conversation", cause)),
-    );
+    },
+    Effect.catch((cause) => Effect.logWarning("Could not save the agent conversation", cause)),
+  );
   const mcpSessions = yield* McpProviderSessions.McpProviderSessions;
 
   const protocolError = (detail: string, cause?: unknown) =>
@@ -982,55 +979,53 @@ export const makeApiAgentAdapter = Effect.fn("makeApiAgentAdapter")(function* (
                 }),
             ),
           ),
-        steerTurn: (args) =>
-          Effect.gen(function* () {
-            const turn = active;
-            const steer = engine.steer;
-            if (!steer)
-              return yield* new ProviderAdapter.ProviderAdapterSteerRunUnsupportedError({
-                driver,
-                providerThreadId: args.providerThread.id,
-              });
-            if (!turn || turn.providerTurn.id !== args.providerTurnId)
-              return yield* new ProviderAdapter.ProviderAdapterSteerRunError({
-                driver,
-                providerThreadId: args.providerThread.id,
-                providerTurnId: args.providerTurnId,
-                cause: "The turn is no longer running.",
-              });
-            const accepted = yield* Effect.promise(() =>
-              steer(turn.nativeThreadId, args.message.text).catch(() => false),
-            );
-            if (!accepted)
-              return yield* new ProviderAdapter.ProviderAdapterSteerRunError({
-                driver,
-                providerThreadId: args.providerThread.id,
-                providerTurnId: args.providerTurnId,
-                cause: `${engine.displayName} did not accept the message.`,
-              });
-          }),
-        interruptTurn: (args) =>
-          Effect.gen(function* () {
-            const turn = active;
-            if (!turn || turn.providerTurn.id !== args.providerTurnId) return;
-            turn.interruptRequested = true;
-            yield* Effect.promise(() => engine.stop(turn.nativeThreadId).catch(() => {}));
-            turn.controller.abort();
-            yield* Deferred.await(turn.done).pipe(
-              Effect.timeout(INTERRUPT_TIMEOUT_MS),
-              Effect.mapError(
-                (cause) =>
-                  new ProviderAdapter.ProviderAdapterInterruptError({
-                    driver,
-                    providerThreadId: args.providerThread.id,
-                    providerTurnId: args.providerTurnId,
-                    cause,
-                  }),
-              ),
-            );
-          }),
-        respondToRuntimeRequest: (args) =>
-          Effect.gen(function* () {
+        steerTurn: Effect.fn("ApiAgentAdapter.steerTurn")(function* (args) {
+          const turn = active;
+          const steer = engine.steer;
+          if (!steer)
+            return yield* new ProviderAdapter.ProviderAdapterSteerRunUnsupportedError({
+              driver,
+              providerThreadId: args.providerThread.id,
+            });
+          if (!turn || turn.providerTurn.id !== args.providerTurnId)
+            return yield* new ProviderAdapter.ProviderAdapterSteerRunError({
+              driver,
+              providerThreadId: args.providerThread.id,
+              providerTurnId: args.providerTurnId,
+              cause: "The turn is no longer running.",
+            });
+          const accepted = yield* Effect.promise(() =>
+            steer(turn.nativeThreadId, args.message.text).catch(() => false),
+          );
+          if (!accepted)
+            return yield* new ProviderAdapter.ProviderAdapterSteerRunError({
+              driver,
+              providerThreadId: args.providerThread.id,
+              providerTurnId: args.providerTurnId,
+              cause: `${engine.displayName} did not accept the message.`,
+            });
+        }),
+        interruptTurn: Effect.fn("ApiAgentAdapter.interruptTurn")(function* (args) {
+          const turn = active;
+          if (!turn || turn.providerTurn.id !== args.providerTurnId) return;
+          turn.interruptRequested = true;
+          yield* Effect.promise(() => engine.stop(turn.nativeThreadId).catch(() => {}));
+          turn.controller.abort();
+          yield* Deferred.await(turn.done).pipe(
+            Effect.timeout(INTERRUPT_TIMEOUT_MS),
+            Effect.mapError(
+              (cause) =>
+                new ProviderAdapter.ProviderAdapterInterruptError({
+                  driver,
+                  providerThreadId: args.providerThread.id,
+                  providerTurnId: args.providerTurnId,
+                  cause,
+                }),
+            ),
+          );
+        }),
+        respondToRuntimeRequest: Effect.fn("ApiAgentAdapter.respondToRuntimeRequest")(
+          function* (args) {
             const entry = pending.get(args.requestId);
             if (!entry || !active) return yield* protocolError("This request is no longer pending");
             const choice = (Object.keys(APPROVAL_DECISIONS) as ApprovalChoice[]).find(
@@ -1050,16 +1045,19 @@ export const makeApiAgentAdapter = Effect.fn("makeApiAgentAdapter")(function* (
               catch: (cause) => protocolError("The agent did not take the answer", cause),
             }).pipe(Effect.tapError(() => Effect.sync(() => delete entry.decision)));
             yield* permit.withPermits(1)(resolveRequest(entry, "resolved"));
-          }).pipe(
-            Effect.mapError(
-              (cause) =>
-                new ProviderAdapter.ProviderAdapterRuntimeRequestResponseError({
-                  driver,
-                  requestId: args.requestId,
-                  cause,
-                }),
+          },
+          (effect, args) =>
+            effect.pipe(
+              Effect.mapError(
+                (cause) =>
+                  new ProviderAdapter.ProviderAdapterRuntimeRequestResponseError({
+                    driver,
+                    requestId: args.requestId,
+                    cause,
+                  }),
+              ),
             ),
-          ),
+        ),
         readThreadSnapshot: (args) =>
           Effect.succeed({
             providerThread: args.providerThread,
