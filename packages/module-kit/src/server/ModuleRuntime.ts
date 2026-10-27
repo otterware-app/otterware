@@ -1,11 +1,9 @@
 import { AgentInstructions } from "../agent-instructions/index.ts";
 // @effect-diagnostics anyUnknownInErrorContext:off unsafeEffectTypeAssertion:off -- Modules arrive type-erased (ServerModule); their layers and handlers run in the context they declared, which the composition typechecks.
 /**
- * Runs the modules of the active profile on this environment (ADR 0010). Each
- * module's layer is a scoped resource: turning the module on builds it in a
- * fresh scope and turning it off closes that scope, without restarting the
- * server. The on/off choice persists in `suite.sqlite`; a module whose layer
- * fails to build is `failed` until the user turns it on again.
+ * Module toggles open/close fresh layer scopes without restarting the server
+ * (ADR 0010). Choices persist in `suite.sqlite`; a layer that fails to build
+ * stays `failed` until the user turns it on again.
  */
 import * as Cause from "effect/Cause";
 import * as Context from "effect/Context";
@@ -85,177 +83,175 @@ interface Slot {
  * and handlers need; the composition derives it from the modules it lists, so
  * a module whose layer needs a service nobody provides fails the typecheck.
  */
-export const make = <R>(modules: ReadonlyArray<ServerModule>) =>
-  Effect.gen(function* () {
-    const store = yield* ModuleStateStore;
-    const suiteSql = yield* SuiteSqlClient;
-    const hostContributors = yield* Effect.serviceOption(HostHomeContributors);
-    const hostContext = yield* Effect.context<R>();
-    const runtimeScope = yield* Effect.scope;
-    const transitions = yield* Semaphore.make(1);
-    const changes = yield* PubSub.unbounded<ModuleStateEntry>();
-    const slots = new Map<string, Slot>(
-      modules.map((module) => [
-        module.contract.id,
-        { entry: { id: module.contract.id, state: "off" }, open: null },
-      ]),
-    );
+export const make = Effect.fn("ModuleRuntime.make")(function* <R>(
+  modules: ReadonlyArray<ServerModule>,
+) {
+  const store = yield* ModuleStateStore;
+  const suiteSql = yield* SuiteSqlClient;
+  const hostContributors = yield* Effect.serviceOption(HostHomeContributors);
+  const hostContext = yield* Effect.context<R>();
+  const runtimeScope = yield* Effect.scope;
+  const transitions = yield* Semaphore.make(1);
+  const changes = yield* PubSub.unbounded<ModuleStateEntry>();
+  const slots = new Map<string, Slot>(
+    modules.map((module) => [
+      module.contract.id,
+      { entry: { id: module.contract.id, state: "off" }, open: null },
+    ]),
+  );
 
-    const moduleById = (id: string) => modules.find((module) => module.contract.id === id);
+  const moduleById = (id: string) => modules.find((module) => module.contract.id === id);
 
-    const contributors: HomeContributors["Service"] = {
-      current: Effect.sync(() => [
-        ...Option.getOrElse(hostContributors, () => []),
-        ...[...slots.values()].flatMap((slot) =>
-          slot.open?.homeContributor ? [slot.open.homeContributor] : [],
-        ),
-      ]),
-    };
-
-    const instructionService = yield* AgentInstructions;
-    const agentInstructionsSnapshot = () =>
-      modules
-        .filter((module) => slots.get(module.contract.id)?.entry.state === "on")
-        .map((module) => module.agentInstructions?.trim() ?? "")
-        .filter((text) => text.length > 0)
-        .join("\n\n");
-    const agentInstructions = Effect.sync(agentInstructionsSnapshot);
-
-    // The base context every module builds in: the host's services, the suite
-    // database as the plain SqlClient, and the live contributor list for Home.
-    const baseContext = Context.add(
-      Context.add(hostContext as Context.Context<never>, SqlClient.SqlClient, suiteSql),
-      HomeContributors,
-      contributors,
-    );
-
-    const announce = (entry: ModuleStateEntry) =>
-      Effect.gen(function* () {
-        slots.get(entry.id)!.entry = entry;
-        instructionService.update(agentInstructionsSnapshot());
-        yield* PubSub.publish(changes, entry);
-      });
-
-    const start = (module: ServerModule) =>
-      Effect.gen(function* () {
-        const id = module.contract.id;
-        const scope = yield* Scope.fork(runtimeScope);
-        const build = Effect.gen(function* () {
-          const services =
-            module.layer === undefined
-              ? Context.empty()
-              : yield* Layer.buildWithScope(module.layer, scope);
-          const context = Context.merge(baseContext, services);
-          // The module declared what its handlers need; `context` carries it.
-          const provided = <A, E, X>(effect: Effect.Effect<A, E, X>) =>
-            Effect.provide(effect, context) as Effect.Effect<A, E>;
-          const rpcHandlers =
-            module.rpcHandlers === undefined ? {} : yield* provided(module.rpcHandlers);
-          const toolHandlers =
-            module.tools === undefined
-              ? {}
-              : Effect.isEffect(module.tools.handlers)
-                ? yield* provided(module.tools.handlers)
-                : module.tools.handlers;
-          const homeContributor =
-            module.homeContributor === undefined ? null : yield* provided(module.homeContributor);
-          return {
-            rpcHandlers: rpcHandlers as OpenModule["rpcHandlers"],
-            toolHandlers: toolHandlers as OpenModule["toolHandlers"],
-            homeContributor,
-            context,
-            scope,
-          };
-        }).pipe(Effect.provide(baseContext)) as unknown as Effect.Effect<
-          OpenModule & { readonly scope: Scope.Closeable },
-          unknown
-        >;
-        const exit = yield* Effect.exit(build);
-        if (Exit.isFailure(exit)) {
-          yield* Scope.close(scope, exit);
-          yield* Effect.logError("Module failed to start", { module: id, cause: exit.cause });
-          const entry: ModuleStateEntry = {
-            id,
-            state: "failed",
-            failure: describeFailure(exit.cause),
-          };
-          yield* announce(entry);
-          return entry;
-        }
-        slots.get(id)!.open = exit.value;
-        const entry: ModuleStateEntry = { id, state: "on" };
-        yield* announce(entry);
-        yield* Effect.logInfo("Module started", { module: id });
-        return entry;
-      }).pipe(Effect.withSpan("ModuleRuntime.start"));
-
-    const stop = (module: ServerModule) =>
-      Effect.gen(function* () {
-        const id = module.contract.id;
-        const slot = slots.get(id)!;
-        if (slot.open !== null) {
-          const { scope } = slot.open;
-          slot.open = null;
-          yield* Scope.close(scope, Exit.succeed(undefined));
-        }
-        const entry: ModuleStateEntry = { id, state: "off" };
-        yield* announce(entry);
-        yield* Effect.logInfo("Module stopped", { module: id });
-        return entry;
-      }).pipe(Effect.withSpan("ModuleRuntime.stop"));
-
-    const state = (id: string) =>
-      Effect.suspend(() => {
-        const slot = slots.get(id);
-        return slot === undefined
-          ? Effect.fail(new ModuleNotInstalledError({ module: id }))
-          : Effect.succeed(slot.entry);
-      });
-
-    const setEnabled: ModuleRuntime["Service"]["setEnabled"] = (id, enabled) =>
-      transitions.withPermits(1)(
-        Effect.gen(function* () {
-          const module = moduleById(id);
-          if (module === undefined) return yield* new ModuleNotInstalledError({ module: id });
-          const current = slots.get(id)!;
-          yield* store
-            .setEnabled(id, enabled)
-            .pipe(
-              Effect.mapError(
-                (cause) => new ModuleStateError({ module: id, operation: "persist", cause }),
-              ),
-            );
-          if (enabled && current.entry.state !== "on") return yield* start(module);
-          if (!enabled && current.entry.state !== "off") return yield* stop(module);
-          return current.entry;
-        }),
-      );
-
-    // Startup: every module the user has not turned off, in profile order.
-    const disabled = yield* store.disabled.pipe(
-      Effect.catchCause((cause) =>
-        Effect.logWarning("Could not read module states; starting every module", { cause }).pipe(
-          Effect.as(new Set<string>()),
-        ),
+  const contributors: HomeContributors["Service"] = {
+    current: Effect.sync(() => [
+      ...Option.getOrElse(hostContributors, () => []),
+      ...[...slots.values()].flatMap((slot) =>
+        slot.open?.homeContributor ? [slot.open.homeContributor] : [],
       ),
-    );
-    yield* transitions.withPermits(1)(
-      Effect.forEach(modules, (module) =>
-        disabled.has(module.contract.id) ? Effect.void : Effect.asVoid(start(module)),
-      ),
-    );
+    ]),
+  };
 
-    return Context.make(ModuleRuntime, {
-      modules,
-      list: Effect.sync(() => [...slots.values()].map((slot) => slot.entry)),
-      state,
-      isOnSync: (id) => slots.get(id)?.entry.state === "on",
-      setEnabled,
-      changes: Stream.fromPubSub(changes),
-      openModule: (id) => Effect.sync(() => Option.fromNullishOr(slots.get(id)?.open)),
-      agentInstructions,
-    }).pipe(Context.add(HomeContributors, contributors));
+  const instructionService = yield* AgentInstructions;
+  const agentInstructionsSnapshot = () =>
+    modules
+      .filter((module) => slots.get(module.contract.id)?.entry.state === "on")
+      .map((module) => module.agentInstructions?.trim() ?? "")
+      .filter((text) => text.length > 0)
+      .join("\n\n");
+  const agentInstructions = Effect.sync(agentInstructionsSnapshot);
+
+  // The base context every module builds in: the host's services, the suite
+  // database as the plain SqlClient, and the live contributor list for Home.
+  const baseContext = Context.add(
+    Context.add(hostContext as Context.Context<never>, SqlClient.SqlClient, suiteSql),
+    HomeContributors,
+    contributors,
+  );
+
+  const announce = Effect.fn("ModuleRuntime.announce")(function* (entry: ModuleStateEntry) {
+    slots.get(entry.id)!.entry = entry;
+    instructionService.update(agentInstructionsSnapshot());
+    yield* PubSub.publish(changes, entry);
   });
+
+  const start = Effect.fn("ModuleRuntime.start")(function* (module: ServerModule) {
+    const id = module.contract.id;
+    const scope = yield* Scope.fork(runtimeScope);
+    const build = Effect.gen(function* () {
+      const services =
+        module.layer === undefined
+          ? Context.empty()
+          : yield* Layer.buildWithScope(module.layer, scope);
+      const context = Context.merge(baseContext, services);
+      // The module declared what its handlers need; `context` carries it.
+      const provided = <A, E, X>(effect: Effect.Effect<A, E, X>) =>
+        Effect.provide(effect, context) as Effect.Effect<A, E>;
+      const rpcHandlers =
+        module.rpcHandlers === undefined ? {} : yield* provided(module.rpcHandlers);
+      const toolHandlers =
+        module.tools === undefined
+          ? {}
+          : Effect.isEffect(module.tools.handlers)
+            ? yield* provided(module.tools.handlers)
+            : module.tools.handlers;
+      const homeContributor =
+        module.homeContributor === undefined ? null : yield* provided(module.homeContributor);
+      return {
+        rpcHandlers: rpcHandlers as OpenModule["rpcHandlers"],
+        toolHandlers: toolHandlers as OpenModule["toolHandlers"],
+        homeContributor,
+        context,
+        scope,
+      };
+    }).pipe(Effect.provide(baseContext)) as unknown as Effect.Effect<
+      OpenModule & { readonly scope: Scope.Closeable },
+      unknown
+    >;
+    const exit = yield* Effect.exit(build);
+    if (Exit.isFailure(exit)) {
+      yield* Scope.close(scope, exit);
+      yield* Effect.logError("Module failed to start", { module: id, cause: exit.cause });
+      const entry: ModuleStateEntry = {
+        id,
+        state: "failed",
+        failure: describeFailure(exit.cause),
+      };
+      yield* announce(entry);
+      return entry;
+    }
+    slots.get(id)!.open = exit.value;
+    const entry: ModuleStateEntry = { id, state: "on" };
+    yield* announce(entry);
+    yield* Effect.logInfo("Module started", { module: id });
+    return entry;
+  });
+
+  const stop = Effect.fn("ModuleRuntime.stop")(function* (module: ServerModule) {
+    const id = module.contract.id;
+    const slot = slots.get(id)!;
+    if (slot.open !== null) {
+      const { scope } = slot.open;
+      slot.open = null;
+      yield* Scope.close(scope, Exit.succeed(undefined));
+    }
+    const entry: ModuleStateEntry = { id, state: "off" };
+    yield* announce(entry);
+    yield* Effect.logInfo("Module stopped", { module: id });
+    return entry;
+  });
+
+  const state = (id: string) =>
+    Effect.suspend(() => {
+      const slot = slots.get(id);
+      return slot === undefined
+        ? Effect.fail(new ModuleNotInstalledError({ module: id }))
+        : Effect.succeed(slot.entry);
+    });
+
+  const setEnabled: ModuleRuntime["Service"]["setEnabled"] = (id, enabled) =>
+    transitions.withPermits(1)(
+      Effect.gen(function* () {
+        const module = moduleById(id);
+        if (module === undefined) return yield* new ModuleNotInstalledError({ module: id });
+        const current = slots.get(id)!;
+        yield* store
+          .setEnabled(id, enabled)
+          .pipe(
+            Effect.mapError(
+              (cause) => new ModuleStateError({ module: id, operation: "persist", cause }),
+            ),
+          );
+        if (enabled && current.entry.state !== "on") return yield* start(module);
+        if (!enabled && current.entry.state !== "off") return yield* stop(module);
+        return current.entry;
+      }),
+    );
+
+  // Startup: every module the user has not turned off, in profile order.
+  const disabled = yield* store.disabled.pipe(
+    Effect.catchCause((cause) =>
+      Effect.logWarning("Could not read module states; starting every module", { cause }).pipe(
+        Effect.as(new Set<string>()),
+      ),
+    ),
+  );
+  yield* transitions.withPermits(1)(
+    Effect.forEach(modules, (module) =>
+      disabled.has(module.contract.id) ? Effect.void : Effect.asVoid(start(module)),
+    ),
+  );
+
+  return Context.make(ModuleRuntime, {
+    modules,
+    list: Effect.sync(() => [...slots.values()].map((slot) => slot.entry)),
+    state,
+    isOnSync: (id) => slots.get(id)?.entry.state === "on",
+    setEnabled,
+    changes: Stream.fromPubSub(changes),
+    openModule: (id) => Effect.sync(() => Option.fromNullishOr(slots.get(id)?.open)),
+    agentInstructions,
+  }).pipe(Context.add(HomeContributors, contributors));
+});
 
 /** Starts the modules the user left on; closes every module with the server. */
 export const layer = <R = never>(

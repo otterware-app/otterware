@@ -1,14 +1,9 @@
 // @effect-diagnostics globalFetch:off globalTimers:off globalDate:off nodeBuiltinImport:off -- Promise-based provider port for module workers; the layer scope closes it.
 /**
- * Google on this device: one consent (Mail, Calendar and contacts) per environment, with the
- * refresh token kept in this environment's secret store. It never reaches Otter Cloud and does
- * not follow the account to other devices; each device connects Google itself.
- *
- * The client is a Google "Desktop app" OAuth client: `T3CODE_GOOGLE_CLIENT_ID`/`_SECRET` when
- * set, otherwise the one baked into the build (the same values Calendar's local sign-in reads).
- * Google treats a desktop client's secret as not confidential. Its loopback redirect runs here.
- *
- * @module DeviceGoogle
+ * One Google consent per device covers Mail, Calendar and contacts; refresh tokens
+ * stay in its secret store, never in Otter Cloud or on another device.
+ * Uses the configured or built-in desktop OAuth client with a local loopback redirect;
+ * Google treats its client secret as public.
  */
 import * as NodeCrypto from "node:crypto";
 import * as NodeFSP from "node:fs/promises";
@@ -41,6 +36,7 @@ interface TokenResponse {
 
 export const make = Effect.gen(function* () {
   const secrets = yield* ServerSecretStore;
+  const runPromise = Effect.runPromiseWith(yield* Effect.context<never>());
   const configured = yield* Config.all({
     clientId: Config.String("T3CODE_GOOGLE_CLIENT_ID").pipe(Config.withDefault("")),
     clientSecret: Config.String("T3CODE_GOOGLE_CLIENT_SECRET").pipe(Config.withDefault("")),
@@ -61,7 +57,7 @@ export const make = Effect.gen(function* () {
   const access = new Map<string, { accessToken: string; expiresAt: number }>();
   let cancel: (() => void) | undefined;
   const read = async (): Promise<Record<string, Grant>> => {
-    const saved = await Effect.runPromise(secrets.get(SECRET));
+    const saved = await runPromise(secrets.get(SECRET));
     if (Option.isNone(saved)) return {};
     try {
       return JSON.parse(new TextDecoder().decode(saved.value)) as Record<string, Grant>;
@@ -70,8 +66,9 @@ export const make = Effect.gen(function* () {
     }
   };
   const write = (grants: Record<string, Grant>) =>
-    Effect.runPromise(secrets.set(SECRET, new TextEncoder().encode(JSON.stringify(grants))));
+    runPromise(secrets.set(SECRET, new TextEncoder().encode(JSON.stringify(grants))));
   const changed = () => {
+    // oxlint-disable-next-line unicorn/no-useless-spread -- Snapshot listeners because callbacks may add or remove listeners during dispatch.
     for (const listener of [...listeners]) listener();
   };
   const exchange = async (body: Record<string, string>): Promise<TokenResponse> => {
@@ -120,11 +117,9 @@ export const make = Effect.gen(function* () {
     changed();
   };
   /**
-   * Calendar's own Google sign-ins from before Google accounts were linked to the Otter Account
-   * become this device's grants, so they are linked and Mail can ask to use them. They keep
-   * their Calendar-only scopes until the user allows Mail access. `updatedAt` 0 keeps an account
-   * unlinked if it was unlinked on another device. Calendar drops its copy once it moves the
-   * account over (`upsertGoogleAccount`).
+   * Adopt Calendar sign-ins with their existing scopes until the user allows Mail access.
+   * `updatedAt` 0 preserves unlinking on another device; Calendar drops its copy
+   * after transferring the account (`upsertGoogleAccount`).
    */
   const adoptCalendarSignIns = async () => {
     const names = (await NodeFSP.readdir(secrets.directory ?? "").catch(() => []))
@@ -135,7 +130,7 @@ export const make = Effect.gen(function* () {
     const known = new Set(Object.values(grants).map((grant) => grant.email.toLowerCase()));
     let adopted = false;
     for (const name of names) {
-      const saved = await Effect.runPromise(secrets.get(name)).catch(() => Option.none());
+      const saved = await runPromise(secrets.get(name)).catch(() => Option.none());
       if (Option.isNone(saved)) continue;
       let stored: { clientId?: string; refreshToken?: string; scopes?: string[] };
       try {

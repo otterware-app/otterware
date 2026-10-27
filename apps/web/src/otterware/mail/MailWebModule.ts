@@ -59,7 +59,7 @@ export const MailWebModule = createMailWebModule({
       component: lazy(() =>
         import("./MailSettings").then((m) => ({ default: m.IntegrationsSettings })),
       ),
-      placement: { grouped: "integrations", standalone: "integrations" },
+      placement: { grouped: "page", standalone: "page" },
       searchTerms: ["todoist", "tasks"],
       rows: [{ id: "todoist", title: "Todoist" }],
     },

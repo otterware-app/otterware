@@ -378,7 +378,7 @@ export const SYNARA_THEME: ThemeDefinition = {
 };
 
 /** ChatGPT's neutral grays, with its blue for focus and accents. */
-export const CHATGPT_THEME: ThemeDefinition = {
+const CHATGPT_THEME: ThemeDefinition = {
   id: "chatgpt",
   label: "ChatGPT",
   appearance: "dark",

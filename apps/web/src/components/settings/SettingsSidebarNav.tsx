@@ -10,21 +10,28 @@ import {
 import {
   ArchiveIcon,
   FlaskConicalIcon,
-  BlocksIcon,
   BotIcon,
   createLucideIcon,
   CalendarClockIcon,
   BracesIcon,
+  FileDiffIcon,
+  FolderTreeIcon,
   GitBranchIcon,
-  HardDriveIcon,
+  GlobeIcon,
+  InfoIcon,
+  MessageSquareTextIcon,
+  MessagesSquareIcon,
   PanelsTopLeftIcon,
   KeyboardIcon,
   LayersIcon,
-  Link2Icon,
   PaletteIcon,
   PuzzleIcon,
   SearchIcon,
+  ServerIcon,
   Settings2Icon,
+  ShieldCheckIcon,
+  SmartphoneIcon,
+  WrenchIcon,
   XIcon,
 } from "lucide-react";
 import { useLocation, useNavigate } from "@tanstack/react-router";
@@ -44,7 +51,7 @@ import {
 import { scrollToSettingsTarget } from "./settingsLayout";
 import {
   searchSettings,
-  isSettingsOverviewVisible,
+  SETTINGS_NAV_GROUPS,
   SETTINGS_SECTION_LABELS,
   type SettingsPath,
   type SettingsSearchItem,
@@ -91,22 +98,35 @@ const SETTINGS_SECTION_ICONS: Readonly<
 > = {
   ...OTTERWARE_SETTINGS_SECTION_ICONS,
   "/settings/general": Settings2Icon,
-  "/settings/diagnostics": Settings2Icon,
+  "/settings/diagnostics": WrenchIcon,
   "/settings/appearance": PaletteIcon,
+  "/settings/chat": MessageSquareTextIcon,
+  "/settings/diffs": FileDiffIcon,
   "/settings/projects": PanelsTopLeftIcon,
   "/settings/project-groups": LayersIcon,
   "/settings/keybindings": KeyboardIcon,
   "/settings/snap-shot": SnapShotIcon,
   "/settings/providers": BotIcon,
-  "/settings/integrations": BlocksIcon,
+  "/settings/threads": MessagesSquareIcon,
+  "/settings/browser": GlobeIcon,
   "/settings/extensions": PuzzleIcon,
+  "/settings/devices": SmartphoneIcon,
   "/settings/scheduled-tasks": CalendarClockIcon,
   "/settings/source-control": GitBranchIcon,
   "/settings/code-intelligence": BracesIcon,
-  "/settings/storage": HardDriveIcon,
-  "/settings/connections": Link2Icon,
-  "/settings/beta": FlaskConicalIcon,
+  "/settings/worktrees": FolderTreeIcon,
+  "/settings/connections": ServerIcon,
+  "/settings/access": ShieldCheckIcon,
+  "/settings/maintenance": WrenchIcon,
+  "/settings/labs": FlaskConicalIcon,
+  "/settings/about": InfoIcon,
   "/settings/archived": ArchiveIcon,
+};
+
+// Detail pages without a nav entry highlight the page that links to them.
+const SETTINGS_DETAIL_PAGE_PARENTS: Readonly<Record<string, SettingsPath>> = {
+  "/settings/diagnostics": "/settings/maintenance",
+  "/settings/open-source-licenses": "/settings/about",
 };
 
 interface SettingsNavItem {
@@ -117,9 +137,7 @@ interface SettingsNavItem {
   keybindingsApp?: string;
 }
 
-const UPSTREAM_SETTINGS_ORDER = (Object.keys(SETTINGS_SECTION_LABELS) as SettingsPath[]).filter(
-  (to) => to !== "/settings/diagnostics",
-);
+const UPSTREAM_SETTINGS_ORDER = SETTINGS_NAV_GROUPS.flatMap((group) => group.paths);
 
 const navItem = (to: SettingsPath): SettingsNavItem => ({
   to,
@@ -159,9 +177,8 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   const navGroups = useSettingsNavGroups();
   const keybindingsChip = useKeybindingsChip();
   const isNavItemVisible = (item: SettingsNavItem) =>
-    (item.to !== "/settings/projects" || isSettingsOverviewVisible(scopeSearch)) &&
     // Browser extensions run in the desktop app's browser only.
-    (item.to !== "/settings/extensions" || window.desktopBridge?.previewExtensions);
+    item.to !== "/settings/extensions" || window.desktopBridge?.previewExtensions;
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [query, setQuery] = useState("");
   // Below md the nav is an icon rail; searching expands it over the page.
@@ -404,9 +421,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                     ) : null}
                     {group.items.filter(isNavItemVisible).map((item) => {
                       const Icon = item.icon;
-                      const isGeneralDetailPage =
-                        item.to === "/settings/general" &&
-                        pathname === "/settings/open-source-licenses";
+                      const activePath = SETTINGS_DETAIL_PAGE_PARENTS[pathname] ?? pathname;
                       // A module group's Keybindings link lights up only with its chip.
                       const chipMatches =
                         item.to !== "/settings/keybindings" ||
@@ -414,9 +429,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
                         (item.keybindingsApp === undefined &&
                           !navGroups.some((entry) => entry.keybindingsApp === keybindingsChip));
                       const isActive =
-                        (isGeneralDetailPage ||
-                          pathname === item.to ||
-                          pathname.startsWith(`${item.to}/`)) &&
+                        (activePath === item.to || activePath.startsWith(`${item.to}/`)) &&
                         chipMatches;
                       return (
                         <SidebarMenuItem key={`${item.to}:${item.keybindingsApp ?? ""}`}>

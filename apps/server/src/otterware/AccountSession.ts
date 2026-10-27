@@ -34,11 +34,9 @@ const signedOut: EnvironmentLogin = {
 };
 
 /**
- * The environment's Otter Account, which every module and Home use. A desktop app's built-in
- * environment uses the account the app is signed in to (`appLogin`): same machine, same person,
- * no separate sign-in. Any other environment signs in itself (the login Code's relay link uses),
- * kept and renewed in the server secret store, and keeps working when a client signs out.
- * Provider grants are separate: Google is connected on this device only (`DeviceGoogle`).
+ * Desktop environments share the app's login; other environments keep their own
+ * renewable login in the server secret store, independent of client sign-out.
+ * Google grants stay on this device (`DeviceGoogle`), separate from the account.
  */
 export const layer = Layer.effect(
   OtterAccountSession,
@@ -54,8 +52,9 @@ export const layer = Layer.effect(
     const cloudOrigin = yield* Config.String("OTTERWARE_CLOUD_ORIGIN").pipe(
       Config.withDefault("https://cloud.otterware.app"),
     );
+    const runPromise = Effect.runPromiseWith(yield* Effect.context<never>());
     const run = <A, E>(effect: Effect.Effect<A, E, HttpClient.HttpClient>) =>
-      Effect.runPromise(Effect.provideService(effect, HttpClient.HttpClient, http));
+      runPromise(Effect.provideService(effect, HttpClient.HttpClient, http));
     let signingIn: Fiber.Fiber<unknown, unknown> | null = null;
     const ownLogin: EnvironmentLogin = Option.match(tokens, {
       onNone: () => signedOut,
@@ -69,7 +68,7 @@ export const layer = Layer.effect(
             Effect.gen(function* () {
               const shown = yield* Deferred.make<DeviceAuthorizationPrompt>();
               if (signingIn) yield* Fiber.interrupt(signingIn);
-              const fiber = Effect.runFork(
+              const fiber = yield* Effect.forkDetach(
                 Effect.provideService(
                   deviceAuthorizationLogin((prompt) => Deferred.succeed(shown, prompt)).pipe(
                     Effect.flatMap(({ token }) => manager.store(token)),

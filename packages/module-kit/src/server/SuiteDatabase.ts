@@ -17,13 +17,12 @@ export { layerSqlClient, SuiteSqlClient } from "./SuiteSqlClient.ts";
 
 export const SUITE_DATABASE_FILENAME = "suite.sqlite";
 
-const configure = (sql: SqlClient.SqlClient) =>
-  Effect.gen(function* () {
-    yield* sql`PRAGMA busy_timeout = 5000;`;
-    yield* sql`PRAGMA foreign_keys = ON;`;
-    yield* sql`PRAGMA journal_mode = WAL;`;
-    return sql;
-  });
+const configure = Effect.fn("SuiteDatabase.configure")(function* (sql: SqlClient.SqlClient) {
+  yield* sql`PRAGMA busy_timeout = 5000;`;
+  yield* sql`PRAGMA foreign_keys = ON;`;
+  yield* sql`PRAGMA journal_mode = WAL;`;
+  return sql;
+});
 
 const layerFromClient = <E, R>(client: Layer.Layer<SqlClient.SqlClient, E, R>) =>
   Layer.effect(SuiteSqlClient, Effect.flatMap(SqlClient.SqlClient, configure)).pipe(

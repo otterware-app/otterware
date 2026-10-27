@@ -91,22 +91,24 @@ export const make = Effect.gen(function* () {
       try: checkAvailability,
       catch: (cause) => new ElectronSafeStorageAvailabilityError({ cause }),
     }),
-    encryptString: (value) =>
-      Effect.try({
+    encryptString: Effect.fn("ElectronSafeStorage.encryptString")(function (value) {
+      return Effect.try({
         try: () => {
           guardDevelopmentKeychain();
           return Electron.safeStorage.encryptString(value);
         },
         catch: (cause) => new ElectronSafeStorageEncryptError({ cause }),
-      }),
-    decryptString: (value) =>
-      Effect.try({
+      });
+    }),
+    decryptString: Effect.fn("ElectronSafeStorage.decryptString")(function (value) {
+      return Effect.try({
         try: () => {
           guardDevelopmentKeychain();
           return Electron.safeStorage.decryptString(Buffer.from(value));
         },
         catch: (cause) => new ElectronSafeStorageDecryptError({ cause }),
-      }),
+      });
+    }),
     selectedStorageBackend: Effect.sync(() => {
       if (platform !== "linux") {
         return Option.none();

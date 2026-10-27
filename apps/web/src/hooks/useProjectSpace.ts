@@ -2,6 +2,7 @@ import {
   AuthSettingsWriteScope,
   type EnvironmentId,
   type ProjectGroupSetting,
+  type ServerConfig,
 } from "@t3tools/contracts";
 import { useEffect } from "react";
 
@@ -16,20 +17,29 @@ import {
   resolveProjectSpace,
   type ProjectSpaceProject,
 } from "../projectSpaces";
-import { useEnvironments, usePrimaryEnvironmentId } from "../state/environments";
+import { appAtomRegistry } from "../rpc/atomRegistry";
+import {
+  readPrimaryEnvironmentId,
+  useEnvironments,
+  usePrimaryEnvironmentId,
+} from "../state/environments";
+import { environmentPresentations } from "../state/presentation";
 import { useEnvironmentScope } from "../state/session";
 import { useUiStateStore } from "../uiStateStore";
-import { useClientSettings, useUpdateEnvironmentSettings } from "./useSettings";
+import { getClientSettings, useClientSettings, useUpdateEnvironmentSettings } from "./useSettings";
 
 const NO_GROUPS: ReadonlyArray<ProjectGroupSetting> = [];
 
+interface ProjectSpaceEnvironment {
+  readonly environmentId: EnvironmentId;
+  readonly serverConfig?: Pick<ServerConfig, "settings" | "scratchWorkspaceRoot"> | null;
+}
+
 /** Shared Spaces come from the primary environment, or the first available hosted connection. */
-export function useProjectGroups(): {
-  readonly groups: ReadonlyArray<ProjectGroupSetting>;
-  readonly sourceEnvironmentId: EnvironmentId | null;
-} {
-  const { environments } = useEnvironments();
-  const primaryEnvironmentId = usePrimaryEnvironmentId();
+function projectGroupsFrom(
+  environments: ReadonlyArray<ProjectSpaceEnvironment>,
+  primaryEnvironmentId: EnvironmentId | null,
+) {
   const source =
     environments.find(
       (environment) =>
@@ -39,6 +49,14 @@ export function useProjectGroups(): {
     groups: source?.serverConfig?.settings.railProjectGroups ?? NO_GROUPS,
     sourceEnvironmentId: source?.environmentId ?? null,
   };
+}
+
+export function useProjectGroups(): {
+  readonly groups: ReadonlyArray<ProjectGroupSetting>;
+  readonly sourceEnvironmentId: EnvironmentId | null;
+} {
+  const { environments } = useEnvironments();
+  return projectGroupsFrom(environments, usePrimaryEnvironmentId());
 }
 
 export function useProjectSpaceActions() {
@@ -52,6 +70,29 @@ export function useProjectSpaceActions() {
   return { groups, canEdit, saveSpaces, moveProject };
 }
 
+function activeProjectSpace(input: {
+  readonly storedSpaceId: string | null;
+  readonly environments: ReadonlyArray<ProjectSpaceEnvironment>;
+  readonly primaryEnvironmentId: EnvironmentId | null;
+  readonly groupingSettings: ReturnType<typeof selectProjectGroupingSettings>;
+}) {
+  const { groups } = projectGroupsFrom(input.environments, input.primaryEnvironmentId);
+  // Configured roots keep disconnected environments' no-project chats in their scope.
+  const scratchWorkspaceRootFor = (environmentId: EnvironmentId) =>
+    input.environments.find((environment) => environment.environmentId === environmentId)
+      ?.serverConfig?.scratchWorkspaceRoot ?? null;
+  const space = resolveProjectSpace(input.storedSpaceId, groups);
+  return {
+    space,
+    projectFilter: projectSpaceFilter({
+      space,
+      groups,
+      groupingSettings: input.groupingSettings,
+      scratchWorkspaceRootFor,
+    }),
+  };
+}
+
 export function useActiveProjectSpace() {
   const storedSpaceId = useUiStateStore((store) => store.sidebarProjectSpaceId);
   // oxlint-disable-next-line t3code/react-effect-budget -- Migrates a stored legacy space ID once.
@@ -62,18 +103,25 @@ export function useActiveProjectSpace() {
     )
       useUiStateStore.getState().setSidebarProjectSpaceId(null);
   }, [storedSpaceId]);
-  const { groups } = useProjectGroups();
-  const groupingSettings = useClientSettings(selectProjectGroupingSettings);
   const { environments } = useEnvironments();
-  // Configured roots keep disconnected environments' no-project chats in their scope.
-  const scratchWorkspaceRootFor = (environmentId: EnvironmentId) =>
-    environments.find((environment) => environment.environmentId === environmentId)?.serverConfig
-      ?.scratchWorkspaceRoot ?? null;
-  const space = resolveProjectSpace(storedSpaceId, groups);
-  return {
-    space,
-    projectFilter: projectSpaceFilter({ space, groups, groupingSettings, scratchWorkspaceRootFor }),
-  };
+  return activeProjectSpace({
+    storedSpaceId,
+    environments,
+    primaryEnvironmentId: usePrimaryEnvironmentId(),
+    groupingSettings: useClientSettings(selectProjectGroupingSettings),
+  });
+}
+
+/** The rail's space read at call time, for handlers outside React. */
+export function readActiveProjectSpace() {
+  return activeProjectSpace({
+    storedSpaceId: useUiStateStore.getState().sidebarProjectSpaceId,
+    environments: [...appAtomRegistry.get(environmentPresentations.presentationsAtom)].map(
+      ([environmentId, presentation]) => ({ ...presentation, environmentId }),
+    ),
+    primaryEnvironmentId: readPrimaryEnvironmentId(),
+    groupingSettings: selectProjectGroupingSettings(getClientSettings()),
+  });
 }
 
 export function useSelectProjectSpace() {

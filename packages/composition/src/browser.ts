@@ -34,11 +34,10 @@ export class BrowserAccountCredential extends Context.Service<
   }
 >()("@otterware/composition/browser/BrowserAccountCredential") {}
 
-const credential = (purpose: string) =>
-  Effect.gen(function* () {
-    const account = yield* BrowserAccountCredential;
-    return yield* account.read(purpose);
-  });
+const credential = Effect.fn("BrowserAccountCredential.credential")(function* (purpose: string) {
+  const account = yield* BrowserAccountCredential;
+  return yield* account.read(purpose);
+});
 
 /** Calendar on account-held Google connections; the browser has no local sign-in. */
 const BrowserCalendarModule = makeCalendarModule(

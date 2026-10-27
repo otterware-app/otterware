@@ -11,8 +11,12 @@ export const driveNodeModule = () =>
       Effect.gen(function* () {
         const fetcher = yield* FetchHttpClient.Fetch;
         return {
-          prepare: (input) =>
-            prepareUploadSource(input).pipe(Effect.provideService(FetchHttpClient.Fetch, fetcher)),
+          prepare: Effect.fn("DriveUploadSources.prepare")(
+            function* (input) {
+              return yield* prepareUploadSource(input);
+            },
+            Effect.provideService(FetchHttpClient.Fetch, fetcher),
+          ),
         };
       }),
     ),
