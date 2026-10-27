@@ -3509,6 +3509,7 @@ export default function ChatView(props: ChatViewProps) {
                   >
                     <ComposerSurface.Shell
                       contextStrip={showComposerContextStrip || showComposerModelStrip}
+                      contextPlacement={isDraftHeroState ? "above" : "below"}
                     >
                       <ComposerSurface.Host
                         inert={queuedRunEdit.isSaving}
@@ -3705,12 +3706,7 @@ export default function ChatView(props: ChatViewProps) {
                           )}
                         </div>
                       </ComposerSurface.Host>
-                      <div
-                        className={cn(
-                          "min-h-0",
-                          isDraftHeroState ? "order-first mb-1" : "order-last",
-                        )}
-                      >
+                      <div className={cn("min-h-0", isDraftHeroState && "order-first")}>
                         <div
                           data-terminal-open={terminalUiState.terminalOpen ? "true" : undefined}
                           className="relative z-0"

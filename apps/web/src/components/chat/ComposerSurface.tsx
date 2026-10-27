@@ -2,15 +2,26 @@ import type { ComponentProps } from "react";
 
 import { cn } from "~/lib/utils";
 
+// The glass outline around the composer and its context drawer: the drawer is
+// inset from the composer's edges and extends past them by the context extension.
+const drawerBelowClipPath =
+  "before:[clip-path:shape(from_0_16px,curve_to_16px_0_with_0_7.16px/7.16px_0,line_to_calc(100%-16px)_0,curve_to_100%_16px_with_calc(100%-7.16px)_0/100%_7.16px,line_to_100%_calc(100%-var(--chat-composer-context-extension)-16px),curve_to_calc(100%-16px)_calc(100%-var(--chat-composer-context-extension))_with_100%_calc(100%-var(--chat-composer-context-extension)-7.16px)/calc(100%-7.16px)_calc(100%-var(--chat-composer-context-extension)),line_to_calc(100%-var(--chat-composer-drawer-inset))_calc(100%-var(--chat-composer-context-extension)),line_to_calc(100%-var(--chat-composer-drawer-inset))_calc(100%-16px),curve_to_calc(100%-var(--chat-composer-drawer-inset)-16px)_100%_with_calc(100%-var(--chat-composer-drawer-inset))_calc(100%-7.16px)/calc(100%-var(--chat-composer-drawer-inset)-7.16px)_100%,line_to_calc(var(--chat-composer-drawer-inset)+16px)_100%,curve_to_var(--chat-composer-drawer-inset)_calc(100%-16px)_with_calc(var(--chat-composer-drawer-inset)+7.16px)_100%/var(--chat-composer-drawer-inset)_calc(100%-7.16px),line_to_var(--chat-composer-drawer-inset)_calc(100%-var(--chat-composer-context-extension)),line_to_16px_calc(100%-var(--chat-composer-context-extension)),curve_to_0_calc(100%-var(--chat-composer-context-extension)-16px)_with_7.16px_calc(100%-var(--chat-composer-context-extension))/0_calc(100%-var(--chat-composer-context-extension)-7.16px),line_to_0_16px,close)]";
+// The same outline flipped vertically, for a drawer above the composer.
+const drawerAboveClipPath =
+  "before:[clip-path:shape(from_0_calc(100%-16px),curve_to_16px_100%_with_0_calc(100%-7.16px)/7.16px_100%,line_to_calc(100%-16px)_100%,curve_to_100%_calc(100%-16px)_with_calc(100%-7.16px)_100%/100%_calc(100%-7.16px),line_to_100%_calc(var(--chat-composer-context-extension)+16px),curve_to_calc(100%-16px)_var(--chat-composer-context-extension)_with_100%_calc(var(--chat-composer-context-extension)+7.16px)/calc(100%-7.16px)_var(--chat-composer-context-extension),line_to_calc(100%-var(--chat-composer-drawer-inset))_var(--chat-composer-context-extension),line_to_calc(100%-var(--chat-composer-drawer-inset))_16px,curve_to_calc(100%-var(--chat-composer-drawer-inset)-16px)_0_with_calc(100%-var(--chat-composer-drawer-inset))_7.16px/calc(100%-var(--chat-composer-drawer-inset)-7.16px)_0,line_to_calc(var(--chat-composer-drawer-inset)+16px)_0,curve_to_var(--chat-composer-drawer-inset)_16px_with_calc(var(--chat-composer-drawer-inset)+7.16px)_0/var(--chat-composer-drawer-inset)_7.16px,line_to_var(--chat-composer-drawer-inset)_var(--chat-composer-context-extension),line_to_16px_var(--chat-composer-context-extension),curve_to_0_calc(var(--chat-composer-context-extension)+16px)_with_7.16px_var(--chat-composer-context-extension)/0_calc(var(--chat-composer-context-extension)+7.16px),line_to_0_calc(100%-16px),close)]";
+
 function Shell({
   contextStrip = false,
+  contextPlacement = "below",
   className,
   ...props
-}: ComponentProps<"div"> & { contextStrip?: boolean }) {
+}: ComponentProps<"div"> & { contextStrip?: boolean; contextPlacement?: "below" | "above" }) {
+  const contextAbove = contextStrip && contextPlacement === "above";
   return (
     <div
       data-slot="composer-shell"
       data-with-context={contextStrip || undefined}
+      data-context-above={contextAbove || undefined}
       className={cn(
         "@container/composer-surface group/composer-surface relative isolate mx-auto flex w-full flex-col max-w-(--chat-content-max-width)",
         "[--chat-composer-drawer-inset:1.375rem] [--chat-composer-glass-surface:var(--surface-raised)] [--chat-composer-outline:rgb(0_0_0/6%)]",
@@ -24,8 +35,10 @@ function Shell({
         contextStrip && [
           "[--chat-composer-context-extension:2.25rem] sm:[--chat-composer-context-extension:2rem]",
           "supports-[clip-path:shape(from_0_0,line_to_1px_1px)]:before:rounded-none",
-          "before:[clip-path:shape(from_0_16px,curve_to_16px_0_with_0_7.16px/7.16px_0,line_to_calc(100%-16px)_0,curve_to_100%_16px_with_calc(100%-7.16px)_0/100%_7.16px,line_to_100%_calc(100%-var(--chat-composer-context-extension)-16px),curve_to_calc(100%-16px)_calc(100%-var(--chat-composer-context-extension))_with_100%_calc(100%-var(--chat-composer-context-extension)-7.16px)/calc(100%-7.16px)_calc(100%-var(--chat-composer-context-extension)),line_to_calc(100%-var(--chat-composer-drawer-inset))_calc(100%-var(--chat-composer-context-extension)),line_to_calc(100%-var(--chat-composer-drawer-inset))_calc(100%-16px),curve_to_calc(100%-var(--chat-composer-drawer-inset)-16px)_100%_with_calc(100%-var(--chat-composer-drawer-inset))_calc(100%-7.16px)/calc(100%-var(--chat-composer-drawer-inset)-7.16px)_100%,line_to_calc(var(--chat-composer-drawer-inset)+16px)_100%,curve_to_var(--chat-composer-drawer-inset)_calc(100%-16px)_with_calc(var(--chat-composer-drawer-inset)+7.16px)_100%/var(--chat-composer-drawer-inset)_calc(100%-7.16px),line_to_var(--chat-composer-drawer-inset)_calc(100%-var(--chat-composer-context-extension)),line_to_16px_calc(100%-var(--chat-composer-context-extension)),curve_to_0_calc(100%-var(--chat-composer-context-extension)-16px)_with_7.16px_calc(100%-var(--chat-composer-context-extension))/0_calc(100%-var(--chat-composer-context-extension)-7.16px),line_to_0_16px,close)]",
-          "not-supports-[clip-path:shape(from_0_0,line_to_1px_1px)]:before:bottom-(--chat-composer-context-extension)",
+          contextAbove ? drawerAboveClipPath : drawerBelowClipPath,
+          contextAbove
+            ? "not-supports-[clip-path:shape(from_0_0,line_to_1px_1px)]:before:top-(--chat-composer-context-extension)"
+            : "not-supports-[clip-path:shape(from_0_0,line_to_1px_1px)]:before:bottom-(--chat-composer-context-extension)",
         ],
         className,
       )}
@@ -84,6 +97,11 @@ function ContextStrip({ className, ...props }: ComponentProps<"div">) {
         "dark:supports-[clip-path:shape(from_0_0,line_to_1px_1px)]:group-not-has-data-[composer-banner-surface=attached]/composer-surface:before:bg-transparent",
         "group-has-data-[composer-banner-surface=attached]/composer-surface:before:bg-(--chat-composer-glass-surface)/(--glass-opacity) group-has-data-[composer-banner-surface=attached]/composer-surface:before:backdrop-blur-(--glass-blur) group-has-data-[composer-banner-surface=attached]/composer-surface:before:backdrop-saturate-(--glass-saturation)",
         "not-supports-[clip-path:shape(from_0_0,line_to_1px_1px)]:before:bg-(--chat-composer-glass-surface)/(--glass-opacity) not-supports-[clip-path:shape(from_0_0,line_to_1px_1px)]:before:backdrop-blur-(--glass-blur) not-supports-[clip-path:shape(from_0_0,line_to_1px_1px)]:before:backdrop-saturate-(--glass-saturation)",
+        // Above the composer the drawer tucks under its top edge instead of its bottom one.
+        "group-data-context-above/composer-surface:mt-0 group-data-context-above/composer-surface:-mb-4 group-data-context-above/composer-surface:pt-1 group-data-context-above/composer-surface:pb-5",
+        "group-data-context-above/composer-surface:before:rounded-t-2xl group-data-context-above/composer-surface:before:rounded-b-none group-data-context-above/composer-surface:before:mask-b-from-black group-data-context-above/composer-surface:before:mask-t-from-transparent group-data-context-above/composer-surface:before:mask-t-from-(position:--spacing-composer-seam) group-data-context-above/composer-surface:before:mask-t-to-black group-data-context-above/composer-surface:before:mask-t-to-(position:--spacing-composer-seam)",
+        // The dark seam shading is drawn for a drawer below; above, it would cross the controls.
+        "dark:group-data-context-above/composer-surface:before:bg-none",
         className,
       )}
       {...props}
