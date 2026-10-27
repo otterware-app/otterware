@@ -286,6 +286,10 @@ import {
 } from "./composerFooterLayout";
 import { ChatHeader } from "./chat/ChatHeader";
 import { ModuleThreadAccessories } from "../otterware/ModuleThreadAccessories";
+import {
+  composerDrawerAboveClassName,
+  composerShellDrawerAboveClassName,
+} from "../otterware/composerDrawerAbove";
 import { useRemoteOpenState } from "~/remoteOpen";
 import { shouldShowOpenInPicker } from "./chat/OpenInPicker.logic";
 import { useOpenFavoriteEditorShortcut } from "./chat/OpenInPickerShortcut";
@@ -3509,6 +3513,11 @@ export default function ChatView(props: ChatViewProps) {
                   >
                     <ComposerSurface.Shell
                       contextStrip={showComposerContextStrip || showComposerModelStrip}
+                      className={
+                        isDraftHeroState && (showComposerContextStrip || showComposerModelStrip)
+                          ? composerShellDrawerAboveClassName
+                          : undefined
+                      }
                     >
                       <ComposerSurface.Host
                         inert={queuedRunEdit.isSaving}
@@ -3708,7 +3717,7 @@ export default function ChatView(props: ChatViewProps) {
                       <div
                         className={cn(
                           "min-h-0",
-                          isDraftHeroState ? "order-first mb-1" : "order-last",
+                          isDraftHeroState && ["order-first", composerDrawerAboveClassName],
                         )}
                       >
                         <div
