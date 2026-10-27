@@ -44,7 +44,12 @@ modifies:
 - Moved settings redirect by `href`, because module pages are not literal routes.
 - Upstream's lint and effect diagnostics now cover more Otterware code: module runtime, tools,
   state store and suite database, the Code Home contributor, account session, device Google and
-  the browser environment follow them.
+  the browser environment follow them. Upstream also made five Effect diagnostics errors
+  (`effectFnOpportunity`, `runEffectInsideEffect`, `abortControllerInEffect`,
+  `flatMapConditionalToFilterOrFail`, `catchConditionalRefailToCatchIf`); Calendar engine and
+  node, Drive engine, Home engine, `browser-environment` and `provider-api-agents` carry about 100
+  older hits, so they extend `scripts/otterware/tsconfig.effect-backlog.json`, which keeps the
+  earlier severities. Fix a package's backlog, then point it back at `tsconfig.base.json`.
 - Module packages take React from the catalog, so module-kit and web share one React 19.3 and one
   `lucide-react` instance.
 
