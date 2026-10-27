@@ -855,7 +855,6 @@ export const makeApiAgentAdapter = Effect.fn("makeApiAgentAdapter")(function* (
           input: turnInput,
           nativeThreadId,
           // The engines are promise code; interruptTurn aborts them through this.
-          // @effect-diagnostics-next-line abortControllerInEffect:off
           controller: new AbortController(),
           done: yield* Deferred.make<void>(),
           providerTurn: {
