@@ -1,10 +1,7 @@
 /**
- * The host's own Home contributor (ADR 0004): threads waiting on an approval
- * or a question, finished runs the user has not opened, pull requests that
- * need attention, and the agents summary, read from the orchestration
- * projections. Only unsettled threads are read, and the result is cached
- * briefly because every open Home polls it. Present in every profile, so
- * Home works with any subset of modules.
+ * Present in every profile so Home works with any subset of modules (ADR 0004).
+ * Reads only unsettled orchestration threads and briefly caches the snapshot
+ * because every open Home polls it.
  */
 import { HomeActionError } from "@otterware/module-kit/contracts";
 import type { HomeContributor } from "@otterware/module-kit/engine";
@@ -117,8 +114,10 @@ const make = Effect.gen(function* () {
     Effect.map((id) => CommandId.make(`otterware-home:${id}`)),
   );
 
-  const performAction: NonNullable<HomeContributor["performAction"]> = (itemId, actionId) =>
-    Effect.gen(function* () {
+  const performAction: NonNullable<HomeContributor["performAction"]> = Effect.fn(
+    "CodeHomeContributor.performAction",
+  )(
+    function* (itemId, actionId) {
       const parsed = parseCodeItemId(itemId);
       const fail = (cause?: unknown) =>
         new HomeActionError({
@@ -155,7 +154,9 @@ const make = Effect.gen(function* () {
         return;
       }
       return yield* fail();
-    }).pipe(Effect.tap(() => invalidate));
+    },
+    Effect.tap(() => invalidate),
+  );
 
   const contributor: HomeContributor = {
     module: "code",

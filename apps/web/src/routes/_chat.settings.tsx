@@ -23,6 +23,7 @@ import {
   getSettingsSearchTargetScope,
   getThreadAutoSettlementSearchAvailability,
   isSettingsSearchScopeAvailable,
+  movedSettingsPath,
 } from "../components/settings/settingsSearch";
 
 function RestoreDeviceDefaultsButton({ onRestored }: { onRestored: () => void }) {
@@ -173,6 +174,12 @@ export const Route = createFileRoute("/_chat/settings")({
   beforeLoad: async ({ location }) => {
     if (location.pathname === "/settings") {
       throw redirect({ to: "/settings/general", replace: true });
+    }
+    const moved = movedSettingsPath(location.pathname, location.hash);
+    // Otterware module pages are not literal routes, so the redirect goes by href.
+    if (moved) {
+      const hash = location.hash ? `#${location.hash}` : "";
+      throw redirect({ href: `${moved}${location.searchStr}${hash}`, replace: true });
     }
   },
   component: SettingsRouteLayout,

@@ -1,10 +1,8 @@
 /**
- * "This browser": the in-browser environment as a connection kind (ADR 0008).
- * It is not a T3 environment: no projects, threads or projections, only the
- * host and module RPC groups, the browser's Otter Account and its light agent
- * loop, served by a Web Worker over a message port instead of a WebSocket.
- * Module pages talk to a paired environment when there is one and to this
- * browser otherwise (`selectModuleTarget`).
+ * The browser worker serves host/module RPCs, its account and agent loop over a
+ * message port, without T3 projects, threads or projections (ADR 0008).
+ * Module pages prefer a paired environment, falling back to this browser
+ * (`selectModuleTarget`).
  */
 import {
   type BrowserEnvironmentClient,
@@ -81,11 +79,12 @@ export const layer = (spawn?: () => Worker | MessagePort, lock: EnvironmentLock 
     BrowserEnvironment,
     Effect.gen(function* () {
       const scope = yield* Effect.scope;
+      const runSync = Effect.runSyncWith(yield* Effect.context<never>());
       const status = yield* SubscriptionRef.make<BrowserEnvironmentStatus>("idle");
       const connection = yield* Effect.cached(
         Effect.gen(function* () {
           const release = yield* Effect.promise(() =>
-            lock(() => Effect.runSync(SubscriptionRef.set(status, "elsewhere"))),
+            lock(() => runSync(SubscriptionRef.set(status, "elsewhere"))),
           );
           yield* Scope.addFinalizer(scope, Effect.sync(release));
           yield* SubscriptionRef.set(status, "starting");

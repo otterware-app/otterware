@@ -1,9 +1,6 @@
 /**
- * The side chat on Mail, Calendar and Drive: an ordinary Code thread in the
- * Otterware Assistant project, rendered by Otter Code's own ChatView in its
- * compact form (timeline, work log, approvals, questions and the real
- * composer). Each module keeps its current chat; what the page shows rides
- * along with a message as a `module-page` context record.
+ * Each module retains an ordinary Code thread in the Otterware Assistant project,
+ * rendered by compact ChatView. Messages carry the page's `module-page` context.
  */
 import { scopeThreadRef } from "@t3tools/client-runtime/environment";
 import { EnvironmentId, ThreadId } from "@t3tools/contracts";
@@ -21,10 +18,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import ChatView, { type ChatViewOutgoingMessageDecoration } from "../../components/ChatView";
 import { WorkspacePageHeader } from "../../components/WorkspacePageHeader";
 import { isElectron } from "../../env";
-import {
-  resolveDraftPromotionNavigationTarget,
-  threadShellHasStarted,
-} from "../../components/ChatView.logic";
+import { threadShellHasStarted } from "../../components/ChatView.logic";
 import { Button } from "../../components/ui/button";
 import {
   Empty,
@@ -42,8 +36,6 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "../../components/ui/toolt
 import {
   DraftId,
   finalizePromotedDraftThreadByRef,
-  markPromotedDraftThreadByRef,
-  useBackgroundDraftSubmissionPending,
   useComposerDraftStore,
 } from "../../composerDraftStore";
 import { useLocalStorage } from "../../hooks/useLocalStorage";
@@ -248,6 +240,7 @@ function EnvironmentSideChat({ moduleId, onHide, hideShortcutLabel }: SideChatPr
   }, [ensureAssistant, environmentId, moduleId, ready, setTarget, starting]);
 
   const assistantRequest = useShellSelection((state) => state.assistantRequest);
+  // oxlint-disable-next-line t3code/react-effect-budget -- Consumes assistant commands from the shell's external selection store.
   useEffect(() => {
     if (assistantRequest?.moduleId !== moduleId || !ready || starting) return;
     useShellSelection.setState({ assistantRequest: null });
@@ -500,21 +493,17 @@ function SideChatThread({
     draftId === null ? null : store.getDraftSession(draftId),
   );
   const serverThread = useThreadShell(threadRef);
-  const backgroundSubmissionPending = useBackgroundDraftSubmissionPending(
-    target.kind === "draft" ? threadRef : null,
+  // The draft store promotes drafts as their threads arrive and records where each one went.
+  const draftRedirect = useComposerDraftStore((store) =>
+    draftId === null ? null : store.getPromotedDraftRedirect(draftId),
   );
   const shell = useEnvironmentQuery(environmentShell.stateAtom(environmentId));
   const bootstrapped = shell.data?.snapshot._tag === "Some";
 
+  // oxlint-disable-next-line t3code/react-effect-budget -- Follows promotion redirects published by the external composer draft store.
   useEffect(() => {
     if (target.kind !== "draft") return;
-    if (serverThread !== null && !draftSession?.promotedTo) markPromotedDraftThreadByRef(threadRef);
-    const promoted = resolveDraftPromotionNavigationTarget({
-      serverThreadRef: threadRef,
-      serverThread,
-      backgroundSubmissionPending,
-    });
-    if (promoted !== null) {
+    if (draftRedirect !== null) {
       onPromoted({
         kind: "server",
         environmentId: target.environmentId,
@@ -522,15 +511,9 @@ function SideChatThread({
         viewKey: target.draftId,
       });
     }
-  }, [
-    backgroundSubmissionPending,
-    draftSession?.promotedTo,
-    onPromoted,
-    serverThread,
-    target,
-    threadRef,
-  ]);
+  }, [draftRedirect, onPromoted, target]);
 
+  // oxlint-disable-next-line t3code/react-effect-budget -- Finalizes the external draft store entry when the server thread starts.
   useEffect(() => {
     if (target.kind === "server" && threadShellHasStarted(serverThread)) {
       finalizePromotedDraftThreadByRef(threadRef);
@@ -542,6 +525,7 @@ function SideChatThread({
     target.kind === "draft"
       ? draftSession === null && serverThread === null
       : bootstrapped && (serverThread === null || serverThread.archivedAt !== null);
+  // oxlint-disable-next-line t3code/react-effect-budget -- Clears the selected chat when server or draft-store updates remove or archive it.
   useEffect(() => {
     if (missing) onMissing();
   }, [missing, onMissing]);

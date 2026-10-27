@@ -219,11 +219,8 @@ export function dayKey(timestamp: number): string {
 }
 
 /**
- * The email canvas is always light (HTML mail is designed for white), but in
- * a dark-appearance window the iframe document inherits dark UA defaults —
- * default text renders WHITE on our white card. This prelude pins the
- * document to light rendering and sane typography; email-supplied CSS comes
- * after it and still wins.
+ * Dark windows give the iframe white default text on its white email canvas.
+ * Pin light rendering and typography before the email's CSS so sender styles win.
  */
 const messageBodyPrelude = (fontSize: number) => `<style>
 :root { color-scheme: light; }
@@ -281,13 +278,8 @@ function rgbToHsl(r: number, g: number, b: number): [number, number, number] {
 }
 
 /**
- * On the dark canvas, text the email colored dark (black body copy, navy
- * links, grey footers) would vanish. Only where such text sits directly on
- * the canvas — no background of its own anywhere up its ancestry — flip its
- * lightness (hue kept, so links stay blue and accents stay recognizable).
- * Anything inside an element that paints a background or background image is
- * a designed "island" (a white invite card, a newsletter body) and is left
- * exactly as the sender styled it.
+ * Flip dark text's lightness, keeping hue, only where it sits on the dark canvas.
+ * Preserve sender styling beneath any painted ancestor background or image.
  */
 function adaptForDarkCanvas(doc: Document | null | undefined) {
   if (!doc?.body) return;
@@ -361,12 +353,8 @@ function fixLightOnLightText(doc: Document | null | undefined) {
 }
 
 /**
- * The email canvas is always white, but the reader's WebView carries the app's
- * dark appearance, so `prefers-color-scheme` evaluates to `dark` INSIDE the
- * iframe (a CSS `color-scheme: light` on :root doesn't change that). Emails that
- * ship a `@media (prefers-color-scheme: dark)` variant then flip their text to
- * white on our white card and become unreadable. Disable only those dark-scheme
- * media rules so the email's light/default styling (dark text) always wins.
+ * `color-scheme: light` does not change the iframe's inherited dark media query.
+ * Disable only dark-scheme media rules to prevent white text on the white canvas.
  */
 function neutralizeDarkScheme(doc: Document | null | undefined) {
   if (!doc) return;
@@ -415,13 +403,9 @@ function parseRgb(value: string): { r: number; g: number; b: number; a: number }
 }
 
 /**
- * Some templates set white text via a mechanism `neutralizeDarkScheme` can't
- * reach — a CSS custom-property fallback baked into the declaration itself
- * (`color: var(--text, #fff)`), or plain unconditional white with no light
- * variant at all. Rather than chase every authoring pattern, directly measure
- * each text-owning element's rendered contrast and force a readable color
- * only where it's actually near-white on a near-white (our forced canvas)
- * background — untouched otherwise, so intentional design colors survive.
+ * Custom-property fallbacks and unconditional white text survive media-rule fixes.
+ * Force a readable color only for near-white text on near-white backgrounds,
+ * preserving intentional colors elsewhere.
  */
 function fixWhiteOnWhiteText(doc: Document | null | undefined) {
   if (!doc?.body) return;
@@ -457,18 +441,15 @@ function fixWhiteOnWhiteText(doc: Document | null | undefined) {
 }
 
 /**
- * HTML mail in an auto-height iframe. The height watchers must NOT hang off the
- * iframe's `load` event: that only fires once every subresource has settled, and
- * marketing mail is full of remote images and tracking pixels that routinely
- * stall it for tens of seconds (observed: 37s) — the iframe would sit at the
- * 150px CSS default, clipped and internally scrollable, the whole time. So watch
- * for the srcdoc document as soon as it is PARSED and fit from there; `load` and
- * the per-image listeners are then just later refinements for late-arriving art.
+ * Size HTML mail as soon as srcdoc is parsed: remote images and tracking pixels
+ * can stall `load` for tens of seconds, leaving the iframe clipped at 150px.
+ * Load and image listeners refine the height after the initial fit.
  */
 /** Live dark/light appearance (follows the app's theme setting and the system). */
 function useDarkAppearance(): boolean {
   const query = "(prefers-color-scheme: dark)";
   const [dark, setDark] = useState(() => window.matchMedia(query).matches);
+  // oxlint-disable-next-line t3code/react-effect-budget -- Subscribes to the window's color-scheme media query.
   useEffect(() => {
     const mq = window.matchMedia(query);
     const onChange = () => setDark(mq.matches);
@@ -611,6 +592,7 @@ function HtmlBody({
 
   const adaptColorsForEffect = useLatest(adaptColors);
   /* oxlint-disable react/exhaustive-effect-dependencies -- Explicit DOM and reset triggers must re-run this lifecycle. */
+  // oxlint-disable-next-line t3code/react-effect-budget -- Wires iframe DOM events, image loading and resize observers to fit and adapt the email document.
   useEffect(() => {
     const iframe = frameRef.current;
     if (!iframe) return;
@@ -710,14 +692,9 @@ function HtmlBody({
           { once: true },
         );
       });
-      // Open every link in a browser tab (the agent panel's, on the Mac), or
-      // mail for mailto:. The sandbox has no `allow-popups`, so
-      // `target="_blank"` links (common in marketing mail) otherwise do nothing
-      // on a plain click, and a targetless link would navigate the iframe away
-      // from the email — route them all through the OS instead.
-      // Google Calendar's Yes / No / Maybe links answer in place: they become
-      // in-page anchors (#otter-rsvp-…), caught by click or, when the sandbox
-      // swallows the click, by the frame's hashchange.
+      // The sandbox blocks popups; route external links to the browser and mailto: to mail.
+      // Calendar RSVP links stay in place as anchors, handled by click or hashchange
+      // when the sandbox swallows clicks.
       const inviteId = inviteRef.current;
       if (inviteId) {
         doc.querySelectorAll<HTMLAnchorElement>("a[href]").forEach((a) => {
@@ -751,14 +728,30 @@ function HtmlBody({
           else openLink(url, { flip: isModClick(e) });
         }
       });
-      // The click handler above is the fast path, but WKWebView doesn't reliably
-      // deliver clicks from a sandboxed iframe to this parent-attached listener
-      // (same limitation as `mouseup`, below). `target="_blank"` links then just
-      // request a popup the sandbox blocks — nothing navigates, so the host's
-      // navigation layer (which already opens plain external links) never sees
-      // them. Force every link to navigate in-frame instead so that path fires.
+      // WKWebView may swallow sandboxed iframe clicks, while the sandbox blocks popups.
+      // Force in-frame navigation so the host's external-link handler still sees them.
       doc.querySelectorAll("base[target]").forEach((b) => b.removeAttribute("target"));
       doc.querySelectorAll("a[target]").forEach((a) => a.setAttribute("target", "_self"));
+      // Once a click or a selection puts focus in the body, keys go to the
+      // frame's window: pass them on to the app's shortcuts (⌘I, j/k, …),
+      // except while typing in a form the mail carries.
+      doc.addEventListener("keydown", (e) => {
+        const target = e.target as Element | null;
+        if (target?.closest?.("input, textarea, select, [contenteditable]")) return;
+        const forwarded = new KeyboardEvent("keydown", {
+          key: e.key,
+          code: e.code,
+          metaKey: e.metaKey,
+          ctrlKey: e.ctrlKey,
+          altKey: e.altKey,
+          shiftKey: e.shiftKey,
+          repeat: e.repeat,
+          isComposing: e.isComposing,
+          bubbles: true,
+          cancelable: true,
+        });
+        if (!iframe.dispatchEvent(forwarded)) e.preventDefault();
+      });
       if (quoteRef.current) {
         // WKWebView doesn't reliably deliver `mouseup` from a sandboxed iframe
         // to a parent-attached listener, but `selectionchange` on its document
@@ -1080,6 +1073,7 @@ function ImageAttachmentTile({
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
+  // oxlint-disable-next-line t3code/react-effect-budget -- Fetches the attachment thumbnail and owns its browser object URL lifetime.
   useEffect(() => {
     let cancelled = false;
     let objectUrl: string | null = null;
@@ -1387,12 +1381,10 @@ export function ExpandedRow({
   const markedRead = useRef(false);
   const markReadDelayMs = useInterfaceSetting(MARK_READ_DELAY);
 
-  // Reading a message marks it read — debounced so j/k scrubbing through the
-  // list (which mounts and unmounts expanded rows) doesn't fire per row.
-  // The mutation is read through a ref (not a dependency): react-query
-  // returns a new `modifyMessage` object on every render, which was
-  // resetting this timer on any incidental re-render (e.g. a window-focus
-  // refetch) and could push marking read past the window closing.
+  // Debounce marking read so j/k scrubbing does not mark every briefly mounted row.
+  // Read the mutation through a ref: React Query recreates it every render,
+  // which would restart the timer on incidental re-renders.
+  // oxlint-disable-next-line t3code/react-effect-budget -- Schedules and cancels the mailbox mark-read mutation while a message is displayed.
   useEffect(() => {
     if (markedRead.current || !summary.unread) return;
     const timer = setTimeout(() => {
@@ -1754,6 +1746,7 @@ function InlineComposer({
 
   // A mode switch recomputes recipients (and drops forwarded files).
   const previousMode = useRef(mode);
+  // oxlint-disable-next-line t3code/react-effect-budget -- Resets retained mail-session recipients and attachments when the compose mode changes.
   useEffect(() => {
     if (previousMode.current === mode) return;
     recipientsDirty.current = false;
@@ -1764,6 +1757,7 @@ function InlineComposer({
 
   // Prefill recipients per mode; refine once the detail arrives, unless the
   // user already edited the fields.
+  // oxlint-disable-next-line t3code/react-effect-budget -- Prefills retained mail-session recipients from asynchronously loaded message and account data.
   useEffect(() => {
     if (recipientsDirty.current) return;
     const source = lastDetail ?? lastMessage;
@@ -1780,6 +1774,7 @@ function InlineComposer({
   }, [mode, lastMessage, lastDetail, ownEmail]);
 
   // Forward seeds the original's attachments; other modes keep manual picks.
+  // oxlint-disable-next-line t3code/react-effect-budget -- Fetches original attachment bytes for forwarding and cancels updates after cleanup.
   useEffect(() => {
     if (mode !== "forward" || attachments !== null) return;
     if (!lastDetail) {
@@ -1821,6 +1816,7 @@ function InlineComposer({
     };
   }, [mode, accountId, lastMessage.id, lastDetail]);
 
+  // oxlint-disable-next-line t3code/react-effect-budget -- Moves DOM focus to the recipient input or rich-text editor for the compose mode.
   useEffect(() => {
     if (mode === "forward") toRef.current?.focus();
     else editorRef.current?.focus();
@@ -2146,6 +2142,7 @@ export function MessageReader({
   // Cleared every render; the message-open path below re-populates it, so the
   // shortcuts are inert when no message is on screen.
   const renderedActions: typeof readerActions.current = {};
+  // oxlint-disable-next-line t3code/react-effect-budget -- Publishes the committed reader actions to the app's keyboard command handlers.
   useLayoutEffect(() => {
     readerActions.current = renderedActions;
   });
@@ -2174,6 +2171,7 @@ export function MessageReader({
     on: false,
     target: null,
   });
+  // oxlint-disable-next-line t3code/react-effect-budget -- Resets translation overrides for the opened mailbox message and saved translation preference.
   useEffect(() => setTranslation({ on: autoTranslate, target: null }), [messageId, autoTranslate]);
   const conversationTranslation = useMemo(
     () => ({ ...translation, set: setTranslation }),
@@ -2192,6 +2190,7 @@ export function MessageReader({
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(new Set());
   // Long runs of collapsed messages fold into "N more messages" until opened.
   const [unfolded, setUnfolded] = useState(false);
+  // oxlint-disable-next-line t3code/react-effect-budget -- Resets conversation folding when the mailbox selection opens another message.
   useEffect(() => setUnfolded(false), [messageId]);
   const seededRef = useRef<string | null>(null);
   const readerAccounts = useAccounts();
@@ -2221,6 +2220,7 @@ export function MessageReader({
   // capture phase so home-view's Escape-deselects-message listener never fires
   // while a draft is open (dialogs keep their own Escape handling).
   const inlineRef = useLatest(inline);
+  // oxlint-disable-next-line t3code/react-effect-budget -- Subscribes to window keydown events to close the inline composer on Escape.
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || !inlineRef.current) return;
@@ -2238,6 +2238,7 @@ export function MessageReader({
 
   // Seed which conversation rows start expanded: the last message, every
   // unread one, and the opened message itself (differs when opened via search).
+  // oxlint-disable-next-line t3code/react-effect-budget -- Seeds expanded rows when the selected conversation's asynchronous mailbox data arrives.
   useEffect(() => {
     if (!messageId || !threadId || threadMessages.length === 0) return;
     const seedKey = `${accountId}:${threadId}:${messageId}`;

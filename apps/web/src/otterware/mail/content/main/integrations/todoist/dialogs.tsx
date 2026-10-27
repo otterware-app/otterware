@@ -52,6 +52,7 @@ export function addEmailToTodoist(email: EmailTask): void {
 export function TodoistDialogs() {
   const [request, setRequest] = useState<Request | null>(null);
   const qc = useQueryClient();
+  // oxlint-disable-next-line t3code/react-effect-budget -- Subscribes to Todoist menu requests and mail bridge events to update dialogs and cached tasks.
   useEffect(() => {
     listeners.add(setRequest);
     const off = mailBridge.on("todoist:changed", () => {
@@ -107,7 +108,7 @@ function ConnectTodoist({ onClose }: { onClose: () => void }) {
         size="sm"
         onClick={() => {
           onClose();
-          void navigate({ to: "/settings/integrations" });
+          void navigate({ href: "/settings/mail/integrations" });
         }}
       >
         Open settings

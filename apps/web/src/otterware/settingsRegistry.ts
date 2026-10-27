@@ -54,9 +54,7 @@ const HOST_SETTINGS_PAGE_PATHS = {
   connections: "/settings/connections",
   providers: "/settings/providers",
   extensions: "/settings/extensions",
-  integrations: "/settings/integrations",
   "scheduled-tasks": "/settings/scheduled-tasks",
-  storage: "/settings/storage",
 } as const satisfies Record<HostSettingsPage, string>;
 
 export type HostSettingsPagePath = (typeof HOST_SETTINGS_PAGE_PATHS)[HostSettingsPage];
@@ -262,13 +260,14 @@ export function isProfileSettingVisible(id: string): boolean {
 }
 
 const CODE_SETTINGS_PATHS = [
+  "/settings/diffs",
   "/settings/projects",
   "/settings/project-groups",
   "/settings/snap-shot",
   "/settings/source-control",
   "/settings/code-intelligence",
+  "/settings/worktrees",
   "/settings/archived",
-  "/settings/beta",
 ] as const;
 
 /** Code is hidden in standalone profiles; the shared agents and connections stay. */
@@ -293,15 +292,20 @@ export interface SettingsNavGroup {
 const APP_SETTINGS_PATHS = [
   "/settings/general",
   "/settings/appearance",
+  "/settings/chat",
   "/settings/keybindings",
   ACCOUNT_SETTINGS_PATH,
   "/settings/connections",
+  "/settings/access",
   "/settings/providers",
+  "/settings/threads",
+  "/settings/browser",
   "/settings/extensions",
-  "/settings/integrations",
+  "/settings/devices",
   "/settings/scheduled-tasks",
-  "/settings/storage",
-  "/settings/beta",
+  "/settings/maintenance",
+  "/settings/labs",
+  "/settings/about",
   MODULES_SETTINGS_PATH,
 ] as const;
 
@@ -310,16 +314,21 @@ const STANDALONE_SETTINGS_PATHS = {
     "/settings/general",
     ACCOUNT_SETTINGS_PATH,
     "/settings/appearance",
+    "/settings/chat",
     "/settings/keybindings",
   ],
   after: [
     "/settings/providers",
+    "/settings/threads",
+    "/settings/browser",
     "/settings/extensions",
-    "/settings/integrations",
+    "/settings/devices",
     "/settings/connections",
+    "/settings/access",
     "/settings/scheduled-tasks",
-    "/settings/storage",
-    "/settings/beta",
+    "/settings/maintenance",
+    "/settings/labs",
+    "/settings/about",
   ],
 } as const;
 
@@ -357,7 +366,7 @@ export function settingsNavLayout(input: {
           ...STANDALONE_SETTINGS_PATHS.after.filter(
             (path) =>
               moduleId !== "mail" ||
-              !["/settings/connections", "/settings/scheduled-tasks", "/settings/storage"].includes(
+              !["/settings/connections", "/settings/access", "/settings/scheduled-tasks"].includes(
                 path,
               ),
           ),

@@ -12,7 +12,7 @@
   "dependencies": {
     "@otterware/module-kit": "workspace:*",
     "lucide-react": "^0.542.0",
-    "react": "19.2.6"
+    "react": "catalog:"
   },
   "devDependencies": {
     "@types/react": "~19.3.0",

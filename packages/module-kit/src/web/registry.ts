@@ -1,11 +1,8 @@
 /**
- * What a module hands the web shell (ADR 0020): data, never frames. The host
- * draws the rail, sidebar, header, settings screen, command palette and
- * keybindings from these declarations; a module contributes its spaces, the
- * sidebar rows of the active space, header actions, a content-only page,
- * client stores that outlive routes, settings pages with a placement per
- * profile, and commands named `<module>.<command>`. The shell
- * (`apps/web/src/otterware`) reads one registry built for the active profile.
+ * Modules contribute data and content-only pages; the host owns the shell
+ * (ADR 0020). Stores outlive routes, settings placement follows the profile,
+ * and command names use `<module>.<command>`. The shell reads one registry
+ * built for the active profile.
  */
 import type { LucideIcon } from "lucide-react";
 import type { ComponentType, LazyExoticComponent, ReactNode } from "react";
@@ -118,9 +115,7 @@ export type HostSettingsPage =
   | "connections"
   | "providers"
   | "extensions"
-  | "integrations"
-  | "scheduled-tasks"
-  | "storage";
+  | "scheduled-tasks";
 
 /** `page`: its own page; a host page id: its rows join that page. */
 export type SettingsPlacement = "page" | HostSettingsPage;

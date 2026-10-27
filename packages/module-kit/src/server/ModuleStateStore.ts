@@ -45,15 +45,17 @@ const make = Effect.gen(function* () {
   const disabled = sql<{ readonly id: string }>`
     SELECT id FROM suite_modules WHERE enabled = 0
   `.pipe(Effect.map((rows) => new Set(rows.map((row) => row.id))));
-  const setEnabled = (id: string, enabled: boolean) =>
-    Effect.gen(function* () {
-      const updatedAt = DateTime.formatIso(yield* DateTime.now);
-      yield* sql`
+  const setEnabled = Effect.fn("ModuleStateStore.setEnabled")(function* (
+    id: string,
+    enabled: boolean,
+  ) {
+    const updatedAt = DateTime.formatIso(yield* DateTime.now);
+    yield* sql`
         INSERT INTO suite_modules (id, enabled, updated_at)
         VALUES (${id}, ${enabled ? 1 : 0}, ${updatedAt})
         ON CONFLICT (id) DO UPDATE SET enabled = excluded.enabled, updated_at = excluded.updated_at
       `;
-    });
+  });
   return ModuleStateStore.of({ disabled, setEnabled });
 });
 

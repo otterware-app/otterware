@@ -2,12 +2,13 @@ import { RegistryContext, useAtomValue } from "@effect/atom-react";
 import type { FileDiffMetadata } from "@pierre/diffs";
 import type {
   EnvironmentId,
+  ReviewDiffPreviewInput,
   ReviewDiffPreviewSource,
   ReviewDiffPreviewSourceRequest,
 } from "@t3tools/contracts";
 import * as AsyncResult from "effect/reactivity/AsyncResult";
 import * as Atom from "effect/reactivity/Atom";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useState } from "react";
 import { useStableCallback } from "~/hooks/useStableCallback";
 import { getRenderablePatch, resolveFileDiffPath, type RenderablePatch } from "~/lib/diffRendering";
 import { reviewEnvironment } from "~/state/review";
@@ -26,7 +27,7 @@ export function useReviewFilePatches({
   baseRef,
   ignoreWhitespace,
   theme,
-  revision,
+  previewInput,
   preview,
 }: {
   environmentId: EnvironmentId | undefined;
@@ -37,7 +38,8 @@ export function useReviewFilePatches({
   baseRef: string | null;
   ignoreWhitespace: boolean;
   theme: "light" | "dark";
-  revision: string | undefined;
+  /** The preview the file list came from; a newer revision of it refreshes loaded patches. */
+  previewInput: ReviewDiffPreviewInput | undefined;
   preview: RenderablePatch | null;
 }) {
   const registry = useContext(RegistryContext);
@@ -57,25 +59,13 @@ export function useReviewFilePatches({
     sourceRequest,
     baseRef,
     ignoreWhitespace,
+    previewInput,
     scope,
     requested,
   });
   const queriedPatchesAtom = reviewPatchesAtom(
     JSON.stringify([theme, queries.map(({ index, target }) => [index, target])]),
   );
-  const previousPreview = useRef({ scope, revision, queries: [] as typeof queries });
-  useEffect(() => {
-    const previous = previousPreview.current;
-    previousPreview.current = { scope, revision, queries };
-    for (const { query } of queries) {
-      const changed = previous.scope === scope && previous.revision !== revision;
-      const cached =
-        !previous.queries.some((entry) => entry.query === query) &&
-        registry.get(query)._tag !== "Initial" &&
-        !registry.get(query).waiting;
-      if (changed || cached) registry.refresh(query);
-    }
-  }, [scope, revision, queries, registry]);
   const patches = useAtomValue(queriedPatchesAtom);
   const retry = useStableCallback((path: string) => {
     const files = sortedReviewFiles(source);
@@ -179,6 +169,7 @@ function reviewFileQueries({
   sourceRequest,
   baseRef,
   ignoreWhitespace,
+  previewInput,
   scope,
   requested,
 }: {
@@ -188,6 +179,7 @@ function reviewFileQueries({
   sourceRequest: ReviewDiffPreviewSourceRequest | undefined;
   baseRef: string | null;
   ignoreWhitespace: boolean;
+  previewInput: ReviewDiffPreviewInput | undefined;
   scope: string;
   requested: { scope: string; indices: number[] };
 }) {
@@ -204,6 +196,7 @@ function reviewFileQueries({
               environmentId,
               input: {
                 cacheKey: scope,
+                ...(previewInput ? { preview: previewInput } : {}),
                 request: {
                   cwd,
                   ...(baseRef ? { baseRef } : {}),

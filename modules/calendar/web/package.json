@@ -27,7 +27,7 @@
     "@t3tools/contracts": "workspace:*",
     "effect": "catalog:",
     "lucide-react": "^0.564.0",
-    "react": "19.2.6"
+    "react": "catalog:"
   },
   "devDependencies": {
     "@effect/vitest": "catalog:",
