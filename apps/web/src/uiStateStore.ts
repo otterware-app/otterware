@@ -1,7 +1,7 @@
 import { Debouncer } from "@tanstack/react-pacer";
 import type { PullRequestMergeMethod } from "@t3tools/contracts";
 import { create } from "zustand";
-import { normalizeProjectPathForComparison } from "./lib/projectPaths";
+import { normalizeProjectPathForComparison } from "@t3tools/client-runtime/state/projects";
 import { LEGACY_VOID_SPACE_ID, normalizeProjectSpaceId } from "./projectSpaces";
 
 export const PERSISTED_STATE_KEY = "t3code:ui-state:v1";
@@ -25,6 +25,7 @@ export interface PersistedUiState {
   projectOrderCwds?: string[];
   defaultAdvertisedEndpointKey?: string | null;
   sidebarProjectScopeKey?: string | null;
+  sidebarProjectScopeKeys?: string[];
   sidebarProjectSpaceId?: string | null;
   threadChangedFilesExpansionVersion?: number;
   threadChangedFilesExpandedById?: Record<string, Record<string, boolean>>;
@@ -33,7 +34,7 @@ export interface PersistedUiState {
 
 export interface UiProjectState {
   projectOrder: string[];
-  sidebarProjectScopeKey: string | null;
+  sidebarProjectScopeKeys: string[];
   // A named Space, Chats, or null for all projects.
   sidebarProjectSpaceId: string | null;
 }
@@ -56,7 +57,7 @@ export interface UiState
 
 const initialState: UiState = {
   projectOrder: [],
-  sidebarProjectScopeKey: null,
+  sidebarProjectScopeKeys: [],
   sidebarProjectSpaceId: null,
   threadLastVisitedAtById: {},
   threadChangedFilesExpandedById: {},
@@ -119,10 +120,10 @@ export function parsePersistedState(parsed: PersistedUiState): UiState {
         ? sanitizePersistedThreadChangedFilesExpanded(parsed.threadChangedFilesExpandedById)
         : {},
     defaultAdvertisedEndpointKey: sanitizeOptionalKey(parsed.defaultAdvertisedEndpointKey),
-    sidebarProjectScopeKey:
+    sidebarProjectScopeKeys:
       parsed.sidebarProjectSpaceId === LEGACY_VOID_SPACE_ID
-        ? null
-        : sanitizeOptionalKey(parsed.sidebarProjectScopeKey),
+        ? []
+        : sanitizeStringArray(parsed.sidebarProjectScopeKeys ?? [parsed.sidebarProjectScopeKey]),
     sidebarProjectSpaceId: normalizeProjectSpaceId(
       sanitizeOptionalKey(parsed.sidebarProjectSpaceId),
     ),
@@ -193,7 +194,12 @@ export function persistState(state: UiState): void {
         projectOrder: state.projectOrder,
         threadLastVisitedAtById: state.threadLastVisitedAtById,
         defaultAdvertisedEndpointKey: state.defaultAdvertisedEndpointKey,
-        sidebarProjectScopeKey: state.sidebarProjectScopeKey,
+        sidebarProjectScopeKeys: state.sidebarProjectScopeKeys,
+        // Older clients read only this field.
+        sidebarProjectScopeKey:
+          state.sidebarProjectScopeKeys.length === 1
+            ? (state.sidebarProjectScopeKeys[0] ?? null)
+            : null,
         sidebarProjectSpaceId: state.sidebarProjectSpaceId,
         threadChangedFilesExpansionVersion: THREAD_CHANGED_FILES_EXPANSION_VERSION,
         threadChangedFilesExpandedById: state.threadChangedFilesExpandedById,
@@ -293,27 +299,30 @@ function setDefaultAdvertisedEndpointKey(state: UiState, key: string | null): Ui
   };
 }
 
-function setSidebarProjectScopeKey(state: UiState, projectKey: string | null): UiState {
-  const nextKey = sanitizeOptionalKey(projectKey);
-  if (state.sidebarProjectScopeKey === nextKey) {
+function setSidebarProjectScopeKeys(state: UiState, projectKeys: readonly string[]): UiState {
+  const nextKeys = sanitizeStringArray(projectKeys);
+  if (
+    nextKeys.length === state.sidebarProjectScopeKeys.length &&
+    nextKeys.every((key, index) => key === state.sidebarProjectScopeKeys[index])
+  ) {
     return state;
   }
   return {
     ...state,
-    sidebarProjectScopeKey: nextKey,
+    sidebarProjectScopeKeys: nextKeys,
   };
 }
 
 /** Choosing a space clears the project scope: it may name a project outside it. */
 export function setSidebarProjectSpaceId(state: UiState, spaceId: string | null): UiState {
   const nextId = normalizeProjectSpaceId(sanitizeOptionalKey(spaceId));
-  if (state.sidebarProjectSpaceId === nextId && state.sidebarProjectScopeKey === null) {
+  if (state.sidebarProjectSpaceId === nextId && state.sidebarProjectScopeKeys.length === 0) {
     return state;
   }
   return {
     ...state,
     sidebarProjectSpaceId: nextId,
-    sidebarProjectScopeKey: null,
+    sidebarProjectScopeKeys: [],
   };
 }
 
@@ -328,7 +337,7 @@ interface UiStateStore extends UiState {
   markThreadUnread: (threadId: string, latestTurnCompletedAt: string | null | undefined) => void;
   setThreadChangedFilesExpanded: (threadId: string, turnId: string, expanded: boolean) => void;
   setDefaultAdvertisedEndpointKey: (key: string | null) => void;
-  setSidebarProjectScopeKey: (projectKey: string | null) => void;
+  setSidebarProjectScopeKeys: (projectKeys: readonly string[]) => void;
   setSidebarProjectSpaceId: (spaceId: string | null) => void;
   setPullRequestMergeMethod: (method: PullRequestMergeMethod) => void;
 }
@@ -343,8 +352,8 @@ export const useUiStateStore = create<UiStateStore>((set) => ({
     set((state) => setThreadChangedFilesExpanded(state, threadId, turnId, expanded)),
   setDefaultAdvertisedEndpointKey: (key) =>
     set((state) => setDefaultAdvertisedEndpointKey(state, key)),
-  setSidebarProjectScopeKey: (projectKey) =>
-    set((state) => setSidebarProjectScopeKey(state, projectKey)),
+  setSidebarProjectScopeKeys: (projectKeys) =>
+    set((state) => setSidebarProjectScopeKeys(state, projectKeys)),
   setSidebarProjectSpaceId: (spaceId) => set((state) => setSidebarProjectSpaceId(state, spaceId)),
   setPullRequestMergeMethod: (method) => set((state) => setPullRequestMergeMethod(state, method)),
 }));

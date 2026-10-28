@@ -188,6 +188,7 @@ export function PreviewChromeRow({
             }}
             placeholder="Search or enter URL"
             aria-label="Address"
+            data-workspace-focus-default
             spellCheck={false}
             autoComplete="off"
             disabled={inputDisabled}

@@ -19,7 +19,7 @@ import { useOpenInPreferredEditor } from "../editorPreferences";
 import { useFileContextMenuHandler } from "../fileContextMenu";
 import { type DraftId } from "../composerDraftStore";
 import { openDiffFilePrimaryAction } from "../diffFileActions";
-import { useCheckpointDiff } from "~/lib/checkpointDiffState";
+import { useCheckpointDiff } from "~/state/queries";
 import { revisionedQuery } from "~/state/revisionedQuery";
 import { cn } from "~/lib/utils";
 import {
@@ -36,7 +36,6 @@ import { useStableCallback } from "../hooks/useStableCallback";
 import {
   buildFileDiffContentVersion,
   buildFileDiffIdentityKey,
-  getDiffCollapseIconClassName,
   getDiffLineStat,
   getRenderablePatch,
   resolveDiffThemeName,
@@ -104,14 +103,12 @@ function DiffFileCollapseToggle({
   fileKey,
   collapsed,
   unavailable,
-  iconClassName,
   onToggle,
 }: {
   filePath: string;
   fileKey: string;
   collapsed: boolean;
   unavailable: boolean;
-  iconClassName: string;
   onToggle: (fileKey: string) => void;
 }) {
   return (
@@ -133,7 +130,7 @@ function DiffFileCollapseToggle({
         }
       >
         <MorphIcon
-          className={cn("size-4", iconClassName)}
+          className="size-4 text-muted-foreground/80"
           icon={collapsed ? ChevronRight : ChevronDown}
         />
       </TooltipTrigger>
@@ -254,6 +251,8 @@ export default function DiffPanel({
     }
     return right.completedAt.localeCompare(left.completedAt);
   });
+
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- rewrites the persisted diff store selection to the latest turn when the selected turn disappears
   useEffect(() => {
     if (!routeThreadRef || diffSelection.kind !== "turn") return;
     useDiffPanelStore.getState().reconcileTurnSelection(
@@ -539,6 +538,7 @@ export default function DiffPanel({
   };
   const selectedFileReveal = { path: selectedFilePath, requestId: selectedFileRevealRequestId };
   // A file opened from the chat, including a repeat request for the same file, opens here.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- opens the file a chat diff link requested; each request id reopens it
   useEffect(() => {
     if (selectedFileReveal.path) setOpenFile(selectedFileReveal.path);
   }, [selectedFileReveal, setOpenFile]);
@@ -561,7 +561,7 @@ export default function DiffPanel({
   const singleFileIndex = singleFileEntry ? renderableFileEntries.indexOf(singleFileEntry) : -1;
   const singleFileReady =
     !lazySource || (singleFilePath !== null && readyFilePaths.has(singleFilePath));
-  // oxlint-disable-next-line t3code/react-effect-budget -- Loads the lazily fetched file shown in single-file mode.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Loads the lazily fetched file shown in single-file mode.
   useEffect(() => {
     if (lazySource && singleFileIndex >= 0 && !singleFileReady) requestFile(singleFileIndex);
   }, [lazySource, requestFile, singleFileIndex, singleFileReady]);
@@ -618,7 +618,7 @@ export default function DiffPanel({
     : null;
 
   const codeViewReveal = useCodeViewFileReveal();
-  // oxlint-disable-next-line t3code/react-effect-budget -- Scrolls the code view to the selected file.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Scrolls the code view to the selected file.
   useEffect(() => {
     if (selectedDiffFileKey) codeViewReveal.request(selectedDiffFileKey);
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- A remounted viewer or a repeated reveal request scrolls to the same file again.
@@ -648,7 +648,7 @@ export default function DiffPanel({
   // A file another view asked to reveal (a chat diff link): retried as the diff loads until it
   // holds the file, then not again until a new request, so it does not undo what the user did since.
   const externalRevealRef = useRef<string | null>(null);
-  // oxlint-disable-next-line t3code/react-effect-budget -- Reveals an externally selected file in the tree.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- reveals an externally requested file in the diff viewer, retrying as the diff DOM loads
   useEffect(() => {
     if (!selectedFilePath) {
       externalRevealRef.current = null;
@@ -1238,7 +1238,6 @@ export default function DiffPanel({
                           fileKey={fileKey}
                           collapsed={unavailable || collapsedDiffFileKeys.has(fileKey)}
                           unavailable={unavailable}
-                          iconClassName={getDiffCollapseIconClassName(fileDiff)}
                           onToggle={toggleDiffFileCollapsed}
                         />
                       );

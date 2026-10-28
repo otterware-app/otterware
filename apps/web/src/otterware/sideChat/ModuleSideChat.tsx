@@ -240,7 +240,7 @@ function EnvironmentSideChat({ moduleId, onHide, hideShortcutLabel }: SideChatPr
   }, [ensureAssistant, environmentId, moduleId, ready, setTarget, starting]);
 
   const assistantRequest = useShellSelection((state) => state.assistantRequest);
-  // oxlint-disable-next-line t3code/react-effect-budget -- Consumes assistant commands from the shell's external selection store.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Consumes assistant commands from the shell's external selection store.
   useEffect(() => {
     if (assistantRequest?.moduleId !== moduleId || !ready || starting) return;
     useShellSelection.setState({ assistantRequest: null });
@@ -500,7 +500,7 @@ function SideChatThread({
   const shell = useEnvironmentQuery(environmentShell.stateAtom(environmentId));
   const bootstrapped = shell.data?.snapshot._tag === "Some";
 
-  // oxlint-disable-next-line t3code/react-effect-budget -- Follows promotion redirects published by the external composer draft store.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Follows promotion redirects published by the external composer draft store.
   useEffect(() => {
     if (target.kind !== "draft") return;
     if (draftRedirect !== null) {
@@ -513,7 +513,7 @@ function SideChatThread({
     }
   }, [draftRedirect, onPromoted, target]);
 
-  // oxlint-disable-next-line t3code/react-effect-budget -- Finalizes the external draft store entry when the server thread starts.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Finalizes the external draft store entry when the server thread starts.
   useEffect(() => {
     if (target.kind === "server" && threadShellHasStarted(serverThread)) {
       finalizePromotedDraftThreadByRef(threadRef);
@@ -525,7 +525,7 @@ function SideChatThread({
     target.kind === "draft"
       ? draftSession === null && serverThread === null
       : bootstrapped && (serverThread === null || serverThread.archivedAt !== null);
-  // oxlint-disable-next-line t3code/react-effect-budget -- Clears the selected chat when server or draft-store updates remove or archive it.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Clears the selected chat when server or draft-store updates remove or archive it.
   useEffect(() => {
     if (missing) onMissing();
   }, [missing, onMissing]);

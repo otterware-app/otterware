@@ -37,18 +37,12 @@ import {
   NativeStackScreenOptions,
   nativeHeaderScrollEdgeEffects,
 } from "../../../native/StackHeader";
-import { tryOpenExternalUrl } from "../../../lib/openExternalUrl";
-import {
-  linearIssueDetail,
-  linearIssueStateColor,
-} from "../../../state/thread-linear-issue-presentation";
 import { useEnvironmentQuery } from "../../../state/query";
 import { useThreadSelection } from "../../../state/use-thread-selection";
 import { useSelectedThreadGitActions } from "../../../state/use-selected-thread-git-actions";
 import { useSelectedThreadGitState } from "../../../state/use-selected-thread-git-state";
 import { useSelectedThreadWorktree } from "../../../state/use-selected-thread-worktree";
 import { vcsEnvironment } from "../../../state/vcs";
-import { resolveGitOverviewReviewNavigationAction } from "./git-overview-navigation";
 import { menuItemIconName, statusSummary } from "./gitSheetComponents";
 import {
   LinkedPullRequestRow,
@@ -71,6 +65,7 @@ export function GitOverviewSheet(props: GitOverviewSheetProps) {
   const navigation = useNavigation();
   const { environmentId, threadId } = props.route.params;
   const isBlankLink = environmentId.trim().length === 0 || threadId.trim().length === 0;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- pops the navigator when the route link names a blank environment or thread
   useEffect(() => {
     if (isBlankLink) navigation.goBack();
   }, [isBlankLink, navigation]);
@@ -99,7 +94,6 @@ function GitOverviewSheetContent(props: GitOverviewSheetProps) {
     project: selectedThreadProject,
     runtime: selectedEnvironmentRuntime,
   });
-  const linearIssues = selectedThread?.linearIssues ?? [];
   const gitState = useSelectedThreadGitState();
   const gitActions = useSelectedThreadGitActions();
   const { canWriteSourceControl, canChangeThreadBranch } = gitActions;
@@ -290,7 +284,7 @@ function GitOverviewSheetContent(props: GitOverviewSheetProps) {
           onPress={() => {
             const params = { environmentId, threadId };
             navigation.dispatch(
-              resolveGitOverviewReviewNavigationAction(presentation) === "replace"
+              presentation === "sheet"
                 ? StackActions.replace("ThreadReview", params)
                 : CommonActions.navigate("ThreadReview", params),
             );

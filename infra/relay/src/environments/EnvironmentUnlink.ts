@@ -6,32 +6,32 @@ import * as ManagedEndpointProvider from "./ManagedEndpointProvider.ts";
 import * as HeldHooks from "../hooks/HeldHooks.ts";
 import * as HookInbox from "../hooks/HookInbox.ts";
 
-export const revokeEnvironmentLinkRecord = Effect.fn(
-  "relay.api.client.revokeEnvironmentLinkRecord",
-)(function* (input: {
-  readonly userId: string;
-  readonly environmentId: string;
-  readonly environmentPublicKey: string;
-}) {
-  const transactions = yield* RelayDb.RelayTransactions;
-  const links = yield* EnvironmentLinks.EnvironmentLinks;
-  const credentials = yield* EnvironmentCredentials.EnvironmentCredentials;
-  return yield* transactions.withTransaction(
-    Effect.gen(function* () {
-      const revoked = yield* links.revokeForUser({
-        userId: input.userId,
-        environmentId: input.environmentId,
-      });
-      if (revoked) {
-        yield* credentials.revokeForEnvironmentPublicKey({
+const revokeEnvironmentLinkRecord = Effect.fn("relay.api.client.revokeEnvironmentLinkRecord")(
+  function* (input: {
+    readonly userId: string;
+    readonly environmentId: string;
+    readonly environmentPublicKey: string;
+  }) {
+    const transactions = yield* RelayDb.RelayTransactions;
+    const links = yield* EnvironmentLinks.EnvironmentLinks;
+    const credentials = yield* EnvironmentCredentials.EnvironmentCredentials;
+    return yield* transactions.withTransaction(
+      Effect.gen(function* () {
+        const revoked = yield* links.revokeForUser({
+          userId: input.userId,
           environmentId: input.environmentId,
-          environmentPublicKey: input.environmentPublicKey,
         });
-      }
-      return revoked;
-    }),
-  );
-});
+        if (revoked) {
+          yield* credentials.revokeForEnvironmentPublicKey({
+            environmentId: input.environmentId,
+            environmentPublicKey: input.environmentPublicKey,
+          });
+        }
+        return revoked;
+      }),
+    );
+  },
+);
 
 export const unlinkEnvironmentRecord = Effect.fn("relay.api.client.unlinkEnvironmentRecord")(
   function* (input: {

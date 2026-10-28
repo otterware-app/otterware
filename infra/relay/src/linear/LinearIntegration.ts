@@ -7,7 +7,7 @@ import { EnvironmentId } from "@t3tools/contracts";
 import { DEFAULT_HOSTED_APP_URL } from "@t3tools/shared/connectAuth";
 import { normalizeRelayIssuer } from "@t3tools/shared/relayJwt";
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
-import type * as Cloudflare from "alchemy/Cloudflare";
+import type * as Cloudflare from "@alchemy.run/cloudflare";
 import * as Context from "effect/Context";
 import * as Crypto from "effect/Crypto";
 import * as DateTime from "effect/DateTime";

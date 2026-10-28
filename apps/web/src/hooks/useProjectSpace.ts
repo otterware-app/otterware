@@ -9,7 +9,7 @@ import { useEffect } from "react";
 import {
   deriveLogicalProjectKeyFromSettings,
   selectProjectGroupingSettings,
-} from "../logicalProject";
+} from "@t3tools/client-runtime/state/project-grouping";
 import {
   LEGACY_VOID_SPACE_ID,
   moveProjectToSpace,
@@ -95,7 +95,7 @@ function activeProjectSpace(input: {
 
 export function useActiveProjectSpace() {
   const storedSpaceId = useUiStateStore((store) => store.sidebarProjectSpaceId);
-  // oxlint-disable-next-line t3code/react-effect-budget -- Migrates a stored legacy space ID once.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Migrates a stored legacy space ID once.
   useEffect(() => {
     if (
       storedSpaceId === LEGACY_VOID_SPACE_ID &&

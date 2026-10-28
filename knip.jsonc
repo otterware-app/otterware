@@ -22,10 +22,11 @@
     "scripts": {
       // Knip loads its preprocessor through a CLI option; native verification and
       // worktree setup (from t3.json) run directly. release-desktop.yml bundles the
-      // Windows verify script with esbuild through a path knip does not trace, and
-      // electron-builder loads the macOS signer by path, and mobile-e2e.ts runs agent-device's CLI
-      // by path. Upstream's check-changed.ts stays
-      // unwired: `vp run check:changed` runs the Otterware checker under the same name.
+      // Windows verify script with esbuild through a path knip does not trace,
+      // electron-builder loads the macOS signer by path, and mobile-e2e.ts runs
+      // agent-device's CLI by path. release-desktop.yml runs the desktop launch
+      // check through xvfb-run, which knip does not trace. Upstream's check-changed.ts
+      // stays unwired: `vp run check:changed` runs the Otterware checker under the same name.
       "entry": [
         "check-changed.ts",
         // These fixture scripts are injected into a browser page by path.
@@ -34,6 +35,7 @@
         "mobile-native-client.ts",
         "setup-worktree.ts",
         "sign-macos.ts",
+        "smoke-desktop-app.ts",
         "verify-windows-desktop-artifact.ts",
       ],
       "ignoreDependencies": ["agent-device", "esbuild"],

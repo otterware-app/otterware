@@ -19,7 +19,7 @@ export function ThreadDeepLinkCoordinator() {
     if (target) void navigate({ to: "/$environmentId/$threadId", params: target });
   });
 
-  // oxlint-disable-next-line t3code/react-effect-budget -- Subscribes to the desktop bridge's thread links.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Subscribes to the desktop bridge's thread links.
   useEffect(() => {
     const bridge = window.desktopBridge;
     const take = bridge?.takePendingThreadLink;
@@ -31,7 +31,7 @@ export function ThreadDeepLinkCoordinator() {
     });
   }, []);
 
-  // oxlint-disable-next-line t3code/react-effect-budget -- Hands an opened web link over to the desktop app once.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Hands an opened web link over to the desktop app once.
   useEffect(() => {
     if (window.desktopBridge || !isHostedStaticApp()) return;
     const url = new URL(window.location.href);
