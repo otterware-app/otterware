@@ -327,8 +327,8 @@ jobs:
           cache: true
           run-install: true
 
+      # Browser tests need it, and the unit shard boots the built client in it.
       - name: Install Chromium for web browser tests
-        if: ${{ matrix.project == 'browser' }}
         run: node apps/web/node_modules/playwright/cli.js install --with-deps --only-shell chromium
 
       - name: Test
@@ -337,6 +337,7 @@ jobs:
 
       # Browser tests run source modules; this boots the production chunk graph.
       - name: Boot the built web client
+        if: ${{ matrix.project == 'unit' }}
         run: |
           vp run --filter @t3tools/web build
           node apps/web/scripts/verify-built-boot.ts
