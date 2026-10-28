@@ -62,8 +62,7 @@ apps/server/src/cli/update.ts
 # Provider drivers and secrets
 apps/server/src/provider/builtInDrivers.ts
 apps/server/src/settingsSecrets.ts
-apps/web/src/components/settings/providerDriverMeta.ts
-apps/mobile/src/lib/providerClients.ts
+packages/client-runtime/src/providerClients.ts
 
 # Docs and CI
 docs/**/*.md

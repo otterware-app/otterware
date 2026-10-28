@@ -17,7 +17,9 @@ if (!cloudEnabled) {
 function CloudAuthBridge(props: { readonly children: ReactNode }) {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const [source] = useState(createOtterAccountSource);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- attaches the account source to the cloud account service while mounted
   useEffect(() => cloudAccountService.attach(source), [source]);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- pushes the Otter session into the account source the cloud service reads
   useEffect(() => {
     source.update({
       accountId: !isLoaded ? undefined : isSignedIn && userId ? userId : null,

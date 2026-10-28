@@ -449,7 +449,7 @@ function fixWhiteOnWhiteText(doc: Document | null | undefined) {
 function useDarkAppearance(): boolean {
   const query = "(prefers-color-scheme: dark)";
   const [dark, setDark] = useState(() => window.matchMedia(query).matches);
-  // oxlint-disable-next-line t3code/react-effect-budget -- Subscribes to the window's color-scheme media query.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Subscribes to the window's color-scheme media query.
   useEffect(() => {
     const mq = window.matchMedia(query);
     const onChange = () => setDark(mq.matches);
@@ -592,7 +592,7 @@ function HtmlBody({
 
   const adaptColorsForEffect = useLatest(adaptColors);
   /* oxlint-disable react/exhaustive-effect-dependencies -- Explicit DOM and reset triggers must re-run this lifecycle. */
-  // oxlint-disable-next-line t3code/react-effect-budget -- Wires iframe DOM events, image loading and resize observers to fit and adapt the email document.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Wires iframe DOM events, image loading and resize observers to fit and adapt the email document.
   useEffect(() => {
     const iframe = frameRef.current;
     if (!iframe) return;
@@ -1073,7 +1073,7 @@ function ImageAttachmentTile({
   const [url, setUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
 
-  // oxlint-disable-next-line t3code/react-effect-budget -- Fetches the attachment thumbnail and owns its browser object URL lifetime.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Fetches the attachment thumbnail and owns its browser object URL lifetime.
   useEffect(() => {
     let cancelled = false;
     let objectUrl: string | null = null;
@@ -1384,7 +1384,7 @@ export function ExpandedRow({
   // Debounce marking read so j/k scrubbing does not mark every briefly mounted row.
   // Read the mutation through a ref: React Query recreates it every render,
   // which would restart the timer on incidental re-renders.
-  // oxlint-disable-next-line t3code/react-effect-budget -- Schedules and cancels the mailbox mark-read mutation while a message is displayed.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Schedules and cancels the mailbox mark-read mutation while a message is displayed.
   useEffect(() => {
     if (markedRead.current || !summary.unread) return;
     const timer = setTimeout(() => {
@@ -1746,7 +1746,7 @@ function InlineComposer({
 
   // A mode switch recomputes recipients (and drops forwarded files).
   const previousMode = useRef(mode);
-  // oxlint-disable-next-line t3code/react-effect-budget -- Resets retained mail-session recipients and attachments when the compose mode changes.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Resets retained mail-session recipients and attachments when the compose mode changes.
   useEffect(() => {
     if (previousMode.current === mode) return;
     recipientsDirty.current = false;
@@ -1757,7 +1757,7 @@ function InlineComposer({
 
   // Prefill recipients per mode; refine once the detail arrives, unless the
   // user already edited the fields.
-  // oxlint-disable-next-line t3code/react-effect-budget -- Prefills retained mail-session recipients from asynchronously loaded message and account data.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Prefills retained mail-session recipients from asynchronously loaded message and account data.
   useEffect(() => {
     if (recipientsDirty.current) return;
     const source = lastDetail ?? lastMessage;
@@ -1774,7 +1774,7 @@ function InlineComposer({
   }, [mode, lastMessage, lastDetail, ownEmail]);
 
   // Forward seeds the original's attachments; other modes keep manual picks.
-  // oxlint-disable-next-line t3code/react-effect-budget -- Fetches original attachment bytes for forwarding and cancels updates after cleanup.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Fetches original attachment bytes for forwarding and cancels updates after cleanup.
   useEffect(() => {
     if (mode !== "forward" || attachments !== null) return;
     if (!lastDetail) {
@@ -1816,7 +1816,7 @@ function InlineComposer({
     };
   }, [mode, accountId, lastMessage.id, lastDetail]);
 
-  // oxlint-disable-next-line t3code/react-effect-budget -- Moves DOM focus to the recipient input or rich-text editor for the compose mode.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Moves DOM focus to the recipient input or rich-text editor for the compose mode.
   useEffect(() => {
     if (mode === "forward") toRef.current?.focus();
     else editorRef.current?.focus();
@@ -2142,7 +2142,7 @@ export function MessageReader({
   // Cleared every render; the message-open path below re-populates it, so the
   // shortcuts are inert when no message is on screen.
   const renderedActions: typeof readerActions.current = {};
-  // oxlint-disable-next-line t3code/react-effect-budget -- Publishes the committed reader actions to the app's keyboard command handlers.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Publishes the committed reader actions to the app's keyboard command handlers.
   useLayoutEffect(() => {
     readerActions.current = renderedActions;
   });
@@ -2171,7 +2171,7 @@ export function MessageReader({
     on: false,
     target: null,
   });
-  // oxlint-disable-next-line t3code/react-effect-budget -- Resets translation overrides for the opened mailbox message and saved translation preference.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Resets translation overrides for the opened mailbox message and saved translation preference.
   useEffect(() => setTranslation({ on: autoTranslate, target: null }), [messageId, autoTranslate]);
   const conversationTranslation = useMemo(
     () => ({ ...translation, set: setTranslation }),
@@ -2190,7 +2190,7 @@ export function MessageReader({
   const [expandedIds, setExpandedIds] = useState<ReadonlySet<string>>(new Set());
   // Long runs of collapsed messages fold into "N more messages" until opened.
   const [unfolded, setUnfolded] = useState(false);
-  // oxlint-disable-next-line t3code/react-effect-budget -- Resets conversation folding when the mailbox selection opens another message.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Resets conversation folding when the mailbox selection opens another message.
   useEffect(() => setUnfolded(false), [messageId]);
   const seededRef = useRef<string | null>(null);
   const readerAccounts = useAccounts();
@@ -2220,7 +2220,7 @@ export function MessageReader({
   // capture phase so home-view's Escape-deselects-message listener never fires
   // while a draft is open (dialogs keep their own Escape handling).
   const inlineRef = useLatest(inline);
-  // oxlint-disable-next-line t3code/react-effect-budget -- Subscribes to window keydown events to close the inline composer on Escape.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Subscribes to window keydown events to close the inline composer on Escape.
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || !inlineRef.current) return;
@@ -2238,7 +2238,7 @@ export function MessageReader({
 
   // Seed which conversation rows start expanded: the last message, every
   // unread one, and the opened message itself (differs when opened via search).
-  // oxlint-disable-next-line t3code/react-effect-budget -- Seeds expanded rows when the selected conversation's asynchronous mailbox data arrives.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Seeds expanded rows when the selected conversation's asynchronous mailbox data arrives.
   useEffect(() => {
     if (!messageId || !threadId || threadMessages.length === 0) return;
     const seedKey = `${accountId}:${threadId}:${messageId}`;

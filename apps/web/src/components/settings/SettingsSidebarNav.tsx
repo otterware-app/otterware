@@ -58,6 +58,7 @@ import {
 } from "./settingsSearch";
 import { useAvailableSettingsSearchItems } from "./useAvailableSettingsSearchItems";
 import { validateSettingsScopeSearch } from "./settingsScope";
+import { workspaceAreaProps } from "../../lib/workspaceFocus";
 
 const SnapShotIcon = createLucideIcon("snap-shot", [
   [
@@ -170,6 +171,7 @@ function SettingsSectionIcon({ to }: { to: SettingsPath }) {
 }
 
 export function SettingsSidebarNav({ pathname }: { pathname: string }) {
+  const navArea = workspaceAreaProps("settings-nav", 0, "Settings sections");
   const navigate = useNavigate();
   const currentHash = useLocation({ select: (location) => location.hash });
   const currentSearch = useLocation({ select: (location) => location.search });
@@ -192,6 +194,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   const lastResultIndex = Math.max(results.length - 1, 0);
   if (activeResultIndex > lastResultIndex) setActiveResultIndex(lastResultIndex);
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- scrolls the active search result's DOM node into view
   useEffect(() => {
     const result = results[activeResultIndex];
     if (!result) return;
@@ -200,6 +203,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
       ?.scrollIntoView({ block: "nearest" });
   }, [activeResultIndex, results]);
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- window keydown listener for the find and slash search shortcuts
   useEffect(() => {
     const handleKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.defaultPrevented || event.isComposing) return;
@@ -237,6 +241,7 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- focuses the search input DOM node after the compact search opens
   useEffect(() => {
     if (compactSearchOpen) searchInputRef.current?.focus();
   }, [compactSearchOpen]);
@@ -296,7 +301,8 @@ export function SettingsSidebarNav({ pathname }: { pathname: string }) {
   };
   return (
     <nav
-      aria-label="Settings sections"
+      {...navArea}
+      role="navigation"
       className={cn(
         "flex w-60 shrink-0 flex-col border-e bg-sidebar text-sidebar-foreground max-md:w-14",
         compactSearchOpen &&

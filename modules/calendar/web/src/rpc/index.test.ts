@@ -31,6 +31,7 @@ const session = (feed: Stream.Stream<never, RpcClientError.RpcClientError>): Rpc
     ready: Effect.void,
     probe: Effect.void,
     closed: Effect.never,
+    inboundFrames: Effect.succeed(0),
   };
 };
 

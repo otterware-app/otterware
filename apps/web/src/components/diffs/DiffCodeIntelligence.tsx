@@ -95,7 +95,7 @@ function setHighlight(name: string, ranges: ReadonlyArray<Range>) {
  */
 export function DiffCodeIntelligence(props: Props) {
   const latest = useRef(props);
-  // oxlint-disable-next-line t3code/react-effect-budget -- Keeps the language session's callbacks on the latest props.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keeps the language session's callbacks on the latest props.
   useEffect(() => {
     latest.current = props;
   });
@@ -117,7 +117,7 @@ export function DiffCodeIntelligence(props: Props) {
   } | null>(null);
   const { root: rootRef, environmentId, cwd } = props;
 
-  // oxlint-disable-next-line t3code/react-effect-budget -- Owns the language session bound to the rendered diff.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Owns the language session bound to the rendered diff.
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;

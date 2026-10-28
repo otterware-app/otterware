@@ -14,7 +14,7 @@ import {
   XIcon,
 } from "../../lib/icons";
 import { randomUUID } from "../../lib/utils";
-import { selectProjectGroupingSettings } from "../../logicalProject";
+import { selectProjectGroupingSettings } from "@t3tools/client-runtime/state/project-grouping";
 import { projectSpaceIcon } from "../../projectSpaces";
 import {
   buildSidebarProjectSnapshots,

@@ -56,7 +56,7 @@ export const usePreviewExtensionsUi = create<PreviewExtensionsUiState>()(
 /** What `read` returns, read again whenever extensions or their buttons change. */
 function useWhenExtensionsChange<T>(read: (() => Promise<T>) | null, initial: T): T {
   const [value, setValue] = useState(initial);
-  // oxlint-disable-next-line t3code/react-effect-budget -- Subscribes to the desktop's extension changes.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Subscribes to the desktop's extension changes.
   useEffect(() => {
     if (!read || !previewExtensions) return;
     let current = true;
@@ -99,7 +99,7 @@ export function usePreviewExtensionActions(
 const openTabHandlers: Array<(url: string) => void> = [];
 let listeningForTabs = false;
 export function useOpenExtensionTabs(handler: ((url: string) => void) | null): void {
-  // oxlint-disable-next-line t3code/react-effect-budget -- Subscribes to tabs that extensions open.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Subscribes to tabs that extensions open.
   useEffect(() => {
     if (!handler || !previewExtensions) return;
     if (!listeningForTabs) {

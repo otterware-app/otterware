@@ -58,7 +58,9 @@ const managedRelayAccountService = createCloudAccountService<OtterAccountSource>
 export function ManagedRelayAuthProvider({ children }: { readonly children: ReactNode }) {
   const { getToken, isLoaded, isSignedIn, userId } = useAuth();
   const [source] = useState(createOtterAccountSource);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- attaches the account source to the managed relay service for the provider's lifetime
   useEffect(() => managedRelayAccountService.attach(source), [source]);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- pushes the Otter session into the account source the relay service reads
   useEffect(() => {
     source.update({
       accountId: !isLoaded ? undefined : isSignedIn && userId ? userId : null,

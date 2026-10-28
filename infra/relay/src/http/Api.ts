@@ -171,9 +171,9 @@ export const layerDocsRedirectRoute = HttpRouter.add(
 );
 
 // Finish before the mobile client's 10 s timeout so request cancellation cannot discard unexported spans.
-export const RELAY_REQUEST_DEADLINE_MS = 9_000;
+const RELAY_REQUEST_DEADLINE_MS = 9_000;
 /** Allow body reading, upstream wait, and inbox hold; an API-sized deadline would drop held webhooks. */
-export const RELAY_HOOK_REQUEST_DEADLINE_MS = 25_000;
+const RELAY_HOOK_REQUEST_DEADLINE_MS = 25_000;
 
 const relayRequestDeadline = <E, R>(
   httpEffect: Effect.Effect<
@@ -226,7 +226,7 @@ const annotateRelayEdgeLocation = Effect.gen(function* () {
 });
 
 // The method-named server span is created below; this wrapper must not add another span.
-export const traceRelayHttpRequest = Effect.fnUntraced(function* <E, R>(
+const traceRelayHttpRequest = Effect.fnUntraced(function* <E, R>(
   httpEffect: Effect.Effect<
     HttpServerResponse.HttpServerResponse,
     E,
@@ -1113,12 +1113,6 @@ export const layerServerApi = HttpApiBuilder.group(
           });
         },
         mapErrorTags({
-          EnvironmentPublishPublicKeyMissing: (_error, traceId) =>
-            new RelayAuthInvalidError({
-              code: "auth_invalid",
-              reason: "not_authorized",
-              traceId,
-            }),
           EnvironmentPublishSignatureExpired: (_error, traceId) =>
             new RelayAgentActivityPublishProofExpiredError({
               code: "agent_activity_publish_proof_expired",
@@ -1578,7 +1572,4 @@ const relayAuthInvalidError = Effect.fnUntraced(function* (reason: RelayAuthInva
   return yield* new RelayAuthInvalidError({ code: "auth_invalid", reason, traceId });
 });
 
-export {
-  revokeEnvironmentLinkRecord,
-  unlinkEnvironmentRecord,
-} from "../environments/EnvironmentUnlink.ts";
+export { unlinkEnvironmentRecord } from "../environments/EnvironmentUnlink.ts";

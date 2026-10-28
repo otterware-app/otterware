@@ -5,7 +5,7 @@ import type { EnvironmentId, ProjectGroupSetting } from "@t3tools/contracts";
 import {
   deriveLogicalProjectKeyFromSettings,
   type ProjectGroupingSettings,
-} from "./logicalProject";
+} from "@t3tools/client-runtime/state/project-grouping";
 
 export const CHATS_SPACE_ID = "chats";
 export const LEGACY_VOID_SPACE_ID = "__void__";
