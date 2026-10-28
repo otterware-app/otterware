@@ -37,7 +37,6 @@
     "@otterware/module-kit": "workspace:*",
     "@otterware/otter-cloud-client": "workspace:*",
     "@otterware/profiles": "workspace:*",
-    "@otterware/provider-api-agents": "workspace:*",
     "@pierre/diffs": "catalog:",
     "@pierre/trees": "1.0.0-beta.6",
     "@t3tools/client-runtime": "workspace:*",
