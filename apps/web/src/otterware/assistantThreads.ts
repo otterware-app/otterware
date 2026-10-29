@@ -23,9 +23,7 @@ import { useCallback } from "react";
 import { scheduledTaskDefaultModel } from "../components/settings/scheduledTasksSettings.logic";
 import { useComposerDraftStore, type DraftId } from "../composerDraftStore";
 import { newDraftId, newMessageId, newThreadId } from "../lib/utils";
-import {
-  providerInstanceEntriesFor,
-} from "../providerInstances";
+import { providerInstanceEntriesFor } from "../providerInstances";
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { readProject, waitForProject } from "../state/entities";
 import {

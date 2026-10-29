@@ -21,9 +21,7 @@ import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "../../com
 import { Spinner } from "../../components/ui/spinner";
 import { useEnvironmentSettings } from "../../hooks/useSettings";
 import { getCustomModelOptionsByInstance } from "../../modelSelection";
-import {
-  providerInstanceEntriesFor,
-} from "../../providerInstances";
+import { providerInstanceEntriesFor } from "../../providerInstances";
 import { useProjects } from "../../state/entities";
 import { EMPTY_SERVER_PROVIDERS, serverEnvironment } from "../../state/server";
 import type { ModulePageRef } from "@otterware/module-kit/web";
@@ -77,8 +75,7 @@ export function HomeComposer({
   const providers =
     useAtomValue(serverEnvironment.providersValueAtom(environmentId)) ?? EMPTY_SERVER_PROVIDERS;
   const instanceEntries = useMemo(
-    () =>
-      providerInstanceEntriesFor(providers, settings, codeProject?.id ?? null),
+    () => providerInstanceEntriesFor(providers, settings, codeProject?.id ?? null),
     [providers, settings, codeProject],
   );
   const selection = model ?? scheduledTaskDefaultModel(settings, codeProject, instanceEntries);
