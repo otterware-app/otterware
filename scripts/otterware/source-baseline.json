@@ -46,6 +46,7 @@
       "apps/web/src/components/chat/ComposerControlsBar.tsx": "100644 blob de2468747a058b92709e5485b271f879ccaf475f",
       "apps/web/src/components/chat/ComposerFooterControls.tsx": "100644 blob a73edcc7ab1b39a11478d79c9bc3b585483d7ac6",
       "apps/web/src/components/chat/ComposerPendingApprovalActions.tsx": "100644 blob 05e7d0846aadb85c48c86ea944bad2a8a60dea96",
+      "apps/web/src/components/chat/ComposerPermissionsSection.browser.test.tsx": "100644 blob b6526ffc901ce1d87c629a0b8ae60bbfd02de052",
       "apps/web/src/components/chat/ComposerPrimaryActions.tsx": "100644 blob 8ba144b4e220f9277966184a409588d040a8c7ea",
       "apps/web/src/components/chat/ComposerSurface.tsx": "100644 blob 8831c67e19fa35ef5f20e366a0391de72e4d8cc9",
       "apps/web/src/components/chat/DraftHeroHeadline.tsx": "100644 blob 3f1b26f36848704efd767411b5758f3bbfbc9c77",
