@@ -3,14 +3,14 @@
 The 2026-10-29 integration audits these fetched `main` revisions. The source checkouts are
 read-only inputs; their checked-out branches are not baselines.
 
-| Source                         | Fetched revision                           | Earlier baseline                                                                               |
-| ------------------------------ | ------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| Source                         | Fetched revision                           | Earlier baseline                                                                                 |
+| ------------------------------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------ |
 | `pingdotgg/t3code`             | `fe219c4de18f5ee37c28cbd3914a5569b1579156` | `0c8075170152c1aa24ab1d5a9a652adeafbbf1a5` (2026-10-28 sync); `upstream-base` stays `339179f50a` |
-| `otterware-app/otter-code`     | `@@OTTER_MAIN@@` | `8b3f89b35d5f09867c6247657b294f5c61cce863` (2026-10-28 main, including #57–#59)                 |
-| `otterware-app/otter-mail`     | `40f6085063ece8542561abfd8a399dc61156e3d9` | `ab878dc822d00e5eb7641a3937e4267c393d3949`; portable changes now through `46b114791b`          |
-| `otterware-app/otter-drive`    | `514675ad0a8590acff4c904047b59438fa2d16a8` | Unchanged since the 2026-10-20 sync                                                            |
-| `otterware-app/otter-calendar` | `56b952a950b862f081b3eb8ac7fad7fa067b6c7a` | Unchanged                                                                                      |
-| `otterware-app/otter-accounts` | `585a09cfabbc0a3faca17a4b690cbac63f3d6288` | Unchanged                                                                                      |
+| `otterware-app/otter-code`     | `@@OTTER_MAIN@@`                           | `8b3f89b35d5f09867c6247657b294f5c61cce863` (2026-10-28 main, including #57–#59)                  |
+| `otterware-app/otter-mail`     | `40f6085063ece8542561abfd8a399dc61156e3d9` | `ab878dc822d00e5eb7641a3937e4267c393d3949`; portable changes now through `46b114791b`            |
+| `otterware-app/otter-drive`    | `514675ad0a8590acff4c904047b59438fa2d16a8` | Unchanged since the 2026-10-20 sync                                                              |
+| `otterware-app/otter-calendar` | `56b952a950b862f081b3eb8ac7fad7fa067b6c7a` | Unchanged                                                                                        |
+| `otterware-app/otter-accounts` | `585a09cfabbc0a3faca17a4b690cbac63f3d6288` | Unchanged                                                                                        |
 
 This sync stops at the t3code revision Otter Code integrated, so both products carry the same T3
 delta.
