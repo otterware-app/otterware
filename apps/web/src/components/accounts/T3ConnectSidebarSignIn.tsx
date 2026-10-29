@@ -16,7 +16,7 @@ export function T3ConnectSidebarAvatar() {
         variant="ghost"
         size="icon-sm"
         aria-label={`Otter account: ${user?.email ?? "account"}`}
-        onClick={account.open ?? undefined}
+        onClick={() => account.open?.()}
       >
         <UserRoundIcon />
       </Button>

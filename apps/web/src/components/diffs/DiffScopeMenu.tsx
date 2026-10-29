@@ -67,7 +67,8 @@ function SectionLabel(props: { readonly children: ReactNode }) {
  * uncommitted work, one commit, or one agent turn.
  */
 export function DiffScopeMenu(props: {
-  readonly selected: DiffScopeChoice;
+  /** Null while the panel shows something outside these scopes, such as a tool call. */
+  readonly selected: DiffScopeChoice | null;
   /** What the trigger shows: the scope currently on screen. */
   readonly label: string;
   /** Full scope name, e.g. a commit subject, for the trigger's tooltip. */
@@ -116,7 +117,7 @@ export function DiffScopeMenu(props: {
             />
           }
         >
-          <span className={cn("min-w-0 truncate", selected.kind === "commit" && "font-mono")}>
+          <span className={cn("min-w-0 truncate", selected?.kind === "commit" && "font-mono")}>
             {props.label}
           </span>
           <ChevronDownIcon className="size-3.5 shrink-0 opacity-70" />
@@ -136,13 +137,13 @@ export function DiffScopeMenu(props: {
           ) : null}
           <div role="menu" aria-label="Changes to show">
             <ScopeOption
-              selected={selected.kind === "branch"}
+              selected={selected?.kind === "branch"}
               onSelect={() => select({ kind: "branch" })}
               title="All changes"
               detail={fileCountDetail(props.allFileCount, "No changes")}
             />
             <ScopeOption
-              selected={selected.kind === "unstaged"}
+              selected={selected?.kind === "unstaged"}
               onSelect={() => select({ kind: "unstaged" })}
               title="Uncommitted changes"
               detail={fileCountDetail(props.uncommittedFileCount, "No uncommitted changes")}
@@ -154,7 +155,7 @@ export function DiffScopeMenu(props: {
                 {props.commits.map((commit) => (
                   <ScopeOption
                     key={commit.sha}
-                    selected={selected.kind === "commit" && selected.sha === commit.sha}
+                    selected={selected?.kind === "commit" && selected.sha === commit.sha}
                     onSelect={() => select({ kind: "commit", sha: commit.sha })}
                     title={commit.subject || commit.sha.slice(0, 7)}
                     detail={
@@ -182,7 +183,7 @@ export function DiffScopeMenu(props: {
                 {props.turns.map((turn) => (
                   <ScopeOption
                     key={turn.runId}
-                    selected={selected.kind === "turn" && selected.runId === turn.runId}
+                    selected={selected?.kind === "turn" && selected.runId === turn.runId}
                     onSelect={() => select({ kind: "turn", runId: turn.runId })}
                     title={`Turn ${turn.turnCount ?? "?"}`}
                     detail={`${turn.fileCount} ${turn.fileCount === 1 ? "file" : "files"} • ${formatShortTimestamp(turn.completedAt, timestampFormat)}`}

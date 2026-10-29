@@ -4,7 +4,12 @@ import {
   EnvironmentId,
   type EnvironmentCloudLinkStateResult,
 } from "@t3tools/contracts";
-import type { RelayManagedEndpointProviderKind } from "@t3tools/contracts/relay";
+import { ManagedRelay } from "@t3tools/client-runtime/relay";
+import {
+  RelayEnvironmentLinkLimitExceededError,
+  type RelayManagedEndpointProviderKind,
+} from "@t3tools/contracts/relay";
+import * as Cause from "effect/Cause";
 import { AsyncResult } from "effect/reactivity";
 import { useLayoutEffect } from "react";
 import { describe, expect, it, vi } from "vite-plus/test";
@@ -82,6 +87,7 @@ vi.mock(import("./primaryCloudLinkState"), async (original) => ({
     refresh: testState.refreshLink,
   })) as never,
 }));
+import { CloudEnvironmentLinkError } from "./linkEnvironment";
 import { useCloudLinkController, type CloudLinkDesiredState } from "./useCloudLinkController";
 
 const target = {
@@ -119,9 +125,8 @@ async function mountController() {
     />,
   );
   return Object.assign(screen, {
-    get controller() {
-      return controller;
-    },
+    // Object.assign would copy a getter's value once, so read the latest render through a function.
+    controller: () => controller,
     async reconcile(desired: CloudLinkDesiredState) {
       let succeeded = false;
       await act(async () => {
@@ -218,5 +223,34 @@ describe("useCloudLinkController", () => {
     expect(testState.unlink).toHaveBeenCalledExactlyOnceWith({ target, accountToken: null });
     expect(testState.link).not.toHaveBeenCalled();
     expect(testState.preferences).not.toHaveBeenCalled();
+  });
+
+  it("reports a relay tunnel cap refusal as tunnelLimit instead of an error", async () => {
+    using _setup = setup();
+    testState.snapshot = { ...linkedState, linked: false, managedTunnelActive: false };
+    testState.link.mockResolvedValueOnce(
+      AsyncResult.failure(
+        Cause.fail(
+          new CloudEnvironmentLinkError({
+            message: "environment-links failed",
+            cause: new ManagedRelay.ManagedRelayRequestFailedError({
+              action: "link relay environment",
+              cause: null,
+              relayError: new RelayEnvironmentLinkLimitExceededError({
+                code: "environment_link_limit_exceeded",
+                maxTunnels: 3,
+                traceId: "trace-1",
+              }),
+            }),
+          }),
+        ),
+      ),
+    );
+    await using screen = await mountController();
+
+    expect(await screen.reconcile({ managedTunnel: true, publish: false })).toBe(false);
+    expect(screen.controller()?.tunnelLimit).toBe(3);
+    expect(screen.controller()?.operationError).toBeNull();
+    expect(testState.toast).not.toHaveBeenCalled();
   });
 });

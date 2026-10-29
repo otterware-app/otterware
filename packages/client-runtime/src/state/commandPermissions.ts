@@ -27,7 +27,7 @@ function makeCommandPermissions<R, E>(
         const scopes = scopeKey.split(",").filter(Boolean) as AuthEnvironmentScope[];
         if (scopes.length === 0) return true;
         const result = get(sessions.sessionStateAtom(environmentId));
-        const session = Option.getOrNull(AsyncResult.value(result));
+        const session = AsyncResult.getOrElse(result, () => null);
         return (
           result._tag !== "Failure" &&
           session !== null &&

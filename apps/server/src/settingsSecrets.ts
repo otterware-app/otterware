@@ -5,6 +5,7 @@ import {
   LinearSettings,
   EasDeviceHostConfig,
   type ServerSettings,
+  SimlockDeviceHostConfig,
   UsageLimitSourceConfig,
   secretSettingsFields,
 } from "@t3tools/contracts";
@@ -42,6 +43,7 @@ const providerSecretFields = new Map([
   ),
 ]);
 const usageLimitSecretFields = secretSettingsFields(UsageLimitSourceConfig);
+const simlockDeviceHostSecretFields = secretSettingsFields(SimlockDeviceHostConfig);
 const linearSecretFields = secretSettingsFields(LinearSettings);
 const easDeviceHostSecretFields = secretSettingsFields(EasDeviceHostConfig);
 const encode = (value: string) => Buffer.from(value, "utf8").toString("base64url");
@@ -170,11 +172,24 @@ export function mapSettingsSecrets(
       ) as EasDeviceHostConfig,
   );
 
+  // Its own prefix: an EAS and a Simlock host may share an id.
+  const simlockDeviceHosts = settings.simlockDeviceHosts.map(
+    (host) =>
+      mapFields(
+        host,
+        simlockDeviceHostSecretFields,
+        (field, serverHost) =>
+          `simlock-device-host-${encode(host.id)}-${encode(field)}` +
+          (serverHost === null ? "" : `-${encode(serverHost)}`),
+      ) as SimlockDeviceHostConfig,
+  );
+
   return {
     ...settings,
     providerInstances,
     sourceControlHosts,
     usageLimitSources,
+    simlockDeviceHosts,
     linear,
     easDeviceHosts,
   };
