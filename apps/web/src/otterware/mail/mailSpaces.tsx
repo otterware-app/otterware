@@ -1,3 +1,4 @@
+import { GMAIL_CAPABILITIES } from "@otterware/mail-contracts";
 import { isThreadDrag, readThreadDrag } from "./content/main/gmail/thread-drag";
 import { searchTitle } from "./content/main/gmail/search-tabs";
 import { useNavigate } from "@tanstack/react-router";
@@ -5,6 +6,7 @@ import {
   ClockIcon,
   InboxIcon,
   StarIcon,
+  FlagIcon,
   SendIcon,
   FilePenIcon,
   TagIcon,
@@ -122,6 +124,9 @@ export function useMailSidebar({
     };
   };
   const combined = folderMailbox === COMBINED_ACCOUNT_ID;
+  const capabilities =
+    data.accounts.find((account) => account.id === folderMailbox)?.capabilities ??
+    GMAIL_CAPABILITIES;
   const folder = (normal: string, builtin: string) => (combined ? `__${builtin}__` : normal);
   const labelAccounts = data.accounts.filter(
     (account) =>
@@ -197,10 +202,23 @@ export function useMailSidebar({
             ? { detail: data.unread[folderMailbox]!.toLocaleString() }
             : {}),
         },
-        row(folder("STARRED", "starred"), "Starred", <StarIcon className="size-4" />),
+        row(
+          folder("STARRED", "starred"),
+          combined || capabilities.stars ? "Starred" : "Flagged",
+          combined || capabilities.stars ? (
+            <StarIcon className="size-4" />
+          ) : (
+            <FlagIcon className="size-4" />
+          ),
+        ),
         row(folder("SENT", "sent"), "Sent", <SendIcon className="size-4" />),
         row(folder("DRAFT", "drafts"), "Drafts", <FilePenIcon className="size-4" />),
-        row(folder("ALL_MAIL", "allmail"), "All mail", <ArchiveIcon className="size-4" />),
+        capabilities.archiveFolder && !combined
+          ? row("ARCHIVE", "Archive", <ArchiveIcon className="size-4" />)
+          : row(folder("ALL_MAIL", "allmail"), "All mail", <ArchiveIcon className="size-4" />),
+        ...(!combined && (data.labels[folderMailbox] ?? []).some((label) => label.id === "SNOOZED")
+          ? [row("SNOOZED", "Snoozed", <ClockIcon className="size-4" />)]
+          : []),
         row(folder("SPAM", "junk"), "Junk", <ShieldAlertIcon className="size-4" />),
         row(folder("TRASH", "trash"), "Trash", <TrashIcon className="size-4" />),
         {

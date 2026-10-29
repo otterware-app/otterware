@@ -1083,6 +1083,7 @@ function MailHome() {
       titleTrailing={trailing}
       accountId={readerAccount ?? ""}
       messageId={focusedMessageId ?? selectedMessageId}
+      listLabelId={isCombined || isProjects || activeSearch ? null : selectedLabelId}
       autoFocusDraft={autoFocusDraft}
       single={focusedMessageId != null}
       onShowConversation={() => go({ focusId: null })}
