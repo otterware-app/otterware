@@ -46,7 +46,7 @@ import { ShareDialogHost } from "./drive/share-dialog";
 import { UploadDialogHost, requestUpload } from "./drive/upload-dialog";
 import { useCommandHandlers } from "./keybindings/dispatch";
 import { DocumentListResizer, useDocumentListWidth } from "./drive/document-split";
-import { useIsMobile } from "~/hooks/useMediaQuery";
+import { useMediaQuery } from "~/hooks/useMediaQuery";
 import { useDriveStore } from "../driveStore";
 import { useFolderRole } from "./folder-role";
 import {
@@ -118,7 +118,7 @@ export function DriveHome({
   children: ReactNode;
 }) {
   const navigate = useNavigate();
-  const narrow = useIsMobile();
+  const narrow = useMediaQuery("max-md");
   const { activeFolder, loaded, folders, selectFolder } = useFolders();
   const shared = useSharedWithMe();
 
@@ -135,6 +135,7 @@ export function DriveHome({
 
   // The open folder follows the URL (links, Back), and the URL names the
   // open folder once it's known.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- keeps the open folder and the router's search params in step
   useEffect(() => {
     if (!loaded || place.kind !== "home" || search.view === "shared") return;
     if (search.folder && search.folder !== activeFolder?.id) {
@@ -154,6 +155,7 @@ export function DriveHome({
   // A document opened from another folder (a link, the palette) makes that
   // folder the open one, so closing it, uploads and Settings follow it.
   const selecting = useRef<string | null>(null);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- selects the folder the route names in the Drive store
   useEffect(() => {
     if (!routeFolder || !activeFolder || routeFolder.id === activeFolder.id) return;
     if (search.view === "shared") return;
@@ -172,6 +174,7 @@ export function DriveHome({
   // viewer publishes it instead while one is open).
   const host = useDriveHost();
   const driveId = driveForFolder(folders, folder)?.id ?? null;
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- keeps the shell's selected space on the open drive
   useEffect(() => {
     if (host.active && driveId) useShellSelection.getState().selectSpace("drive", driveId);
   }, [host.active, driveId]);

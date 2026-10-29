@@ -38,13 +38,13 @@ function mail(opts: {
   inReplyTo?: string;
   attachment?: boolean;
 }): { id: string; raw: string } {
-  const id = `<m${Date.now()}.${++counter}@example.com>`;
+  const id = `<m${++counter}@example.com>`;
   const head = [
     `From: ${opts.from ?? "Bob <bob@example.com>"}`,
     `To: ${opts.to ?? "Me <me@example.com>"}`,
     `Subject: ${opts.subject}`,
     `Message-ID: ${id}`,
-    `Date: ${new Date().toUTCString()}`,
+    `Date: ${new Date("2026-01-02T03:04:05Z").toUTCString()}`,
     ...(opts.inReplyTo ? [`In-Reply-To: ${opts.inReplyTo}`, `References: ${opts.inReplyTo}`] : []),
     "MIME-Version: 1.0",
   ];
@@ -99,15 +99,13 @@ function cachedByHeader(accountId: string, header: string) {
 
 const pathOf = (id: string) => id.split(":").slice(2).join(":");
 
-const waitFor = async <T>(check: () => T | undefined, ms = 15_000): Promise<T> => {
-  const deadline = Date.now() + ms;
-  for (;;) {
-    const value = check();
-    if (value !== undefined) return value;
-    if (Date.now() > deadline) throw new Error("Timed out waiting");
-    await new Promise((resolve) => setTimeout(resolve, 100));
-  }
-};
+function changeEvent() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
 
 /** What every server should do; `seed` is a second client, as another device would be. */
 function providerScenario(
@@ -215,6 +213,7 @@ function providerScenario(
     expect(await subjects("label:work old")).toEqual(["Old report"]);
     expect(await subjects("in:inbox")).toEqual(["Lunch?"]);
     expect(await subjects("is:unread has:attachment")).toEqual(["Lunch?"]);
+    expect(await subjects("is:flagged")).toEqual(await subjects("is:starred"));
     expect(await subjects("from:bob -in:inbox")).toEqual(["Old report", "Report"]);
     expect(await subjects("in:sent lunch")).toEqual(["Re: Lunch?"]);
   });
@@ -282,7 +281,7 @@ function providerScenario(
     await provider.modifyThread(accountId, threadId, { removeLabelIds: ["INBOX"] });
     const original = cachedByHeader(accountId, a.id)!;
     expect(pathOf(original.id)).toBe("Archive");
-    expect(original.labels).toEqual(["STARRED"]);
+    expect(original.labels.sort()).toEqual(["ARCHIVE", "STARRED"]);
     expect(pathOf(cachedByHeader(accountId, b.id)!.id)).toBe("Sent");
     expect(await serverSearch("INBOX", a.id)).toEqual([]);
     expect(await serverSearch("Archive", a.id)).toHaveLength(1);
@@ -290,6 +289,24 @@ function providerScenario(
     expect(store.getThreadMessages(accountId, threadId)).toHaveLength(2);
     await sync(accountId);
     expect(pathOf(cachedByHeader(accountId, a.id)!.id)).toBe("Archive");
+    expect(store.getLabels(accountId).find((l) => l.id === "ARCHIVE")).toMatchObject({
+      type: "system",
+      total: 1,
+    });
+  });
+
+  it("gives ARCHIVE to archived mail cached before the Archive had a label", async () => {
+    const { id } = cachedByHeader(accountId, a.id)!;
+    // As an older version left it: no label for the Archive's mail, nor in its sync state.
+    store.applyHistoryChanges(accountId, [{ kind: "labelsRemoved", id, labelIds: ["ARCHIVE"] }]);
+    const key = `imapSync:${accountId}`;
+    const state = JSON.parse(store.getKv(key)!) as Record<string, { label?: string | null }>;
+    for (const folder of Object.values(state)) delete folder.label;
+    store.setKv(key, JSON.stringify(state));
+
+    await sync(accountId);
+    expect(cachedByHeader(accountId, a.id)!.labels.sort()).toEqual(["ARCHIVE", "STARRED"]);
+    expect(cachedByHeader(accountId, b.id)!.labels).toEqual(["SENT"]);
   });
 
   it("moves to a folder, and back to the inbox", async () => {
@@ -426,29 +443,39 @@ function providerScenario(
     expect((await provider.listLabels(accountId)).some((l) => l.id === renamed.id)).toBe(false);
   });
 
+  // Every wait spans the watcher's debounce, so each test keeps to a few of them.
   it("hears new mail while idling", async () => {
-    let changes = 0;
-    const stop = provider.watch!(accountId, () => changes++);
+    let changed = changeEvent();
+    const stop = provider.watch!(accountId, () => changed.resolve());
     try {
       // Every (re)connect reports once, to catch up.
-      await waitFor(() => (changes > 0 ? true : undefined));
-      changes = 0;
+      await changed.promise;
+      changed = changeEvent();
       await seed.append("INBOX", mail({ subject: "While idling" }).raw);
-      await waitFor(() => (changes > 0 ? true : undefined));
-
-      // Woken up (or a browser tab shown again): the same connection, checked, and a catch-up.
-      changes = 0;
-      const connections = connectionCount();
-      resumeNow();
-      await waitFor(() => (changes > 0 ? true : undefined));
-      expect(connectionCount()).toBe(connections);
-      changes = 0;
-      await seed.append("INBOX", mail({ subject: "After waking" }).raw);
-      await waitFor(() => (changes > 0 ? true : undefined));
+      await changed.promise;
     } finally {
       stop();
     }
-  }, 20_000);
+  });
+
+  it("checks the same connection and catches up when woken", async () => {
+    let changed = changeEvent();
+    const stop = provider.watch!(accountId, () => changed.resolve());
+    try {
+      await changed.promise;
+      // Woken up (or a browser tab shown again): the same connection, checked, and a catch-up.
+      changed = changeEvent();
+      const connections = connectionCount();
+      resumeNow();
+      await changed.promise;
+      expect(connectionCount()).toBe(connections);
+      changed = changeEvent();
+      await seed.append("INBOX", mail({ subject: "After waking" }).raw);
+      await changed.promise;
+    } finally {
+      stop();
+    }
+  });
 
   it("starts a folder over when its UIDVALIDITY changes", async () => {
     await seed.select("INBOX");
@@ -467,25 +494,32 @@ function providerScenario(
   it("sends, filing it in Sent (and, sent to yourself, it arrives)", async ({ skip }) => {
     if (!server().smtp) skip();
     const subject = `Note to self ${counter++}`;
-    const { messageId } = await provider.send(accountId, {
-      to: accountId,
-      bcc: "bob@example.com",
-      subject,
-      body: "Remember the milk.",
+    await seed.select("INBOX");
+    const delivered = changeEvent();
+    const idle = await seed.idle((update) => {
+      if (update.type === "exists") delivered.resolve();
     });
+    let messageId: string | undefined;
+    try {
+      ({ messageId } = await provider.send(accountId, {
+        to: accountId,
+        bcc: "bob@example.com",
+        subject,
+        body: "Remember the milk.",
+      }));
+      await delivered.promise;
+    } finally {
+      await idle.stop();
+    }
     expect(pathOf(messageId!)).toBe("Sent");
     const [sent] = await provider.getSummaries(accountId, [messageId!]);
     expect(sent).toMatchObject({ subject, unread: false, labelIds: ["SENT"] });
     expect((await provider.getMessage(accountId, messageId!)).bcc).toBe("bob@example.com");
 
-    let arrived: GmailMessageSummary | undefined;
-    for (let i = 0; i < 50 && !arrived; i++) {
-      await sync(accountId);
-      arrived = store
-        .getThreadMessages(accountId, sent!.threadId)
-        .find((m) => m.labelIds.includes("INBOX"));
-      if (!arrived) await new Promise((resolve) => setTimeout(resolve, 200));
-    }
+    await sync(accountId);
+    const arrived = store
+      .getThreadMessages(accountId, sent!.threadId)
+      .find((m) => m.labelIds.includes("INBOX"));
     expect(arrived).toMatchObject({ subject });
   });
 
@@ -526,22 +560,25 @@ function providerScenario(
 
       // IDLE gives up at once too, telling the engine (which then stops it).
       await setImapPassword(accountId, "nope");
-      let told = 0;
-      const stop = provider.watch!(accountId, () => told++);
-      await waitFor(() => (told > 0 ? true : undefined));
-      stop();
+      const refused = changeEvent();
+      const stop = provider.watch!(accountId, () => refused.resolve());
+      try {
+        await refused.promise;
+      } finally {
+        stop();
+      }
       expect(provider.isSignedIn(accountId)).toBe(false);
     } finally {
       await setImapPassword(accountId, password);
     }
-  }, 30_000);
+  });
 }
 
 describe.skipIf(!docker)("IMAP provider on Dovecot (QRESYNC)", () => {
   let container: Container;
   beforeAll(async () => {
     container = await startDovecot();
-  }, 300_000);
+  });
   afterAll(async () => {
     await container?.stop();
   });
@@ -562,7 +599,7 @@ describe.skipIf(!docker)("IMAP provider on GreenMail (no mod-sequences)", () => 
   let container: Container;
   beforeAll(async () => {
     container = await startGreenMail();
-  }, 300_000);
+  });
   afterAll(async () => {
     await container?.stop();
   });

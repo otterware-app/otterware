@@ -1,14 +1,8 @@
-/**
- * Changing mail on the server. Read and starred are flags (\Seen,
- * \Flagged); every other label is a folder, so applying one moves the
- * message there (one folder per message: `capabilities.multipleLabels` is
- * false). The cache already shows the change (the handlers mirror it first);
- * here the server catches up, and moved messages get their new ids.
- *
- * Conversations follow Gmail's rules as far as folders allow: archiving
- * takes what's in the Inbox (your replies stay in Sent), moving to a folder
- * takes the received mail, trashing takes everything.
- */
+/** Read/starred are flags; other labels move mail to one folder with new ids.
+ * Archive keeps sent replies in Sent; folder moves take received mail, trash takes all.
+ * Handlers already mirrored the optimistic change before these server writes. */
+
+import { ARCHIVE_LABEL_ID } from "@otterware/mail-contracts";
 
 import { getAccount } from "../../services/account-store.js";
 import * as store from "../../services/mail-store.js";
@@ -70,8 +64,13 @@ export async function expungeOnly(client: ImapClient, uids: number[]): Promise<v
   if (marked.every((uid) => uids.includes(uid))) await client.expunge();
 }
 
-/** UID MOVE, or COPY + \Deleted + a careful expunge. */
-async function moveUids(client: ImapClient, uids: number[], destination: string) {
+/**
+ * UID MOVE, or COPY + \Deleted + a careful expunge. Out of Gmail's All Mail,
+ * only a copy: there, the message is everywhere it has a label, and taking it
+ * out of All Mail would delete it.
+ */
+async function moveUids(client: ImapClient, uids: number[], destination: string, allMail = false) {
+  if (allMail) return client.copy(uids, destination);
   if (client.has("MOVE")) return client.move(uids, destination);
   const copied = await client.copy(uids, destination);
   await client.store(uids, { add: ["\\Deleted"] });
@@ -113,6 +112,7 @@ async function moveMessages(
         client,
         live.map((r) => r.uid),
         dest.path,
+        folders.isAllMail(path),
       );
       for (const ref of live) {
         const from = messageId(ref.uidValidity, ref.uid, path);
@@ -182,7 +182,7 @@ const roleOfRow = (folders: Folders, row: Row): Role | null =>
 /**
  * Where a label change sends messages (id → folder), or none. A folder
  * added wins (moving between folders sends both); removing only INBOX or a
- * folder archives; removing only Junk or Trash puts mail back.
+ * folder archives; removing only Junk, Trash or Archive puts mail back.
  */
 async function planMoves(
   accountId: string,
@@ -196,7 +196,11 @@ async function planMoves(
   const remove = change.removeLabelIds ?? [];
   const moves = new Map<string, Folder>();
   const isFolder = (l: string) =>
-    l === "INBOX" || l === "TRASH" || l === "SPAM" || folders.get(l)?.role === null;
+    l === "INBOX" ||
+    l === "TRASH" ||
+    l === "SPAM" ||
+    l === ARCHIVE_LABEL_ID ||
+    folders.get(l)?.role === null;
   const target = add.find(isFolder);
 
   if (target) {
@@ -205,7 +209,9 @@ async function planMoves(
         ? await ensureFolder(accountId, client, "TRASH", "Trash")
         : target === "SPAM"
           ? await ensureFolder(accountId, client, "SPAM", "Junk")
-          : folders.forLabel(target);
+          : target === ARCHIVE_LABEL_ID
+            ? await ensureFolder(accountId, client, "ARCHIVE", "Archive")
+            : folders.forLabel(target);
     if (!dest) return moves;
     // A conversation's own mail stays in Sent and Drafts (and out of Junk and
     // Trash) unless the change takes it from there.
@@ -246,16 +252,14 @@ async function planMoves(
     return moves;
   }
 
-  if (remove.includes("SPAM") || remove.includes("TRASH")) {
+  // Junk's, Trash's and the Archive's labels are their roles.
+  const putBack = (["SPAM", "TRASH", "ARCHIVE"] as const).filter((role) => remove.includes(role));
+  if (putBack.length > 0) {
     const account = await getAccount(accountId);
     const origins = trashedFrom(accountId);
     for (const row of rows) {
       const role = roleOfRow(folders, row);
-      if (
-        (role !== "SPAM" || !remove.includes("SPAM")) &&
-        (role !== "TRASH" || !remove.includes("TRASH"))
-      )
-        continue;
+      if (!role || !(putBack as Role[]).includes(role)) continue;
       const origin = role === "TRASH" ? folders.get(origins[row.id] ?? "") : undefined;
       const own = row.fromEmail && row.fromEmail.toLowerCase() === account?.email.toLowerCase();
       const dest =

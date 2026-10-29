@@ -19,6 +19,7 @@ const error = (operation: string) => (cause: unknown) =>
 export const mailNodeModule = (options: MailNodeOptions) => ({
   ...MailModule,
   migrations: [
+    ...MailModule.migrations,
     {
       module: "mail",
       id: 1,

@@ -64,6 +64,8 @@ import {
 } from "./translate-banner";
 import { MARK_READ_DELAY, useInterfaceSetting } from "../reading-preferences";
 import { useTranslationSettings } from "./translation";
+import { CodeCard } from "./code-card";
+import { findVerificationCode } from "@otterware/mail-contracts/verification-code";
 import { InviteCard, requestRsvp, rsvpFromGoogleLink } from "./invite-card";
 import { RsvpResponse } from "./api";
 import {
@@ -98,6 +100,7 @@ import {
 import { decodeEntities, htmlToText } from "./text";
 import { LabelPickerMenu, LabelSubmenu } from "./label-picker-menu";
 import { useCapabilities } from "./capabilities";
+import { archiveFrom } from "./archive";
 import {
   formatAddressEntry,
   normalizeAddressList,
@@ -141,6 +144,7 @@ import { AttachmentPreview, attachmentPreview, type PreviewFile } from "./attach
 import { isModClick } from "../keybindings/keys";
 
 type MessageReaderProps = {
+  listLabelId?: string | null | undefined;
   accountId: string;
   messageId: string | null;
   /** Browsing the list previews drafts without taking focus from navigation. */
@@ -1361,6 +1365,7 @@ export function ExpandedRow({
   accountId,
   summary,
   onCollapse,
+  onTrash,
   onDownload,
   onQuoteText,
   onComposeTo,
@@ -1370,6 +1375,7 @@ export function ExpandedRow({
   summary: GmailMessageSummary;
   /** Absent for single-message conversations, which always stay expanded. */
   onCollapse?: (() => void) | undefined;
+  onTrash?: (() => void) | undefined;
   onDownload: DownloadAttachment;
   onQuoteText?: ((text: string) => void) | undefined;
   onComposeTo?: ((email: string) => void) | undefined;
@@ -1407,6 +1413,12 @@ export function ExpandedRow({
   // Mail in a language the user doesn't read gets the translate banner; once
   // translated, the body's text is swapped in place.
   const translation = useMessageTranslation(accountId, detail);
+  const code = detail
+    ? findVerificationCode(
+        summary.subject,
+        detail.bodyText ?? (detail.bodyHtml ? htmlToText(detail.bodyHtml) : ""),
+      )
+    : null;
   // Calendar invitations (an .ics part) get the RSVP bar.
   const hasInvite = Boolean(
     detail?.attachments.some(
@@ -1501,6 +1513,7 @@ export function ExpandedRow({
             <>
               {translation.banner}
               {hasInvite ? <InviteCard accountId={accountId} messageId={summary.id} /> : null}
+              {code ? <CodeCard code={code} onTrash={onTrash} /> : null}
               <MessageBody
                 inviteMessageId={hasInvite ? summary.id : undefined}
                 bodyHtml={translation.bodyHtml}
@@ -2042,6 +2055,7 @@ function InlineComposer({
             mode === "forward" && attachments == null ? "Loading attachments…" : draftStatus(draft)
           }
           statusTone={draft.saveState === "error" ? "error" : "muted"}
+          accountId={accountId}
           canSend={canSend}
           onSchedule={handleSend}
           onSend={() => void handleSend()}
@@ -2077,6 +2091,7 @@ function ReaderShell({
 export function MessageReader({
   accountId,
   messageId,
+  listLabelId = null,
   autoFocusDraft = true,
   single = false,
   onShowConversation,
@@ -2154,7 +2169,8 @@ export function MessageReader({
   const modifyThread = useModifyThread();
   // No inbox categories (IMAP): no category chips. One folder per message: a
   // folder chip can't just come off.
-  const { categories, multipleLabels, foldersAndCategories } = useCapabilities(accountId);
+  const capabilities = useCapabilities(accountId);
+  const { categories, multipleLabels, foldersAndCategories } = capabilities;
   const trashThread = useTrashThread();
   const untrashThread = useUntrashThread();
   const untrashMessage = useUntrashMessage();
@@ -2370,16 +2386,22 @@ export function MessageReader({
     if (!isUnread) onDeselect?.();
   };
 
-  const handleArchive = () => {
-    console.log("[MessageReader:archive]", { messageId, isThread });
+  // What archiving takes off (archive.ts): INBOX, or the folder it was opened from.
+  const archiveSource = archiveFrom(
+    isThread ? conversationLabelIds : message.labelIds,
+    labelsQuery.data?.find((l) => l.id === listLabelId),
+    capabilities,
+  );
+  const handleArchive = (from = archiveSource ?? "INBOX") => {
+    console.log("[MessageReader:archive]", { messageId, isThread, from });
     if (isThread && threadId) {
-      void modifyThread.mutateAsync({ accountId, threadId, removeLabelIds: ["INBOX"] });
+      void modifyThread.mutateAsync({ accountId, threadId, removeLabelIds: [from] });
       return;
     }
     void modifyMessage.mutateAsync({
       accountId,
       messageId,
-      removeLabelIds: ["INBOX"],
+      removeLabelIds: [from],
     });
   };
 
@@ -2571,7 +2593,9 @@ export function MessageReader({
               onRemove={() => void projectsApi.removeThread(p.id, readerEmail, conversationId)}
             />
           ))}
-          {conversationLabelIds.includes("INBOX") ? <InboxChip onRemove={handleArchive} /> : null}
+          {conversationLabelIds.includes("INBOX") ? (
+            <InboxChip onRemove={() => handleArchive("INBOX")} />
+          ) : null}
           {(categories ? conversationLabelIds.filter(isCategoryLabelId) : []).map((id) => (
             <CategoryChip
               key={id}
@@ -2654,11 +2678,7 @@ export function MessageReader({
                 <RotateCcwIcon className="size-4" />
               </IconBtn>
             </HintTooltip>
-          ) : (
-              isThread
-                ? rows.some((m) => m.labelIds.includes("INBOX"))
-                : message.labelIds.includes("INBOX")
-            ) ? (
+          ) : archiveSource ? (
             <HintTooltip label="Archive" shortcut="message.archive" side="bottom">
               <IconBtn
                 label="Archive"
@@ -2769,6 +2789,14 @@ export function MessageReader({
                     threadId={conversationId}
                     labelIds={conversationLabelIds}
                   />
+                  {foldersAndCategories ? (
+                    <LabelSubmenu
+                      accountId={accountId}
+                      threadId={conversationId}
+                      labelIds={conversationLabelIds}
+                      folders
+                    />
+                  ) : null}
                   <DropdownMenuItem
                     icon={<FlagIcon />}
                     accelerator={flagShortcut}
@@ -2971,6 +2999,15 @@ export function MessageReader({
                       accountId={accountId}
                       summary={m}
                       onCollapse={rows.length === 1 ? undefined : () => toggleExpanded(m.id)}
+                      onTrash={
+                        m.labelIds.includes("TRASH")
+                          ? undefined
+                          : () => {
+                              // A conversation of one goes with it, as with the toolbar's Trash.
+                              if (rows.length === 1) onAdvance?.();
+                              void trashMessage.mutateAsync({ accountId, messageId: m.id });
+                            }
+                      }
                       onDownload={handleDownloadAttachment}
                       onQuoteText={(text) => emitQuote(text)}
                       onComposeTo={onComposeTo}

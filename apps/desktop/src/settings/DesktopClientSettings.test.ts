@@ -34,7 +34,6 @@ const clientSettings: ClientSettings = {
   confirmThreadDelete: false,
   confirmThreadUnpin: false,
   contextWindowMeterEnabled: false,
-  composerCollapseOnScroll: true,
   diffFilesCollapsed: true,
   diffIgnoreWhitespace: true,
   diffLayout: "stacked",
@@ -63,6 +62,9 @@ const clientSettings: ClientSettings = {
   },
   sidebarProjectSortOrder: "manual",
   sidebarThreadSortOrder: "created_at",
+  boringSidebarEnabled: false,
+  boringSidebarMultilineRows: false,
+  legacySidebarEnabled: false,
   sidebarWorkingShelfEnabled: false,
   loadBalancingEnabled: false,
   loadBalancingWeights: { "environment-1": 75, "environment-2": 0 },
@@ -236,7 +238,8 @@ describe("DesktopClientSettings", () => {
           assert.equal(persisted.value.timestampFormat, "12-hour");
           assert.equal(persisted.value.fontSizeCode, 14);
           assert.isFalse(Object.hasOwn(persisted.value, "sidebarViewMode"));
-          assert.isFalse(Object.hasOwn(persisted.value, "legacySidebarEnabled"));
+          // Still read: upstream moves legacy sidebar opt-ins into the boring sidebar.
+          assert.equal(persisted.value.legacySidebarEnabled, true);
           assert.isFalse(Object.hasOwn(persisted.value, "sidebarThreadPreviewCount"));
         }
       }),

@@ -1,11 +1,4 @@
-/**
- * gmail.ts — IPC handler registration for the mail client (`gmail:*`
- * channels, whichever provider an account uses).
- *
- * All channels proxy to services (account-store, mail-store, mail-sync) and
- * the account's provider (providers/). Handlers are thin; business logic
- * lives in services.
- */
+/** Provider-independent gmail:* IPC handlers delegate to mail services and providers. */
 
 import {
   scheduleSend,
@@ -16,13 +9,13 @@ import {
   futureTime,
 } from "../services/mail-schedule.js";
 
-import { GMAIL_CAPABILITIES } from "@otterware/mail-contracts";
+import { GMAIL_CAPABILITIES, landLabelChange, type Landing } from "@otterware/mail-contracts";
 
 import { fromBase64 } from "../bytes.js";
 import { SignInCancelledError } from "../google.js";
 import { broadcast, handle, registeredHandlers } from "../ipc.js";
 import { platform } from "../platform.js";
-import { findProvider, isSignedIn, providerFor } from "../providers/index.js";
+import { capabilitiesOf, findProvider, isSignedIn, providerFor } from "../providers/index.js";
 import { DraftChanged } from "../providers/provider.js";
 import {
   getAccount,
@@ -96,19 +89,22 @@ async function refreshMetadata(accountId: string, ids: string[]): Promise<void> 
 
 /** Applies a label change to the local cache and returns an exact undo: only
  *  labels that actually changed on each message are restored, so undoing
- *  "remove INBOX" never adds INBOX to a thread's sent replies. */
+ *  "remove INBOX" never adds INBOX to a thread's sent replies. Where Archive
+ *  is a folder, mail leaving the inbox lands in it (landLabelChange). */
 function applyLocalLabelChange(
   accountId: string,
   messageIds: string[],
   add: string[],
   remove: string[],
+  landing: Landing,
 ): () => void {
   const undo = messageIds.flatMap((id) => {
     const prior = mailStore.getMessageLabelIds(accountId, id);
     if (!prior) return [];
-    const reAdd = remove.filter((l) => prior.includes(l));
-    const reRemove = add.filter((l) => !prior.includes(l));
-    mailStore.applyLabelChange(accountId, id, add, remove);
+    const landed = landLabelChange(prior, add, remove, landing);
+    const reAdd = landed.remove.filter((l) => prior.includes(l));
+    const reRemove = landed.add.filter((l) => !prior.includes(l));
+    mailStore.applyLabelChange(accountId, id, landed.add, landed.remove);
     return [{ id, reAdd, reRemove }];
   });
   updateDockBadge();
@@ -156,9 +152,11 @@ function settleLabelWrite(
   add: string[],
   remove: string[],
   write: () => Promise<unknown>,
+  { thread = false } = {},
 ): Promise<{ ok: true; pending?: boolean }> {
-  const revert = applyLocalLabelChange(accountId, messageIds, add, remove);
-  const tracked = trackLabelWrite(accountId, messageIds, add, remove);
+  const landing = { archiveFolder: capabilitiesOf(accountId)?.archiveFolder, thread };
+  const revert = applyLocalLabelChange(accountId, messageIds, add, remove, landing);
+  const tracked = trackLabelWrite(accountId, messageIds, add, remove, landing);
   const running = afterEarlierWrites(accountId, messageIds, write);
   running.then(tracked.settled, tracked.dropped);
   return settleGmailWrite(channel, running, revert);
@@ -257,7 +255,7 @@ export function registerGmailHandlers(): void {
       const accounts = await listAccounts();
       return accounts.map((account) => ({
         ...account,
-        capabilities: findProvider(account)?.capabilities ?? GMAIL_CAPABILITIES,
+        capabilities: capabilitiesOf(account) ?? GMAIL_CAPABILITIES,
         ...(isSignedIn(account) ? {} : { signedOut: true }),
       }));
     } catch (err) {
@@ -476,11 +474,7 @@ export function registerGmailHandlers(): void {
     }
   });
 
-  // gmail:searchMessages — instant local full-text search (FTS5 over the mail
-  // cache). accountId omitted = search every account; message-level rows.
-  // labelId/rules restrict to the current view; starred/important/
-  // hasAttachments/withinDays are structured filters that also work with an
-  // empty q.
+  // No accountId searches all accounts; structured filters also work with an empty query.
   handle("gmail:searchMessages", async (params: unknown) => {
     const p = params as Record<string, unknown>;
     console.log("[gmail:searchMessages]", {
@@ -737,6 +731,7 @@ export function registerGmailHandlers(): void {
             addLabelIds,
             removeLabelIds,
           }),
+        { thread: true },
       );
     } catch (err) {
       console.log("[gmail:modifyThread] error", { error: String(err) });
@@ -884,11 +879,8 @@ export function registerGmailHandlers(): void {
     }
   });
 
-  // gmail:saveDraft — composer autosave; creates or updates a Gmail draft.
-  // Saves for one composer (its `sessionKey`) run in order and reuse the draft
-  // id of the previous save — so a first save that outlasted the renderer's IPC
-  // timeout (its reply, with the new id, never arrived) can't make the next
-  // save create a second draft.
+  // Serialize each composer's saves and reuse its draft id so an IPC timeout
+  // cannot make a later save create a duplicate draft.
   handle("gmail:saveDraft", async (params: unknown) => {
     const p = params as Record<string, unknown>;
     console.log("[gmail:saveDraft]", {
@@ -1113,7 +1105,11 @@ export function registerGmailHandlers(): void {
       };
       if (p?.scheduledAt !== undefined) {
         if (!(await getAccount(accountId))) throw new Error("Mailbox no longer exists.");
-        scheduleSend(accountId, { ...message, inReplyTo, references }, futureTime(p.scheduledAt));
+        await scheduleSend(
+          accountId,
+          { ...message, inReplyTo, references },
+          futureTime(p.scheduledAt),
+        );
         return { ok: true as const };
       }
       const provider = providerFor(accountId);
@@ -1134,12 +1130,8 @@ export function registerGmailHandlers(): void {
             });
           }
         });
-      // Uploads (attachments, rate limits) can outlast the renderer's 5s IPC
-      // timeout, which used to report a false failure and invite a duplicate
-      // send. Past the budget the composer closes as sent; if the send then
-      // fails, the message goes back to Drafts so nothing is lost.
-      // `settled` never rejects, so a failure after the deadline can't become
-      // an unhandled rejection.
+      // Past the IPC budget the composer closes; a later failure restores Drafts.
+      // settled never rejects, preventing unhandled rejections after the deadline.
       const settled = send.then(
         () => ({ error: null }),
         (error: unknown) => ({ error }),

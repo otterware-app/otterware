@@ -8,6 +8,7 @@
     "./relay": "./src/relay.ts",
     "./agent-tokens": "./src/agent-tokens.ts",
     "./demo": "./src/demo.ts",
+    "./verification-code": "./src/verification-code.ts",
     "./mail": "./src/mail.ts",
     "./projects": "./src/projects.ts",
     "./project-tools": "./src/project-tools.ts",

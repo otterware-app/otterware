@@ -69,6 +69,7 @@ import {
 import { LabelChip, InboxChip, ImportantMarker } from "./label-chip";
 import { SignedOutMailbox } from "./signed-out-mailbox";
 import { LabelOverlay, type LabelOverlayMode } from "./label-overlay";
+import { archiveFrom } from "./archive";
 import { useCapabilities } from "./capabilities";
 import { moveToFolder, renderLabelChoices, useLabelChoices } from "./label-picker-menu";
 import { INBOX_VIEW_ID, STARRED_VIEW_ID, SENT_VIEW_ID, DRAFTS_VIEW_ID } from "./custom-views";
@@ -77,7 +78,7 @@ import { useCommandHandlers } from "../keybindings/dispatch";
 import { SEARCH_HINT, SearchHeader } from "./search-header";
 import { labelSearchToken, viewSearchQuery } from "./gmail-query";
 import { getAccountColor, getAccountDisplayName } from "./account-style";
-import { ALL_MAIL_LABEL_ID, SYSTEM_LABEL_NAMES, labelDisplayName } from "./label-names";
+import { ALL_MAIL_LABEL_ID, SYSTEM_LABEL_NAMES, folderName, labelDisplayName } from "./label-names";
 import { decodeEntities } from "./text";
 import { parseAddressEntry, senderLabel, splitAddressList } from "./address";
 import { GmailAccount, GmailLabel, GmailMessageSummary, ViewRule } from "./types";
@@ -90,12 +91,12 @@ import { isModClick } from "../keybindings/keys";
 
 type ResolveLabel = (accountId: string | undefined, labelId: string) => GmailLabel | undefined;
 
-/** Cross-account query descriptor for the Combined mailbox. */
+/** A view's list: its rules across the mailboxes. */
 export type CombinedList = { viewId: string; name: string; rules: ViewRule[] };
 
-/** Mailbox + account identity shown next to the date in Combined view rows.
-    mailbox is null when every selection in the view is the same mailbox (e.g.
-    built-in Inbox), where naming it on every row would be redundant. */
+/** Mailbox + account identity shown next to the date in a view's rows.
+    mailbox is null when every selection in the view is the same mailbox,
+    where naming it on every row would be redundant. */
 type CombinedMeta = { mailbox: string | null; accountName: string; accountColor: string };
 
 type MessageListProps = {
@@ -111,11 +112,11 @@ type MessageListProps = {
   /** Active account — used for account-mode queries and as a fallback owner id. */
   accountId: string;
   labelId: string;
-  /** When set, the list is cross-account (Combined mailbox). */
+  /** When set, the list is a view's, across the mailboxes. */
   combined: CombinedList | null;
   /** All connected account ids, for resolving label chips across accounts. */
   accountIds: string[];
-  /** Connected accounts (name/color), for the Combined view's mailbox-account line. */
+  /** Connected accounts (name/color), for a view's mailbox-account line. */
   accounts: GmailAccount[];
   selectedMessageId: string | null;
   /** A single message of the selected row's conversation shown on its own. */
@@ -322,6 +323,13 @@ function MessageDayGroup({
   );
 }
 
+const CONTEXT_MENU_KIT = {
+  Item: DropdownMenuItem,
+  CheckboxItem: DropdownMenuCheckboxItem,
+  Sub: ContextMenuSub,
+  Separator: ContextMenuSeparator,
+};
+
 type MessageRowProps = {
   message: GmailMessageSummary;
   selected: boolean;
@@ -335,6 +343,7 @@ type MessageRowProps = {
   combinedMeta: CombinedMeta | null;
   /** Mark rows still in the inbox (shown when browsing non-inbox views). */
   showInboxChip: boolean;
+  archiveFrom: (labelIds: string[]) => string | null;
   /** Labels that define the current view; every row has them, so no chip. */
   viewLabelIds: ReadonlySet<string>;
   /** Opens the permanent-delete confirm (offered on trashed/junk rows only). */
@@ -360,6 +369,7 @@ function MessageRow({
   resolveLabel,
   combinedMeta,
   showInboxChip,
+  archiveFrom,
   viewLabelIds,
   onDeleteForever,
   onChatAgent,
@@ -390,6 +400,13 @@ function MessageRow({
 
   // Labels apply to the whole conversation, like Gmail's list.
   const labelChoices = useLabelChoices({ accountId: ownerAccountId, threadId, labelIds });
+  // Outlook: its folders beside its categories.
+  const folderChoices = useLabelChoices({
+    accountId: ownerAccountId,
+    threadId,
+    labelIds,
+    folders: true,
+  });
 
   const handleToggleRead = () => {
     const isUnread = message.threadUnread ?? message.unread;
@@ -444,15 +461,16 @@ function MessageRow({
   };
 
   const inInbox = labelIds.includes("INBOX");
+  const archiveSource = archiveFrom(labelIds);
 
   const handleArchive = (e?: React.MouseEvent) => {
     e?.stopPropagation();
-    console.log("[MessageList:archiveToggle]", { threadId, inInbox });
+    console.log("[MessageList:archiveToggle]", { threadId, archiveSource });
     void modifyThread.mutateAsync({
       accountId: ownerAccountId,
       threadId,
-      addLabelIds: inInbox ? undefined : ["INBOX"],
-      removeLabelIds: inInbox ? ["INBOX"] : undefined,
+      addLabelIds: archiveSource ? undefined : ["INBOX"],
+      removeLabelIds: archiveSource ? [archiveSource] : undefined,
     });
   };
 
@@ -473,6 +491,7 @@ function MessageRow({
   // "instant" keeps held-down j/k from queueing smooth-scroll animations that
   // continue after the key is released.
   const rowRef = useRef<HTMLButtonElement>(null);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the selected row DOM visible during keyboard navigation.
   useEffect(() => {
     const row = rowRef.current;
     if (selected && row && !row.closest("[inert]"))
@@ -696,20 +715,20 @@ function MessageRow({
           </ContextMenuSub>
           <ContextMenuSeparator />
           <ContextMenuSub label={labelChoices.title}>
-            {renderLabelChoices(labelChoices, {
-              Item: DropdownMenuItem,
-              CheckboxItem: DropdownMenuCheckboxItem,
-              Sub: ContextMenuSub,
-              Separator: ContextMenuSeparator,
-            })}
+            {renderLabelChoices(labelChoices, CONTEXT_MENU_KIT)}
           </ContextMenuSub>
           <ContextMenuSeparator />
+          {labelChoices.alsoFolders ? (
+            <ContextMenuSub label={folderChoices.title}>
+              {renderLabelChoices(folderChoices, CONTEXT_MENU_KIT)}
+            </ContextMenuSub>
+          ) : null}
           {trashed || junk ? null : (
             <DropdownMenuItem
-              icon={inInbox ? "archivebox" : "tray.and.arrow.down"}
+              icon={archiveSource ? "archivebox" : "tray.and.arrow.down"}
               onSelect={() => handleArchive()}
             >
-              {inInbox ? "Archive" : "Move to inbox"}
+              {archiveSource ? "Archive" : "Move to inbox"}
             </DropdownMenuItem>
           )}
           {inInbox && !trashed && !junk && (
@@ -761,6 +780,7 @@ function ThreadMessageRow({
   onClick: () => void;
 }) {
   const ref = useRef<HTMLButtonElement>(null);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the selected conversation row DOM visible during keyboard navigation.
   useEffect(() => {
     const row = ref.current;
     if (selected && row && !row.closest("[inert]"))
@@ -845,12 +865,6 @@ function UnreadFilterIcon({ on, className }: { on: boolean; className?: string |
   );
 }
 
-/** The sidebar's names where they aren't Gmail's (accounts-sidebar.tsx). */
-const SIDEBAR_LABEL_NAMES: Record<string, string> = {
-  [ALL_MAIL_LABEL_ID]: "All Mail",
-  SPAM: "Junk",
-};
-
 function formatConversationSummary(total: number, unread: number): string {
   const conversations = `${total.toLocaleString()} conversation${total === 1 ? "" : "s"}`;
   return unread > 0 ? `${conversations} · ${unread.toLocaleString()} unread` : conversations;
@@ -931,6 +945,10 @@ export function MessageList({
         : accountMessages;
 
   const resolveLabel = useLabelResolver(isCombined ? accountIds : [accountId]);
+  const listLabel =
+    isCombined || searching || project ? undefined : resolveLabel(accountId, labelId);
+  const listCapabilities = useCapabilities(accountId);
+  const archiveSourceOf = (labels: string[]) => archiveFrom(labels, listLabel, listCapabilities);
   // Combined mode has no single "active account" to drive per-account label
   // sync (see useAccountSync), so the header's counts need their own refresh loop.
   useSyncAccountLabels(accountIds, isCombined);
@@ -947,6 +965,7 @@ export function MessageList({
     isCombined || allMailRules.length > 0,
   );
   const activeLabel = resolveLabel(accountId, labelId);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Expose the resolved view query to the parent search command through its imperative ref.
   useLayoutEffect(() => {
     if (viewQueryRef && !search) {
       const nameOf = (owner: string, id: string) => resolveLabel(owner, id)?.name ?? null;
@@ -958,8 +977,7 @@ export function MessageList({
   // Named as the sidebar names it.
   const listName = combined
     ? combined.name
-    : (SIDEBAR_LABEL_NAMES[labelId] ??
-      SYSTEM_LABEL_NAMES[labelId] ??
+    : (folderName(labelId, listCapabilities) ??
       (activeLabel ? labelDisplayName(activeLabel) : null));
   const projectRows = projectThreads.data?.pages[0]?.messages;
   const { mailboxTotal, mailboxUnread } = project
@@ -1002,11 +1020,7 @@ export function MessageList({
   const hasNextPage = messagesQuery.hasNextPage;
   const isFetchingNextPage = messagesQuery.isFetchingNextPage;
 
-  // Gmail-style list shortcuts: j/k and the arrow keys move the selection
-  // (Apple Mail-style — arrows never scroll the list), e/#/! archive/trash/
-  // junk the selected thread (advancing to the next row), s toggles the flag,
-  // Shift+U/Shift+I set unread/read. Latest state is read through a ref so the
-  // window listener mounts once.
+  // Window shortcut handlers read current selection through a ref.
   const listModifyMessage = useModifyMessage();
   const listModifyThread = useModifyThread();
   const listTrashThread = useTrashThread();
@@ -1024,7 +1038,7 @@ export function MessageList({
   const selectedRow = filteredMessages.find((m) => m.id === selectedMessageId) ?? null;
   const selectedOwner = selectedRow ? (selectedRow.accountId ?? accountId) : null;
   const selectedCapabilities = useCapabilities(selectedOwner);
-  const { multipleLabels } = useCapabilities(accountId);
+  const { multipleLabels } = listCapabilities;
 
   // Conversations opened up in place (Apple Mail), keyed `${owner}:${threadId}`;
   // cleared with the multi-selection when the view changes.
@@ -1124,14 +1138,7 @@ export function MessageList({
       if (anchorRef.current && hiddenIds.has(anchorRef.current)) anchorRef.current = null;
     }
   };
-  const clearCheckedForEffect = useLatest(clearChecked);
-  /* oxlint-disable react/exhaustive-effect-dependencies -- Explicit DOM and reset triggers must re-run this lifecycle. */
-  useEffect(() => {
-    clearCheckedForEffect.current();
-    setExpanded(new Set());
-    setCollapsedDays(new Set());
-    setCursor(null);
-  }, [
+  const queryIdentity = [
     accountId,
     labelId,
     combined?.viewId,
@@ -1139,13 +1146,25 @@ export function MessageList({
     search?.id,
     searchQuery,
     unreadOnly,
-    clearCheckedForEffect,
-  ]);
-  /* oxlint-enable react/exhaustive-effect-dependencies */
+  ];
+  const [previousQuery, setPreviousQuery] = useState(queryIdentity);
+  if (queryIdentity.some((value, index) => value !== previousQuery[index])) {
+    setPreviousQuery(queryIdentity);
+    setChecked(new Set());
+    setExpanded(new Set());
+    setCollapsedDays(new Set());
+    setCursor(null);
+  }
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Reset imperative range-selection anchors when the list query changes.
+  useLayoutEffect(() => {
+    anchorRef.current = null;
+    extentRef.current = null;
+  }, [previousQuery]);
 
   const checkedRef = useLatest(checked);
   // Capture phase: Escape clears the multi-selection before home-view's
   // Escape closes the reader.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the capture-phase Escape listener installed while this list owns multi-selection.
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || checkedRef.current.size === 0 || isTypingTarget(e)) return;
@@ -1244,6 +1263,7 @@ export function MessageList({
   const selectionSig = checkedRows.map((m) => `${m.accountId ?? accountId}:${m.id}`).join(",");
   const selectionRef = useLatest(onSelectionChange);
   const checkedRowsRef = useLatest(checkedRows);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Publish query-backed selection changes to the host context, including rows refreshed by sync.
   useEffect(() => {
     selectionRef.current?.(checkedRowsRef.current);
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Re-run this DOM/reset lifecycle when its explicit trigger changes, even when the callback reads refs.
@@ -1267,7 +1287,7 @@ export function MessageList({
         void listModifyThread.mutateAsync({
           accountId: m.accountId ?? accountId,
           threadId: m.threadId || m.id,
-          removeLabelIds: ["INBOX"],
+          removeLabelIds: [archiveSourceOf(rowLabels(m)) ?? "INBOX"],
         }),
     );
   const bulkTrash = () =>
@@ -1376,6 +1396,7 @@ export function MessageList({
     if (next) selectForNavigation(next);
     else onDeselect();
   };
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the reader advance callback current with the rendered query rows.
   useLayoutEffect(() => {
     advanceRef.current = (fromMessageId: string) => {
       // A single message open from an expanded conversation moves on within it.
@@ -1445,6 +1466,7 @@ export function MessageList({
     focusedMessage,
     allLabels,
   });
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep registered keyboard handlers current with the rendered list and focus.
   useLayoutEffect(() => {
     shortcutState.current = {
       visibleMessages,
@@ -1580,25 +1602,26 @@ export function MessageList({
       if (checkedRef.current.size > 0) return bulkArchive();
       if (!row) return false;
       if (focus) {
-        const focusInInbox = focus.labelIds.includes("INBOX");
-        if (focusInInbox) advanceFocus();
+        const from = archiveSourceOf(focus.labelIds);
+        if (from) advanceFocus();
         void listModifyMessage.mutateAsync({
           accountId: owner,
           messageId: focus.id,
-          addLabelIds: focusInInbox ? undefined : ["INBOX"],
-          removeLabelIds: focusInInbox ? ["INBOX"] : undefined,
+          addLabelIds: from ? undefined : ["INBOX"],
+          removeLabelIds: from ? [from] : undefined,
         });
         return;
       }
-      // Archived rows un-archive; rows still in the inbox archive (and
-      // advance, since they leave the current view).
-      const rowInInbox = rowLabels(row).includes("INBOX");
-      if (rowInInbox) advance();
+      // Archived rows un-archive; rows still in the inbox (or, where the
+      // Archive is a folder, in the folder listed) archive, and advance, since
+      // they leave the current view.
+      const from = archiveSourceOf(rowLabels(row));
+      if (from) advance();
       void listModifyThread.mutateAsync({
         accountId: owner,
         threadId,
-        addLabelIds: rowInInbox ? undefined : ["INBOX"],
-        removeLabelIds: rowInInbox ? ["INBOX"] : undefined,
+        addLabelIds: from ? undefined : ["INBOX"],
+        removeLabelIds: from ? [from] : undefined,
       });
     }),
     // oxlint-disable-next-line react/refs -- rowCommand builds an event handler; its ref reads happen when the command runs.
@@ -1774,6 +1797,7 @@ export function MessageList({
       void messagesQuery.fetchNextPage({ cancelRefetch: false });
     }
   };
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Load another query page when the rendered scroll container does not fill the viewport.
   useEffect(maybeLoadMore);
 
   const isLoading = messagesQuery.isLoading;
@@ -1870,6 +1894,7 @@ export function MessageList({
         resolveLabel={resolveLabel}
         combinedMeta={resolveCombinedMeta(message, combined, accounts, resolveLabel)}
         showInboxChip={!inInboxContext}
+        archiveFrom={archiveSourceOf}
         onDeleteForever={() => setConfirmDeleteRows([message])}
         onDeselect={onDeselect}
         onChatAgent={() => {
@@ -2113,7 +2138,7 @@ export function MessageList({
               </>
             ) : allJunk ? (
               <>
-                <HintTooltip label="Not Junk — move to Inbox">
+                <HintTooltip label="Not Junk: move to Inbox">
                   <IconBtn label="Not Junk" className="size-7" onClick={bulkNotJunk}>
                     <ShieldCheckIcon className="size-3.5" />
                   </IconBtn>

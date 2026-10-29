@@ -7,7 +7,6 @@
   "apps/web/src/otterware/account/AccountSessions.tsx": "Todo",
   "apps/web/src/otterware/calendar/CalendarBackgroundRuntime.tsx": "Hooks",
   "apps/web/src/otterware/drive/driveShell.tsx": "Todo",
-  "apps/web/src/otterware/home/HomeComposer.tsx": "PreserveManualMemo",
   "apps/web/src/otterware/home/useHomeActions.ts": "Todo",
   "apps/web/src/otterware/mail/MailBackground.tsx": "Todo",
   "apps/web/src/otterware/mail/MailRuntime.tsx": "Refs",

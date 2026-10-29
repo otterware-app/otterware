@@ -837,7 +837,10 @@ export const makeApiAgentAdapter = Effect.fn("makeApiAgentAdapter")(function* (
         const instructions = engine.usesThreadTools
           ? [
               buildRuntimeInstructions({ harness: engine.displayName, model, modelName }),
-              t3OrchestrationSystemPrompt(tools.length > 0),
+              t3OrchestrationSystemPrompt(
+                tools.length > 0,
+                tools.some((tool) => tool.name.startsWith("device_")),
+              ),
               engine.extraInstructions,
             ]
               .filter(Boolean)

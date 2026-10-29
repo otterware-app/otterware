@@ -1,12 +1,5 @@
-/**
- * Where a mailbox's mail comes from. Handlers and the sync engine talk to a
- * MailProvider, never to Gmail, IMAP or Outlook themselves; everything above it (the
- * cache, lists, the UI) sees mail the same way: messages carrying labels
- * (contracts' mail.ts, docs/imap.md).
- *
- * Members only some providers have are optional; the UI gates on
- * `capabilities`, never on the provider.
- */
+/** Handlers and sync use this boundary; the cache sees messages with labels.
+ * Gate optional features on capabilities rather than provider identity. */
 
 import type { MailCapabilities, MailProviderKind } from "@otterware/mail-contracts";
 
@@ -228,6 +221,17 @@ export interface MailProvider {
   deleteLabel(accountId: string, labelId: string): Promise<void>;
 
   send(accountId: string, mail: OutgoingMail): Promise<{ messageId?: string }>;
+  /**
+   * With `capabilities.serverScheduledSend`: hands the message to the server,
+   * which holds it and sends it at `sendAt`, whether or not Otter Mail runs.
+   */
+  scheduleSend?(
+    accountId: string,
+    mail: OutgoingMail,
+    sendAt: number,
+  ): Promise<{ messageId: string }>;
+  /** Cancels a held send; false when it's too late, the server has sent it. */
+  cancelScheduledSend?(accountId: string, messageId: string): Promise<boolean>;
   /** Sends a ready-made RFC 822 message (unsubscribe mail, invitation replies). */
   sendRaw(accountId: string, raw: string, threadId?: string): Promise<void>;
 

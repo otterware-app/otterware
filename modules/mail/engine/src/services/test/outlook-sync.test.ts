@@ -1,12 +1,4 @@
-/**
- * Outlook, end to end inside core: startCore on a Node platform against a
- * pretend Microsoft Graph with per-folder delta queries. What it locks in: a
- * new mailbox shows its inbox first and then lists every folder; folders,
- * flags, importance and categories become labels; later syncs follow each
- * folder's delta (new mail notified, a message moved out of the inbox keeps
- * its id and loses INBOX, a deleted one leaves the cache); and label changes
- * become the right Graph writes (archive moves only what's in the inbox).
- */
+/** Core sync against a pretend Graph with per-folder delta queries. */
 
 import * as NodeSqlite from "node:sqlite";
 
@@ -24,7 +16,15 @@ const account: GmailAccount = {
 
 // ── The pretend Graph ───────────────────────────────────────────────────────
 
-const FOLDERS = ["inbox", "archive", "sentitems", "drafts", "deleteditems", "junkemail"];
+const FOLDERS = [
+  "inbox",
+  "archive",
+  "sentitems",
+  "drafts",
+  "deleteditems",
+  "junkemail",
+  "scheduled",
+];
 
 type Message = {
   id: string;
@@ -64,7 +64,7 @@ function deliver(id: string, folder: string, patch: Partial<Message> = {}): Mess
     importance: "normal",
     categories: [],
     fromMe: folder === "sentitems",
-    date: Date.now(),
+    date: Date.parse("2026-10-13T08:00:00Z") + version,
     version: ++version,
     ...patch,
   };
@@ -228,14 +228,6 @@ async function fakeFetch(input: string | URL | Request, init?: RequestInit): Pro
 
 // ── Core ────────────────────────────────────────────────────────────────────
 
-async function until(check: () => boolean, what: string): Promise<void> {
-  for (let i = 0; i < 400; i++) {
-    if (check()) return;
-    await new Promise((resolve) => setTimeout(resolve, 10));
-  }
-  throw new Error(`Timed out waiting for ${what}`);
-}
-
 async function boot() {
   vi.resetModules();
   const { setPlatform } = await import("../../platform.ts");
@@ -243,7 +235,12 @@ async function boot() {
   const mailSync = await import("../mail-sync.ts");
   const mailStore = await import("../mail-store.ts");
   const { providerFor } = await import("../../providers/index.ts");
+  const { registeredHandlers } = await import("../../ipc.ts");
 
+  const pending = new Set<Promise<unknown>>();
+  const drainSync = async () => {
+    while (pending.size > 0) await Promise.all(pending);
+  };
   const files = new Map<string, Uint8Array>([
     ["accounts.json", new TextEncoder().encode(JSON.stringify([account]))],
   ]);
@@ -301,7 +298,15 @@ async function boot() {
           const before = current;
           current = value;
           try {
-            return fn();
+            const result = fn();
+            if (result instanceof Promise) {
+              pending.add(result);
+              void result.then(
+                () => pending.delete(result),
+                () => pending.delete(result),
+              );
+            }
+            return result;
           } finally {
             current = before;
           }
@@ -318,14 +323,20 @@ async function boot() {
   const status = () => mailSync.getSyncStatus(account.id);
   const labelsOf = (id: string) => mailStore.getAllMessageLabels(account.id).get(id);
   const sync = async () => {
-    const before = status().lastSyncAt;
     mailSync.syncAccount(account.id, { force: true, trigger: "push" });
-    await until(() => status().lastSyncAt !== before && !status().syncing, "a sync");
+    await drainSync();
+    expect(status()).toMatchObject({ syncing: false, error: null });
   };
-  return { mailStore, status, labelsOf, sync, provider: providerFor(account.id) };
+  /** What a window asks of the backend. */
+  const invoke = (channel: string, params: unknown) => registeredHandlers().get(channel)!(params);
+  await drainSync();
+  expect(status()).toMatchObject({ fullSyncDone: true, syncing: false, error: null });
+  return { mailStore, labelsOf, sync, invoke, provider: providerFor(account.id) };
 }
 
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-13T08:00:00Z"));
   messages = new Map();
   version = 0;
   leftFolder = [];
@@ -339,6 +350,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("Outlook sync", () => {
@@ -348,11 +360,10 @@ describe("Outlook sync", () => {
     deliver("c", "sentitems", { isRead: true });
     deliver("d", "junkemail");
 
-    const { status, labelsOf, mailStore } = await boot();
-    await until(() => status().fullSyncDone && !status().syncing, "the first sync");
+    const { labelsOf, mailStore } = await boot();
 
     expect(labelsOf("a")?.sort()).toEqual(["INBOX", "STARRED", "UNREAD", "category:Finance"]);
-    expect(labelsOf("b")).toEqual(["IMPORTANT"]);
+    expect(labelsOf("b")?.sort()).toEqual(["ARCHIVE", "IMPORTANT"]);
     expect(labelsOf("c")).toEqual(["SENT"]);
     expect(labelsOf("d")?.sort()).toEqual(["SPAM", "UNREAD"]);
     const labels = mailStore.getLabels(account.id);
@@ -362,14 +373,19 @@ describe("Outlook sync", () => {
       color: { backgroundColor: expect.any(String) },
     });
     expect(labels.find((l) => l.id === "INBOX")).toMatchObject({ type: "system", unread: 1 });
+    // The Archive is a folder, with Outlook's counts, as Outlook shows it.
+    expect(labels.find((l) => l.id === "ARCHIVE")).toMatchObject({
+      type: "system",
+      total: 1,
+      unread: 0,
+    });
   });
 
   it("follows each folder's delta: new mail, moves and deletions", async () => {
     deliver("a", "inbox");
     deliver("b", "inbox");
     deliver("c", "archive");
-    const { status, labelsOf, sync } = await boot();
-    await until(() => status().fullSyncDone && !status().syncing, "the first sync");
+    const { labelsOf, sync } = await boot();
 
     sparseDeltas = true;
     deliver("new", "inbox");
@@ -379,8 +395,8 @@ describe("Outlook sync", () => {
 
     expect(labelsOf("new")).toEqual(["INBOX", "UNREAD"]);
     expect(notified).toEqual(["Subject new"]);
-    // Moved: the same id, out of the inbox (archived mail carries no folder label).
-    expect(labelsOf("a")).toEqual(["UNREAD"]);
+    // Moved: the same id, out of the inbox and into the Archive.
+    expect(labelsOf("a")?.sort()).toEqual(["ARCHIVE", "UNREAD"]);
     expect(labelsOf("c")).toBeUndefined();
     expect(labelsOf("b")).toEqual(["INBOX", "UNREAD"]);
   });
@@ -392,8 +408,7 @@ describe("Outlook sync", () => {
       categories: ["Finance"],
     });
     deliver("older", "inbox", { date: latest.date - 60_000 });
-    const { status, provider, mailStore, sync } = await boot();
-    await until(() => status().fullSyncDone && !status().syncing, "the first sync");
+    const { provider, mailStore, sync } = await boot();
     const before = mailStore
       .getThreadsPage(account.id, "INBOX", 0, 10)
       .messages.find((m) => m.id === "latest")!;
@@ -426,8 +441,7 @@ describe("Outlook sync", () => {
 
   it("keeps the cache and delta cursor intact when resolving a sparse update fails", async () => {
     deliver("a", "inbox");
-    const { status, provider, mailStore, sync } = await boot();
-    await until(() => status().fullSyncDone && !status().syncing, "the first sync");
+    const { provider, mailStore, sync } = await boot();
     const before = mailStore.getThreadsPage(account.id, "INBOX", 0, 10).messages;
     const cursor = mailStore.getKv(`outlookDelta:${account.id}`);
     sparseDeltas = true;
@@ -454,8 +468,7 @@ describe("Outlook sync", () => {
   it("turns label changes into Graph's writes", async () => {
     deliver("in", "inbox", { conversationId: "t" });
     deliver("sent", "sentitems", { conversationId: "t", isRead: true });
-    const { status, provider } = await boot();
-    await until(() => status().fullSyncDone && !status().syncing, "the first sync");
+    const { provider } = await boot();
     writes = [];
 
     // Archiving the conversation moves what's in the inbox; the sent reply stays.
@@ -481,11 +494,96 @@ describe("Outlook sync", () => {
     expect(messages.get("sent")?.folder).toBe("sentitems");
   });
 
+  it("archives from the app: the inbox's mail lands in the Archive at once, and undo brings it back", async () => {
+    deliver("in", "inbox", { conversationId: "t" });
+    deliver("sent", "sentitems", { conversationId: "t", isRead: true });
+    const { labelsOf, invoke, mailStore, sync } = await boot();
+    writes = [];
+
+    // What the Archive button, e, a swipe or a bulk archive send: INBOX off the conversation.
+    await invoke("gmail:modifyThread", {
+      accountId: account.id,
+      threadId: "t",
+      removeLabelIds: ["INBOX"],
+    });
+    expect(writes).toEqual([
+      { method: "POST", path: "/me/messages/in/move", body: { destinationId: "archive" } },
+    ]);
+    expect(messages.get("in")?.folder).toBe("archive");
+    expect(messages.get("sent")?.folder).toBe("sentitems");
+    // The cache has it in the Archive before any sync, the reply still in Sent.
+    expect(labelsOf("in")?.sort()).toEqual(["ARCHIVE", "UNREAD"]);
+    expect(labelsOf("sent")).toEqual(["SENT"]);
+    const listed = (labelId: string) =>
+      mailStore.getThreadsPage(account.id, labelId, 0, 10).messages.map((m) => m.threadId);
+    expect(listed("ARCHIVE")).toEqual(["t"]);
+    expect(listed("INBOX")).toEqual([]);
+    await sync();
+    expect(labelsOf("in")?.sort()).toEqual(["ARCHIVE", "UNREAD"]);
+
+    // Undo: INBOX back on, which moves it out of the Archive.
+    await invoke("gmail:modifyThread", {
+      accountId: account.id,
+      threadId: "t",
+      addLabelIds: ["INBOX"],
+    });
+    expect(messages.get("in")?.folder).toBe("inbox");
+    expect(messages.get("sent")?.folder).toBe("sentitems");
+    expect(labelsOf("in")?.sort()).toEqual(["INBOX", "UNREAD"]);
+    expect(listed("ARCHIVE")).toEqual([]);
+  });
+
+  it("takes mail out of the Archive, and lists and searches it from Outlook", async () => {
+    deliver("old", "archive", { conversationId: "o", subject: "Lunch" });
+    const { labelsOf, provider } = await boot();
+
+    expect((await provider.listIds!(account.id, { labelIds: ["ARCHIVE"] })).ids).toEqual(["old"]);
+    await provider.search!(account.id, "in:archive lunch", undefined, 50);
+    expect(searches).toEqual([{ path: "/me/mailFolders/archive/messages", search: '"lunch"' }]);
+
+    await provider.modifyThread(account.id, "o", { removeLabelIds: ["ARCHIVE"] });
+    expect(messages.get("old")?.folder).toBe("inbox");
+    await provider.modifyThread(account.id, "o", { addLabelIds: ["ARCHIVE"] });
+    expect(messages.get("old")?.folder).toBe("archive");
+    expect(labelsOf("old")).toContain("ARCHIVE");
+  });
+
+  it("gives ARCHIVE to archived mail cached before the Archive had a label", async () => {
+    deliver("old", "archive", { isRead: true });
+    deliver("in", "inbox");
+    const { labelsOf, mailStore, sync } = await boot();
+    // As an older version left it: no label on the Archive's mail, none kept for its folders.
+    mailStore.applyHistoryChanges(account.id, [
+      { kind: "labelsRemoved", id: "old", labelIds: ["ARCHIVE"] },
+    ]);
+    const key = `outlookDelta:${account.id}`;
+    const delta = JSON.parse(mailStore.getKv(key)!) as Record<string, { label?: string | null }>;
+    for (const folder of Object.values(delta)) delete folder.label;
+    mailStore.setKv(key, JSON.stringify(delta));
+
+    await sync();
+    expect(labelsOf("old")).toEqual(["ARCHIVE"]);
+    expect(labelsOf("in")?.sort()).toEqual(["INBOX", "UNREAD"]);
+    expect(mailStore.getThreadsPage(account.id, "ARCHIVE", 0, 10).messages).toHaveLength(1);
+  });
+
+  it("shows Outlook's Scheduled folder, where its Snooze keeps mail, as SNOOZED", async () => {
+    deliver("later", "scheduled", { conversationId: "s" });
+    const { labelsOf, provider, mailStore } = await boot();
+    expect(labelsOf("later")).toContain("SNOOZED");
+    expect(mailStore.getLabels(account.id).find((l) => l.id === "SNOOZED")).toMatchObject({
+      type: "system",
+      total: 1,
+    });
+    // Back to the inbox early.
+    await provider.modifyThread(account.id, "s", { addLabelIds: ["INBOX"] });
+    expect(messages.get("later")?.folder).toBe("inbox");
+  });
+
   it("searches with Outlook's engine, Gmail's operators translated", async () => {
     deliver("unread", "inbox");
     deliver("read", "inbox", { isRead: true });
-    const { status, provider } = await boot();
-    await until(() => status().fullSyncDone && !status().syncing, "the first sync");
+    const { provider } = await boot();
 
     const page = await provider.search!(
       account.id,

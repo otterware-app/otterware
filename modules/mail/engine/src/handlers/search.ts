@@ -1,12 +1,5 @@
-/**
- * Search, Gmail's way: every query runs through the server's own search
- * (Gmail's engine: all operators, all mail, attachments and recipients
- * included), so results are the truth rather than whatever this device
- * happens to have cached. Results are conversations, newest first, merged
- * across the accounts in scope; only matches missing from the cache are
- * fetched. Offline, it falls back to the local index and says so, as do
- * providers without server search.
- */
+/** Server search includes uncached mail; only missing matches are fetched.
+ * Offline and providers without search fall back to the local index. */
 
 import { handle } from "../ipc.js";
 import { logger } from "../logger.js";
@@ -65,6 +58,7 @@ const SYSTEM_LABELS: Record<string, string> = {
   junk: "SPAM",
   trash: "TRASH",
   starred: "STARRED",
+  flagged: "STARRED",
   unread: "UNREAD",
   important: "IMPORTANT",
 };

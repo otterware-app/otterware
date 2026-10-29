@@ -1,13 +1,5 @@
-/**
- * Sending and drafts through Graph. Everything sent starts as a draft: a
- * reply is made with `createReply` on the message it answers, so Outlook
- * keeps it in the conversation, then gets the composer's recipients, subject
- * and body (the quote included) and its attachments, and is sent. With
- * immutable ids the sent message keeps the draft's id, in Sent Items.
- *
- * A draft is that message in Drafts; each save updates it in place, so a
- * draft's id is its message's id and never changes.
- */
+/** Graph replies start with createReply to retain their conversation.
+ * Immutable message ids survive sending; saving a draft updates it in place. */
 
 import { fromBase64, toBase64, utf8Encode, sha256Hex } from "../../bytes.js";
 import * as store from "../../services/mail-store.js";
@@ -174,7 +166,28 @@ async function syncAttachments(
   await attach(accountId, draftId, attachments);
 }
 
-export async function send(accountId: string, mail: OutgoingMail): Promise<{ messageId?: string }> {
+// Exchange holds deferred sends in Outbox, locked against edits, until the MAPI send time.
+async function hold(accountId: string, id: string, sendAt: number): Promise<void> {
+  await graph(accountId, messagePath(id), {
+    method: "PATCH",
+    body: {
+      singleValueExtendedProperties: [
+        { id: "SystemTime 0x3FEF", value: new Date(sendAt).toISOString() },
+      ],
+    },
+  });
+  await graph(accountId, `${messagePath(id)}/move`, {
+    method: "POST",
+    body: { destinationId: "outbox" },
+  });
+}
+
+/** Sends now, or with `sendAt`, has Outlook send it then. */
+export async function send(
+  accountId: string,
+  mail: OutgoingMail,
+  sendAt?: number,
+): Promise<{ messageId: string }> {
   if (recipients(mail.to).length + recipients(mail.cc).length + recipients(mail.bcc).length === 0) {
     throw new Error("Add at least one recipient.");
   }
@@ -182,6 +195,7 @@ export async function send(accountId: string, mail: OutgoingMail): Promise<{ mes
   const draft = await createDraft(accountId, mail, replyTo);
   try {
     if (mail.attachments?.length) await attach(accountId, draft.id, mail.attachments);
+    if (sendAt !== undefined) await hold(accountId, draft.id, sendAt);
     await graph(accountId, `${messagePath(draft.id)}/send`, { method: "POST" });
   } catch (err) {
     // Don't leave a half-made draft behind.
@@ -191,6 +205,23 @@ export async function send(accountId: string, mail: OutgoingMail): Promise<{ mes
     throw err;
   }
   return { messageId: draft.id };
+}
+
+/**
+ * Deleting a held message is what cancels it (Exchange won't move or edit
+ * it). Soft-deleted, so in a race with Exchange sending it the sent copy
+ * stays recoverable.
+ */
+export async function cancelScheduledSend(accountId: string, id: string): Promise<boolean> {
+  try {
+    const message = await graph<ApiMessage>(accountId, `${messagePath(id)}?$select=id,isDraft`);
+    if (!message.isDraft) return false;
+    await graph(accountId, messagePath(id), { method: "DELETE" });
+  } catch (err) {
+    // Deleted elsewhere: nothing left to send.
+    if (!isNotFound(err)) throw err;
+  }
+  return true;
 }
 
 /** A ready-made RFC 822 message (unsubscribe mail, invitation replies), sent as MIME. */

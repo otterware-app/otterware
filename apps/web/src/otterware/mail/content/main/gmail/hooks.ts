@@ -9,6 +9,7 @@ import {
   useQueryClient,
   type InfiniteData,
 } from "@tanstack/react-query";
+import { landLabelChange } from "@otterware/mail-contracts";
 import { toast } from "./toast";
 import {
   gmailApi,
@@ -18,20 +19,17 @@ import {
   type SendMessageParams,
 } from "./api";
 import { ALL_MAIL_LABEL_ID } from "./label-names";
-import { PENDING_LABEL_PREFIX } from "./label-tree";
 import type {
   ContactSuggestion,
   GmailAccount,
   GmailLabel,
   GmailMessageDetail,
   GmailMessageSummary,
-  MailView,
   SyncStatus,
   ViewRule,
 } from "./types";
 import type { GmailSearchResult, ListMessagesResult } from "./api";
-import { resolveRules } from "./custom-views";
-import { registerUndo, clearUndo, isPureMarkRead, isQuiet, type ActionSummary } from "./undo";
+import { registerUndo, isPureMarkRead, isQuiet, type ActionSummary } from "./undo";
 import { summarizeLabelChange } from "./action-summary";
 
 const STALE_TIME = 30_000;
@@ -82,6 +80,7 @@ function invalidateMailCaches(qc: ReturnType<typeof useQueryClient>): void {
  *  reverted local state shows. Mount once, in the main window. */
 export function useGmailWriteFailureToasts(): void {
   const qc = useQueryClient();
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Subscribe to background mail failures so toasts and query caches reflect server outcomes.
   useEffect(() => {
     const offWrite = mailBridge.on("gmail:write-failed", (params: unknown) => {
       const p = params as { message?: string | undefined } | undefined;
@@ -117,6 +116,7 @@ export function useGmailWriteFailureToasts(): void {
 /** Refreshes mail caches when the backend changed mail on its own (a scheduled send going out). */
 export function useExternalMailChanges(): void {
   const qc = useQueryClient();
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Invalidate query caches when scheduled sends change mail outside this window.
   useEffect(() => mailBridge.on("gmail:mail-changed", () => invalidateMailCaches(qc)), [qc]);
 }
 
@@ -141,6 +141,7 @@ export function useAccounts() {
 
   // Account edits (name/color) can happen in the Settings window, which has its
   // own QueryClient — listen for the backend broadcast so every window refreshes.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Refresh query caches after account edits broadcast by another window.
   useEffect(() => {
     const unsubscribe = mailBridge.on("gmail:accounts-changed", () => {
       void qc.invalidateQueries({ queryKey: queryKeys.accounts() });
@@ -210,33 +211,6 @@ export function useLabels(accountId: string | null) {
   });
 }
 
-function useCreateLabel() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ accountId, name }: { accountId: string; name: string }) => {
-      console.log("[hooks:useCreateLabel] creating label", { accountId, name });
-      return gmailApi.createLabel(accountId, name);
-    },
-    // Optimistic: the label shows up in the sidebar instantly under a pending
-    // id; reconciliation swaps in the real id.
-    onMutate: async ({ accountId, name }) => {
-      await qc.cancelQueries({ queryKey: queryKeys.labels(accountId) });
-      const prev = qc.getQueryData<GmailLabel[]>(queryKeys.labels(accountId));
-      qc.setQueryData<GmailLabel[]>(queryKeys.labels(accountId), (old) => [
-        ...(old ?? []),
-        { id: `${PENDING_LABEL_PREFIX}${name}`, name, type: "user" },
-      ]);
-      return { prev };
-    },
-    onError: (_err, { accountId }, context) => {
-      if (context?.prev) qc.setQueryData(queryKeys.labels(accountId), context.prev);
-    },
-    onSettled: (_data, _err, { accountId }) => {
-      void qc.invalidateQueries({ queryKey: queryKeys.labels(accountId) });
-    },
-  });
-}
-
 export function useUpdateLabel() {
   const qc = useQueryClient();
   const renameShortcuts = useRenameLabelShortcuts();
@@ -280,31 +254,6 @@ export function useUpdateLabel() {
     },
     onSettled: (_data, _err, { accountId }) => {
       void qc.invalidateQueries({ queryKey: queryKeys.labels(accountId) });
-    },
-  });
-}
-
-function useDeleteLabel() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ accountId, labelId }: { accountId: string; labelId: string }) => {
-      console.log("[hooks:useDeleteLabel]", { accountId, labelId });
-      return gmailApi.deleteLabel(accountId, labelId);
-    },
-    onMutate: async ({ accountId, labelId }) => {
-      await qc.cancelQueries({ queryKey: queryKeys.labels(accountId) });
-      const prev = qc.getQueryData<GmailLabel[]>(queryKeys.labels(accountId));
-      qc.setQueryData<GmailLabel[]>(queryKeys.labels(accountId), (old) =>
-        old?.filter((l) => l.id !== labelId),
-      );
-      return { prev };
-    },
-    onError: (_err, { accountId }, context) => {
-      if (context?.prev) qc.setQueryData(queryKeys.labels(accountId), context.prev);
-    },
-    onSettled: (_data, _err, { accountId }) => {
-      void qc.invalidateQueries({ queryKey: queryKeys.labels(accountId) });
-      void qc.invalidateQueries({ queryKey: ["gmail:combinedCounts"] });
     },
   });
 }
@@ -358,6 +307,7 @@ export function useMessages(accountId: string | null, labelId?: string) {
 /** Trailing-edge debounce, for search-as-you-type inputs. */
 export function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Own the debounce timer and cancel stale input updates on change or unmount.
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(value), delayMs);
     return () => clearTimeout(timer);
@@ -497,33 +447,6 @@ export function useCombinedCounts(rules: ViewRule[], viewId: string, enabled = t
     enabled: enabled && rules.length > 0,
     staleTime: STALE_TIME,
   });
-}
-
-/** Unread count per view id, for the Combined sidebar rows. */
-function useViewUnreadCounts(
-  views: MailView[],
-  accounts: GmailAccount[],
-  enabled = true,
-): Record<string, number> {
-  const results = useQueries({
-    queries: views.map((view) => {
-      const rules = resolveRules(view, accounts);
-      return {
-        queryKey: queryKeys.combinedCounts(view.id, rules),
-        queryFn: () => gmailApi.countCombinedMessages({ rules }),
-        // All Mail carries no badge (Gmail parity) — skip a whole-mailbox count.
-        enabled: enabled && rules.length > 0 && view.kind !== "allmail",
-        staleTime: STALE_TIME,
-      };
-    }),
-  });
-  return Object.fromEntries(
-    views.map((v, i) => {
-      const data = results[i]?.data;
-      // Drafts badge counts every draft, not unread ones (Gmail parity).
-      return [v.id, (v.kind === "drafts" ? data?.total : data?.unread) ?? 0];
-    }),
-  );
 }
 
 /** Full label list per account, keyed by accountId, for the view-editor picker. */
@@ -723,14 +646,17 @@ function applyLabelPatch<T extends GmailMessageSummary>(
   addLabelIds: string[],
   removeLabelIds: string[],
   scope: "thread" | "message" = "message",
+  archiveFolder?: boolean,
 ): T {
-  const patch = (ids: string[], removals: string[]) => {
+  // A conversation's own mail stays in Sent where Archive is a folder; the conversation still moves.
+  const patch = (ids: string[], removals: string[], thread = false) => {
+    const landed = landLabelChange(ids, addLabelIds, removals, { archiveFolder, thread });
     const set = new Set(ids);
-    for (const lid of removals) set.delete(lid);
-    for (const lid of addLabelIds) set.add(lid);
+    for (const lid of landed.remove) set.delete(lid);
+    for (const lid of landed.add) set.add(lid);
     return [...set];
   };
-  const labelIds = patch(m.labelIds, removeLabelIds);
+  const labelIds = patch(m.labelIds, removeLabelIds, scope === "thread");
   const unread = labelIds.includes("UNREAD");
   const starred = labelIds.includes("STARRED");
   return {
@@ -743,8 +669,15 @@ function applyLabelPatch<T extends GmailMessageSummary>(
     threadLabelIds:
       m.threadLabelIds === undefined
         ? undefined
-        : patch(m.threadLabelIds, scope === "thread" ? removeLabelIds : []),
+        : scope === "thread"
+          ? patch(m.threadLabelIds, removeLabelIds)
+          : [...new Set([...m.threadLabelIds, ...labelIds])],
   };
+}
+
+function archiveFolderOf(qc: ReturnType<typeof useQueryClient>, accountId: string) {
+  return qc.getQueryData<GmailAccount[]>(queryKeys.accounts())?.find((a) => a.id === accountId)
+    ?.capabilities?.archiveFolder;
 }
 
 /**
@@ -828,7 +761,13 @@ function labelChangeSummary(
 ): ActionSummary | undefined {
   const labels = qc.getQueryData<GmailLabel[]>(queryKeys.labels(params.accountId)) ?? [];
   const nameOf = (id: string) => labels.find((l) => l.id === id && l.type === "user")?.name;
-  return summarizeLabelChange(params.addLabelIds ?? [], params.removeLabelIds ?? [], noun, nameOf);
+  return summarizeLabelChange(
+    params.addLabelIds ?? [],
+    params.removeLabelIds ?? [],
+    noun,
+    nameOf,
+    archiveFolderOf(qc, params.accountId),
+  );
 }
 
 export function useModifyMessage() {
@@ -892,9 +831,10 @@ export function useModifyMessage() {
           .find((m) => m.id === messageId)?.labelIds ??
         [];
 
+      const archiveFolder = archiveFolderOf(qc, accountId);
       const isTarget = (m: GmailMessageSummary) => m.id === messageId;
       const applyPatch = (m: GmailMessageSummary) =>
-        applyLabelPatch(m, addLabelIds, removeLabelIds);
+        applyLabelPatch(m, addLabelIds, removeLabelIds, "message", archiveFolder);
 
       if (prevMessage) qc.setQueryData(messageKey, applyPatch(prevMessage));
       qc.setQueriesData(
@@ -922,7 +862,10 @@ export function useModifyMessage() {
         old?.map((m) => (isTarget(m) ? applyPatch(m) : m)),
       );
 
-      const deltas = computeLabelCountDeltas(priorLabelIds, addLabelIds, removeLabelIds);
+      const landed = landLabelChange(priorLabelIds, addLabelIds, removeLabelIds, {
+        archiveFolder,
+      });
+      const deltas = computeLabelCountDeltas(priorLabelIds, landed.add, landed.remove);
       qc.setQueryData<GmailLabel[]>(labelsKey, (old) => applyLabelCountDeltas(old, deltas));
 
       return {
@@ -1160,12 +1103,12 @@ export function useModifyThread() {
       const prevThread = qc.getQueryData<GmailMessageSummary[]>(threadKey);
       const prevLabels = qc.getQueryData<GmailLabel[]>(labelsKey);
 
+      const archiveFolder = archiveFolderOf(qc, accountId);
       const applyPatch = (m: GmailMessageSummary) =>
-        applyLabelPatch(m, addLabelIds, removeLabelIds, "thread");
+        applyLabelPatch(m, addLabelIds, removeLabelIds, "thread", archiveFolder);
 
       for (const [key, message] of prevMessageQueries) {
-        if (message)
-          qc.setQueryData(key, applyLabelPatch(message, addLabelIds, removeLabelIds, "thread"));
+        if (message) qc.setQueryData(key, applyPatch(message));
       }
 
       qc.setQueriesData(
@@ -1194,13 +1137,13 @@ export function useModifyThread() {
       // Whole-thread removals drop the row from lists it no longer matches (single-message ops
       // can't know whether siblings still match). All Mail only loses spam/trash threads.
       const leavesAllMail = addLabelIds.includes("SPAM") || addLabelIds.includes("TRASH");
-      if (removeLabelIds.length > 0 || leavesAllMail) {
+      const leaves = landLabelChange([], addLabelIds, removeLabelIds, { archiveFolder }).remove;
+      if (leaves.length > 0 || leavesAllMail) {
         for (const [key] of prevMessagesQueries) {
           const listLabelId = key[2];
           if (
             typeof listLabelId === "string" &&
-            (removeLabelIds.includes(listLabelId) ||
-              (leavesAllMail && listLabelId === ALL_MAIL_LABEL_ID))
+            (leaves.includes(listLabelId) || (leavesAllMail && listLabelId === ALL_MAIL_LABEL_ID))
           ) {
             qc.setQueryData(key, (old: InfiniteData<ListMessagesResult> | undefined) =>
               removeMessagesFromInfiniteData(old, inThread),
@@ -1214,7 +1157,7 @@ export function useModifyThread() {
             rules.length > 0 &&
             rules.every(
               (r) =>
-                r.allOf.some((id) => removeLabelIds.includes(id)) ||
+                r.allOf.some((id) => leaves.includes(id)) ||
                 (leavesAllMail && r.allOf.length === 0),
             )
           ) {
@@ -1230,11 +1173,11 @@ export function useModifyThread() {
       if (prevThread) {
         const merged = new Map<string, LabelCountDelta>();
         for (const msg of prevThread) {
-          for (const [lid, d] of computeLabelCountDeltas(
-            msg.labelIds,
-            addLabelIds,
-            removeLabelIds,
-          )) {
+          const landed = landLabelChange(msg.labelIds, addLabelIds, removeLabelIds, {
+            archiveFolder,
+            thread: true,
+          });
+          for (const [lid, d] of computeLabelCountDeltas(msg.labelIds, landed.add, landed.remove)) {
             const cur = merged.get(lid) ?? { total: 0, unread: 0 };
             merged.set(lid, { total: cur.total + d.total, unread: cur.unread + d.unread });
           }
@@ -1466,6 +1409,7 @@ export function useAccountSync(accountId: string | null): SyncStatus | null {
   });
 
   // Start a sync whenever the active account changes.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Start backend sync for the active account and refresh its cached progress.
   useEffect(() => {
     if (!accountId) return;
     console.log("[hooks:useAccountSync] starting sync", { accountId });
@@ -1476,6 +1420,7 @@ export function useAccountSync(accountId: string | null): SyncStatus | null {
 
   // Refresh views when sync changed what they show (revision moves), never
   // just because a routine check for new mail ran.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Invalidate list query caches when the backend sync revision advances.
   useEffect(() => {
     const status = statusQuery.data;
     if (!status || !accountId) return;
@@ -1515,52 +1460,6 @@ function shouldRefreshLists(key: string, status: SyncStatus): boolean {
   return true;
 }
 
-function syncLabel(status: SyncStatus): string {
-  if (status.syncing && status.phase === "full" && status.total) {
-    return `Syncing ${status.synced.toLocaleString()} of ~${status.total.toLocaleString()}`;
-  }
-  if (status.syncing && status.phase === "full") return "Syncing…";
-  if (status.download) {
-    return `Downloading messages ${status.download.done.toLocaleString()} of ${status.download.total.toLocaleString()}`;
-  }
-  if (status.phase === "incremental") return "Checking for new mail…";
-  return "Syncing…";
-}
-
-/** Aggregated sync activity across every account, for the sidebar footer. */
-function useGlobalSyncStatus(accountIds: string[]): { syncing: boolean; label: string } {
-  const qc = useQueryClient();
-  // The backend broadcasts when any sync starts so idle 10s polls don't miss
-  // short syncs (menu-triggered "Synchronize All Mailboxes", the auto timer).
-  useEffect(() => {
-    const unsubscribe = mailBridge.on("gmail:sync-started", () => {
-      void qc.invalidateQueries({ queryKey: ["gmail:syncStatus"] });
-    });
-    return unsubscribe;
-  }, [qc]);
-
-  const results = useQueries({
-    queries: accountIds.map((id) => ({
-      queryKey: ["gmail:syncStatus", id],
-      queryFn: () => gmailApi.getSyncStatus(id),
-      refetchInterval: (query: { state: { data?: SyncStatus | undefined } }) =>
-        syncStatusPollMs(query.state.data),
-    })),
-  });
-  // Routine incremental checks stay silent (they'd blink every auto-sync
-  // tick); only long-running work — full syncs and offline downloads — shows.
-  const active = results
-    .map((r) => r.data as SyncStatus | undefined)
-    .filter(
-      (s): s is SyncStatus => (s?.syncing === true && s.phase === "full") || s?.download != null,
-    );
-  if (active.length === 0) return { syncing: false, label: "" };
-  return {
-    syncing: true,
-    label: active.length === 1 ? syncLabel(active[0]!) : `Syncing ${active.length} accounts…`,
-  };
-}
-
 /**
  * Same as `useAccountSync` but for every account at once — the Combined mailbox
  * has no single "active account" to drive `useAccountSync`, so its per-account
@@ -1581,6 +1480,7 @@ export function useSyncAccountLabels(accountIds: string[], enabled: boolean): vo
   });
 
   const accountIdsKey = accountIds.join(",");
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Start backend sync for each account shown by the combined mailbox.
   useEffect(() => {
     if (!enabled) return;
     for (const id of accountIdsKey ? accountIdsKey.split(",") : []) {
@@ -1594,6 +1494,7 @@ export function useSyncAccountLabels(accountIds: string[], enabled: boolean): vo
       return s ? `${s.revision}:${s.syncing}` : "";
     })
     .join(",");
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Invalidate combined query caches as backend sync revisions advance.
   useEffect(() => {
     if (!enabled) return;
     let anyProgressed = false;
@@ -1779,36 +1680,6 @@ export function useDeleteThreadsForever() {
       void qc.invalidateQueries({ queryKey: ["gmail:thread", accountId] });
       void qc.invalidateQueries({ queryKey: queryKeys.labels(accountId) });
     },
-  });
-}
-
-/** Empty Junk / Empty Trash for some accounts — permanent, so it clears the
-    undo slot, and the toast reports what went. */
-function useEmptyFolder() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({
-      accountIds,
-      labelId,
-    }: {
-      accountIds: string[];
-      labelId: "SPAM" | "TRASH";
-    }) => {
-      console.log("[hooks:useEmptyFolder]", { accounts: accountIds.length, labelId });
-      const results = await Promise.all(accountIds.map((id) => gmailApi.emptyFolder(id, labelId)));
-      return results.reduce((sum, r) => sum + r.deleted, 0);
-    },
-    onSuccess: (deleted, { labelId }) => {
-      clearUndo();
-      invalidateMailCaches(qc);
-      const where = labelId === "SPAM" ? "Junk" : "Trash";
-      toast.success(
-        deleted === 0
-          ? `${where} was already empty`
-          : `Deleted ${deleted.toLocaleString()} message${deleted === 1 ? "" : "s"} from ${where}`,
-      );
-    },
-    onError: (err) => toast.error(`Couldn't empty it: ${describeGmailWriteError(err)}`),
   });
 }
 

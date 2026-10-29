@@ -20,8 +20,11 @@ const LEGACY_PERSISTED_STATE_KEYS = [
 ] as const;
 
 export interface PersistedUiState {
+  projectExpandedById?: Record<string, boolean>;
   projectOrder?: string[];
   threadLastVisitedAtById?: Record<string, string>;
+  collapsedProjectCwds?: string[];
+  expandedProjectCwds?: string[];
   projectOrderCwds?: string[];
   defaultAdvertisedEndpointKey?: string | null;
   sidebarProjectScopeKey?: string | null;
@@ -33,6 +36,7 @@ export interface PersistedUiState {
 }
 
 export interface UiProjectState {
+  projectExpandedById: Record<string, boolean>;
   projectOrder: string[];
   sidebarProjectScopeKeys: string[];
   // A named Space, Chats, or null for all projects.
@@ -56,6 +60,7 @@ export interface UiState
   extends UiProjectState, UiThreadState, UiEndpointState, UiPullRequestState {}
 
 const initialState: UiState = {
+  projectExpandedById: {},
   projectOrder: [],
   sidebarProjectScopeKeys: [],
   sidebarProjectSpaceId: null,
@@ -66,6 +71,7 @@ const initialState: UiState = {
 };
 
 const LEGACY_PROJECT_CWD_PREFERENCE_PREFIX = "legacy-project-cwd:";
+const LEGACY_PROJECT_EXPANSION_DEFAULT_KEY = "legacy-project-expansion-default";
 let legacyKeysCleanedUp = false;
 
 export function legacyProjectCwdPreferenceKey(cwd: string): string {
@@ -81,6 +87,17 @@ function sanitizeStringArray(value: unknown): string[] {
       value.filter((entry): entry is string => typeof entry === "string" && entry.length > 0),
     ),
   ];
+}
+
+function sanitizeBooleanRecord(value: unknown): Record<string, boolean> {
+  if (!value || typeof value !== "object") {
+    return {};
+  }
+  return Object.fromEntries(
+    Object.entries(value).filter(
+      (entry): entry is [string, boolean] => entry[0].length > 0 && typeof entry[1] === "boolean",
+    ),
+  );
 }
 
 function sanitizeOptionalKey(value: unknown): string | null {
@@ -107,12 +124,31 @@ function isPullRequestMergeMethod(value: unknown): value is PullRequestMergeMeth
 }
 
 export function parsePersistedState(parsed: PersistedUiState): UiState {
+  const projectExpandedById =
+    parsed.projectExpandedById === undefined
+      ? (() => {
+          const migrated: Record<string, boolean> = {};
+          const collapsedProjectCwds = sanitizeStringArray(parsed.collapsedProjectCwds);
+          const expandedProjectCwds = sanitizeStringArray(parsed.expandedProjectCwds);
+          for (const cwd of collapsedProjectCwds) {
+            migrated[legacyProjectCwdPreferenceKey(cwd)] = false;
+          }
+          for (const cwd of expandedProjectCwds) {
+            migrated[legacyProjectCwdPreferenceKey(cwd)] = true;
+          }
+          if (!Array.isArray(parsed.collapsedProjectCwds) && expandedProjectCwds.length > 0) {
+            migrated[LEGACY_PROJECT_EXPANSION_DEFAULT_KEY] = false;
+          }
+          return migrated;
+        })()
+      : sanitizeBooleanRecord(parsed.projectExpandedById);
   const projectOrder =
     parsed.projectOrder === undefined
       ? sanitizeStringArray(parsed.projectOrderCwds).map(legacyProjectCwdPreferenceKey)
       : sanitizeStringArray(parsed.projectOrder);
 
   return {
+    projectExpandedById,
     projectOrder,
     threadLastVisitedAtById: sanitizeTimestampRecord(parsed.threadLastVisitedAtById),
     threadChangedFilesExpandedById:
@@ -188,9 +224,15 @@ export function persistState(state: UiState): void {
     return;
   }
   try {
+    const projectExpandedById = Object.fromEntries(
+      Object.entries(state.projectExpandedById).filter(
+        ([key]) => key !== LEGACY_PROJECT_EXPANSION_DEFAULT_KEY,
+      ),
+    );
     window.localStorage.setItem(
       PERSISTED_STATE_KEY,
       JSON.stringify({
+        projectExpandedById,
         projectOrder: state.projectOrder,
         threadLastVisitedAtById: state.threadLastVisitedAtById,
         defaultAdvertisedEndpointKey: state.defaultAdvertisedEndpointKey,
@@ -332,6 +374,39 @@ function setPullRequestMergeMethod(state: UiState, method: PullRequestMergeMetho
     : { ...state, pullRequestMergeMethod: method };
 }
 
+export function resolveProjectExpanded(
+  projectExpandedById: Readonly<Record<string, boolean>>,
+  preferenceKeys: readonly string[],
+): boolean {
+  for (const key of preferenceKeys) {
+    const expanded = projectExpandedById[key];
+    if (expanded !== undefined) {
+      return expanded;
+    }
+  }
+  return projectExpandedById[LEGACY_PROJECT_EXPANSION_DEFAULT_KEY] ?? true;
+}
+
+export function setProjectExpanded(
+  state: UiState,
+  projectIds: string | readonly string[],
+  expanded: boolean,
+): UiState {
+  const ids = typeof projectIds === "string" ? [projectIds] : projectIds;
+  const nextEntries = ids.filter((projectId) => state.projectExpandedById[projectId] !== expanded);
+  if (nextEntries.length === 0) {
+    return state;
+  }
+  const projectExpandedById = { ...state.projectExpandedById };
+  for (const projectId of nextEntries) {
+    projectExpandedById[projectId] = expanded;
+  }
+  return {
+    ...state,
+    projectExpandedById,
+  };
+}
+
 interface UiStateStore extends UiState {
   markThreadVisited: (threadId: string, visitedAt: string) => void;
   markThreadUnread: (threadId: string, latestTurnCompletedAt: string | null | undefined) => void;
@@ -340,6 +415,7 @@ interface UiStateStore extends UiState {
   setSidebarProjectScopeKeys: (projectKeys: readonly string[]) => void;
   setSidebarProjectSpaceId: (spaceId: string | null) => void;
   setPullRequestMergeMethod: (method: PullRequestMergeMethod) => void;
+  setProjectExpanded: (projectIds: string | readonly string[], expanded: boolean) => void;
 }
 
 export const useUiStateStore = create<UiStateStore>((set) => ({
@@ -356,6 +432,8 @@ export const useUiStateStore = create<UiStateStore>((set) => ({
     set((state) => setSidebarProjectScopeKeys(state, projectKeys)),
   setSidebarProjectSpaceId: (spaceId) => set((state) => setSidebarProjectSpaceId(state, spaceId)),
   setPullRequestMergeMethod: (method) => set((state) => setPullRequestMergeMethod(state, method)),
+  setProjectExpanded: (projectIds, expanded) =>
+    set((state) => setProjectExpanded(state, projectIds, expanded)),
 }));
 
 useUiStateStore.subscribe((state) => debouncedPersistState.maybeExecute(state));

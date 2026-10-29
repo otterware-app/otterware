@@ -106,6 +106,7 @@ export function DraftEditor({
   };
   // Open on the latest message, like a fresh reply.
   const conversationRef = useRef<HTMLDivElement>(null);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Scroll the conversation DOM to its latest message on mount.
   useEffect(() => {
     const el = conversationRef.current;
     if (el) el.scrollTop = el.scrollHeight;
@@ -157,6 +158,7 @@ export function DraftEditor({
     }
   };
   const loadAttachmentsRef = useLatest(loadAttachments);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Restore server attachments before autosave can overwrite this draft.
   useEffect(() => {
     if (detail.attachments.length > 0 && attachments === null) void loadAttachmentsRef.current();
   }, [detail.attachments.length, loadAttachmentsRef]);
@@ -213,6 +215,7 @@ export function DraftEditor({
   });
 
   // Escape returns to the list (the draft keeps autosaving).
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the window Escape listener bound to this draft until it closes.
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;
@@ -376,7 +379,7 @@ export function DraftEditor({
         attachments == null ? (
           attachLoadFailed ? (
             <>
-              Couldn't load attachments —{" "}
+              Couldn't load attachments,{" "}
               <button
                 type="button"
                 onClick={() => void loadAttachments()}
@@ -393,6 +396,7 @@ export function DraftEditor({
         )
       }
       statusTone={draft.saveState === "error" || attachLoadFailed ? "error" : "muted"}
+      accountId={accountId}
       canSend={canSend}
       onSchedule={handleSend}
       onSend={() => void handleSend()}

@@ -1,3 +1,4 @@
+import mailScheduleMigration from "./mailScheduleMigration.ts";
 import { mailHomeContributor } from "./MailHome.ts";
 import { MailSettings } from "@otterware/mail-contracts/settings";
 import { MailContract } from "@otterware/mail-contracts/rpc";
@@ -145,7 +146,9 @@ const rpcHandlers = Effect.gen(function* () {
 
 export const MailModule = defineServerModule({
   contract: MailContract,
-  migrations: [],
+  migrations: [
+    { module: "mail", id: 2, name: "server-scheduled-send", run: mailScheduleMigration },
+  ],
   layer: Layer.effect(
     MailRuntime,
     Effect.fail(

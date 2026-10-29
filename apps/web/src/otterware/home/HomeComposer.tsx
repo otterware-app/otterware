@@ -1,17 +1,15 @@
 /**
- * "Ask Otter or start something": starts a normal Code thread with the typed
- * prompt and the chosen scope as context. Scope chips pick the cross-app
- * project, which apps the agent should look at, the Code project (the
- * Otterware Assistant project by default) and the model. It wears the chat
- * composer's surface and controls.
+ * "Ask Otter or start something": starts a Code thread with the typed prompt, scoped by
+ * chips for the cross-app project, apps, Code project (Otterware Assistant by default) and model.
  */
 import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId, ModelSelection, ProviderInstanceId } from "@t3tools/contracts";
 import type { HomeItemModule, HomeProject } from "@otterware/composition/contracts";
 import { ArrowUpIcon, CheckIcon, FolderCodeIcon, LayersIcon } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDownIcon } from "~/lib/icons";
+import { useEffect, useRef, useState } from "react";
 
-import { ComposerControl, ComposerControlChevron } from "../../components/chat/ComposerControl";
+import { ComposerControl } from "../../components/chat/ComposerControl";
 import { ComposerSurface } from "../../components/chat/ComposerSurface";
 import { ProviderModelPicker } from "../../components/chat/ProviderModelPicker";
 import { scheduledTaskDefaultModel } from "../../components/settings/scheduledTasksSettings.logic";
@@ -20,11 +18,7 @@ import { Menu, MenuItem, MenuPopup, MenuSeparator, MenuTrigger } from "../../com
 import { Spinner } from "../../components/ui/spinner";
 import { useEnvironmentSettings } from "../../hooks/useSettings";
 import { getCustomModelOptionsByInstance } from "../../modelSelection";
-import {
-  applyProviderInstanceSettings,
-  deriveProviderInstanceEntries,
-  sortProviderInstanceEntries,
-} from "../../providerInstances";
+import { providerInstanceEntriesFor } from "../../providerInstances";
 import { useProjects } from "../../state/entities";
 import { EMPTY_SERVER_PROVIDERS, serverEnvironment } from "../../state/server";
 import type { ModulePageRef } from "@otterware/module-kit/web";
@@ -49,6 +43,7 @@ export function HomeComposer({
 }) {
   const [prompt, setPrompt] = useState("");
   const promptRef = useRef<HTMLTextAreaElement>(null);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- moves DOM focus to the prompt when the host signals it
   useEffect(() => {
     if (focusSignal) promptRef.current?.focus();
   }, [focusSignal]);
@@ -77,17 +72,7 @@ export function HomeComposer({
   const settings = useEnvironmentSettings(environmentId);
   const providers =
     useAtomValue(serverEnvironment.providersValueAtom(environmentId)) ?? EMPTY_SERVER_PROVIDERS;
-  const instanceEntries = useMemo(
-    () =>
-      sortProviderInstanceEntries(
-        applyProviderInstanceSettings(
-          deriveProviderInstanceEntries(providers),
-          settings,
-          codeProject?.id ?? null,
-        ),
-      ),
-    [providers, settings, codeProject],
-  );
+  const instanceEntries = providerInstanceEntriesFor(providers, settings, codeProject?.id ?? null);
   const selection = model ?? scheduledTaskDefaultModel(settings, codeProject, instanceEntries);
   const selectedInstanceId = selection?.instanceId ?? null;
   const selectedModel = selection?.model ?? null;
@@ -159,7 +144,7 @@ export function HomeComposer({
                     <LayersIcon />
                   )}
                   {project ? project.name : "Project"}
-                  <ComposerControlChevron size="xs" />
+                  <ChevronDownIcon aria-hidden="true" className="size-3 shrink-0 text-current" />
                 </MenuTrigger>
                 <MenuPopup align="start">
                   <MenuItem onClick={() => setProjectId(null)}>No project</MenuItem>
@@ -201,7 +186,7 @@ export function HomeComposer({
                   <span className="max-w-40 truncate">
                     {codeProject ? codeProject.title : "Otterware Assistant"}
                   </span>
-                  <ComposerControlChevron size="xs" />
+                  <ChevronDownIcon aria-hidden="true" className="size-3 shrink-0 text-current" />
                 </MenuTrigger>
                 <MenuPopup align="start" className="max-h-80">
                   <MenuItem onClick={() => setCodeProjectId(null)}>Otterware Assistant</MenuItem>

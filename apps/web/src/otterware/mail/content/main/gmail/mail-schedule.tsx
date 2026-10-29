@@ -18,6 +18,15 @@ import { toast } from "./toast";
 const NOTE =
   "If this device sleeps or you close Otter Mail, scheduled sends and snoozed emails wait until the app resumes here. A suspended browser tab can also delay them.";
 
+const DEVICE_NOTE = (
+  <>
+    <strong className="font-medium text-foreground">
+      Keep this device awake and online with Otter Mail open.
+    </strong>{" "}
+    {NOTE}
+  </>
+);
+
 function localTime(date: Date): string {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 }
@@ -31,10 +40,12 @@ function tomorrowMorning(): number {
 
 export function TimePicker({
   title,
+  onServer,
   disabled,
   onChoose,
 }: {
   title: string;
+  onServer?: boolean | undefined;
   disabled?: boolean | undefined;
   onChoose: (time: number) => Promise<unknown>;
 }) {
@@ -47,7 +58,14 @@ export function TimePicker({
         </IconBtn>
       </HintTooltip>
       {open && (
-        <TimePickerDialog title={title} onChoose={onChoose} onClose={() => setOpen(false)} />
+        <TimePickerDialog
+          title={title}
+          note={
+            onServer ? "Outlook sends it at that time, even with Otter Mail closed." : undefined
+          }
+          onChoose={onChoose}
+          onClose={() => setOpen(false)}
+        />
       )}
     </>
   );
@@ -55,10 +73,12 @@ export function TimePicker({
 
 function TimePickerDialog({
   title,
+  note,
   onChoose,
   onClose,
 }: {
   title: string;
+  note?: string | undefined;
   onChoose: (time: number) => Promise<unknown>;
   onClose: () => void;
 }) {
@@ -93,12 +113,7 @@ function TimePickerDialog({
       <DialogContent showCloseButton>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
-            <strong className="font-medium text-foreground">
-              Keep this device awake and online with Otter Mail open.
-            </strong>{" "}
-            {NOTE}
-          </DialogDescription>
+          <DialogDescription>{note ?? DEVICE_NOTE}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 px-6 pb-6">
           <div className="flex gap-2">
@@ -189,6 +204,7 @@ export function ScheduledMailDialog() {
     queryFn: gmailApi.listSchedules,
     refetchInterval: 15_000,
   });
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Refresh the schedules query cache when the backend broadcasts changes.
   useEffect(
     () =>
       mailBridge.on("gmail:schedule-changed", () => {
@@ -196,6 +212,7 @@ export function ScheduledMailDialog() {
       }),
     [qc],
   );
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Listen for the shell command that opens the scheduled-mail dialog.
   useEffect(() => {
     const show = (event: Event) => {
       if ((event as CustomEvent<{ command: string }>).detail.command === "schedules") setOpen(true);
@@ -211,10 +228,9 @@ export function ScheduledMailDialog() {
           <DialogHeader>
             <DialogTitle>Scheduled & snoozed</DialogTitle>
             <DialogDescription>
-              <strong className="font-medium text-foreground">
-                Keep this device awake and online with Otter Mail open.
-              </strong>{" "}
-              {NOTE}
+              {entries.length > 0 && entries.every((entry) => entry.onServer)
+                ? "Outlook sends these at their time, even with Otter Mail closed."
+                : DEVICE_NOTE}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 overflow-y-auto px-6 pb-6">
@@ -229,7 +245,12 @@ export function ScheduledMailDialog() {
               <div key={entry.id} className="space-y-2 rounded-xl border border-border p-3">
                 <p className="truncate text-sm font-medium">{entry.subject || "(no subject)"}</p>
                 <p className="text-xs text-muted-foreground">
-                  {entry.accountId} · {entry.kind === "send" ? "Send" : "Return to inbox"}{" "}
+                  {entry.accountId} ·{" "}
+                  {entry.kind === "snooze"
+                    ? "Return to inbox"
+                    : entry.onServer
+                      ? "Outlook sends it"
+                      : "Send"}{" "}
                   {new Date(entry.dueAt).toLocaleString()}
                 </p>
                 {entry.state === "failed" && (
@@ -251,7 +272,7 @@ export function ScheduledMailDialog() {
                         () =>
                           toast.success(
                             entry.kind === "send"
-                              ? "Schedule cancelled — restored to Drafts"
+                              ? "Schedule cancelled, restored to Drafts"
                               : "Returned to Inbox",
                           ),
                         (error) => toast.error(String(error)),

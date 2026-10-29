@@ -245,13 +245,6 @@ function PaneResizer({ onPointerDown }: { onPointerDown: (e: ReactPointerEvent) 
   );
 }
 
-/**
- * ChatGPT-style window chrome: the window wears the sidebar's surface (and
- * grain), so the rail and the title band read as one frame, and the columns
- * after the rail share one inset panel (canvas) that starts under the title
- * band, with rounded corners and a faint edge. The panes themselves are
- * transparent: their title bands sit on the frame, their bodies on the panel.
- */
 const PANE = "min-h-0 overflow-hidden";
 /** The sidebar's body sits in the panel (in a browser tab, its heading too),
     between the frame's tone and the canvas, with a faint full-height divider
@@ -316,6 +309,7 @@ function MailHome() {
 
   // The mail under Settings: where it was when Settings opened.
   const [lastMail, setLastMail] = useMailState<MailLoc | null>("home:lastMail", null);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Retain the router location in the mail store so Settings can return to it.
   useEffect(() => {
     if (routeLoc && !sameLoc(routeLoc, lastMail)) setLastMail(routeLoc);
   }, [routeLoc, lastMail, setLastMail]);
@@ -350,6 +344,7 @@ function MailHome() {
   const [composeOpen, setComposeOpen] = useMailState("home:composeOpen", () =>
     new URL(routeHref, "https://mail.invalid").searchParams.has("compose"),
   );
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Consume the router compose parameter and replace the URL after opening the composer.
   useEffect(() => {
     const url = new URL(routeHref, "https://mail.invalid");
     if (!url.searchParams.has("compose")) return;
@@ -377,6 +372,7 @@ function MailHome() {
     );
   }, []);
   const openSettingsRef = useLatest(openSettings);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Read pending native Settings requests and subscribe to subsequent bridge events.
   useEffect(() => {
     const pull = async () => {
       try {
@@ -448,6 +444,7 @@ function MailHome() {
   const openChat = () => mailHost().openAssistant();
   // Getting started. A device whose mail was already here skips the setup,
   // and is offered the tour, once.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Persist setup completion and request the external tour once mail accounts are available.
   useEffect(() => {
     if (accountsQuery.isLoading || accounts.length === 0 || getSetupStage()) return;
     markSetUp();
@@ -455,6 +452,7 @@ function MailHome() {
   }, [accountsQuery.isLoading, accounts.length]);
   // The tour walks the mail view: out of Settings and the composer, with the sidebar showing.
   const tourRequested = useTourRequested();
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Reset the composer for the external tour request and persist sidebar visibility.
   useEffect(() => {
     if (!tourRequested) return;
     setComposeOpen(false);
@@ -516,6 +514,7 @@ function MailHome() {
   };
   // ⌘Z / ⇧⌘Z (Edit › Undo and Redo in the app menu): text undo while typing,
   // else the mail action, like z and ⇧Z.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Subscribe to native Edit menu events and forward text edits to the native bridge.
   useEffect(() => {
     const onEdit = (native: "edit:nativeUndo" | "edit:nativeRedo", run: () => void) => () => {
       const context = keybindingContext();
@@ -544,6 +543,7 @@ function MailHome() {
   }, []);
   // Each action's toast, stacked; undoing an action (z or its Undo) closes it.
   const actionToasts = useRef(new Map<UndoAction, ToastId>());
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the native-menu undo callback current with this render and its toast registry.
   useLayoutEffect(() => {
     undoRunner.current = (action) => {
       console.log("[HomeView:undo]", {
@@ -563,6 +563,7 @@ function MailHome() {
       );
     };
   });
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the native-menu redo callback current with this render and its mutations.
   useLayoutEffect(() => {
     redoRunner.current = () => {
       const action = takeRedo();
@@ -575,6 +576,7 @@ function MailHome() {
       return true;
     };
   });
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Subscribe to the undo registry and own its imperative action toasts.
   useEffect(
     () =>
       onUndoableAction((title, action) => {
@@ -625,6 +627,7 @@ function MailHome() {
     if (!target) return false;
     select(target);
   };
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the shell action listener bound to the current mail handlers.
   useEffect(() => {
     const run = (event: Event) => {
       const { command, arg } = (event as CustomEvent<{ command: string; arg?: string | undefined }>)
@@ -662,11 +665,13 @@ function MailHome() {
   const onIndex = !routeLoc;
   const hasMail = mailLoc !== null;
   const goForEffect = useLatest(go);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Replace the index URL with the resolved mailbox once accounts are available.
   useEffect(() => {
     if (onIndex && hasMail) goForEffect.current({}, true);
   }, [onIndex, hasMail, goForEffect]);
 
   // Persist where the user is so we can reopen here next launch.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Persist the current mailbox location for the next application launch.
   useEffect(() => {
     if (!initialized || !selectedAccountId) return;
     // The Search mailbox isn't a place to reopen into.
@@ -677,6 +682,7 @@ function MailHome() {
   // mailto: links (default mail app): pull the pending target on mount (cold
   // start) and whenever the backend broadcasts one, then open the composer
   // prefilled.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Consume pending OS mailto links and subscribe to subsequent bridge events.
   useEffect(() => {
     const pull = async () => {
       const target = await gmailApi.takePendingMailto();
@@ -697,6 +703,7 @@ function MailHome() {
     accountId: string;
     messageId: string;
   } | null>(null);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Consume pending native notification targets and subscribe to subsequent bridge events.
   useEffect(() => {
     const pull = async () => {
       const target = await gmailApi.takePendingOpenMessage().catch(() => null);
@@ -714,6 +721,7 @@ function MailHome() {
   // active account), fall back to Inbox.
   const correctForEffect = useLatest(correct);
   /* oxlint-disable react/exhaustive-effect-dependencies -- Explicit DOM and reset triggers must re-run this lifecycle. */
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Correct the router location after views or projects are deleted or loaded.
   useEffect(() => {
     if (!initialized || !viewsLoaded || selectedLabelId === SEARCH_MAILBOX) return;
     // A project deleted (here or elsewhere): all of them.
@@ -785,6 +793,7 @@ function MailHome() {
     setComposeOpen(false);
     go({ mailbox: accountId, label: firstLabelOf(accountId), messageId: null });
   };
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the native mailbox-switch callback current with account order and selection handlers.
   useLayoutEffect(() => {
     accountSwitchRef.current = {
       ids: accountIds,
@@ -797,6 +806,7 @@ function MailHome() {
   // there: the route catches up with what shows instead.
   const misplaced = ready && !!routeLoc && routeLoc.mailbox !== mailLoc?.mailbox;
   const goForAccountEffect = useLatest(go);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Correct the router URL when its mailbox becomes unavailable.
   useEffect(() => {
     if (!misplaced) return;
     setComposeOpen(false);
@@ -835,6 +845,7 @@ function MailHome() {
   const queryClient = useQueryClient();
   // A send taken back with Undo reopens its draft here (the reader edits drafts).
   const selectMessageRef = useLatest(handleSelectMessage);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Register the draft opener used by the external send-undo service until unmount.
   useEffect(
     () =>
       setDraftOpener(({ accountId, messageId }) => {
@@ -959,12 +970,14 @@ function MailHome() {
       go({ label: tab?.parent ?? searchReturnRef.current, messageId: null });
     }
   };
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Publish retained search tabs and route selection to the shell sidebar store.
   useEffect(() => {
     useMailStore.setState({
       searches: searchTabs,
       activeSearchId: searchActive ? activeSearchId : null,
     });
   }, [searchTabs, activeSearchId, searchActive]);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the shell search-action listener bound to the current tabs and navigation.
   useEffect(() => {
     const act = (event: Event) => {
       const { command, arg } = (event as CustomEvent<{ command: string; arg: string }>).detail;
@@ -984,6 +997,7 @@ function MailHome() {
   // Back/forward (or a reload) into a search that was since closed: the top
   // Search row. Only on arriving: closing the open search leaves it at once.
   const openSearchForEffect = useLatest(openSearch);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Restore a search tab on browser history navigation to a previously closed search.
   useEffect(() => {
     if (searchActive && !activeSearch) openSearchForEffect.current();
   }, [searchActive, activeSearch, openSearchForEffect]);
@@ -1002,6 +1016,7 @@ function MailHome() {
     });
   };
   const openMessageForEffect = useLatest(openMessage);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Navigate to the queued native notification target once mail is ready.
   useEffect(() => {
     if (!openFromNotification || !hasMail) return;
     setOpenFromNotification(null);
@@ -1037,6 +1052,7 @@ function MailHome() {
   };
   // ⌘R (Mailbox › Sync Now in the app menu) is the same manual refresh.
   const syncNowRef = useLatest(syncNow);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Subscribe to the native Sync Now menu event with the current refresh handler.
   useEffect(() => mailBridge.on("mail:syncNow", () => syncNowRef.current()), [syncNowRef]);
 
   // From a view, the first of the mailboxes it draws on.
@@ -1083,6 +1099,7 @@ function MailHome() {
       titleTrailing={trailing}
       accountId={readerAccount ?? ""}
       messageId={focusedMessageId ?? selectedMessageId}
+      listLabelId={isCombined || isProjects || activeSearch ? null : selectedLabelId}
       autoFocusDraft={autoFocusDraft}
       single={focusedMessageId != null}
       onShowConversation={() => go({ focusId: null })}
@@ -1106,6 +1123,7 @@ function MailHome() {
   // rail: it needs the traffic-light clearance and the toggle to bring the
   // sidebar (and Settings' Back button) back.
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Publish current mail selection to the host assistant context.
   useEffect(() => {
     mailHost().publishSelection({
       title: selectedProject?.name ?? "Mail",

@@ -41,3 +41,9 @@ CREATE TABLE IF NOT EXISTS mail_sync_records (
 );
 CREATE TABLE IF NOT EXISTS mail_sync_cursors (account_id TEXT PRIMARY KEY, cursor INTEGER NOT NULL);
 `;
+
+export const MAIL_SCHEDULE_SCHEMA = `CREATE TABLE IF NOT EXISTS mail_schedule (
+  id TEXT PRIMARY KEY, accountId TEXT NOT NULL, kind TEXT NOT NULL,
+  dueAt INTEGER NOT NULL, state TEXT NOT NULL, subject TEXT NOT NULL,
+  threadId TEXT, payload TEXT, error TEXT, serverId TEXT
+)`;
