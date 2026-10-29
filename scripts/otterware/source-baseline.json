@@ -18,7 +18,7 @@
     "preparedCandidate": "deebed1e30a6ecc4557fba72134ec57a1e8c81fc",
     "overlay": {
       ".gitignore": "100644 blob df1f9cfdc1b99ab7c10b3e9e43ff993190d8fe3d",
-      "apps/desktop/src/settings/DesktopClientSettings.test.ts": "100644 blob c420c7aeaaa310256f4d559d1163328e017a1f5e",
+      "apps/desktop/src/settings/DesktopClientSettings.test.ts": "100644 blob e3ce133a28f33d76e785a8dfa420796bdcef7dbf",
       "apps/desktop/src/snapShot/DesktopSnapShot.ts": "100644 blob 1e4dc7c72c08c7cf1ee073905a4478dc285b92d9",
       "apps/mobile/app.config.ts": "100644 blob 931269689ecfd24babb379fd50322084f6a98b83",
       "apps/mobile/src/App.tsx": "100644 blob 082c70da971f6de6c0c3af1fe63f317e376302ab",
@@ -93,7 +93,7 @@
       "apps/web/src/hooks/useTheme.ts": "100644 blob 743e8c9cefe5f6d54a1cf3a750c9c8af7816b734",
       "apps/web/src/index.css": "100644 blob ca9301c5c1a954f6031eb2c90d5089977d571dab",
       "apps/web/src/shortcuts/chatRouteCommands.ts": "100644 blob fab658d5e52f4c743b5fd434f132ce5a7d390070",
-      "apps/web/src/uiStateStore.test.ts": "100644 blob 0e6099603038968a198bd5e83857224ad8d5b529",
+      "apps/web/src/uiStateStore.test.ts": "100644 blob b4638f106fa069f501e539e8bdbbf28b1349f2ab",
       "apps/web/src/uiStateStore.ts": "100644 blob 7a28e35170ed1b1e9237691c691e25fddb52a22a",
       "infra/relay/README.md": "100644 blob 0e6d8d44060f861dd625b4be178527b03b01e219",
       "infra/relay/src/Config.ts": "100644 blob 71e5a6159228288e6f8530e38b7dc4e4fd7b2e2e",

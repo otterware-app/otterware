@@ -291,7 +291,7 @@ describe("uiStateStore persistence", () => {
         .sidebarProjectScopeKeys,
     ).toEqual(["github.com/pingdotgg/t3code"]);
   });
-  it("drops obsolete project-tree preferences while retaining saved order and visit markers", () => {
+  it("keeps folder expansion, saved order and visit markers while dropping legacy CWD lists", () => {
     const previous = {
       projectExpandedById: { repository: false },
       collapsedProjectCwds: ["/repo"],
@@ -306,7 +306,7 @@ describe("uiStateStore persistence", () => {
     ) as PersistedUiState;
     expect(persisted.projectOrder).toEqual(previous.projectOrder);
     expect(persisted.threadLastVisitedAtById).toEqual(previous.threadLastVisitedAtById);
-    expect(persisted).not.toHaveProperty("projectExpandedById");
+    expect(persisted.projectExpandedById).toEqual({ repository: false });
     expect(persisted).not.toHaveProperty("collapsedProjectCwds");
   });
 });
