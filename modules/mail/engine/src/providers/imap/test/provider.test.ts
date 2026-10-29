@@ -443,6 +443,7 @@ function providerScenario(
     expect((await provider.listLabels(accountId)).some((l) => l.id === renamed.id)).toBe(false);
   });
 
+  // Every wait spans the watcher's debounce, so each test keeps to a few of them.
   it("hears new mail while idling", async () => {
     let changed = changeEvent();
     const stop = provider.watch!(accountId, () => changed.resolve());
@@ -452,7 +453,16 @@ function providerScenario(
       changed = changeEvent();
       await seed.append("INBOX", mail({ subject: "While idling" }).raw);
       await changed.promise;
+    } finally {
+      stop();
+    }
+  });
 
+  it("checks the same connection and catches up when woken", async () => {
+    let changed = changeEvent();
+    const stop = provider.watch!(accountId, () => changed.resolve());
+    try {
+      await changed.promise;
       // Woken up (or a browser tab shown again): the same connection, checked, and a catch-up.
       changed = changeEvent();
       const connections = connectionCount();
