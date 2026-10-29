@@ -46,7 +46,7 @@ import { ShareDialogHost } from "./drive/share-dialog";
 import { UploadDialogHost, requestUpload } from "./drive/upload-dialog";
 import { useCommandHandlers } from "./keybindings/dispatch";
 import { DocumentListResizer, useDocumentListWidth } from "./drive/document-split";
-import { useIsMobile } from "~/hooks/useMediaQuery";
+import { useMediaQuery } from "~/hooks/useMediaQuery";
 import { useDriveStore } from "../driveStore";
 import { useFolderRole } from "./folder-role";
 import {
@@ -118,7 +118,7 @@ export function DriveHome({
   children: ReactNode;
 }) {
   const navigate = useNavigate();
-  const narrow = useIsMobile();
+  const narrow = useMediaQuery("max-md");
   const { activeFolder, loaded, folders, selectFolder } = useFolders();
   const shared = useSharedWithMe();
 

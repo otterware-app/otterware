@@ -615,7 +615,7 @@ export default function DiffPanel({
   })();
   // Viewed files start collapsed, like every file when the setting asks for it.
   const defaultCollapsedDiffFileKeys = settings.diffFilesCollapsed
-    ? new Set(diffFileKeys)
+    ? new Set(renderableFileEntries.map((file) => file.fileKey))
     : viewedFiles.keys.size > 0
       ? viewedFiles.keys
       : EMPTY_COLLAPSED_DIFF_FILE_KEYS;

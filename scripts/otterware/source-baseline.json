@@ -35,7 +35,7 @@
       "apps/web/src/cloud/useCloudLinkController.ts": "100644 blob f1615cdd1567aaf7bd32d260b012287d7fd301af",
       "apps/web/src/components/ChatMarkdown.tsx": "100644 blob 6bc963eac29ff839c7b372914b04324b6902c3e4",
       "apps/web/src/components/CustomSnoozeDialog.tsx": "100644 blob 4e56ef7dd7f40bd608a98c5f100de756c60c4056",
-      "apps/web/src/components/DiffPanel.tsx": "100644 blob 8e9e7e69ebc04f04f806b08ba3986b806ba23255",
+      "apps/web/src/components/DiffPanel.tsx": "100644 blob 938f40c01f1773c21c1938c8bbc1e52252bfb345",
       "apps/web/src/components/Sidebar.logic.test.ts": "100644 blob 9fde7b81a7b232a6a6c3d5a2fd844aa875dc90e9",
       "apps/web/src/components/Sidebar.logic.ts": "100644 blob 6eafabe1822dd99201704af49b83836f8b7872a5",
       "apps/web/src/components/Sidebar.tsx": "100644 blob 3091cad3d62148c06e35562d046fe4273d3aca71",

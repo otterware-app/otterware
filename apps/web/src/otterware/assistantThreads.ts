@@ -24,9 +24,7 @@ import { scheduledTaskDefaultModel } from "../components/settings/scheduledTasks
 import { useComposerDraftStore, type DraftId } from "../composerDraftStore";
 import { newDraftId, newMessageId, newThreadId } from "../lib/utils";
 import {
-  applyProviderInstanceSettings,
-  deriveProviderInstanceEntries,
-  sortProviderInstanceEntries,
+  providerInstanceEntriesFor,
 } from "../providerInstances";
 import { appAtomRegistry } from "../rpc/atomRegistry";
 import { readProject, waitForProject } from "../state/entities";
@@ -149,13 +147,7 @@ export function useModuleThreadLauncher(environmentId: EnvironmentId | null) {
       const providers =
         appAtomRegistry.get(serverEnvironment.providersValueAtom(environmentId)) ??
         EMPTY_SERVER_PROVIDERS;
-      const entries = sortProviderInstanceEntries(
-        applyProviderInstanceSettings(
-          deriveProviderInstanceEntries(providers),
-          settings,
-          project.id,
-        ),
-      );
+      const entries = providerInstanceEntriesFor(providers, settings, project.id);
       const modelSelection =
         launch.modelSelection ?? scheduledTaskDefaultModel(settings, project, entries);
       if (modelSelection === null) {

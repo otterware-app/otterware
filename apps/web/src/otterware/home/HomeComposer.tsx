@@ -9,9 +9,10 @@ import { useAtomValue } from "@effect/atom-react";
 import type { EnvironmentId, ModelSelection, ProviderInstanceId } from "@t3tools/contracts";
 import type { HomeItemModule, HomeProject } from "@otterware/composition/contracts";
 import { ArrowUpIcon, CheckIcon, FolderCodeIcon, LayersIcon } from "lucide-react";
+import { ChevronDownIcon } from "~/lib/icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { ComposerControl, ComposerControlChevron } from "../../components/chat/ComposerControl";
+import { ComposerControl } from "../../components/chat/ComposerControl";
 import { ComposerSurface } from "../../components/chat/ComposerSurface";
 import { ProviderModelPicker } from "../../components/chat/ProviderModelPicker";
 import { scheduledTaskDefaultModel } from "../../components/settings/scheduledTasksSettings.logic";
@@ -21,9 +22,7 @@ import { Spinner } from "../../components/ui/spinner";
 import { useEnvironmentSettings } from "../../hooks/useSettings";
 import { getCustomModelOptionsByInstance } from "../../modelSelection";
 import {
-  applyProviderInstanceSettings,
-  deriveProviderInstanceEntries,
-  sortProviderInstanceEntries,
+  providerInstanceEntriesFor,
 } from "../../providerInstances";
 import { useProjects } from "../../state/entities";
 import { EMPTY_SERVER_PROVIDERS, serverEnvironment } from "../../state/server";
@@ -79,13 +78,7 @@ export function HomeComposer({
     useAtomValue(serverEnvironment.providersValueAtom(environmentId)) ?? EMPTY_SERVER_PROVIDERS;
   const instanceEntries = useMemo(
     () =>
-      sortProviderInstanceEntries(
-        applyProviderInstanceSettings(
-          deriveProviderInstanceEntries(providers),
-          settings,
-          codeProject?.id ?? null,
-        ),
-      ),
+      providerInstanceEntriesFor(providers, settings, codeProject?.id ?? null),
     [providers, settings, codeProject],
   );
   const selection = model ?? scheduledTaskDefaultModel(settings, codeProject, instanceEntries);
@@ -159,7 +152,7 @@ export function HomeComposer({
                     <LayersIcon />
                   )}
                   {project ? project.name : "Project"}
-                  <ComposerControlChevron size="xs" />
+                  <ChevronDownIcon aria-hidden="true" className="size-3 shrink-0 text-current" />
                 </MenuTrigger>
                 <MenuPopup align="start">
                   <MenuItem onClick={() => setProjectId(null)}>No project</MenuItem>
@@ -201,7 +194,7 @@ export function HomeComposer({
                   <span className="max-w-40 truncate">
                     {codeProject ? codeProject.title : "Otterware Assistant"}
                   </span>
-                  <ComposerControlChevron size="xs" />
+                  <ChevronDownIcon aria-hidden="true" className="size-3 shrink-0 text-current" />
                 </MenuTrigger>
                 <MenuPopup align="start" className="max-h-80">
                   <MenuItem onClick={() => setCodeProjectId(null)}>Otterware Assistant</MenuItem>
