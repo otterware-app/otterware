@@ -297,7 +297,7 @@ export function draftStatus(draft: {
 function draftStatusText(state: DraftSaveState): string | null {
   if (state === "saving") return "Saving draft…";
   if (state === "saved") return "Draft saved";
-  if (state === "error") return "Couldn't save draft — retrying";
+  if (state === "error") return "Couldn't save draft, retrying";
   return null;
 }
 

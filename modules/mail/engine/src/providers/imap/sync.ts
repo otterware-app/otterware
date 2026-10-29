@@ -1,19 +1,6 @@
-/**
- * IMAP's part of a sync run (the engine around it is services/mail-sync.ts).
- *
- * Folders are listed and their STATUS read (the labels and their counts);
- * then each folder, INBOX first, is brought up to date on its own, with its
- * state in kv (UIDVALIDITY, UIDNEXT, HIGHESTMODSEQ):
- *
- *  - first sync: every UID below the UIDNEXT seen at the start, newest first,
- *    200 at a time; resumable (the lowest UID done is kept after each page);
- *  - a new UIDVALIDITY: the folder's cached mail goes and it starts over;
- *  - after that: nothing when STATUS shows no change; else new UIDs from the
- *    stored UIDNEXT, flag changes since the stored HIGHESTMODSEQ (QRESYNC on
- *    SELECT, or CONDSTORE's CHANGEDSINCE), or every UID's flags on servers
- *    without mod-sequences; and when the folder's count doesn't match the
- *    cache, a UID SEARCH ALL finds what was expunged (QRESYNC also says).
- */
+/** Per-folder backfill is resumable, newest first; UIDVALIDITY changes reset it.
+ * Later syncs use mod-sequences when available, otherwise compare all flags,
+ * and reconcile expunged messages against the server's UIDs. */
 
 import { logger } from "../../logger.js";
 import {

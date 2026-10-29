@@ -1,11 +1,4 @@
-/**
- * gmail.ts — IPC handler registration for the mail client (`gmail:*`
- * channels, whichever provider an account uses).
- *
- * All channels proxy to services (account-store, mail-store, mail-sync) and
- * the account's provider (providers/). Handlers are thin; business logic
- * lives in services.
- */
+/** Provider-independent gmail:* IPC handlers delegate to mail services and providers. */
 
 import {
   scheduleSend,
@@ -481,11 +474,7 @@ export function registerGmailHandlers(): void {
     }
   });
 
-  // gmail:searchMessages — instant local full-text search (FTS5 over the mail
-  // cache). accountId omitted = search every account; message-level rows.
-  // labelId/rules restrict to the current view; starred/important/
-  // hasAttachments/withinDays are structured filters that also work with an
-  // empty q.
+  // No accountId searches all accounts; structured filters also work with an empty query.
   handle("gmail:searchMessages", async (params: unknown) => {
     const p = params as Record<string, unknown>;
     console.log("[gmail:searchMessages]", {
@@ -890,11 +879,8 @@ export function registerGmailHandlers(): void {
     }
   });
 
-  // gmail:saveDraft — composer autosave; creates or updates a Gmail draft.
-  // Saves for one composer (its `sessionKey`) run in order and reuse the draft
-  // id of the previous save — so a first save that outlasted the renderer's IPC
-  // timeout (its reply, with the new id, never arrived) can't make the next
-  // save create a second draft.
+  // Serialize each composer's saves and reuse its draft id so an IPC timeout
+  // cannot make a later save create a duplicate draft.
   handle("gmail:saveDraft", async (params: unknown) => {
     const p = params as Record<string, unknown>;
     console.log("[gmail:saveDraft]", {
@@ -1144,12 +1130,8 @@ export function registerGmailHandlers(): void {
             });
           }
         });
-      // Uploads (attachments, rate limits) can outlast the renderer's 5s IPC
-      // timeout, which used to report a false failure and invite a duplicate
-      // send. Past the budget the composer closes as sent; if the send then
-      // fails, the message goes back to Drafts so nothing is lost.
-      // `settled` never rejects, so a failure after the deadline can't become
-      // an unhandled rejection.
+      // Past the IPC budget the composer closes; a later failure restores Drafts.
+      // settled never rejects, preventing unhandled rejections after the deadline.
       const settled = send.then(
         () => ({ error: null }),
         (error: unknown) => ({ error }),

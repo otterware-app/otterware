@@ -491,6 +491,7 @@ function MessageRow({
   // "instant" keeps held-down j/k from queueing smooth-scroll animations that
   // continue after the key is released.
   const rowRef = useRef<HTMLButtonElement>(null);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the selected row DOM visible during keyboard navigation.
   useEffect(() => {
     const row = rowRef.current;
     if (selected && row && !row.closest("[inert]"))
@@ -779,6 +780,7 @@ function ThreadMessageRow({
   onClick: () => void;
 }) {
   const ref = useRef<HTMLButtonElement>(null);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the selected conversation row DOM visible during keyboard navigation.
   useEffect(() => {
     const row = ref.current;
     if (selected && row && !row.closest("[inert]"))
@@ -963,6 +965,7 @@ export function MessageList({
     isCombined || allMailRules.length > 0,
   );
   const activeLabel = resolveLabel(accountId, labelId);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Expose the resolved view query to the parent search command through its imperative ref.
   useLayoutEffect(() => {
     if (viewQueryRef && !search) {
       const nameOf = (owner: string, id: string) => resolveLabel(owner, id)?.name ?? null;
@@ -1017,11 +1020,7 @@ export function MessageList({
   const hasNextPage = messagesQuery.hasNextPage;
   const isFetchingNextPage = messagesQuery.isFetchingNextPage;
 
-  // Gmail-style list shortcuts: j/k and the arrow keys move the selection
-  // (Apple Mail-style — arrows never scroll the list), e/#/! archive/trash/
-  // junk the selected thread (advancing to the next row), s toggles the flag,
-  // Shift+U/Shift+I set unread/read. Latest state is read through a ref so the
-  // window listener mounts once.
+  // Window shortcut handlers read current selection through a ref.
   const listModifyMessage = useModifyMessage();
   const listModifyThread = useModifyThread();
   const listTrashThread = useTrashThread();
@@ -1139,14 +1138,7 @@ export function MessageList({
       if (anchorRef.current && hiddenIds.has(anchorRef.current)) anchorRef.current = null;
     }
   };
-  const clearCheckedForEffect = useLatest(clearChecked);
-  /* oxlint-disable react/exhaustive-effect-dependencies -- Explicit DOM and reset triggers must re-run this lifecycle. */
-  useEffect(() => {
-    clearCheckedForEffect.current();
-    setExpanded(new Set());
-    setCollapsedDays(new Set());
-    setCursor(null);
-  }, [
+  const queryIdentity = [
     accountId,
     labelId,
     combined?.viewId,
@@ -1154,13 +1146,25 @@ export function MessageList({
     search?.id,
     searchQuery,
     unreadOnly,
-    clearCheckedForEffect,
-  ]);
-  /* oxlint-enable react/exhaustive-effect-dependencies */
+  ];
+  const [previousQuery, setPreviousQuery] = useState(queryIdentity);
+  if (queryIdentity.some((value, index) => value !== previousQuery[index])) {
+    setPreviousQuery(queryIdentity);
+    setChecked(new Set());
+    setExpanded(new Set());
+    setCollapsedDays(new Set());
+    setCursor(null);
+  }
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Reset imperative range-selection anchors when the list query changes.
+  useLayoutEffect(() => {
+    anchorRef.current = null;
+    extentRef.current = null;
+  }, [previousQuery]);
 
   const checkedRef = useLatest(checked);
   // Capture phase: Escape clears the multi-selection before home-view's
   // Escape closes the reader.
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the capture-phase Escape listener installed while this list owns multi-selection.
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || checkedRef.current.size === 0 || isTypingTarget(e)) return;
@@ -1259,6 +1263,7 @@ export function MessageList({
   const selectionSig = checkedRows.map((m) => `${m.accountId ?? accountId}:${m.id}`).join(",");
   const selectionRef = useLatest(onSelectionChange);
   const checkedRowsRef = useLatest(checkedRows);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Publish query-backed selection changes to the host context, including rows refreshed by sync.
   useEffect(() => {
     selectionRef.current?.(checkedRowsRef.current);
     // oxlint-disable-next-line react/exhaustive-effect-dependencies -- Re-run this DOM/reset lifecycle when its explicit trigger changes, even when the callback reads refs.
@@ -1391,6 +1396,7 @@ export function MessageList({
     if (next) selectForNavigation(next);
     else onDeselect();
   };
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the reader advance callback current with the rendered query rows.
   useLayoutEffect(() => {
     advanceRef.current = (fromMessageId: string) => {
       // A single message open from an expanded conversation moves on within it.
@@ -1460,6 +1466,7 @@ export function MessageList({
     focusedMessage,
     allLabels,
   });
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep registered keyboard handlers current with the rendered list and focus.
   useLayoutEffect(() => {
     shortcutState.current = {
       visibleMessages,
@@ -1790,6 +1797,7 @@ export function MessageList({
       void messagesQuery.fetchNextPage({ cancelRefetch: false });
     }
   };
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Load another query page when the rendered scroll container does not fill the viewport.
   useEffect(maybeLoadMore);
 
   const isLoading = messagesQuery.isLoading;
@@ -2130,7 +2138,7 @@ export function MessageList({
               </>
             ) : allJunk ? (
               <>
-                <HintTooltip label="Not Junk — move to Inbox">
+                <HintTooltip label="Not Junk: move to Inbox">
                   <IconBtn label="Not Junk" className="size-7" onClick={bulkNotJunk}>
                     <ShieldCheckIcon className="size-3.5" />
                   </IconBtn>

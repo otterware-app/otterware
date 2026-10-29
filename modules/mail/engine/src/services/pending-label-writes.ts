@@ -1,15 +1,6 @@
-/**
- * Label changes the app has made locally that Gmail may not reflect yet.
- *
- * Archive, trash, read/unread and labelling write the local cache first and
- * reach Gmail a moment later. Anything read from Gmail in between (the unread
- * reconcile, live paging, a sync's metadata fetch) still shows the old labels,
- * and storing it as-is undid the change: an archived conversation popped back
- * into the Inbox. Every such read goes through `upsertMessages`, which re-applies
- * these pending changes on top. A change stays pending while its write is in
- * flight and for a grace period after (reads that started before it landed can
- * still arrive); a failed write drops it, so its local revert sticks.
- */
+/** Reapply optimistic label writes over stale server reads in upsertMessages.
+ * Keep changes through an in-flight write and its grace period; drop failed writes
+ * so their local rollback persists. */
 
 import { landLabelChange, type Landing } from "@otterware/mail-contracts";
 

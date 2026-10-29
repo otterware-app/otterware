@@ -1,10 +1,5 @@
-/**
- * An IMAP client (RFC 9051, RFC 3501 and the extensions mail apps lean on:
- * CONDSTORE/QRESYNC, SPECIAL-USE, MOVE, UIDPLUS, IDLE, LITERAL+, ENABLE,
- * UTF8=ACCEPT) over the platform's ByteStream. Commands run one at a time;
- * reading happens only while one is waiting, so nothing reads behind a
- * STARTTLS upgrade, and an IDLE connection holds the queue until it stops.
- */
+/** Commands serialize reads so none run behind a STARTTLS upgrade.
+ * An IDLE connection holds the command queue until it stops. */
 
 import { utf8Encode } from "../../bytes.js";
 import type { ByteStream } from "../../platform.js";

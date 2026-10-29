@@ -1,13 +1,5 @@
-/**
- * Sending and drafts through Graph. Everything sent starts as a draft: a
- * reply is made with `createReply` on the message it answers, so Outlook
- * keeps it in the conversation, then gets the composer's recipients, subject
- * and body (the quote included) and its attachments, and is sent. With
- * immutable ids the sent message keeps the draft's id, in Sent Items.
- *
- * A draft is that message in Drafts; each save updates it in place, so a
- * draft's id is its message's id and never changes.
- */
+/** Graph replies start with createReply to retain their conversation.
+ * Immutable message ids survive sending; saving a draft updates it in place. */
 
 import { fromBase64, toBase64, utf8Encode, sha256Hex } from "../../bytes.js";
 import * as store from "../../services/mail-store.js";

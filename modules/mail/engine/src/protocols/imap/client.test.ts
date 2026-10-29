@@ -142,21 +142,23 @@ describe("ImapClient against a pretend server", () => {
   });
 
   it("reports updates while idling and stops cleanly", async () => {
-    const stream = new FakeStream(
-      "* PREAUTH [CAPABILITY IMAP4rev1 IDLE] hi\r\n",
-      (text, server) => {
-        if (text.includes("IDLE")) {
-          setTimeout(() => server.send("* 4 EXISTS\r\n* 2 FETCH (FLAGS (\\Seen) UID 9)\r\n"), 5);
-          return "+ idling\r\n";
-        }
-        if (text === "DONE\r\n") return "A1 OK IDLE done\r\n";
-        return `${tagOf(text)} OK\r\n`;
-      },
-    );
+    const stream = new FakeStream("* PREAUTH [CAPABILITY IMAP4rev1 IDLE] hi\r\n", (text) => {
+      if (text.includes("IDLE")) return "+ idling\r\n";
+      if (text === "DONE\r\n") return "A1 OK IDLE done\r\n";
+      return `${tagOf(text)} OK\r\n`;
+    });
     const client = await connectImap(options(stream, { security: "tls" }));
     const updates: ImapUpdate[] = [];
-    const idle = await client.idle((update) => updates.push(update));
-    await new Promise((resolve) => setTimeout(resolve, 20));
+    let onFetched!: () => void;
+    const fetched = new Promise<void>((resolve) => {
+      onFetched = resolve;
+    });
+    const idle = await client.idle((update) => {
+      updates.push(update);
+      if (update.type === "fetch") onFetched();
+    });
+    stream.send("* 4 EXISTS\r\n* 2 FETCH (FLAGS (\\Seen) UID 9)\r\n");
+    await fetched;
     await idle.stop();
     expect(updates).toEqual([
       { type: "exists", count: 4 },

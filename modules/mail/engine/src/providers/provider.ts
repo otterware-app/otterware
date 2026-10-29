@@ -1,12 +1,5 @@
-/**
- * Where a mailbox's mail comes from. Handlers and the sync engine talk to a
- * MailProvider, never to Gmail, IMAP or Outlook themselves; everything above it (the
- * cache, lists, the UI) sees mail the same way: messages carrying labels
- * (contracts' mail.ts, docs/imap.md).
- *
- * Members only some providers have are optional; the UI gates on
- * `capabilities`, never on the provider.
- */
+/** Handlers and sync use this boundary; the cache sees messages with labels.
+ * Gate optional features on capabilities rather than provider identity. */
 
 import type { MailCapabilities, MailProviderKind } from "@otterware/mail-contracts";
 

@@ -1,14 +1,6 @@
-/**
- * Changing mail on the server. Read and starred are flags (\Seen,
- * \Flagged); every other label is a folder, so applying one moves the
- * message there (one folder per message: `capabilities.multipleLabels` is
- * false). The cache already shows the change (the handlers mirror it first);
- * here the server catches up, and moved messages get their new ids.
- *
- * Conversations follow Gmail's rules as far as folders allow: archiving
- * takes what's in the Inbox (your replies stay in Sent), moving to a folder
- * takes the received mail, trashing takes everything.
- */
+/** Read/starred are flags; other labels move mail to one folder with new ids.
+ * Archive keeps sent replies in Sent; folder moves take received mail, trash takes all.
+ * Handlers already mirrored the optimistic change before these server writes. */
 
 import { ARCHIVE_LABEL_ID } from "@otterware/mail-contracts";
 

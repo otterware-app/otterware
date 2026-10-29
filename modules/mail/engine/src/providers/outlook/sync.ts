@@ -1,18 +1,5 @@
-/**
- * Outlook's part of sync (the engine around it is services/mail-sync.ts),
- * with Graph's delta queries, one per folder.
- *
- * A folder's first delta lists every message in it, page by page: that's the
- * backfill, in its own lane, the inbox first and resumable (the next page's
- * link is kept). Once a folder's listing ends, Graph hands a delta link, and
- * every sync run asks it what changed since: new mail, read and flag changes,
- * categories, and messages that left the folder. Immutable ids keep a moved
- * message's id, so a message that left one folder is looked up to see where
- * it went (or whether it's gone).
- *
- * A brand-new mailbox shows the newest page of its inbox first, before the
- * backfill gets to it.
- */
+/** Each folder retains its resumable backfill or delta cursor, with Inbox first.
+ * Immutable ids let sync distinguish moves from deletions by looking up removed messages. */
 
 import { logger } from "../../logger.js";
 import * as store from "../../services/mail-store.js";

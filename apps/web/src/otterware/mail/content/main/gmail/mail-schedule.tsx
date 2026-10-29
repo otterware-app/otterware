@@ -204,6 +204,7 @@ export function ScheduledMailDialog() {
     queryFn: gmailApi.listSchedules,
     refetchInterval: 15_000,
   });
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Refresh the schedules query cache when the backend broadcasts changes.
   useEffect(
     () =>
       mailBridge.on("gmail:schedule-changed", () => {
@@ -211,6 +212,7 @@ export function ScheduledMailDialog() {
       }),
     [qc],
   );
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Listen for the shell command that opens the scheduled-mail dialog.
   useEffect(() => {
     const show = (event: Event) => {
       if ((event as CustomEvent<{ command: string }>).detail.command === "schedules") setOpen(true);
@@ -270,7 +272,7 @@ export function ScheduledMailDialog() {
                         () =>
                           toast.success(
                             entry.kind === "send"
-                              ? "Schedule cancelled — restored to Drafts"
+                              ? "Schedule cancelled, restored to Drafts"
                               : "Returned to Inbox",
                           ),
                         (error) => toast.error(String(error)),

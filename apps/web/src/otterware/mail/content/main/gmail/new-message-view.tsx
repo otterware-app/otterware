@@ -181,12 +181,14 @@ export function NewMessageView({
     },
   });
 
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Focus the recipient DOM input when the composer mounts.
   useEffect(() => {
     toRef.current?.focus();
   }, []);
 
   // Escape closes, keeping the autosaved draft (capture phase beats
   // home-view's Escape handling).
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- Keep the window Escape listener bound to this composer until it closes.
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;

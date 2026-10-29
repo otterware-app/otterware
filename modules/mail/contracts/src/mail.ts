@@ -1,16 +1,5 @@
-/**
- * Mailboxes and where their mail comes from, shared by core, the renderer,
- * the relay and (mirrored in Swift) the iPhone app.
- *
- * A mailbox is reached through a provider. Gmail signs in with Google and
- * talks to the Gmail API, with changes pushed through the relay. IMAP works
- * with any IMAP server, sends over SMTP and watches for new mail with IDLE.
- * Outlook (Microsoft 365, outlook.com) signs in with Microsoft and talks to
- * Microsoft Graph, with changes pushed through the relay like Gmail's.
- * Everything above the provider (the cache, lists, the UI) sees mail the same
- * way: messages carrying labels. For IMAP, a label is a folder; for Outlook,
- * a category or a folder (docs/outlook.md).
- */
+/** Providers expose messages with labels: IMAP labels are folders,
+ * Outlook labels are folders or categories. Shared across mail clients and engines. */
 
 export type MailProviderKind = "gmail" | "imap" | "outlook";
 

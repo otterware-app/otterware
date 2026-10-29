@@ -1,11 +1,5 @@
-/**
- * Listing and searching on the server: pages of message ids for a label
- * (lists page past the cache while the backfill fills it), and search with
- * Outlook's own engine (KQL), Gmail's common operators translated:
- * `from:`, `to:`, `cc:`, `subject:`, `has:attachment`, `after:`/`before:`,
- * `newer_than:`/`older_than:`, `in:` a folder. What KQL can't say (`is:unread`,
- * `is:starred`, a category) is checked on each result.
- */
+/** Translate Gmail operators to Outlook KQL for server search.
+ * Check filters KQL cannot express (unread, starred, category) on each result. */
 
 import { ARCHIVE_LABEL_ID, SNOOZED_LABEL_ID } from "@otterware/mail-contracts";
 
