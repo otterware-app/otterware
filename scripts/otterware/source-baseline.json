@@ -59,7 +59,7 @@
       "apps/web/src/components/chat/ThreadAutomationsPanel.tsx": "100644 blob eecc17dff42cdb0ed3953f7ab4a1f06c6fa5a6e9",
       "apps/web/src/components/chat/ThreadDetailsCard.tsx": "100644 blob 5ed6c923f25a6ce2f893e57a5c41e28b809d162c",
       "apps/web/src/components/chat/ThreadLineageWorkflowRow.tsx": "100644 blob b0d90304bb16f798d5d8341e3469989cde2a6d6a",
-      "apps/web/src/components/chat/ThreadRelationshipsControl.tsx": "100644 blob c38be62d133eb128795ed6f4ea6a7148e95d0ac5",
+      "apps/web/src/components/chat/ThreadRelationshipsControl.tsx": "100644 blob b8342a98a76fbd8277d2ef32ec469c9b174e8ef9",
       "apps/web/src/components/chat/TimelineAssistantRows.tsx": "100644 blob 15381d70b7b0bf56aa8103342ffa35cae8b44438",
       "apps/web/src/components/chat/TimelineUserMessageRow.tsx": "100644 blob 4e9bf47bdd4c4d3207f89e119e7761d008f43879",
       "apps/web/src/components/device/DeviceControlsRail.tsx": "100644 blob 8bdb7b3b8a7e2f34ca6d825104394dd85db7864e",
