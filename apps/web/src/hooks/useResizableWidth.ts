@@ -35,6 +35,7 @@ export interface ResizableWidthHandlers {
 /** Persist on drag end to avoid a storage write on every animation frame. */
 export function useResizableWidth(options: UseResizableWidthOptions): {
   readonly width: number;
+  readonly setWidth: (width: number) => void;
   readonly handlers: ResizableWidthHandlers;
 } {
   const { storageKey, fallbackStorageKey, defaultWidth, minWidth, maxWidth, edge } = options;
@@ -63,6 +64,22 @@ export function useResizableWidth(options: UseResizableWidthOptions): {
 
   const clampedWidth = clamp(widthState.width);
 
+  const commitWidth = (
+    nextStorageKey: string,
+    nextFallbackStorageKey: string | undefined,
+    nextWidth: number,
+  ) => {
+    // Resizing remains usable for this session when browser storage is unavailable.
+    setWidthState({ storageKey: nextStorageKey, width: nextWidth });
+    try {
+      setLocalStorageItem(nextStorageKey, nextWidth, WidthSchema);
+      if (nextFallbackStorageKey)
+        setLocalStorageItem(nextFallbackStorageKey, nextWidth, WidthSchema);
+    } catch (error) {
+      console.error("Could not persist panel width.", error);
+    }
+  };
+
   const drag = useResizeDrag<HTMLElement>((event) => {
     const host = event.currentTarget.parentElement;
     // Disable drag transitions through transition-property; the host renders transition-duration.
@@ -81,14 +98,7 @@ export function useResizableWidth(options: UseResizableWidthOptions): {
         return nextWidth;
       },
       finish(finalWidth) {
-        setWidthState({ storageKey: startStorageKey, width: finalWidth });
-        try {
-          setLocalStorageItem(startStorageKey, finalWidth, WidthSchema);
-          if (startFallbackStorageKey)
-            setLocalStorageItem(startFallbackStorageKey, finalWidth, WidthSchema);
-        } catch (error) {
-          console.error("Could not persist panel width.", error);
-        }
+        commitWidth(startStorageKey, startFallbackStorageKey, finalWidth);
       },
       cleanup(committed) {
         host?.style.removeProperty("transition-property");
@@ -105,6 +115,7 @@ export function useResizableWidth(options: UseResizableWidthOptions): {
 
   return {
     width: clampedWidth,
+    setWidth: (value) => commitWidth(storageKey, fallbackStorageKey, clamp(value)),
     handlers: {
       ref: drag.ref,
       onPointerDown: drag.onPointerDown,
