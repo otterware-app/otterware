@@ -3,7 +3,7 @@
   "preservedUpstreamBase": "339179f50a84dc599cce373dbb48f172f182f44e",
   "sources": {
     "otterware-app/otter-code": {
-      "reviewed": "3cb091cb8c7165eada8550cddabdc55d41482e41"
+      "reviewed": "37283f5478b84dd602352723e8a77885eda48380"
     },
     "otterware-app/otter-mail": {
       "reviewed": "40f6085063ece8542561abfd8a399dc61156e3d9",
@@ -15,7 +15,7 @@
   },
   "protectedSync": {
     "baseMain": "87ce62668260cba88f040b09e1a9d4965aa25f2e",
-    "preparedCandidate": "3cb091cb8c7165eada8550cddabdc55d41482e41",
+    "preparedCandidate": "37283f5478b84dd602352723e8a77885eda48380",
     "overlay": {
       "apps/desktop/src/electron/ElectronProtocol.test.ts": "100644 blob 9cbadac5a8bd3f220dbc69d250fafdf7e9222f65",
       "apps/desktop/src/preview/BrowserSession.test.ts": "100644 blob 2a9c9800de94e51e59a4c5c7cd51e3b293376bda",

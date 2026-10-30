@@ -6,7 +6,7 @@ read-only inputs; their checked-out branches are not baselines.
 | Source                         | Fetched revision                           | Earlier baseline                                                                                 |
 | ------------------------------ | ------------------------------------------ | ------------------------------------------------------------------------------------------------ |
 | `pingdotgg/t3code`             | `aa11ef6783da81039e6646e2e96941748afb358e` | `fe219c4de18f5ee37c28cbd3914a5569b1579156` (2026-10-29 sync); `upstream-base` stays `339179f50a` |
-| `otterware-app/otter-code`     | `OTTER_CODE_MAIN`                          | `c776aa0079f56f7130fb99bc64a50dcf05eef7e7` (2026-10-29 main)                                     |
+| `otterware-app/otter-code`     | `37283f5478b84dd602352723e8a77885eda48380` | `c776aa0079f56f7130fb99bc64a50dcf05eef7e7` (2026-10-29 main)                                     |
 | `otterware-app/otter-mail`     | `40f6085063ece8542561abfd8a399dc61156e3d9` | Unchanged; portable changes through `46b114791b`                                                 |
 | `otterware-app/otter-drive`    | `514675ad0a8590acff4c904047b59438fa2d16a8` | Unchanged since the 2026-10-20 sync                                                              |
 | `otterware-app/otter-calendar` | `56b952a950b862f081b3eb8ac7fad7fa067b6c7a` | Unchanged                                                                                        |
