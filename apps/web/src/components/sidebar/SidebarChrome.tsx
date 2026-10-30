@@ -152,7 +152,7 @@ export function SidebarSpaceHeading({
   );
 }
 // Settings, Usage, Pull Requests and updates live in the space rail; their pages
-// offer Back here, to the thread they were opened over.
+// offer Back here, to the thread they were opened over. The undo notice shares the row.
 const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
   const navigateToMainApp = useNavigateToMainApp();
   const { isMobile, setOpenMobile } = useSidebar();
@@ -163,27 +163,24 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
     if (isMobile) setOpenMobile(false);
     void navigateToMainApp();
   };
-  if (!isOnUtilityPage) return null;
   return (
-    <SidebarMenu>
-      <SidebarMenuItem>
-        <SidebarMenuButton onClick={handleBackClick}>
-          <ArrowLeftIcon />
-          <span>Back</span>
-        </SidebarMenuButton>
-      </SidebarMenuItem>
+    <SidebarMenu className="flex-row items-center">
+      {isOnUtilityPage ? (
+        <SidebarMenuItem className="min-w-0 flex-1">
+          <SidebarMenuButton onClick={handleBackClick}>
+            <ArrowLeftIcon />
+            <span>Back</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      ) : null}
+      <SidebarThreadUndoNotice />
     </SidebarMenu>
   );
 });
 
-export const SidebarChromeFooter = memo(function SidebarChromeFooter({
-  showUndoNotice = false,
-}: {
-  showUndoNotice?: boolean;
-}) {
+export const SidebarChromeFooter = memo(function SidebarChromeFooter() {
   return (
     <SidebarFooter>
-      {showUndoNotice ? <SidebarThreadUndoNotice /> : null}
       <SidebarProviderUpdatePill />
       <SidebarUpdateArchitectureWarning />
       <SidebarUtilityMenu />
