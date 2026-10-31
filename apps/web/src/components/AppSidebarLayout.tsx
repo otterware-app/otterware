@@ -40,6 +40,12 @@ import {
   usePanelNavigationSuppression,
 } from "../panelAnimations";
 import { BackgroundThreadAnnouncer } from "./BackgroundThreadAnnouncer";
+import { HistorySwipeNavigation } from "./HistorySwipeNavigation";
+import {
+  navigateHistory,
+  useCanNavigateHistory,
+  type HistoryDirection,
+} from "../navigationHistory";
 import ThreadSidebar from "./Sidebar";
 import { isAppModalPage } from "./sidebar/mainAppLocation";
 import type { SidebarRouteReveal } from "./sidebar/routeReveal";
@@ -431,22 +437,17 @@ function SidebarControl({ onWidthChange }: { onWidthChange: (width: number) => v
         </TooltipPopup>
       </Tooltip>
       <div className="pointer-events-auto ml-1 hidden items-center gap-0.5 md:flex">
-        <Button
-          size="icon-sm"
-          variant="ghost-muted"
-          aria-label="Back"
-          onClick={() => window.history.back()}
-        >
-          <ArrowLeftIcon className="size-4" />
-        </Button>
-        <Button
-          size="icon-sm"
-          variant="ghost-muted"
-          aria-label="Forward"
-          onClick={() => window.history.forward()}
-        >
-          <ArrowRightIcon className="size-4" />
-        </Button>
+        {isElectron ? (
+          <>
+            <ElectronHistoryButton direction="back" />
+            <ElectronHistoryButton direction="forward" />
+          </>
+        ) : (
+          <>
+            <HistoryButton direction="back" enabled />
+            <HistoryButton direction="forward" enabled />
+          </>
+        )}
         {pillLabel ? (
           <div className="drag-region ml-2 flex items-center">
             <Badge data-environment-identification="pill" size="sm" variant="secondary">
@@ -457,6 +458,26 @@ function SidebarControl({ onWidthChange }: { onWidthChange: (width: number) => v
       </div>
     </div>
   );
+}
+
+function HistoryButton({ direction, enabled }: { direction: HistoryDirection; enabled: boolean }) {
+  const Icon = direction === "back" ? ArrowLeftIcon : ArrowRightIcon;
+  return (
+    <Button
+      size="icon-sm"
+      variant="ghost-muted"
+      aria-label={direction === "back" ? "Back" : "Forward"}
+      disabled={!enabled}
+      onClick={() => navigateHistory(direction)}
+    >
+      <Icon className="size-4" />
+    </Button>
+  );
+}
+
+/** Electron has the Navigation API, so its buttons can show when there is nowhere to go. */
+function ElectronHistoryButton({ direction }: { direction: HistoryDirection }) {
+  return <HistoryButton direction={direction} enabled={useCanNavigateHistory(direction)} />;
 }
 
 /** On phones the sidebar is a sheet: the rail runs down its left edge. */
@@ -628,6 +649,7 @@ export function AppSidebarLayout({ children }: { children: ReactNode }) {
         {sidebarHidden ? null : <SidebarControl onWidthChange={setTitlebarControlsWidth} />}
         <ShellAppTracker />
         <ShellKeybindings />
+        {isElectron ? <HistorySwipeNavigation /> : null}
       </SidebarProvider>
     </PanelAnimationSuppressionProvider>
   );

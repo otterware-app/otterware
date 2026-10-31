@@ -868,8 +868,13 @@ function WhenClauseControl({
   onChange: (value: KeybindingWhenNode | undefined) => void;
   onValidityChange: (valid: boolean) => void;
 }) {
+  // Closing unmounts the builder, which drops an unparsed draft and keeps the last valid value.
+  const handleOpenChange = (open: boolean) => {
+    if (!open) onValidityChange(true);
+  };
+
   return (
-    <Popover>
+    <Popover onOpenChange={handleOpenChange}>
       <PopoverTrigger
         render={
           <Button
@@ -1288,27 +1293,6 @@ function BrowserKeybindingNotice() {
       </TooltipPopup>
     </Tooltip>
   );
-}
-
-function keybindingAnchorIds(rows: ReturnType<typeof buildKeybindingRows>) {
-  const ids = new Map<string, string>();
-  const seen = new Set<KeybindingCommand>();
-  for (const row of rows) {
-    if (seen.has(row.command)) continue;
-    seen.add(row.command);
-    ids.set(row.id, keybindingSearchAnchorId(row.command));
-  }
-  return ids;
-}
-
-// Cache rows in a separate hook so the compiler does not rebuild them per search keystroke.
-function useKeybindingCatalog() {
-  const serverKeybindings = useSettingsScope().environment?.serverConfig?.keybindings;
-  const merged = mergeWithDefaultKeybindings(serverKeybindings ?? []);
-  return {
-    commandOptions: buildKeybindingCommandOptions(merged),
-    allRows: buildKeybindingRows(merged),
-  };
 }
 
 export function KeybindingsSettingsPanel() {

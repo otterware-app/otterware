@@ -31,6 +31,7 @@ it.live("runs in the provisioned Otter directory and cleans failed agent activat
     let forwards = 0;
     let failForward = true;
     let rejectConfig = true;
+    const releases: Array<string | undefined> = [];
     const spawner = ChildProcessSpawner.make((command) =>
       Effect.gen(function* () {
         if (command._tag !== "StandardCommand") return yield* Effect.die("Unexpected command");
@@ -132,7 +133,12 @@ it.live("runs in the provisioned Otter directory and cleans failed agent activat
       Effect.provideService(
         HttpClient.HttpClient,
         HttpClient.make((request) =>
-          Effect.succeed(HttpClientResponse.fromWeb(request, new Response("ok"))),
+          Effect.sync(() => {
+            if (!request.url.endsWith("/rpc"))
+              return HttpClientResponse.fromWeb(request, new Response("ok"));
+            releases.push(request.headers.authorization);
+            return HttpClientResponse.fromWeb(request, Response.json({ result: { ok: true } }));
+          }),
         ),
       ),
     );
@@ -178,6 +184,10 @@ it.live("runs in the provisioned Otter directory and cleans failed agent activat
     yield* host.ensureAgentReady(() => Effect.void);
     yield* host.platformAvailability("ios");
     expect((yield* host.summary).agentDeviceInstalled).toBe(true);
+    // Close releases agent sessions through the forwarded daemon.
+    const agentReady = yield* host.current;
+    yield* agentReady!.releaseAgentSession!("t3-session", "device");
+    expect(releases).toEqual(["Bearer fixture"]);
     yield* host.stopAgent;
     expect(forwards).toBe(1);
     const multiplexingOff = ["ControlMaster=no", "ControlPath=none", "ControlPersist=no"];

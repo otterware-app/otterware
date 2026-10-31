@@ -31,6 +31,7 @@ import { revisionedQuery } from "~/state/revisionedQuery";
 import { cn } from "~/lib/utils";
 import {
   resolveToolCallDiffTarget,
+  selectThreadBranchBaseRef,
   selectThreadDiffPanelSelection,
   useDiffPanelSessionStore,
   useDiffPanelStore,
@@ -286,6 +287,9 @@ export default function DiffPanel({
   const diffSelection = useDiffPanelStore((state) =>
     selectThreadDiffPanelSelection(state.byThreadKey, routeThreadRef),
   );
+  const rememberedBaseRef = useDiffPanelStore((state) =>
+    selectThreadBranchBaseRef(state, routeThreadRef),
+  );
   const toolCallSelection = diffSelection.kind === "tool-call" ? diffSelection : null;
   const isGitSelection =
     diffSelection.kind === "branch" ||
@@ -321,7 +325,10 @@ export default function DiffPanel({
   const selectedRunId = diffSelection.kind === "turn" ? diffSelection.turnId : null;
   const selectedCommitSha = diffSelection.kind === "commit" ? diffSelection.sha : null;
   const selectedGitScope = diffSelection.kind === "unstaged" ? "unstaged" : "branch";
-  const selectedBaseRef = diffSelection.kind === "branch" ? diffSelection.baseRef : null;
+  const selectedBaseRef =
+    diffSelection.kind === "branch" || diffSelection.kind === "commit"
+      ? diffSelection.baseRef
+      : null;
   const selectedFilePath = diffSelection.kind === "turn" ? diffSelection.filePath : null;
   const selectedFileRevealRequestId =
     diffSelection.kind === "turn" ? diffSelection.revealRequestId : 0;
@@ -348,7 +355,7 @@ export default function DiffPanel({
     ? `tool-call:${toolCallSelection.threadId}:${toolCallSelection.itemId}`
     : selectedTurn
       ? `turn:${selectedTurn.runId}`
-      : selectedCommitSha
+      : selectedCommitSha !== null
         ? `commit:${selectedCommitSha}`
         : selectedGitScope;
   const collapseScopeKey = routeThreadRef
@@ -364,13 +371,10 @@ export default function DiffPanel({
         : selectedGitScope === "unstaged"
           ? "Uncommitted changes"
           : "All changes";
-  // All changes include uncommitted work; a commit is read on its own. Uncommitted changes keep
-  // the default preview, which older servers also answer.
-  const previewSourceRequest: ReviewDiffPreviewSourceRequest | undefined = selectedCommitSha
-    ? { commit: selectedCommitSha }
-    : diffSelection.kind === "branch"
-      ? "all"
-      : undefined;
+  // All changes include uncommitted work. Uncommitted changes and commits keep upstream's
+  // requests, which older servers also answer.
+  const previewSourceRequest: ReviewDiffPreviewSourceRequest | undefined =
+    diffSelection.kind === "branch" ? "all" : undefined;
   const selectedCheckpointRange =
     typeof selectedCheckpointTurnCount === "number"
       ? {
@@ -394,6 +398,7 @@ export default function DiffPanel({
       ? {
           cwd: activeCwd,
           ...(selectedBaseRef ? { baseRef: selectedBaseRef } : {}),
+          ...(selectedCommitSha !== null ? { commitSha: selectedCommitSha } : {}),
           ...(previewSourceRequest ? { source: previewSourceRequest } : {}),
           ignoreWhitespace: diffIgnoreWhitespace,
         }
@@ -413,6 +418,17 @@ export default function DiffPanel({
         )
       : null,
   );
+  const branchCommits = useEnvironmentQuery(
+    visible && isGitRepo && canReadFiles && activeThread && activeCwd
+      ? reviewEnvironment.branchCommits({
+          environmentId: activeThread.environmentId,
+          input: {
+            cwd: activeCwd,
+            ...(rememberedBaseRef ? { baseRef: rememberedBaseRef } : {}),
+          },
+        })
+      : null,
+  );
   const activeThreadRefreshKey = routeThreadRef
     ? `${routeThreadRef.environmentId}:${routeThreadRef.threadId}`
     : null;
@@ -424,19 +440,6 @@ export default function DiffPanel({
       : // Servers without the `all` source answer with the committed branch range.
         (previewSources.find((source) => source.kind === "all") ??
         previewSources.find((source) => source.kind === "branch-range"));
-  const commitsBaseRef = useDiffPanelStore((state) =>
-    routeThreadRef
-      ? (state.branchBaseRefByThreadKey[scopedThreadKey(routeThreadRef)] ?? null)
-      : null,
-  );
-  const branchCommits = useEnvironmentQuery(
-    isGitRepo && activeThread && activeCwd
-      ? reviewEnvironment.commits({
-          environmentId: activeThread.environmentId,
-          input: { cwd: activeCwd, ...(commitsBaseRef ? { baseRef: commitsBaseRef } : {}) },
-        })
-      : null,
-  );
   const refreshVcsStatus = useAtomCommand(vcsEnvironment.refreshStatus, {
     reportFailure: false,
   });
@@ -543,7 +546,8 @@ export default function DiffPanel({
     cwd: branchDiffPreview.data?.cwd,
     source: lazySource,
     sourceRequest: previewSourceRequest,
-    baseRef: lazySource?.baseRef ?? selectedBaseRef,
+    baseRef:
+      selectedCommitSha !== null ? selectedBaseRef : (lazySource?.baseRef ?? selectedBaseRef),
     ignoreWhitespace: diffIgnoreWhitespace,
     theme: resolvedTheme,
     previewInput: branchDiffPreviewInput,
@@ -884,14 +888,13 @@ export default function DiffPanel({
         : selectedGitScope === "unstaged"
           ? "Uncommitted"
           : "All changes";
-  const scopeMenuTitle = selectedCommit?.subject || selectedScopeLabel;
+  const scopeMenuTitle =
+    selectedCommit?.subject || selectedGitSource?.commitSubject || selectedScopeLabel;
   // What the comparison resolves to: the server's answer when it gave one, else the pick.
   const resolvedBaseRef =
-    branchCommits.data?.baseRef ??
     (selectedGitSource?.kind === "branch-range" || selectedGitSource?.kind === "all"
       ? selectedGitSource.baseRef
-      : null) ??
-    commitsBaseRef;
+      : null) ?? rememberedBaseRef;
   const previewCwd = branchDiffPreview.data?.cwd ?? activeCwd;
   const headerRow = (
     <>
@@ -918,7 +921,7 @@ export default function DiffPanel({
                   <DiffTargetBranchPicker
                     environmentId={activeThread.environmentId}
                     cwd={previewCwd}
-                    selectedBaseRef={commitsBaseRef}
+                    selectedBaseRef={rememberedBaseRef}
                     resolvedBaseRef={resolvedBaseRef}
                     headRef={gitStatusQuery.data?.refName ?? selectedGitSource?.headRef ?? null}
                     onSelect={(baseRef) =>
@@ -1199,7 +1202,9 @@ export default function DiffPanel({
                         ? "Loading checkpoint diff..."
                         : selectedGitScope === "unstaged"
                           ? "Loading uncommitted changes..."
-                          : "Loading changes..."
+                          : selectedCommitSha !== null
+                            ? "Loading commit..."
+                            : "Loading changes..."
                   }
                 />
               ) : (
