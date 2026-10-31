@@ -1,4 +1,4 @@
-import type { ReviewCommit, RunId } from "@t3tools/contracts";
+import type { ReviewBranchCommitsResult, RunId } from "@t3tools/contracts";
 import { CheckIcon, ChevronDownIcon } from "~/lib/icons";
 import { useState, type ReactNode } from "react";
 
@@ -76,7 +76,7 @@ export function DiffScopeMenu(props: {
   /** Known only while the "All changes" scope is loaded; null hides the count. */
   readonly allFileCount: number | null;
   readonly uncommittedFileCount: number | null;
-  readonly commits: ReadonlyArray<ReviewCommit>;
+  readonly commits: ReviewBranchCommitsResult["commits"];
   readonly commitsTruncated: boolean;
   readonly turns: ReadonlyArray<DiffScopeMenuTurn>;
   /** Shown at the top while it applies; turns are read from checkpoints, not a branch. */
@@ -161,10 +161,7 @@ export function DiffScopeMenu(props: {
                     detail={
                       <>
                         <span className="font-mono">{commit.sha.slice(0, 7)}</span>
-                        {commit.authorName ? ` • ${commit.authorName}` : ""}
-                        {commit.authoredAt
-                          ? ` • ${formatRelativeTimeLabel(commit.authoredAt)}`
-                          : ""}
+                        {` • ${formatRelativeTimeLabel(commit.committedAt)}`}
                       </>
                     }
                   />

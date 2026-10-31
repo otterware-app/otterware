@@ -156,6 +156,7 @@ describe("diffPanelStore", () => {
     expect(selectThreadDiffPanelSelection(state.byThreadKey, THREAD_REF)).toEqual({
       kind: "commit",
       sha: "abc1234",
+      baseRef: "origin/main",
     });
     expect(Object.values(state.branchBaseRefByThreadKey)).toEqual(["origin/main"]);
 
@@ -170,7 +171,7 @@ describe("diffPanelStore", () => {
     useDiffPanelStore.getState().selectCommit(THREAD_REF, "abc1234");
     expect(
       selectThreadDiffPanelSelection(useDiffPanelStore.getState().byThreadKey, THREAD_REF),
-    ).toEqual({ kind: "commit", sha: "abc1234" });
+    ).toEqual({ kind: "commit", sha: "abc1234", baseRef: "origin/main" });
 
     useDiffPanelStore.getState().selectGitScope(THREAD_REF, "branch");
     expect(

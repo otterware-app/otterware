@@ -11,23 +11,17 @@ export const ReviewDiffPreviewSourceKind = Schema.Literals([
 ]);
 export type ReviewDiffPreviewSourceKind = typeof ReviewDiffPreviewSourceKind.Type;
 
-/** A full or abbreviated commit id. Kept to hex so it can never be read as a git option. */
-export const ReviewCommitSha = TrimmedNonEmptyString.check(Schema.isPattern(/^[0-9a-f]{4,64}$/i));
-
 /**
- * Asks for one source instead of the default working-tree and branch-range pair: `all` is
- * committed and uncommitted work against the merge base, `{ commit }` one commit against its
- * first parent. Older servers ignore it and answer with the default pair.
+ * `all` asks for committed and uncommitted work against the merge base as one source instead of
+ * the default working-tree and branch-range pair. Older servers ignore it and answer with the pair.
  */
-export const ReviewDiffPreviewSourceRequest = Schema.Union([
-  Schema.Literal("all"),
-  Schema.Struct({ commit: ReviewCommitSha }),
-]);
+export const ReviewDiffPreviewSourceRequest = Schema.Literal("all");
 export type ReviewDiffPreviewSourceRequest = typeof ReviewDiffPreviewSourceRequest.Type;
 
 export const ReviewDiffPreviewInput = Schema.Struct({
   cwd: TrimmedNonEmptyString,
   baseRef: Schema.optional(TrimmedNonEmptyString),
+  commitSha: Schema.optional(TrimmedNonEmptyString),
   ignoreWhitespace: Schema.optionalKey(Schema.Boolean),
   source: Schema.optionalKey(ReviewDiffPreviewSourceRequest),
   file: Schema.optionalKey(
@@ -39,6 +33,24 @@ export const ReviewDiffPreviewInput = Schema.Struct({
   ),
 });
 export type ReviewDiffPreviewInput = typeof ReviewDiffPreviewInput.Type;
+
+export const ReviewBranchCommitsInput = Schema.Struct({
+  cwd: TrimmedNonEmptyString,
+  baseRef: Schema.optional(TrimmedNonEmptyString),
+});
+export type ReviewBranchCommitsInput = typeof ReviewBranchCommitsInput.Type;
+
+export const ReviewBranchCommitsResult = Schema.Struct({
+  commits: Schema.Array(
+    Schema.Struct({
+      sha: Schema.String,
+      subject: Schema.String,
+      committedAt: Schema.String,
+    }),
+  ),
+  truncated: Schema.Boolean,
+});
+export type ReviewBranchCommitsResult = typeof ReviewBranchCommitsResult.Type;
 
 export const ReviewDiffFileStat = Schema.Struct({
   path: Schema.String,
@@ -52,6 +64,7 @@ export const ReviewDiffPreviewSource = Schema.Struct({
   id: TrimmedNonEmptyString,
   kind: ReviewDiffPreviewSourceKind,
   title: TrimmedNonEmptyString,
+  commitSubject: Schema.optionalKey(TrimmedNonEmptyString),
   baseRef: Schema.NullOr(TrimmedNonEmptyString),
   headRef: Schema.NullOr(TrimmedNonEmptyString),
   diff: Schema.String,
@@ -87,28 +100,3 @@ export type ReviewDiffPreviewResult = typeof ReviewDiffPreviewResult.Type;
 
 export const ReviewDiffPreviewError = Schema.Union([VcsError, GitCommandError]);
 export type ReviewDiffPreviewError = typeof ReviewDiffPreviewError.Type;
-
-export const ReviewListCommitsInput = Schema.Struct({
-  cwd: TrimmedNonEmptyString,
-  baseRef: Schema.optional(TrimmedNonEmptyString),
-});
-export type ReviewListCommitsInput = typeof ReviewListCommitsInput.Type;
-
-export const ReviewCommit = Schema.Struct({
-  sha: TrimmedNonEmptyString,
-  subject: Schema.String,
-  /** Absent on older servers. */
-  authorName: Schema.optionalKey(Schema.String),
-  authoredAt: Schema.String,
-});
-export type ReviewCommit = typeof ReviewCommit.Type;
-
-export const ReviewListCommitsResult = Schema.Struct({
-  /** Commits on HEAD that are not on the base branch, newest first. */
-  commits: Schema.Array(ReviewCommit),
-  /** The base branch the commits were read against. Absent on older servers. */
-  baseRef: Schema.optionalKey(Schema.NullOr(TrimmedNonEmptyString)),
-  /** More commits exist than the list holds. Absent on older servers. */
-  truncated: Schema.optionalKey(Schema.Boolean),
-});
-export type ReviewListCommitsResult = typeof ReviewListCommitsResult.Type;

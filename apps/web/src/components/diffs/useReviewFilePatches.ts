@@ -200,6 +200,7 @@ function reviewFileQueries({
                 request: {
                   cwd,
                   ...(baseRef ? { baseRef } : {}),
+                  ...(source.kind === "commit" ? { commitSha: source.id } : {}),
                   ...(sourceRequest ? { source: sourceRequest } : {}),
                   ignoreWhitespace,
                   file: {

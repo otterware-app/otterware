@@ -30,6 +30,7 @@ import * as PeerLinkRequests from "../peer/PeerLinkRequests.ts";
 import * as PeerLinks from "../peer/PeerLinks.ts";
 import * as RemoteDelegation from "../peer/RemoteDelegation.ts";
 import * as PreviewBrowser from "../preview/PreviewBrowser.ts";
+import * as ProjectCloneTracker from "../project/ProjectCloneTracker.ts";
 import * as ProjectService from "../project/ProjectService.ts";
 import * as DocumentText from "../provider/DocumentText.ts";
 import * as ProjectSetupScriptRunner from "../project/ProjectSetupScriptRunner.ts";
@@ -74,6 +75,7 @@ const layerStubServices = Layer.mergeAll(
   Layer.mock(PeerLinks.PeerLinks)({}),
   Layer.mock(RemoteDelegation.RemoteDelegation)({}),
   Layer.mock(ProjectService.ProjectService)({}),
+  Layer.mock(ProjectCloneTracker.ProjectCloneTracker)({}),
   Layer.mock(DocumentText.DocumentText)({}),
   ServerSettings.layerTest({}),
   Layer.mock(GitWorkflowService.GitWorkflowService)({}),

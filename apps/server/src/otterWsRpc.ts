@@ -3,7 +3,6 @@ import * as Effect from "effect/Effect";
 import * as Schema from "effect/Schema";
 
 import * as LinearIssueSyncReactor from "./linear/LinearIssueSyncReactor.ts";
-import * as ReviewService from "./review/ReviewService.ts";
 import * as ServerSettings from "./serverSettings.ts";
 import type { WorkspaceLanguageService } from "./workspace/WorkspaceLanguageService.ts";
 import { languageServerStatuses } from "./workspace/languageServers.ts";
@@ -15,7 +14,6 @@ export const layerOtterWsRpc = (workspaceLanguage: WorkspaceLanguageService) =>
   OtterWsRpcGroup.toLayer(
     Effect.gen(function* () {
       const linearIssues = yield* LinearIssueSyncReactor.LinearIssueSyncReactor;
-      const review = yield* ReviewService.ReviewService;
       const serverSettings = yield* ServerSettings.ServerSettingsService;
       // Unreadable settings must not take code intelligence down with them.
       const codeIntelligence = serverSettings.getSettings.pipe(
@@ -46,7 +44,6 @@ export const layerOtterWsRpc = (workspaceLanguage: WorkspaceLanguageService) =>
             Effect.flatMap((settings) => Effect.promise(() => languageServerStatuses(settings))),
             Effect.map((servers) => ({ servers })),
           ),
-        [WS_METHODS.reviewListCommits]: (input) => review.listCommits(input),
       });
     }),
   );
