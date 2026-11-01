@@ -67,6 +67,17 @@ function contrastRatio(first: string, second: string): number {
 }
 
 describe("theme files", () => {
+  it("gives non-Latin theme names distinct stable ids", () => {
+    const file = {
+      version: THEME_FILE_VERSION,
+      appearance: "dark",
+      colors: { canvas: "#101820" },
+    };
+    const night = parseThemeFile({ ...file, name: "夜" });
+    expect(parseThemeFile({ ...file, name: "朝" }).id).not.toBe(night.id);
+    expect(parseThemeFile({ ...file, name: " 夜 " }).id).toBe(night.id);
+  });
+
   it("keeps Synara send actions neutral and its status accents orange", () => {
     for (const appearance of ["light", "dark"] as const) {
       const colors = getThemeColorsForMode(SYNARA_THEME, appearance)!;

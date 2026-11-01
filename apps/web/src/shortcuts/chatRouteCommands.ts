@@ -11,6 +11,7 @@ import { isCommandPaletteOpen, openCommandPalette } from "../commandPaletteBus";
 import { useComposerDraftStore } from "../composerDraftStore";
 import { dispatchPreviewAction, type PreviewAction } from "../components/preview/previewActionBus";
 import { isAppModalPage } from "../components/sidebar/mainAppLocation";
+import { shouldCreateNewThreadInCurrentProject } from "../components/Sidebar.logic";
 import { createNewThreadHandler, resolveDefaultProjectRef } from "../hooks/useHandleNewThread";
 import { readActiveProjectSpace } from "../hooks/useProjectSpace";
 import { createScratchProjectActions } from "../hooks/useScratchProject";
@@ -99,16 +100,18 @@ export function installChatRouteCommands(router: AnyRouter): () => void {
         : undefined,
     };
   };
-  // Counted within the rail's space: a group of one project has no choice to make.
-  const readProjectGroupCount = () => {
+  // Grouped like the sidebar and counted within the rail's space, so the shortcut and the
+  // New thread button agree: a group of one project has no choice to make.
+  const readProjectGroups = () => {
     const { projectFilter } = readActiveProjectSpace();
     const projects = readProjects();
     return buildSidebarProjectSnapshots({
       projects: projectFilter === null ? projects : projects.filter(projectFilter),
+      groupScratchProjects: true,
       settings: selectProjectGroupingSettings(getClientSettings()),
       primaryEnvironmentId: appAtomRegistry.get(primaryEnvironmentIdAtom),
       resolveEnvironmentLabel: () => null,
-    }).length;
+    });
   };
   const canOperatePreview = (environmentId: EnvironmentId) =>
     readEnvironmentScope(environmentId, AuthPreviewOperateScope);
@@ -131,7 +134,7 @@ export function installChatRouteCommands(router: AnyRouter): () => void {
   // without one where the machine offers it; otherwise the user adds a project.
   const startInEmptySpace = (event: KeyboardEvent) => {
     const { space } = readActiveProjectSpace();
-    if (space.kind === "chats" || readProjectGroupCount() > 0) return false;
+    if (space.kind === "chats" || readProjectGroups().length > 0) return false;
     claim(event);
     const environmentId = space.kind === "all" ? readScratchEnvironmentId() : null;
     if (environmentId !== null) void scratch.startScratchThread(environmentId);
@@ -142,7 +145,10 @@ export function installChatRouteCommands(router: AnyRouter): () => void {
   const startNewLocal: CommandHandler = (event) => {
     if (startInEmptySpace(event)) return;
     claim(event);
-    void startNewThreadFromContext(readThreadContext());
+    // With no current or open project, such as when every project is archived, pick one.
+    void startNewThreadFromContext(readThreadContext()).then((started) => {
+      if (!started) openCommandPalette({ open: "new-thread-in" });
+    });
   };
 
   const previewCommand =
@@ -177,7 +183,16 @@ export function installChatRouteCommands(router: AnyRouter): () => void {
         // The boring sidebar's folders already show the context, so it starts in
         // the current project like the legacy sidebar did.
         const { boringSidebarEnabled, legacySidebarEnabled } = getClientSettings();
-        if (!boringSidebarEnabled && !legacySidebarEnabled && readProjectGroupCount() > 1) {
+        const groups = readProjectGroups();
+        if (
+          !boringSidebarEnabled &&
+          !legacySidebarEnabled &&
+          !shouldCreateNewThreadInCurrentProject(
+            false,
+            groups.filter((group) => !group.archived).length,
+            groups.length,
+          )
+        ) {
           claim(event);
           openCommandPalette({ open: "new-thread-in" });
           return;

@@ -27,6 +27,8 @@ const EXTRA_OWNERS = [
   [/^native\/browser-secret\//, ["@t3tools/desktop"]],
   [/^native\/kde-snap-shot\//, ["@t3tools/desktop"]],
   [/^native\/libghostty-vt\//, ["@t3tools/web"]],
+  // apps/server/src/cloud/ConnectReachability.test.ts checks the guide's headings.
+  [/^docs\/user\/t3-connect-troubleshooting\.md$/, ["t3"]],
 ];
 const RUST = /^native\/(resource-monitor|kde-snap-shot|hyprland-snap-shot)\//;
 
@@ -60,11 +62,19 @@ function readWorkspace() {
     if (entry) patterns.push(entry[1]);
   }
 
-  const dirs = patterns.flatMap((pattern) => {
-    if (!pattern.endsWith("/*")) return [pattern];
-    const parent = pattern.slice(0, -2);
-    return fs.readdirSync(path.join(root, parent)).map((name) => `${parent}/${name}`);
-  });
+  // Each `*` segment matches one directory level, as in `modules/*/*`.
+  const expand = (prefix, segments) => {
+    if (segments.length === 0) return [prefix];
+    const [segment, ...rest] = segments;
+    if (segment !== "*") return expand(prefix ? `${prefix}/${segment}` : segment, rest);
+    const dir = path.join(root, prefix);
+    if (!fs.existsSync(dir)) return [];
+    return fs
+      .readdirSync(dir, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .flatMap((entry) => expand(`${prefix}/${entry.name}`, rest));
+  };
+  const dirs = patterns.flatMap((pattern) => expand("", pattern.split("/")));
 
   const packages = [];
   for (const dir of dirs) {
@@ -92,11 +102,11 @@ function readWorkspace() {
 
 // [] means inert; null means unknown and requires every job.
 function ownersOf(file, packages) {
-  if (INERT.some((pattern) => pattern.test(file))) return [];
+  const extra = EXTRA_OWNERS.flatMap(([pattern, names]) => (pattern.test(file) ? names : []));
+  if (INERT.some((pattern) => pattern.test(file))) return extra;
   // A manifest can change dependencies or versions other packages read.
   if (path.posix.basename(file) === "package.json") return null;
   if (RUNS_EVERYTHING.some((pattern) => pattern.test(file))) return null;
-  const extra = EXTRA_OWNERS.flatMap(([pattern, names]) => (pattern.test(file) ? names : []));
   // scripts/build-desktop-artifact.test.ts reads the crates' sources.
   if (RUST.test(file)) return ["@t3tools/scripts", ...extra];
 
