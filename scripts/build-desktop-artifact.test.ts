@@ -911,8 +911,7 @@ it.layer(NodeServices.layer)("build-desktop-artifact", (it) => {
         assert.isFalse(
           commands.some(
             (command) =>
-              command.command !== process.execPath &&
-              command.options.env?.ELECTRON_RUN_AS_NODE === "1",
+              command.command === NodePath.join(fixture.packagedAppDir, fixture.appExecutableName),
           ),
         );
         assert.isTrue(
