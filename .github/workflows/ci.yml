@@ -231,7 +231,8 @@ jobs:
     if: ${{ needs.plan.outputs.test == 'true' }}
     name: Test
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    # Setup takes about 1.5 minutes before the sequential suite starts.
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v6
