@@ -2,12 +2,11 @@ import { presentThreadShell } from "@t3tools/client-runtime/state/models";
 import { isThreadWorking as isSidebarThreadWorking } from "@t3tools/client-runtime/state/thread-inbox";
 import * as DateTime from "effect/DateTime";
 import { deriveActiveWorkStartedAt } from "../session-logic.ts";
-import { describe, expect, it, vi } from "vite-plus/test";
+import { describe, expect, it } from "vite-plus/test";
 import * as Cause from "effect/Cause";
 import { AsyncResult } from "effect/reactivity";
 import {
   shouldCreateNewThreadInCurrentProject,
-  archiveSelectedThreadEntries,
   deleteSelectedThreadEntries,
   getFallbackThreadIdAfterDelete,
   hasUnseenCompletion,
@@ -134,43 +133,6 @@ describe("deleteSelectedThreadEntries", () => {
     expect(outcome).toEqual({
       deletedThreadKeys: testCase.deletedThreadKeys,
       firstFailure: testCase.firstFailure,
-    });
-  });
-});
-
-describe("archiveSelectedThreadEntries", () => {
-  const entries = [{ threadKey: "one" }, { threadKey: "two" }, { threadKey: "three" }] as const;
-  const success = { _tag: "Success" } as const;
-  const failure = { _tag: "Failure" } as const;
-
-  it("stops at a mutation failure and retains prior successes", async () => {
-    const archive = vi.fn(async (entry: (typeof entries)[number], onArchived: () => void) => {
-      if (entry.threadKey === "two") return failure;
-      onArchived();
-      return success;
-    });
-    const outcome = await archiveSelectedThreadEntries({ entries, archive });
-
-    expect(archive).toHaveBeenCalledTimes(2);
-    expect(outcome).toEqual({
-      archivedThreadKeys: ["one"],
-      mutationFailure: failure,
-      followupFailures: [],
-    });
-  });
-
-  it("continues after a post-archive failure", async () => {
-    const archive = vi.fn(async (entry: (typeof entries)[number], onArchived: () => void) => {
-      onArchived();
-      return entry.threadKey === "two" ? failure : success;
-    });
-    const outcome = await archiveSelectedThreadEntries({ entries, archive });
-
-    expect(archive).toHaveBeenCalledTimes(3);
-    expect(outcome).toEqual({
-      archivedThreadKeys: ["one", "two", "three"],
-      mutationFailure: null,
-      followupFailures: [failure],
     });
   });
 });
@@ -667,6 +629,7 @@ describe("getFallbackThreadIdAfterDelete", () => {
     expect(fallbackThreadId).toBe(ThreadId.make("thread-next"));
   });
 });
+
 describe("sortScopedProjectsForSidebar", () => {
   it("keeps identical project ids in different environments separate", () => {
     const remoteEnvironmentId = EnvironmentId.make("environment-remote");

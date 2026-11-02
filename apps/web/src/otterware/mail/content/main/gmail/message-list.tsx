@@ -5,11 +5,9 @@ import type React from "react";
 import { ReactNode } from "react";
 import { useLayoutEffect, useEffect, useId, useMemo, useRef, useState } from "react";
 import {
-  DIM_READ_MESSAGES,
   OPEN_MESSAGES_WITH_ARROWS,
   GROUP_MESSAGES_BY_DAY,
   useInterfaceToggle,
-  useMessageListStyle,
 } from "../reading-preferences";
 import { Dialog } from "../../components/ui/dialog";
 import { EmptyState } from "../../components/ui/empty-state";
@@ -295,7 +293,7 @@ function MessageDayGroup({
   const unread = group.messages.filter((message) => message.threadUnread ?? message.unread).length;
   return (
     <section data-message-day={group.day}>
-      <h3 className="sticky top-0 z-10 bg-background">
+      <h3 className="sticky top-0 z-10 bg-background p-1">
         <button
           type="button"
           data-message-day-header=""
@@ -303,7 +301,7 @@ function MessageDayGroup({
           aria-expanded={!collapsed}
           aria-controls={bodyId}
           onClick={onToggle}
-          className="flex h-8 w-full cursor-pointer items-center gap-1.5 border-y border-border/60 px-4 text-left text-xs outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+          className="flex h-8 w-full cursor-pointer items-center gap-1.5 rounded-lg px-3 text-left text-xs outline-none hover:bg-sidebar-row-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
         >
           <ChevronDownIcon
             aria-hidden
@@ -312,8 +310,8 @@ function MessageDayGroup({
           <span className="min-w-0 flex-1 truncate font-medium text-foreground">{label}</span>
           <span className="shrink-0 tabular-nums text-muted-foreground">
             {group.messages.length}
+            {unread > 0 ? ` · ${unread} unread` : null}
           </span>
-          {unread > 0 ? <span className="shrink-0 text-primary">· {unread} unread</span> : null}
         </button>
       </h3>
       <div id={bodyId} hidden={collapsed}>
@@ -535,7 +533,7 @@ function MessageRow({
               if (e.shiftKey) e.preventDefault();
             }}
             className={[
-              " group relative flex w-full cursor-pointer select-none items-start gap-2.5 overflow-hidden px-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+              " group relative flex w-full cursor-pointer select-none items-start gap-2.5 overflow-hidden pl-5 pr-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
               selected
                 ? "bg-sidebar-row-active"
                 : checked
@@ -552,26 +550,28 @@ function MessageRow({
                 data-mail-message-list-row-header=""
               >
                 <span
-                  className=" flex min-w-0 flex-1 items-center gap-1.5"
+                  className="relative flex min-w-0 flex-1 items-center gap-1.5"
                   data-mail-message-list-sender=""
                 >
                   {unread && !selected ? (
-                    <span className="size-1.5 shrink-0 rounded-full bg-primary" aria-hidden />
+                    <span
+                      className="absolute -left-[13px] top-1/2 size-1.5 -translate-y-1/2 rounded-full bg-primary"
+                      aria-hidden
+                    />
                   ) : null}
-                  {labelIds.includes("IMPORTANT") ? <ImportantMarker muted /> : null}
                   {isDraft ? (
-                    <span className="shrink-0 text-sm font-medium leading-snug text-destructive-foreground">
+                    <span className="shrink-0 text-ui font-medium leading-snug text-destructive-foreground">
                       Draft
                     </span>
                   ) : null}
                   <span
                     className={[
-                      " min-w-0 truncate text-sm leading-snug",
+                      " min-w-0 truncate text-ui leading-snug",
                       isDraft
                         ? "text-muted-foreground"
                         : unread
                           ? "font-medium text-foreground"
-                          : "font-normal text-foreground",
+                          : "font-normal text-foreground/70",
                     ].join(" ")}
                     data-mail-message-list-sender-name=""
                   >
@@ -581,6 +581,7 @@ function MessageRow({
                         : ""
                       : senderLabel(message.fromName, message.fromEmail, ownerAccountId)}
                   </span>
+                  {labelIds.includes("IMPORTANT") ? <ImportantMarker muted /> : null}
                 </span>
                 <div className=" flex shrink-0 items-center gap-1.5" data-mail-message-list-meta="">
                   {threadCount > 1 ? (
@@ -627,13 +628,16 @@ function MessageRow({
               </div>
               <div className=" flex min-w-0 flex-col gap-0.5" data-mail-message-list-preview="">
                 <span
-                  className=" truncate text-sm leading-snug text-foreground/90"
+                  className={cn(
+                    "truncate text-ui leading-snug",
+                    unread ? "text-foreground" : "text-foreground/60",
+                  )}
                   data-mail-message-list-subject=""
                 >
                   {message.subject || "(no subject)"}
                 </span>
                 <span
-                  className=" truncate text-sm leading-snug text-muted-foreground/75"
+                  className="truncate text-ui leading-snug text-muted-foreground/75"
                   data-mail-message-list-snippet=""
                 >
                   {decodeEntities(message.snippet) || " "}
@@ -899,9 +903,7 @@ export function MessageList({
   search,
   project,
 }: MessageListProps) {
-  const messageListStyle = useMessageListStyle();
   const groupByDay = useInterfaceToggle(GROUP_MESSAGES_BY_DAY);
-  const dimReadMessages = useInterfaceToggle(DIM_READ_MESSAGES);
   const openMessagesWithArrows = useInterfaceToggle(OPEN_MESSAGES_WITH_ARROWS);
   const [cursor, setCursor] = useState<{ messageId: string; focusId?: string | undefined } | null>(
     null,
@@ -1987,9 +1989,7 @@ export function MessageList({
 
       <ScrollArea
         ref={scrollRef}
-        data-message-list-style={messageListStyle}
         data-group-messages-by-day={groupByDay || undefined}
-        data-dim-read-messages={dimReadMessages || undefined}
         onScroll={maybeLoadMore}
         className={cn(
           "flex-1",
@@ -2030,7 +2030,7 @@ export function MessageList({
               {["row-1", "row-2", "row-3", "row-4", "row-5", "row-6", "row-7", "row-8"].map(
                 (key) => (
                   <div key={key} className="" data-mail-message-list-group="">
-                    <div className=" px-3" data-mail-message-list-row="">
+                    <div className="pl-5 pr-3" data-mail-message-list-row="">
                       <div
                         className=" flex min-w-0 flex-1 flex-col gap-2"
                         data-mail-message-list-skeleton=""

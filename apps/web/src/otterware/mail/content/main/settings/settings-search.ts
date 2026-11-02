@@ -1,7 +1,6 @@
 import { MAIL_SETTING_ROWS } from "../../../settingsRows";
 const titles: Record<string, string> = {
   "sync-interval": "Check for new mail",
-  "message-list-style": "Message list style",
   "reading-width": "Reading width",
   "auto-translate": "Translate automatically",
   "mark-read-delay": "Mark as read delay",
@@ -22,7 +21,6 @@ const titles: Record<string, string> = {
   "read-languages": "Languages I read",
   "all-mailboxes": "All mailboxes",
   "send-feedback": "Send feedback",
-  "dim-read-messages": "Dim read messages",
   "group-messages-by-day": "Group messages by day",
   "open-messages-with-arrows": "Open messages with arrow keys",
   notifications: "Notifications",

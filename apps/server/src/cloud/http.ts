@@ -18,6 +18,7 @@ import * as HttpApiBuilder from "effect/http-api/HttpApiBuilder";
 
 import { requireEnvironmentScope } from "../auth/http.ts";
 import * as EnvironmentAuth from "../auth/EnvironmentAuth.ts";
+import * as ManagedLimits from "../policy/managedLimits.ts";
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
 import {
@@ -88,6 +89,8 @@ const connectErrorCases = {
   CloudLinkProofRejectedError: unauthorized,
   CloudLinkProofReplayedError: conflict,
   CloudLinkTunnelSupersededError: conflict,
+  ManagedPolicyRefusedError: (error: ManagedLimits.ManagedPolicyRefusedError) =>
+    Effect.fail(new EnvironmentHttpForbiddenError({ message: error.message })),
   CloudLinkInternalError: (error: CloudLink.CloudLinkInternalError) =>
     internalServerError(error, error.cause),
   RelayRequestError: relayFailure,
@@ -96,6 +99,7 @@ const connectErrorCases = {
 type ConnectFailure =
   | Exclude<CloudLink.CloudLinkError, CloudLink.CloudLinkEndpointUnavailableError>
   | EnvironmentAuth.ServerAuthInternalError
+  | ManagedLimits.ManagedPolicyRefusedError
   | RelayRequestError;
 
 const toHttpError = <A, R>(effect: Effect.Effect<A, ConnectFailure, R>) =>

@@ -71,6 +71,7 @@ export function V2LifecycleRow(props: {
         detail={item.message}
         tone="danger"
         icon={XIcon}
+        wrapDetail
       />
     );
   }
