@@ -1,18 +1,13 @@
 import { mailStorage } from "../host/storage";
 import { mailBridge, mailHost, isMailHost } from "../host/bridge";
 /**
- * UI choices that follow the Otter account to every device. They're kept in
- * localStorage (read synchronously, and shared by this app's windows) and
- * mirrored to the backend, which syncs them with the account (core's
- * services/preferences.ts, section `ui`). Changes from elsewhere land here as
- * `storage` events, which the modules owning these keys already listen to.
+ * UI choices that follow the Otter account: kept in localStorage (read synchronously) and
+ * mirrored to the backend's `ui` preferences. Remote changes arrive as `storage` events.
  */
 
 const SYNCED_KEYS = [
   "otter:reading-width",
-  "otter:message-list-style",
   "otter:group-messages-by-day",
-  "otter:dim-read-messages",
   "otter:mail-layout",
   "otter:open-messages-with-arrows",
   "otter:mark-read-delay",

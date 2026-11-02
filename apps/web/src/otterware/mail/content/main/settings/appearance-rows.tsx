@@ -6,28 +6,22 @@ import { RowSelect, SettingResetButton, SettingsRow, SettingsSection } from "./s
 import { searchableSetting } from "./settings-search";
 import {
   DEFAULT_MAIL_LAYOUT,
-  DEFAULT_MESSAGE_LIST_STYLE,
   DEFAULT_READING_WIDTH,
   MAIL_LAYOUTS,
-  MESSAGE_LIST_STYLES,
   READING_WIDTHS,
   GROUP_MESSAGES_BY_DAY,
-  DIM_READ_MESSAGES,
   OPEN_MESSAGES_WITH_ARROWS,
   MARK_READ_DELAY,
   useMailLayout,
-  useMessageListStyle,
   useReadingWidth,
   useInterfaceToggle,
   useInterfaceSetting,
   setMailLayout,
-  setMessageListStyle,
   setReadingWidth,
   setInterfaceToggle,
   setInterfaceSetting,
   type InterfaceToggle,
   type MailLayout,
-  type MessageListStyle,
   type ReadingWidth,
 } from "../reading-preferences";
 
@@ -88,32 +82,6 @@ function MailLayoutPreview({ layout }: { layout: MailLayout }) {
   );
 }
 
-const SAMPLE_MESSAGES = [
-  { sender: "Alex Morgan", subject: "Weekend plans", snippet: "How about Saturday?" },
-  { sender: "Jamie Lee", subject: "A little update", snippet: "Here's what I've been working on." },
-];
-
-/** Two sample rows, separated the way the style separates the message list. */
-function MessageListStylePreview({ style }: { style: MessageListStyle }) {
-  return (
-    <span className="absolute inset-0 flex flex-col bg-sidebar">
-      {SAMPLE_MESSAGES.map(({ sender, subject, snippet }) => (
-        <span
-          key={sender}
-          className={cn(
-            "flex min-w-0 flex-col px-3 text-2xs leading-tight",
-            style === "dividers" ? "border-b border-border/70 py-1.5" : "py-1",
-          )}
-        >
-          <span className="truncate font-medium text-foreground">{sender}</span>
-          <span className="truncate text-foreground/90">{subject}</span>
-          <span className="truncate text-muted-foreground/75">{snippet}</span>
-        </span>
-      ))}
-    </span>
-  );
-}
-
 function ToggleRow({
   id,
   toggle,
@@ -153,7 +121,6 @@ function ToggleRow({
 /** Mail › Appearance: how mail is laid out and read (Otter Mail's Appearance). */
 export function AppearanceRows() {
   const layout = useMailLayout();
-  const style = useMessageListStyle();
   const width = useReadingWidth();
   const delay = useInterfaceSetting(MARK_READ_DELAY);
   return (
@@ -182,42 +149,12 @@ export function AppearanceRows() {
           }))}
         />
       </SettingsSection>
-      <SettingsSection
-        {...searchableSetting("message-list-style")}
-        variant="plain"
-        headerAction={
-          style !== DEFAULT_MESSAGE_LIST_STYLE ? (
-            <SettingResetButton
-              label="message list style"
-              onClick={() => setMessageListStyle(DEFAULT_MESSAGE_LIST_STYLE)}
-            />
-          ) : null
-        }
-      >
-        <SettingsTilePicker
-          ariaLabel="Message list style"
-          value={style}
-          onValueChange={setMessageListStyle}
-          options={(Object.keys(MESSAGE_LIST_STYLES) as MessageListStyle[]).map((value) => ({
-            value,
-            label: MESSAGE_LIST_STYLES[value].label,
-            description: MESSAGE_LIST_STYLES[value].description,
-            preview: <MessageListStylePreview style={value} />,
-          }))}
-        />
-      </SettingsSection>
       <SettingsSection title="Message list">
         <ToggleRow
           id="group-messages-by-day"
           toggle={GROUP_MESSAGES_BY_DAY}
           resetLabel="group messages by day"
           description="Separate messages by day. Click a day heading to collapse or expand it."
-        />
-        <ToggleRow
-          id="dim-read-messages"
-          toggle={DIM_READ_MESSAGES}
-          resetLabel="dim read messages"
-          description="Give read messages a muted background so unread mail stands out."
         />
       </SettingsSection>
       <SettingsSection title="Reading">

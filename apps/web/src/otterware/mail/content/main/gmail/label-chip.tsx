@@ -1,11 +1,15 @@
 import { Badge } from "~/components/ui/badge";
 import { HintTooltip as ImportedMailTooltip } from "./ui";
-import { CSSProperties } from "react";
 import { ChevronsRightIcon, FolderIcon, InboxIcon, XIcon } from "lucide-react";
 import { GmailLabel } from "./types";
 
-function tint(color: string): CSSProperties {
-  return { "--label": color } as CSSProperties;
+const PILL =
+  "group relative inline-flex h-5 w-fit max-w-32 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-transparent px-2 text-2xs font-medium leading-none text-muted-foreground";
+
+function Dot({ color }: { color: string }) {
+  return (
+    <span aria-hidden className="size-1.5 shrink-0 rounded-full" style={{ background: color }} />
+  );
 }
 
 /** Hover-revealed remove control, after the name: the chip is see-through,
@@ -47,10 +51,11 @@ export function CategoryChip({
   const meta = CATEGORY_CHIPS[id];
   if (!meta) return null;
   return (
-    <Badge variant="label" size="sm" className="group max-w-32" style={tint(meta.bg)}>
+    <span className={PILL}>
+      <Dot color={meta.bg} />
       {meta.name}
       {onRemove ? <RemoveButton label={`Remove "${meta.name}"`} onRemove={onRemove} /> : null}
-    </Badge>
+    </span>
   );
 }
 
@@ -76,29 +81,24 @@ export function ImportantMarker({ muted }: { muted?: boolean | undefined }) {
 /** "Still in the inbox" marker, shown when browsing non-inbox views.
     `onRemove` (reader header) reveals a hover ✕ that archives. */
 export function InboxChip({
-  selected: _selected,
+  selected,
   onRemove,
 }: {
   selected?: boolean | undefined;
   onRemove?: (() => void) | undefined;
 }) {
   return (
-    <Badge variant="outline" size="sm" className="group max-w-32">
+    <span className={`${PILL} ${selected ? "border-foreground/20" : ""}`}>
       <InboxIcon className="size-3" />
       Inbox
       {onRemove ? <RemoveButton label="Archive" onRemove={onRemove} /> : null}
-    </Badge>
+    </span>
   );
 }
 
-/**
- * Chip for a label: tinted with the label's Gmail color, or a neutral outline
- * when the label has none. Selection only firms up the outline, since the
- * selected row is a quiet surface rather than a filled block.
- */
 export function LabelChip({
   label,
-  selected: _selected,
+  selected,
   onRemove,
 }: {
   label: GmailLabel;
@@ -106,28 +106,12 @@ export function LabelChip({
   onRemove?: (() => void) | undefined;
 }) {
   const displayName = label.name.split("/").pop() ?? label.name;
-  const remove = onRemove ? (
-    <RemoveButton label={`Remove "${displayName}"`} onRemove={onRemove} />
-  ) : null;
-  const text = <span className="min-w-0 truncate">{displayName}</span>;
-  if (label.color) {
-    return (
-      <Badge
-        variant="label"
-        size="sm"
-        className="group max-w-32"
-        style={tint(label.color.backgroundColor)}
-      >
-        {text}
-        {remove}
-      </Badge>
-    );
-  }
   return (
-    <Badge variant="outline" size="sm" className="group max-w-32">
-      {text}
-      {remove}
-    </Badge>
+    <span className={`${PILL} ${selected ? "border-foreground/20" : ""}`}>
+      {label.color ? <Dot color={label.color.backgroundColor} /> : null}
+      <span className="min-w-0 truncate">{displayName}</span>
+      {onRemove ? <RemoveButton label={`Remove "${displayName}"`} onRemove={onRemove} /> : null}
+    </span>
   );
 }
 

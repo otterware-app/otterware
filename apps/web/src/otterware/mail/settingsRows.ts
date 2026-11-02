@@ -12,9 +12,7 @@ export const MAIL_SETTING_ROWS = {
   }),
   appearance: rows({
     "mail-layout": "Mail layout",
-    "message-list-style": "Message list style",
     "group-messages-by-day": "Group messages by day",
-    "dim-read-messages": "Dim read messages",
     "open-messages-with-arrows": "Open messages with arrow keys",
     "mark-read-delay": "Mark as read delay",
     "reading-width": "Reading width",
